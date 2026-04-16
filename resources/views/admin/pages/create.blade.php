@@ -40,7 +40,9 @@
                                 </div>
                                 <input class="form-control form-control-sm {{ $errors->has('slug') ? 'is-invalid' : '' }}" type="text" name="slug" id="slug" value="{{ old('slug', '') }}" required style="border-color:#e5e7eb; font-size:0.85rem;">
                             </div>
-                            <span class="help-block text-info mt-1"><i class="fas fa-info-circle"></i> {!! trans('vela::global.homepage_slug_help') !!}</span>
+                            @if(!\VelaBuild\Core\Models\Page::where('slug', 'home')->exists())
+                                <span class="help-block text-info mt-1"><i class="fas fa-info-circle"></i> {!! trans('vela::global.homepage_slug_help') !!}</span>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -69,14 +71,7 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label>{{ trans('vela::global.language') }}</label>
-                                <select class="form-control" name="locale" id="locale" required>
-                                    @foreach($locales as $code => $name)
-                                        <option value="{{ $code }}" {{ old('locale', 'en') === $code ? 'selected' : '' }}>{{ $name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            <input type="hidden" name="locale" value="{{ config('vela.primary_language', 'en') }}">
                             <button class="btn publish-btn btn-block" type="submit" id="page-save-btn">
                                 <i class="fas fa-check mr-1"></i> {{ trans('vela::global.save_page') }}
                             </button>
@@ -96,10 +91,6 @@
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="form-group">
-                                <label>{{ trans('vela::global.sort_order') }}</label>
-                                <input class="form-control" type="number" name="order_column" id="order_column" value="{{ old('order_column', 0) }}">
-                            </div>
                         </div>
                     </div>
 
@@ -113,7 +104,7 @@
                             </div>
                             <div class="form-group">
                                 <label>{{ trans('vela::global.meta_description') }}</label>
-                                <textarea class="form-control" name="meta_description" id="meta_description" rows="2" placeholder="{{ trans('vela::global.meta_description_placeholder') }}">{{ old('meta_description', '') }}</textarea>
+                                <textarea class="form-control" name="meta_description" id="meta_description" rows="3" style="min-height:auto" placeholder="{{ trans('vela::global.meta_description_placeholder') }}">{{ old('meta_description', '') }}</textarea>
                             </div>
                             <div class="form-group">
                                 <label>{{ trans('vela::global.social_image') }}</label>

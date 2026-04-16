@@ -30,6 +30,18 @@ PageEditor.registerBlockType = function(name, config) {
             : '/admin/pages/ckmedia';
     }
 
+    function getMediaUrl() {
+        return (window.PageEditorConfig && window.PageEditorConfig.mediaUrl)
+            ? window.PageEditorConfig.mediaUrl
+            : '/admin/media';
+    }
+
+    function getMediaUploadUrl() {
+        return (window.PageEditorConfig && window.PageEditorConfig.mediaUploadUrl)
+            ? window.PageEditorConfig.mediaUploadUrl
+            : '/admin/media/media';
+    }
+
     // --- Helper ---
     function escHtml(str) {
         if (!str) return '';
@@ -48,10 +60,6 @@ PageEditor.registerBlockType = function(name, config) {
             data: data,
             tools: {
                 header: Header,
-                list: List,
-                quote: Quote,
-                table: Table,
-                embed: Embed,
                 image: {
                     class: ImageTool,
                     config: {
@@ -68,10 +76,23 @@ PageEditor.registerBlockType = function(name, config) {
                                     if (resp && resp.url) return { success: 1, file: { url: resp.url } };
                                     return Promise.reject('Upload failed');
                                 });
+                            },
+                            uploadByUrl: function(url) {
+                                return Promise.resolve({ success: 1, file: { url: url } });
                             }
                         }
                     }
-                }
+                },
+                list: List,
+                checklist: Checklist,
+                quote: Quote,
+                warning: Warning,
+                delimiter: Delimiter,
+                table: Table,
+                embed: Embed,
+                inlineCode: InlineCode,
+                marker: Marker,
+                underline: Underline
             }
         });
     }
@@ -108,6 +129,82 @@ PageEditor.registerBlockType = function(name, config) {
         });
     }
 
+    // --- Media Browser ---
+    var _mediaBrowserCallback = null;
+    var _mediaBrowserCursor = null;
+    var _mediaBrowserLoading = false;
+    var _mediaBrowserDone = false;
+
+    var _mediaBrowserMulti = false;
+    var _mediaBrowserMultiCallback = null;
+    var _mediaBrowserSelected = [];
+
+    function openMediaBrowser(callback) {
+        _mediaBrowserCallback = callback;
+        _mediaBrowserMulti = false;
+        _mediaBrowserMultiCallback = null;
+        _mediaBrowserSelected = [];
+        _mediaBrowserCursor = null;
+        _mediaBrowserDone = false;
+        _mediaBrowserLoading = false;
+        $('#media-browser-grid').empty().removeClass('multi-select');
+        $('#media-browser-empty').hide();
+        $('#media-browser-bulk-bar').remove();
+        loadMediaBrowserPage();
+        $('#media-browser-modal').modal('show');
+    }
+
+    function openMediaBrowserMulti(callback) {
+        _mediaBrowserCallback = null;
+        _mediaBrowserMulti = true;
+        _mediaBrowserMultiCallback = callback;
+        _mediaBrowserSelected = [];
+        _mediaBrowserCursor = null;
+        _mediaBrowserDone = false;
+        _mediaBrowserLoading = false;
+        $('#media-browser-grid').empty().addClass('multi-select');
+        $('#media-browser-empty').hide();
+        $('#media-browser-bulk-bar').remove();
+        var $bar = $('<div id="media-browser-bulk-bar" style="padding:10px 15px;background:#f0f9ff;border-bottom:1px solid #bae6fd;display:flex;justify-content:space-between;align-items:center;">' +
+            '<span style="color:#0369a1;font-size:0.9em;"><i class="fas fa-info-circle mr-1"></i> Click images to select, then add all at once.</span>' +
+            '<button type="button" class="btn btn-sm btn-primary" id="media-browser-add-selected" disabled><i class="fas fa-plus mr-1"></i> Add <span id="bulk-count">0</span> Selected</button>' +
+            '</div>');
+        $('#media-browser-modal .modal-body').prepend($bar);
+        loadMediaBrowserPage();
+        $('#media-browser-modal').modal('show');
+    }
+
+    function loadMediaBrowserPage() {
+        if (_mediaBrowserLoading || _mediaBrowserDone) return;
+        _mediaBrowserLoading = true;
+        $('#media-browser-loading').show();
+        var url = getMediaUrl() + '?per_page=36';
+        if (_mediaBrowserCursor) url += '&cursor=' + _mediaBrowserCursor;
+        fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.data.length === 0 && !_mediaBrowserCursor) {
+                    $('#media-browser-empty').show();
+                }
+                data.data.forEach(function(item) {
+                    var thumb = item.preview || item.thumb || item.url;
+                    var alt = (item.custom_properties && item.custom_properties.alt_text) || '';
+                    var $el = $('<div class="media-browser-item">')
+                        .attr('data-url', item.url)
+                        .attr('data-alt', alt)
+                        .append($('<img>').attr('src', thumb).attr('alt', item.file_name).attr('loading', 'lazy'))
+                        .append($('<div class="media-browser-name">').text(item.file_name));
+                    $('#media-browser-grid').append($el);
+                });
+                _mediaBrowserCursor = data.next_cursor;
+                if (!data.next_cursor) _mediaBrowserDone = true;
+                _mediaBrowserLoading = false;
+                $('#media-browser-loading').hide();
+            });
+    }
+
+    window.PageEditor.openMediaBrowser = openMediaBrowser;
+
     function getVideoPreviewHtml(url) {
         var embedUrl = '';
         var ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -140,21 +237,40 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     function buildCarouselSlideRow(slide, i) {
-        return '<div class="carousel-slide-row" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:4px;">' +
-            '<div style="flex:1;">' +
-                '<input type="text" class="form-control form-control-sm mb-1 slide-image" placeholder="Image URL" value="' + escHtml(slide.image_url || '') + '">' +
+        var thumb = slide.image_url ? '<img src="' + escHtml(slide.image_url) + '" style="width:100px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">' : '<div style="width:100px;height:60px;background:#f3f4f6;border-radius:6px;border:2px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.7em;">No image</div>';
+        return '<div class="carousel-slide-row" style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+            '<div class="slide-thumb" style="flex-shrink:0;cursor:pointer;" title="Click to change">' + thumb + '</div>' +
+            '<input type="hidden" class="slide-image" value="' + escHtml(slide.image_url || '') + '">' +
+            '<div style="flex:1;min-width:0;">' +
                 '<input type="text" class="form-control form-control-sm mb-1 slide-caption" placeholder="Caption (optional)" value="' + escHtml(slide.caption || '') + '">' +
                 '<input type="text" class="form-control form-control-sm slide-link" placeholder="Link URL (optional)" value="' + escHtml(slide.link || '') + '">' +
             '</div>' +
-            '<button type="button" class="btn btn-xs btn-danger remove-carousel-slide"><i class="fas fa-trash"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger remove-carousel-slide" title="Remove"><i class="fas fa-times"></i></button>' +
         '</div>';
     }
 
     function initCarouselEditor(block) {
         $(document).off('click', '#add-carousel-slide').on('click', '#add-carousel-slide', function() {
-            var $list = $('#carousel-slides-list');
-            var count = $list.find('.carousel-slide-row').length;
-            $list.append(buildCarouselSlideRow({ image_url: '', caption: '', link: '' }, count));
+            openMediaBrowser(function(media) {
+                var $list = $('#carousel-slides-list');
+                $list.append(buildCarouselSlideRow({ image_url: media.url, caption: media.alt || '' }, $list.find('.carousel-slide-row').length));
+            });
+        });
+        $(document).off('click', '#bulk-add-carousel').on('click', '#bulk-add-carousel', function() {
+            openMediaBrowserMulti(function(items) {
+                var $list = $('#carousel-slides-list');
+                items.forEach(function(media) {
+                    $list.append(buildCarouselSlideRow({ image_url: media.url, caption: media.alt || '' }, $list.find('.carousel-slide-row').length));
+                });
+            });
+        });
+        $(document).off('click', '.slide-thumb').on('click', '.slide-thumb', function() {
+            var $row = $(this).closest('.carousel-slide-row');
+            openMediaBrowser(function(media) {
+                $row.find('.slide-image').val(media.url);
+                $row.find('.slide-thumb').html('<img src="' + escHtml(media.url) + '" style="width:100px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">');
+                if (media.alt && !$row.find('.slide-caption').val()) $row.find('.slide-caption').val(media.alt);
+            });
         });
         $(document).off('click', '.remove-carousel-slide').on('click', '.remove-carousel-slide', function() {
             $(this).closest('.carousel-slide-row').remove();
@@ -162,21 +278,39 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     function buildGalleryImageRow(img, i) {
-        return '<div class="gallery-image-row" style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:4px;">' +
-            '<div style="flex:1;">' +
-                '<input type="text" class="form-control form-control-sm mb-1 gal-url" placeholder="Image URL" value="' + escHtml(img.url || '') + '">' +
-                '<input type="text" class="form-control form-control-sm mb-1 gal-alt" placeholder="Alt text" value="' + escHtml(img.alt || '') + '">' +
-                '<input type="text" class="form-control form-control-sm gal-caption" placeholder="Caption (optional)" value="' + escHtml(img.caption || '') + '">' +
+        var thumb = img.url ? '<img src="' + escHtml(img.url) + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">' : '<div style="width:80px;height:80px;background:#f3f4f6;border-radius:6px;border:2px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.75em;">No image</div>';
+        return '<div class="gallery-image-row" style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+            '<div class="gal-thumb" style="flex-shrink:0;cursor:pointer;" title="Click to change">' + thumb + '</div>' +
+            '<input type="hidden" class="gal-url" value="' + escHtml(img.url || '') + '">' +
+            '<div style="flex:1;min-width:0;">' +
+                '<input type="text" class="form-control form-control-sm gal-alt" placeholder="Caption / alt text" value="' + escHtml(img.alt || img.caption || '') + '">' +
             '</div>' +
-            '<button type="button" class="btn btn-xs btn-danger remove-gallery-image"><i class="fas fa-trash"></i></button>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger remove-gallery-image" title="Remove"><i class="fas fa-times"></i></button>' +
         '</div>';
     }
 
     function initGalleryEditor(block) {
         $(document).off('click', '#add-gallery-image').on('click', '#add-gallery-image', function() {
-            var $list = $('#gallery-images-list');
-            var count = $list.find('.gallery-image-row').length;
-            $list.append(buildGalleryImageRow({ url: '', alt: '', caption: '' }, count));
+            openMediaBrowser(function(media) {
+                var $list = $('#gallery-images-list');
+                $list.append(buildGalleryImageRow({ url: media.url, alt: media.alt || '' }, $list.find('.gallery-image-row').length));
+            });
+        });
+        $(document).off('click', '#bulk-add-gallery').on('click', '#bulk-add-gallery', function() {
+            openMediaBrowserMulti(function(items) {
+                var $list = $('#gallery-images-list');
+                items.forEach(function(media) {
+                    $list.append(buildGalleryImageRow({ url: media.url, alt: media.alt || '' }, $list.find('.gallery-image-row').length));
+                });
+            });
+        });
+        $(document).off('click', '.gal-thumb').on('click', '.gal-thumb', function() {
+            var $row = $(this).closest('.gallery-image-row');
+            openMediaBrowser(function(media) {
+                $row.find('.gal-url').val(media.url);
+                $row.find('.gal-thumb').html('<img src="' + escHtml(media.url) + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">');
+                if (media.alt && !$row.find('.gal-alt').val()) $row.find('.gal-alt').val(media.alt);
+            });
         });
         $(document).off('click', '.remove-gallery-image').on('click', '.remove-gallery-image', function() {
             $(this).closest('.gallery-image-row').remove();
@@ -184,12 +318,18 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     function buildTestimonialRow(t, i) {
-        return '<div class="testi-row" style="margin-bottom:10px;padding:10px;background:#f8f9fa;border-radius:4px;border-left:3px solid #3b82f6;">' +
-            '<textarea class="form-control form-control-sm mb-1 testi-quote" rows="3" placeholder="Quote">' + escHtml(t.quote || '') + '</textarea>' +
-            '<input type="text" class="form-control form-control-sm mb-1 testi-name" placeholder="Name" value="' + escHtml(t.name || '') + '">' +
-            '<input type="text" class="form-control form-control-sm mb-1 testi-title" placeholder="Title / Role" value="' + escHtml(t.title || '') + '">' +
-            '<input type="text" class="form-control form-control-sm mb-1 testi-photo" placeholder="Photo URL (optional)" value="' + escHtml(t.photo_url || '') + '">' +
-            '<button type="button" class="btn btn-xs btn-danger remove-testimonial"><i class="fas fa-trash"></i> Remove</button>' +
+        var photoThumb = t.photo_url ? '<img src="' + escHtml(t.photo_url) + '" style="width:48px;height:48px;object-fit:cover;border-radius:50%;border:1px solid #e5e7eb;">' : '<div style="width:48px;height:48px;background:#f3f4f6;border-radius:50%;border:2px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.65em;">Photo</div>';
+        return '<div class="testi-row" style="margin-bottom:10px;padding:10px;background:#f8f9fa;border-radius:6px;border-left:3px solid #3b82f6;">' +
+            '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">' +
+                '<div class="testi-photo-thumb" style="flex-shrink:0;cursor:pointer;" title="Click to set photo">' + photoThumb + '</div>' +
+                '<input type="hidden" class="testi-photo" value="' + escHtml(t.photo_url || '') + '">' +
+                '<div style="flex:1;">' +
+                    '<input type="text" class="form-control form-control-sm mb-1 testi-name" placeholder="Name" value="' + escHtml(t.name || '') + '">' +
+                    '<input type="text" class="form-control form-control-sm testi-title" placeholder="Title / Role" value="' + escHtml(t.title || '') + '">' +
+                '</div>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger remove-testimonial" title="Remove"><i class="fas fa-times"></i></button>' +
+            '</div>' +
+            '<textarea class="form-control form-control-sm testi-quote" rows="2" placeholder="Quote">' + escHtml(t.quote || '') + '</textarea>' +
         '</div>';
     }
 
@@ -198,6 +338,13 @@ PageEditor.registerBlockType = function(name, config) {
             var $list = $('#testimonials-list');
             var count = $list.find('.testi-row').length;
             $list.append(buildTestimonialRow({ quote: '', name: '', title: '', photo_url: '' }, count));
+        });
+        $(document).off('click', '.testi-photo-thumb').on('click', '.testi-photo-thumb', function() {
+            var $row = $(this).closest('.testi-row');
+            openMediaBrowser(function(media) {
+                $row.find('.testi-photo').val(media.url);
+                $row.find('.testi-photo-thumb').html('<img src="' + escHtml(media.url) + '" style="width:48px;height:48px;object-fit:cover;border-radius:50%;border:1px solid #e5e7eb;">');
+            });
         });
         $(document).off('click', '.remove-testimonial').on('click', '.remove-testimonial', function() {
             $(this).closest('.testi-row').remove();
@@ -277,10 +424,24 @@ PageEditor.registerBlockType = function(name, config) {
             return '<div class="admin-preview-text">' + html + '</div>';
         },
         renderEditor: function(block) {
-            return '<div id="block-editorjs" style="border:1px solid #ced4da;border-radius:4px;min-height:200px;padding:8px;"></div>';
+            return '<div class="mb-2"><button type="button" class="btn btn-sm btn-outline-info" id="editorjs-media-btn"><i class="fas fa-images mr-1"></i> Insert from Media Library</button></div>' +
+                '<div id="block-editorjs" style="border:1px solid #ced4da;border-radius:4px;min-height:200px;padding:8px;"></div>';
         },
         initEditor: function(block) {
             initEditorJS(block);
+            $('#editorjs-media-btn').off('click').on('click', function() {
+                openMediaBrowser(function(media) {
+                    if (editorJsInstance) {
+                        editorJsInstance.blocks.insert('image', {
+                            file: { url: media.url },
+                            caption: media.alt || '',
+                            withBorder: false,
+                            stretched: false,
+                            withBackground: false
+                        });
+                    }
+                });
+            });
         },
         collectData: function(block) {
             if (editorJsInstance) {
@@ -309,11 +470,14 @@ PageEditor.registerBlockType = function(name, config) {
             var caption = block.content && block.content.caption ? block.content.caption : '';
             var link = block.settings && block.settings.link ? block.settings.link : '';
             var maxWidth = block.settings && block.settings.max_width ? block.settings.max_width : '100%';
-            return '<div class="form-group"><label>Image URL</label>' +
-                '<div class="needsclick block-img-dz" id="block-image-dropzone"></div>' +
+            return '<div class="form-group"><label>Image</label>' +
+                '<div class="d-flex align-items-stretch mb-2" style="gap:10px;">' +
+                    '<div class="flex-grow-1 needsclick block-img-dz" id="block-image-dropzone"></div>' +
+                    '<button type="button" class="btn btn-outline-info" id="browse-media-btn" style="white-space:nowrap;"><i class="fas fa-images d-block mb-1" style="font-size:1.2em;"></i> Browse<br>Media</button>' +
+                '</div>' +
                 '<small class="text-muted">Or enter URL manually:</small>' +
                 '<input type="text" class="form-control mt-1" id="img-url" value="' + escHtml(url) + '" placeholder="https://...">' +
-                (url ? '<div class="mt-2"><img src="' + escHtml(url) + '" style="max-height:100px;border-radius:4px;"></div>' : '') +
+                '<div class="mt-2" id="img-preview">' + (url ? '<img src="' + escHtml(url) + '" style="max-height:100px;border-radius:4px;">' : '') + '</div>' +
                 '</div>' +
                 '<div class="form-group"><label>Alt Text</label><input type="text" class="form-control" id="img-alt" value="' + escHtml(alt) + '"></div>' +
                 '<div class="form-group"><label>Caption</label><input type="text" class="form-control" id="img-caption" value="' + escHtml(caption) + '"></div>' +
@@ -322,6 +486,13 @@ PageEditor.registerBlockType = function(name, config) {
         },
         initEditor: function(block) {
             initBlockImageDropzone();
+            $('#browse-media-btn').off('click').on('click', function() {
+                openMediaBrowser(function(media) {
+                    $('#img-url').val(media.url);
+                    if (media.alt) $('#img-alt').val(media.alt);
+                    $('#img-preview').html('<img src="' + escHtml(media.url) + '" style="max-height:100px;border-radius:4px;">');
+                });
+            });
         },
         collectData: function(block) {
             return {
@@ -562,7 +733,10 @@ PageEditor.registerBlockType = function(name, config) {
                 slidesHtml += buildCarouselSlideRow(slide, i);
             });
             return '<div id="carousel-slides-list">' + slidesHtml + '</div>' +
-                '<button type="button" class="btn btn-sm btn-success mt-2" id="add-carousel-slide">+ Add Slide</button>' +
+                '<div class="mt-2" style="display:flex;gap:8px;">' +
+                '<button type="button" class="btn btn-sm btn-success" id="add-carousel-slide"><i class="fas fa-plus mr-1"></i> Add Slide</button>' +
+                '<button type="button" class="btn btn-sm btn-outline-info" id="bulk-add-carousel"><i class="fas fa-images mr-1"></i> Bulk Add from Library</button>' +
+                '</div>' +
                 '<hr>' +
                 '<div class="form-check">' +
                     '<input type="checkbox" class="form-check-input" id="carousel-autoplay"' + (autoplay ? ' checked' : '') + '>' +
@@ -634,7 +808,10 @@ PageEditor.registerBlockType = function(name, config) {
                 imagesHtml += buildGalleryImageRow(img, i);
             });
             return '<div id="gallery-images-list">' + imagesHtml + '</div>' +
-                '<button type="button" class="btn btn-sm btn-success mt-2" id="add-gallery-image">+ Add Image</button>' +
+                '<div class="mt-2" style="display:flex;gap:8px;">' +
+                '<button type="button" class="btn btn-sm btn-success" id="add-gallery-image"><i class="fas fa-plus mr-1"></i> Add Image</button>' +
+                '<button type="button" class="btn btn-sm btn-outline-info" id="bulk-add-gallery"><i class="fas fa-images mr-1"></i> Bulk Add from Library</button>' +
+                '</div>' +
                 '<hr>' +
                 '<div class="form-group mt-2"><label>Columns</label>' +
                     '<input type="number" class="form-control" id="gallery-columns" value="' + escHtml(String(columns)) + '" min="1" max="6">' +
@@ -653,10 +830,11 @@ PageEditor.registerBlockType = function(name, config) {
         collectData: function(block) {
             var images = [];
             $('#gallery-images-list .gallery-image-row').each(function() {
+                var altText = $(this).find('.gal-alt').val();
                 images.push({
                     url: $(this).find('.gal-url').val(),
-                    alt: $(this).find('.gal-alt').val(),
-                    caption: $(this).find('.gal-caption').val()
+                    alt: altText,
+                    caption: altText
                 });
             });
             return {
@@ -1029,6 +1207,9 @@ PageEditor.registerBlockType = function(name, config) {
                     settings: b.settings || {},
                     background_color: b.background_color || '',
                     background_image: b.background_image || '',
+                    text_color: b.text_color || '',
+                    text_alignment: b.text_alignment || '',
+                    padding: b.padding || '',
                     order: b.order_column || 0
                 });
             });
@@ -1046,6 +1227,9 @@ PageEditor.registerBlockType = function(name, config) {
                 css_class: row.css_class || '',
                 background_color: row.background_color || '',
                 background_image: row.background_image || '',
+                text_color: row.text_color || '',
+                text_alignment: row.text_alignment || '',
+                padding: row.padding || '',
                 order: row.order_column || 0,
                 columns: columns
             };
@@ -1054,7 +1238,7 @@ PageEditor.registerBlockType = function(name, config) {
 
     // --- Row Management ---
     function addRow() {
-        var newRow = { id: uid(), name: '', css_class: '', background_color: '', background_image: '', order: rows.length, columns: [{ width: 12, blocks: [] }] };
+        var newRow = { id: uid(), name: '', css_class: '', background_color: '', background_image: '', text_color: '', text_alignment: '', padding: '', order: rows.length, columns: [{ width: 12, blocks: [] }] };
         rows.push(newRow);
         renderRows();
         initRowSortable();
@@ -1115,7 +1299,7 @@ PageEditor.registerBlockType = function(name, config) {
                     bgIndicator +
                 '</div>' +
                 '<div>' +
-                    '<button type="button" class="btn btn-sm btn-outline-info row-bg-btn mr-1" data-row-id="' + row.id + '" title="Row Background"><i class="fas fa-paint-roller"></i></button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-info row-bg-btn mr-1" data-row-id="' + row.id + '" title="Row Style"><i class="fas fa-paint-roller"></i></button>' +
                     '<button type="button" class="btn btn-sm btn-outline-secondary column-layout-btn mr-1" data-row-id="' + row.id + '" title="Column Layout"><i class="fas fa-columns"></i></button>' +
                     '<button type="button" class="btn btn-sm btn-danger remove-row-btn" data-row-id="' + row.id + '" title="Remove Row"><i class="fas fa-trash"></i></button>' +
                 '</div>' +
@@ -1254,24 +1438,42 @@ PageEditor.registerBlockType = function(name, config) {
         var config = PageEditor.blockTypes[block.type];
         var html = config ? config.renderEditor(block) : '<em>Unknown block type: ' + escHtml(block.type) + '</em>';
 
-        // Block background fields
-        html += '<hr><details class="mt-2"><summary style="cursor:pointer;font-weight:500;font-size:0.9em;"><i class="fas fa-paint-roller mr-1"></i> Block Background</summary><div class="mt-2">' +
+        // Block style fields
+        html += '<hr><details class="mt-2"><summary style="cursor:pointer;font-weight:500;font-size:0.9em;"><i class="fas fa-paint-roller mr-1"></i> Block Style</summary><div class="mt-2">' +
             '<div class="form-group"><label>Background Color</label>' +
             '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-bg-color" value="' + escHtml(block.background_color || '#ffffff') + '" style="width:60px;padding:2px;">' +
             '<input type="text" class="form-control" id="block-bg-color-text" value="' + escHtml(block.background_color || '') + '" placeholder="#hex or empty for none">' +
             '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
             '<div class="form-group"><label>Background Image URL</label>' +
             '<input type="text" class="form-control" id="block-bg-image" value="' + escHtml(block.background_image || '') + '" placeholder="https://...">' +
-            '</div></div></details>';
+            '</div>' +
+            '<div class="form-group"><label>Text Color</label>' +
+            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-text-color" value="' + escHtml(block.text_color || '#000000') + '" style="width:60px;padding:2px;">' +
+            '<input type="text" class="form-control" id="block-text-color-text" value="' + escHtml(block.text_color || '') + '" placeholder="#hex or empty for default">' +
+            '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-text-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
+            '<div class="row"><div class="col-6"><div class="form-group"><label>Text Alignment</label>' +
+            '<select class="form-control" id="block-text-align">' +
+            '<option value=""' + (!block.text_alignment ? ' selected' : '') + '>Default</option>' +
+            '<option value="left"' + (block.text_alignment === 'left' ? ' selected' : '') + '>Left</option>' +
+            '<option value="center"' + (block.text_alignment === 'center' ? ' selected' : '') + '>Center</option>' +
+            '<option value="right"' + (block.text_alignment === 'right' ? ' selected' : '') + '>Right</option>' +
+            '</select></div></div>' +
+            '<div class="col-6"><div class="form-group"><label>Padding</label>' +
+            '<input type="text" class="form-control" id="block-padding" value="' + escHtml(block.padding || '') + '" placeholder="e.g. 20px">' +
+            '</div></div></div>' +
+            '</div></details>';
 
         $('.modal-title').text('Edit Block: ' + (config ? config.label : block.type));
         $('#block-edit-content').html(html);
         if (config && config.initEditor) { config.initEditor(block); }
 
-        // Block background color sync
+        // Block style color sync
         $('#block-bg-color').on('input', function() { $('#block-bg-color-text').val($(this).val()); });
         $('#block-bg-color-text').on('input', function() { var v = $(this).val(); if (/^#[0-9a-fA-F]{6}$/.test(v)) $('#block-bg-color').val(v); });
         $('#block-bg-color-clear').on('click', function() { $('#block-bg-color-text').val(''); });
+        $('#block-text-color').on('input', function() { $('#block-text-color-text').val($(this).val()); });
+        $('#block-text-color-text').on('input', function() { var v = $(this).val(); if (/^#[0-9a-fA-F]{6}$/.test(v)) $('#block-text-color').val(v); });
+        $('#block-text-color-clear').on('click', function() { $('#block-text-color-text').val(''); });
 
         $('#block-edit-modal').modal('show');
     }
@@ -1285,6 +1487,9 @@ PageEditor.registerBlockType = function(name, config) {
         if (editingColIndex === null && editingBlockIndex === null) {
             row.background_color = $('#row-bg-color-text').val() || '';
             row.background_image = $('#row-bg-image').val() || '';
+            row.text_color = $('#row-text-color-text').val() || '';
+            row.text_alignment = $('#row-text-align').val() || '';
+            row.padding = $('#row-padding').val() || '';
             finalizeSave();
             return;
         }
@@ -1292,9 +1497,12 @@ PageEditor.registerBlockType = function(name, config) {
         var block = row.columns[editingColIndex].blocks[editingBlockIndex];
         if (!block) return;
 
-        // Collect block background fields
+        // Collect block style fields
         block.background_color = $('#block-bg-color-text').val() || '';
         block.background_image = $('#block-bg-image').val() || '';
+        block.text_color = $('#block-text-color-text').val() || '';
+        block.text_alignment = $('#block-text-align').val() || '';
+        block.padding = $('#block-padding').val() || '';
 
         var config = PageEditor.blockTypes[block.type];
         if (!config) { finalizeSave(); return; }
@@ -1335,7 +1543,10 @@ PageEditor.registerBlockType = function(name, config) {
                         content: block.content,
                         settings: block.settings,
                         background_color: block.background_color || '',
-                        background_image: block.background_image || ''
+                        background_image: block.background_image || '',
+                        text_color: block.text_color || '',
+                        text_alignment: block.text_alignment || '',
+                        padding: block.padding || ''
                     });
                 });
             });
@@ -1345,6 +1556,9 @@ PageEditor.registerBlockType = function(name, config) {
                 css_class: row.css_class,
                 background_color: row.background_color || '',
                 background_image: row.background_image || '',
+                text_color: row.text_color || '',
+                text_alignment: row.text_alignment || '',
+                padding: row.padding || '',
                 order: ri,
                 blocks: blocks
             };
@@ -1403,6 +1617,9 @@ PageEditor.registerBlockType = function(name, config) {
                     settings: JSON.parse(JSON.stringify(defaults.settings || {})),
                     background_color: '',
                     background_image: '',
+                    text_color: '',
+                    text_alignment: '',
+                    padding: '',
                     order: row.columns[colIndex].blocks.length
                 };
                 row.columns[colIndex].blocks.push(block);
@@ -1467,9 +1684,24 @@ PageEditor.registerBlockType = function(name, config) {
                 '<div class="form-group"><label>Background Image URL</label>' +
                 '<input type="text" class="form-control" id="row-bg-image" value="' + escHtml(row.background_image || '') + '" placeholder="https://...">' +
                 (row.background_image ? '<div class="mt-2"><img src="' + escHtml(row.background_image) + '" style="max-height:80px;border-radius:4px;"></div>' : '') +
-                '</div>';
+                '</div>' +
+                '<hr>' +
+                '<div class="form-group"><label>Text Color</label>' +
+                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-text-color" value="' + escHtml(row.text_color || '#000000') + '" style="width:60px;padding:2px;">' +
+                '<input type="text" class="form-control" id="row-text-color-text" value="' + escHtml(row.text_color || '') + '" placeholder="#hex or empty for default">' +
+                '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-text-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
+                '<div class="row"><div class="col-6"><div class="form-group"><label>Text Alignment</label>' +
+                '<select class="form-control" id="row-text-align">' +
+                '<option value=""' + (!row.text_alignment ? ' selected' : '') + '>Default</option>' +
+                '<option value="left"' + (row.text_alignment === 'left' ? ' selected' : '') + '>Left</option>' +
+                '<option value="center"' + (row.text_alignment === 'center' ? ' selected' : '') + '>Center</option>' +
+                '<option value="right"' + (row.text_alignment === 'right' ? ' selected' : '') + '>Right</option>' +
+                '</select></div></div>' +
+                '<div class="col-6"><div class="form-group"><label>Padding</label>' +
+                '<input type="text" class="form-control" id="row-padding" value="' + escHtml(row.padding || '') + '" placeholder="e.g. 40px 20px">' +
+                '</div></div></div>';
             $('#block-edit-content').html(html);
-            $('#block-edit-modal .modal-title').text('Row Background');
+            $('#block-edit-modal .modal-title').text('Row Style');
             editingRowId = rowId;
             editingColIndex = null;
             editingBlockIndex = null;
@@ -1477,6 +1709,9 @@ PageEditor.registerBlockType = function(name, config) {
             $('#row-bg-color').on('input', function() { $('#row-bg-color-text').val($(this).val()); });
             $('#row-bg-color-text').on('input', function() { var v = $(this).val(); if (/^#[0-9a-fA-F]{6}$/.test(v)) $('#row-bg-color').val(v); });
             $('#row-bg-color-clear').on('click', function() { $('#row-bg-color-text').val(''); });
+            $('#row-text-color').on('input', function() { $('#row-text-color-text').val($(this).val()); });
+            $('#row-text-color-text').on('input', function() { var v = $(this).val(); if (/^#[0-9a-fA-F]{6}$/.test(v)) $('#row-text-color').val(v); });
+            $('#row-text-color-clear').on('click', function() { $('#row-text-color-text').val(''); });
             $('#block-edit-modal').modal('show');
         });
 
@@ -1501,6 +1736,105 @@ PageEditor.registerBlockType = function(name, config) {
 
         $(document).on('input', '#video-url', function() {
             $('#video-preview').html(getVideoPreviewHtml($(this).val()));
+        });
+
+        // --- Media Browser event handlers ---
+        $(document).on('click', '.media-browser-item', function() {
+            var url = $(this).data('url');
+            var alt = $(this).data('alt') || '';
+
+            if (_mediaBrowserMulti) {
+                // Multi-select mode: toggle selection
+                $(this).toggleClass('selected');
+                _mediaBrowserSelected = [];
+                $('#media-browser-grid .media-browser-item.selected').each(function() {
+                    _mediaBrowserSelected.push({ url: $(this).data('url'), alt: $(this).data('alt') || '' });
+                });
+                var count = _mediaBrowserSelected.length;
+                $('#bulk-count').text(count);
+                $('#media-browser-add-selected').prop('disabled', count === 0);
+                return;
+            }
+
+            if (_mediaBrowserCallback) {
+                _mediaBrowserCallback({ url: url, alt: alt });
+            }
+            $('#media-browser-modal').modal('hide');
+        });
+
+        $(document).on('click', '#media-browser-add-selected', function() {
+            if (_mediaBrowserMultiCallback && _mediaBrowserSelected.length) {
+                _mediaBrowserMultiCallback(_mediaBrowserSelected);
+            }
+            $('#media-browser-modal').modal('hide');
+        });
+
+        $(document).on('click', '.browse-media-field', function() {
+            var $input = $(this).closest('.input-group').find('input[type="text"]');
+            var $row = $(this).closest('.gallery-image-row, .carousel-slide-row, .testi-row');
+            openMediaBrowser(function(media) {
+                $input.val(media.url);
+                if (media.alt && $row.length) {
+                    var $alt = $row.find('.gal-alt');
+                    if ($alt.length && !$alt.val()) $alt.val(media.alt);
+                }
+            });
+        });
+
+        $('#media-browser-modal').on('shown.bs.modal', function() {
+            $('.modal-backdrop').last().css('z-index', 1065);
+        }).on('hidden.bs.modal', function() {
+            if ($('#block-edit-modal').hasClass('show')) {
+                $('body').addClass('modal-open');
+            }
+        });
+
+        var _browserScrollEl = document.getElementById('media-browser-scroll');
+        if (_browserScrollEl) {
+            _browserScrollEl.addEventListener('scroll', function() {
+                if (this.scrollTop + this.clientHeight >= this.scrollHeight - 200) {
+                    loadMediaBrowserPage();
+                }
+            });
+        }
+
+        $('#media-browser-upload-btn').on('click', function() {
+            $('#media-browser-file').click();
+        });
+
+        $('#media-browser-file').on('change', function() {
+            var file = this.files[0];
+            if (!file) return;
+            var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            var formData = new FormData();
+            formData.append('file', file);
+            formData.append('size', 20);
+            formData.append('width', 4096);
+            formData.append('height', 4096);
+            $('#media-browser-upload-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+            fetch(getMediaUploadUrl(), {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrf },
+                body: formData
+            }).then(function(r) { return r.json(); }).then(function(resp) {
+                return fetch(getMediaUrl(), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                    body: JSON.stringify({ media_file: resp.name, title: file.name })
+                });
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                $('#media-browser-upload-btn').prop('disabled', false).html('<i class="fas fa-upload mr-1"></i> Upload');
+                $('#media-browser-file').val('');
+                if (data.success && data.url) {
+                    if (_mediaBrowserCallback) {
+                        _mediaBrowserCallback({ url: data.url, alt: '' });
+                    }
+                    $('#media-browser-modal').modal('hide');
+                }
+            }).catch(function() {
+                $('#media-browser-upload-btn').prop('disabled', false).html('<i class="fas fa-upload mr-1"></i> Upload');
+                $('#media-browser-file').val('');
+            });
         });
 
         $('#block-edit-modal').on('hidden.bs.modal', function() {

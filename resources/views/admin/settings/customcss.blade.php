@@ -3,10 +3,7 @@
 @section('content')
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <span>{{ trans('vela::global.custom_css_js') }}</span>
-        <a href="{{ route('vela.admin.settings.index') }}" class="btn btn-secondary btn-sm">
-            <i class="fas fa-arrow-left"></i> {{ __('vela::pwa.back_to_settings') }}
-        </a>
+        @include('vela::admin.settings._nav')
     </div>
     <div class="card-body">
         @if(session('success'))

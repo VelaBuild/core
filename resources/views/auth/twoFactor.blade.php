@@ -1,57 +1,39 @@
-@extends('vela::layouts.app')
+@extends('vela::layouts.auth')
+
+@section('subtitle')
+    <p>{{ __('vela::global.two_factor.title') }}</p>
+@endsection
+
 @section('content')
-<div class="row justify-content-center">
-    <div class="col-md-9">
-        <div class="card-group">
-            <div class="card p-4">
-                <div class="card-body">
-                    @if(session()->has('message'))
-                        <p class="alert alert-info">
-                            {{ session()->get('message') }}
-                        </p>
-                    @endif
-                    <form method="POST" action="{{ route('vela.auth.two-factor.check') }}">
-                        @csrf
-                        <h1>{{ __('vela::global.two_factor.title') }}</h1>
-                        <p class="text-muted">
-                            {{ __('vela::global.two_factor.sub_title', ['minutes' => 15]) }}
-                        </p>
-
-                        <div class="input-group mb-3">
-                            <div class="input-group-prepend">
-                                <span class="input-group-text">
-                                    <i class="fa fa-lock"></i>
-                                </span>
-                            </div>
-                            <input name="two_factor_code" type="text" class="form-control{{ $errors->has('two_factor_code') ? ' is-invalid' : '' }}" required autofocus placeholder="{{ trans('vela::global.two_factor.code') }}">
-                            @if($errors->has('two_factor_code'))
-                                <div class="invalid-feedback">
-                                    {{ $errors->first('two_factor_code') }}
-                                </div>
-                            @endif
-                        </div>
-
-                        <div class="row">
-                            <div class="col-6">
-                                <button type="submit" class="btn btn-primary px-4">
-                                    {{ trans('vela::global.two_factor.verify') }}
-                                </button>
-                            </div>
-                            <div class="col-6 text-right">
-                                <a class="btn btn-secondary px-4" href="{{ route('vela.auth.two-factor.resend') }}">{{ __('vela::global.two_factor.resend') }}</a>
-                                <a class="btn btn-danger px-4" href="#" onclick="event.preventDefault(); document.getElementById('logoutform').submit();">
-                                    {{ trans('vela::global.logout') }}
-                                </a>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
+    @if(session()->has('message'))
+        <div class="alert alert-info">
+            {{ session()->get('message') }}
         </div>
-    </div>
-</div>
+    @endif
 
-<form id="logoutform" action="{{ route('vela.auth.logout') }}" method="POST" style="display: none;">
-    {{ csrf_field() }}
-</form>
+    <p style="color:#64748b;font-size:14px;margin-bottom:24px">
+        {{ __('vela::global.two_factor.sub_title', ['minutes' => 15]) }}
+    </p>
+
+    <form method="POST" action="{{ route('vela.auth.two-factor.check') }}">
+        @csrf
+
+        <div class="form-group">
+            <label for="two_factor_code">{{ trans('vela::global.two_factor.code') }}</label>
+            <input id="two_factor_code" name="two_factor_code" type="text" class="form-input{{ $errors->has('two_factor_code') ? ' is-invalid' : '' }}" required autofocus autocomplete="one-time-code" inputmode="numeric">
+            @if($errors->has('two_factor_code'))
+                <div class="invalid-feedback">{{ $errors->first('two_factor_code') }}</div>
+            @endif
+        </div>
+
+        <button type="submit" class="btn btn-primary">{{ trans('vela::global.two_factor.verify') }}</button>
+    </form>
+
+    <div class="auth-footer">
+        <a href="{{ route('vela.auth.two-factor.resend') }}" class="btn-link">{{ __('vela::global.two_factor.resend') }}</a>
+        <form id="logoutform" action="{{ route('vela.auth.logout') }}" method="POST" style="display:inline">
+            @csrf
+            <button type="submit" class="btn-link" style="color:#dc2626">{{ trans('vela::global.logout') }}</button>
+        </form>
+    </div>
 @endsection

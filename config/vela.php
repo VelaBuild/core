@@ -128,6 +128,64 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Site Visibility
+    |--------------------------------------------------------------------------
+    |
+    | Controls search engine indexing, AI crawler access, and holding pages.
+    | Defaults to 'public' — all restrictions are managed via admin settings.
+    |
+    */
+
+    'visibility' => [
+        'mode' => 'public', // 'public' or 'restricted'
+        'noindex' => false,
+        'block_ai' => false,
+        'holding_page' => false,
+        'holding_page_id' => '',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | x402 AI Payment
+    |--------------------------------------------------------------------------
+    |
+    | Require AI agents to pay for content access using the x402 protocol.
+    | Works independently of the public/restricted visibility mode.
+    | Regular browsers are never affected.
+    |
+    | @see https://x402.org
+    |
+    */
+
+    'x402' => [
+        'enabled' => false,
+        'pay_to' => '',                        // Your wallet address (receives USDC)
+        'price_usd' => '0.01',                 // Price per request in USD
+        'network' => 'base',                   // base, ethereum, polygon, arbitrum, optimism
+        'facilitator_url' => 'https://x402.org/facilitator',
+        'description' => 'Access to website content',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | GDPR / Cookie Consent
+    |--------------------------------------------------------------------------
+    |
+    | When enabled, a cookie consent banner is shown to visitors and analytics
+    | scripts are blocked until the user grants consent. Set VELA_GDPR=true
+    | in .env to activate. The banner is NOT shown until you turn this on.
+    |
+    */
+
+    'gdpr' => [
+        'enabled' => env('VELA_GDPR', false),
+        'privacy_url' => env('VELA_PRIVACY_URL', '/privacy'),
+        'cookie_name' => 'vela_consent',
+        'cookie_lifetime' => 365, // days
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Image Optimization
     |--------------------------------------------------------------------------
     */

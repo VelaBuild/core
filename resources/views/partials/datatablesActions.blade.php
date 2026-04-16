@@ -1,5 +1,5 @@
 @can($viewGate)
-    <a class="btn btn-xs btn-primary" href="{{ route('vela.admin.' . $crudRoutePart . '.show', $row->id) }}">
+    <a class="btn btn-xs btn-primary" href="{{ $viewUrl ?? route('vela.admin.' . $crudRoutePart . '.show', $row->id) }}"{{ !empty($viewNewTab) ? ' target="_blank"' : '' }}>
         {{ trans('vela::global.view') }}
     </a>
 @endcan

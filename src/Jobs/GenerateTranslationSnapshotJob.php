@@ -43,7 +43,7 @@ class GenerateTranslationSnapshotJob implements ShouldQueue
                         ->first();
                     if ($page) {
                         $html = view(vela_template_view('page'), compact('page'))->render();
-                        $html = preg_replace('/<meta name="csrf-token" content="[^"]*"/',
+                        $html = preg_replace('/<meta name="csrf-token" content="[^"]*"\s*\/?>/', '', $html);
                         $generator->generateTranslationSnapshot($this->type, $this->slug, $this->locale, $html);
                     }
                     break;
@@ -60,7 +60,7 @@ class GenerateTranslationSnapshotJob implements ShouldQueue
                         $categories = \VelaBuild\Core\Models\Category::orderBy('order_by')->get();
                         $metaTags = \VelaBuild\Core\Helpers\MetaTagsHelper::forContent($post);
                         $html = view(vela_template_view('article'), compact('post', 'relatedPosts', 'categories', 'metaTags'))->render();
-                        $html = preg_replace('/<meta name="csrf-token" content="[^"]*"/',
+                        $html = preg_replace('/<meta name="csrf-token" content="[^"]*"\s*\/?>/', '', $html);
                         $generator->generateTranslationSnapshot($this->type, $this->slug, $this->locale, $html);
                     }
                     break;

@@ -8,6 +8,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
     <title>{{ config('app.name', 'Vela CMS') }} — Admin</title>
+    <link rel="icon" type="image/png" href="{{ asset('vendor/vela/images/vela-icon.png') }}">
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" rel="stylesheet" />
     <link href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" rel="stylesheet" />
@@ -33,7 +34,9 @@
                 <i class="fas fa-fw fa-bars"></i>
             </button>
 
-            <a class="c-header-brand d-lg-none" href="{{ route('vela.admin.home') }}">{{ trans('vela::panel.brand_name') }}</a>
+            <a class="c-header-brand d-lg-none" href="{{ route('vela.admin.home') }}">
+                <img src="{{ asset('vendor/vela/images/vela-logo-black.png') }}" alt="{{ trans('vela::panel.brand_name') }}" style="height:28px;width:auto">
+            </a>
 
             <button class="c-header-toggler mfs-3 d-md-down-none" type="button" responsive="true">
                 <i class="fas fa-fw fa-bars"></i>
@@ -41,6 +44,9 @@
 
             <span class="d-md-down-none ml-2" style="display:flex;align-items:center;height:100%">
                 <strong>{{ config('app.name') }}</strong>
+                <a href="{{ url('/') }}" target="_blank" class="ml-2 text-muted" title="{{ trans('vela::global.visit_site') }}" style="font-size:0.85em;">
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
             </span>
 
             @php

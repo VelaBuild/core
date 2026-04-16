@@ -1,8 +1,8 @@
 <div id="sidebar" class="c-sidebar c-sidebar-fixed c-sidebar-lg-show">
 
     <div class="c-sidebar-brand d-md-down-none" style="justify-content: flex-start; padding-left: 1rem;">
-        <a class="c-sidebar-brand-full h4" href="{{ route('vela.admin.home') }}">
-            {{ trans('vela::panel.brand_name') }}
+        <a class="c-sidebar-brand-full" href="{{ route('vela.admin.home') }}">
+            <img src="{{ asset('vendor/vela/images/vela-logo-white.png') }}" alt="{{ trans('vela::panel.brand_name') }}" style="height:32px;width:auto">
         </a>
     </div>
 

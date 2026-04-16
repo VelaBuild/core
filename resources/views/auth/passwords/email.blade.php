@@ -1,42 +1,31 @@
-@extends('vela::layouts.app')
+@extends('vela::layouts.auth')
+
+@section('subtitle')
+    <p>{{ trans('vela::global.reset_password') }}</p>
+@endsection
+
 @section('content')
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card mx-4">
-            <div class="card-body p-4">
-                <h1>{{ config('app.name') }}</h1>
-
-                <p class="text-muted">{{ trans('vela::global.reset_password') }}</p>
-
-                @if(session('status'))
-                    <div class="alert alert-success" role="alert">
-                        {{ session('status') }}
-                    </div>
-                @endif
-
-                <form method="POST" action="{{ route('vela.auth.password.email') }}">
-                    @csrf
-
-                    <div class="form-group">
-                        <input id="email" type="email" class="form-control{{ $errors->has('email') ? ' is-invalid' : '' }}" name="email" required autocomplete="email" autofocus placeholder="{{ trans('vela::global.login_email') }}" value="{{ old('email') }}">
-
-                        @if($errors->has('email'))
-                            <div class="invalid-feedback">
-                                {{ $errors->first('email') }}
-                            </div>
-                        @endif
-                    </div>
-
-                    <div class="row">
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary btn-flat btn-block">
-                                {{ trans('vela::global.send_password') }}
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
+    @if(session('status'))
+        <div class="alert alert-success">
+            {{ session('status') }}
         </div>
+    @endif
+
+    <form method="POST" action="{{ route('vela.auth.password.email') }}">
+        @csrf
+
+        <div class="form-group">
+            <label for="email">{{ trans('vela::global.login_email') }}</label>
+            <input id="email" type="email" name="email" class="form-input{{ $errors->has('email') ? ' is-invalid' : '' }}" required autocomplete="email" autofocus value="{{ old('email') }}">
+            @if($errors->has('email'))
+                <div class="invalid-feedback">{{ $errors->first('email') }}</div>
+            @endif
+        </div>
+
+        <button type="submit" class="btn btn-primary">{{ trans('vela::global.send_password') }}</button>
+    </form>
+
+    <div class="auth-footer-center">
+        <a href="{{ route('vela.auth.login') }}" class="btn-link">{{ trans('vela::global.login') }}</a>
     </div>
-</div>
 @endsection

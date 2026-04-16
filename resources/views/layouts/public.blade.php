@@ -11,7 +11,7 @@
     <!-- Additional Meta Tags -->
     <meta name="keywords" content="@yield('keywords', '')">
     <meta name="author" content="{{ config('app.name', 'Vela CMS') }}">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="{{ config('vela.visibility.mode') === 'restricted' && config('vela.visibility.noindex') ? 'noindex, nofollow' : 'index, follow' }}">
     <meta name="language" content="{{ str_replace('_', '-', app()->getLocale()) }}">
     <meta name="revisit-after" content="7 days">
 
@@ -60,18 +60,7 @@
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    @if($gaTrackingId ?? config('services.google_analytics.id'))
-    @php $gaId = $gaTrackingId ?? config('services.google_analytics.id'); @endphp
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $gaId }}"></script>
-    <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', '{{ $gaId }}');
-    </script>
-    @endif
+    @include('vela::templates._partials.analytics')
 </head>
 <body class="antialiased">
     <!-- Premium Navigation -->
@@ -273,5 +262,7 @@
             });
         });
     </script>
+
+    @include('vela::partials.cookie-consent')
 </body>
 </html>

@@ -39,13 +39,17 @@ class PageController extends Controller
                 $editGate      = 'page_edit';
                 $deleteGate    = 'page_delete';
                 $crudRoutePart = 'pages';
+                $viewUrl       = url($row->slug === 'home' ? '/' : $row->slug);
+                $viewNewTab    = true;
 
                 return view('vela::partials.datatablesActions', compact(
                     'viewGate',
                     'editGate',
                     'deleteGate',
                     'crudRoutePart',
-                    'row'
+                    'row',
+                    'viewUrl',
+                    'viewNewTab'
                 ));
             });
 
@@ -118,6 +122,9 @@ class PageController extends Controller
                     'css_class'        => $rowData['css_class'] ?? null,
                     'background_color' => $rowData['background_color'] ?? null,
                     'background_image' => $rowData['background_image'] ?? null,
+                    'text_color'       => $rowData['text_color'] ?? null,
+                    'text_alignment'   => $rowData['text_alignment'] ?? null,
+                    'padding'          => $rowData['padding'] ?? null,
                     'order_column'     => $rowData['order'] ?? $rowOrder,
                 ]);
 
@@ -132,6 +139,9 @@ class PageController extends Controller
                         'settings'         => isset($blockData['settings']) ? (is_array($blockData['settings']) ? $blockData['settings'] : json_decode($blockData['settings'], true)) : null,
                         'background_color' => $blockData['background_color'] ?? null,
                         'background_image' => $blockData['background_image'] ?? null,
+                        'text_color'       => $blockData['text_color'] ?? null,
+                        'text_alignment'   => $blockData['text_alignment'] ?? null,
+                        'padding'          => $blockData['padding'] ?? null,
                     ]);
                 }
             }
@@ -189,6 +199,9 @@ class PageController extends Controller
                     'css_class'        => $rowData['css_class'] ?? null,
                     'background_color' => $rowData['background_color'] ?? null,
                     'background_image' => $rowData['background_image'] ?? null,
+                    'text_color'       => $rowData['text_color'] ?? null,
+                    'text_alignment'   => $rowData['text_alignment'] ?? null,
+                    'padding'          => $rowData['padding'] ?? null,
                     'order_column'     => $rowData['order'] ?? $rowOrder,
                 ];
 
@@ -217,6 +230,9 @@ class PageController extends Controller
                         'settings'         => isset($blockData['settings']) ? (is_array($blockData['settings']) ? $blockData['settings'] : json_decode($blockData['settings'], true)) : null,
                         'background_color' => $blockData['background_color'] ?? null,
                         'background_image' => $blockData['background_image'] ?? null,
+                        'text_color'       => $blockData['text_color'] ?? null,
+                        'text_alignment'   => $blockData['text_alignment'] ?? null,
+                        'padding'          => $blockData['padding'] ?? null,
                     ];
 
                     if ($blockId && is_numeric($blockId) && in_array((int) $blockId, $existingBlockIds)) {
@@ -244,9 +260,9 @@ class PageController extends Controller
     {
         abort_if(Gate::denies('page_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-        $page->load('rows.blocks');
-
-        return view('vela::admin.pages.show', compact('page'));
+        // Open the page on the frontend rather than an admin view
+        $slug = $page->slug === 'home' ? '/' : $page->slug;
+        return redirect(url($slug));
     }
 
     public function destroy(Page $page)

@@ -7,7 +7,7 @@
 <!-- Additional Meta Tags -->
 <meta name="keywords" content="@yield('keywords', '')">
 <meta name="author" content="{{ config('app.name', 'Vela CMS') }}">
-<meta name="robots" content="index, follow">
+<meta name="robots" content="{{ config('vela.visibility.mode') === 'restricted' && config('vela.visibility.noindex') ? 'noindex, nofollow' : 'index, follow' }}">
 <meta name="language" content="{{ str_replace('_', '-', app()->getLocale()) }}">
 <meta name="revisit-after" content="7 days">
 

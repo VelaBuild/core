@@ -86,6 +86,38 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Site Visibility --}}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-eye fa-3x mb-3 text-primary"></i>
+                        <h5>{{ __('vela::visibility.settings_title') }}</h5>
+                        <p class="text-muted">{{ __('vela::visibility.settings_desc') }}</p>
+                        @can('config_access')
+                            <a href="{{ route('vela.admin.settings.group', 'visibility') }}" class="btn btn-primary btn-sm">
+                                {{ __('vela::pwa.manage') }}
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
+
+            {{-- GDPR / Cookie Consent --}}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-shield-alt fa-3x mb-3 text-primary"></i>
+                        <h5>{{ __('vela::gdpr.settings_title') }}</h5>
+                        <p class="text-muted">{{ __('vela::gdpr.settings_desc') }}</p>
+                        @can('config_access')
+                            <a href="{{ route('vela.admin.settings.group', 'gdpr') }}" class="btn btn-primary btn-sm">
+                                {{ __('vela::pwa.manage') }}
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

@@ -18,6 +18,9 @@ class PageRow extends Model
         'css_class',
         'background_color',
         'background_image',
+        'text_color',
+        'text_alignment',
+        'padding',
         'order_column',
     ];
 

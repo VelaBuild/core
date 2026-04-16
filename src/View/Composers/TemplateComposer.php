@@ -9,11 +9,19 @@ class TemplateComposer
 {
     public function compose(View $view): void
     {
-        $navPages = Page::where('locale', app()->getLocale())
-            ->where('status', 'published')
-            ->whereNull('parent_id')
-            ->orderBy('order_column')
-            ->get();
+        // When holding page is active, hide navigation for non-admin visitors
+        $holdingPageActive = config('vela.visibility.mode') === 'restricted'
+            && config('vela.visibility.holding_page')
+            && !auth('vela')->check();
+
+        $navPages = $holdingPageActive
+            ? collect()
+            : Page::where('locale', app()->getLocale())
+                ->where('status', 'published')
+                ->whereNull('parent_id')
+                ->where('slug', '!=', 'home')
+                ->orderBy('order_column')
+                ->get();
 
         $currentLocale = app()->getLocale();
         $flagMap = [
@@ -25,5 +33,6 @@ class TemplateComposer
         $view->with('navPages', $navPages);
         $view->with('currentLocale', $currentLocale);
         $view->with('flagMap', $flagMap);
+        $view->with('holdingPageActive', $holdingPageActive);
     }
 }

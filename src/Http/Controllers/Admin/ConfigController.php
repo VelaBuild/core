@@ -21,6 +21,9 @@ class ConfigController extends Controller
         'general' => ['site_name', 'site_niche', 'site_tagline', 'site_description'],
         'pwa' => ['pwa_enabled', 'pwa_name', 'pwa_short_name', 'pwa_description', 'pwa_display', 'pwa_theme_color', 'pwa_background_color', 'pwa_icon_source', 'pwa_precache_urls', 'pwa_offline_enabled', 'sw_version'],
         'app' => ['app_ios_url', 'app_android_url', 'app_name', 'app_custom_scheme'],
+        'gdpr' => ['gdpr_enabled', 'gdpr_privacy_url'],
+        'visibility' => ['visibility_mode', 'visibility_noindex', 'visibility_block_ai', 'visibility_holding_page', 'visibility_holding_page_id',
+            'x402_enabled', 'x402_pay_to', 'x402_price_usd', 'x402_network', 'x402_description'],
     ];
 
     public function index(Request $request)
@@ -34,8 +37,42 @@ class ConfigController extends Controller
     {
         abort_if(Gate::denies('config_access'), 403);
 
-        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app'])) {
+        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility'])) {
             abort(404);
+        }
+
+        if ($group === 'visibility') {
+            $keys = self::GROUP_KEYS['visibility'];
+            $settings = VelaConfig::whereIn('key', $keys)->pluck('value', 'key')->toArray();
+
+            $pages = Page::orderBy('title')
+                ->select('id', 'title', 'slug', 'status')
+                ->get();
+
+            return view('vela::admin.settings.visibility', compact('settings', 'pages'));
+        }
+
+        if ($group === 'gdpr') {
+            $keys = self::GROUP_KEYS['gdpr'];
+            $settings = VelaConfig::whereIn('key', $keys)->pluck('value', 'key')->toArray();
+
+            // Resolve effective values: DB value if set, else env/config default
+            $gdprEnabled = $settings['gdpr_enabled'] ?? null;
+            $gdprPrivacyUrl = $settings['gdpr_privacy_url'] ?? null;
+            $envGdpr = env('VELA_GDPR');
+            $envPrivacyUrl = env('VELA_PRIVACY_URL');
+
+            $effectiveEnabled = $gdprEnabled !== null ? ($gdprEnabled === '1') : config('vela.gdpr.enabled', false);
+            $effectivePrivacyUrl = $gdprPrivacyUrl ?? config('vela.gdpr.privacy_url', '/privacy');
+
+            // Check if the privacy page exists
+            $privacySlug = ltrim($effectivePrivacyUrl, '/');
+            $privacyPageExists = Page::where('slug', $privacySlug)->where('status', 'published')->exists();
+
+            return view('vela::admin.settings.gdpr', compact(
+                'settings', 'effectiveEnabled', 'effectivePrivacyUrl',
+                'envGdpr', 'envPrivacyUrl', 'privacyPageExists', 'privacySlug'
+            ));
         }
 
         if ($group === 'appearance') {
@@ -74,8 +111,85 @@ class ConfigController extends Controller
     {
         abort_if(Gate::denies('config_edit'), 403);
 
-        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app'])) {
+        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility'])) {
             abort(404);
+        }
+
+        if ($group === 'visibility') {
+            $mode = $request->input('visibility_mode', 'public');
+            VelaConfig::updateOrCreate(['key' => 'visibility_mode'], ['value' => $mode]);
+
+            if ($mode === 'restricted') {
+                $noindex = $request->boolean('visibility_noindex');
+                $blockAi = $request->boolean('visibility_block_ai');
+                $holdingPage = $request->boolean('visibility_holding_page');
+
+                // If restricted with no sub-options, default noindex on
+                if (!$noindex && !$blockAi && !$holdingPage) {
+                    $noindex = true;
+                }
+
+                VelaConfig::updateOrCreate(['key' => 'visibility_noindex'], ['value' => $noindex ? '1' : '0']);
+                VelaConfig::updateOrCreate(['key' => 'visibility_block_ai'], ['value' => $blockAi ? '1' : '0']);
+                VelaConfig::updateOrCreate(['key' => 'visibility_holding_page'], ['value' => $holdingPage ? '1' : '0']);
+                VelaConfig::updateOrCreate(['key' => 'visibility_holding_page_id'], [
+                    'value' => $holdingPage ? ($request->input('visibility_holding_page_id', '') ?: '') : '',
+                ]);
+            } else {
+                // Public mode — clear all restrictions
+                VelaConfig::updateOrCreate(['key' => 'visibility_noindex'], ['value' => '0']);
+                VelaConfig::updateOrCreate(['key' => 'visibility_block_ai'], ['value' => '0']);
+                VelaConfig::updateOrCreate(['key' => 'visibility_holding_page'], ['value' => '0']);
+                VelaConfig::updateOrCreate(['key' => 'visibility_holding_page_id'], ['value' => '']);
+            }
+
+            // x402 AI Payment — independent of public/restricted mode
+            VelaConfig::updateOrCreate(['key' => 'x402_enabled'], ['value' => $request->boolean('x402_enabled') ? '1' : '0']);
+            if ($request->filled('x402_pay_to')) {
+                $request->validate([
+                    'x402_pay_to' => 'string|max:255',
+                    'x402_price_usd' => 'numeric|min:0.001|max:1000',
+                    'x402_network' => 'in:base,ethereum,polygon,arbitrum,optimism',
+                    'x402_description' => 'nullable|string|max:500',
+                ]);
+            }
+            VelaConfig::updateOrCreate(['key' => 'x402_pay_to'], ['value' => $request->input('x402_pay_to', '')]);
+            VelaConfig::updateOrCreate(['key' => 'x402_price_usd'], ['value' => $request->input('x402_price_usd', '0.01')]);
+            VelaConfig::updateOrCreate(['key' => 'x402_network'], ['value' => $request->input('x402_network', 'base')]);
+            VelaConfig::updateOrCreate(['key' => 'x402_description'], ['value' => $request->input('x402_description', '')]);
+
+            $this->writeSiteConfig();
+
+            // Clear static HTML cache — meta tags and holding page behaviour
+            // are baked into cached files, so they must be regenerated
+            $staticPath = config('vela.static.path', resource_path('static'));
+            foreach (['home', 'posts', 'categories', 'pages'] as $dir) {
+                $path = $staticPath . '/' . $dir;
+                if (is_dir($path)) {
+                    $this->deleteStaticDirectory($path);
+                }
+            }
+
+            return redirect()->back()->with('success', __('vela::visibility.settings_saved'));
+        }
+
+        if ($group === 'gdpr') {
+            $request->validate([
+                'gdpr_enabled' => 'nullable|boolean',
+                'gdpr_privacy_url' => 'nullable|string|max:255',
+            ]);
+
+            VelaConfig::updateOrCreate(['key' => 'gdpr_enabled'], ['value' => $request->boolean('gdpr_enabled') ? '1' : '0']);
+
+            $privacyUrl = $request->input('gdpr_privacy_url', '/privacy');
+            if ($privacyUrl && ! str_starts_with($privacyUrl, '/')) {
+                $privacyUrl = '/' . $privacyUrl;
+            }
+            VelaConfig::updateOrCreate(['key' => 'gdpr_privacy_url'], ['value' => $privacyUrl ?: '/privacy']);
+
+            $this->writeSiteConfig();
+
+            return redirect()->back()->with('success', __('vela::gdpr.settings_saved'));
         }
 
         if ($group === 'general') {
@@ -423,6 +537,40 @@ class ConfigController extends Controller
             ->pluck('value', 'key')
             ->toArray();
 
+        // Site visibility settings
+        $visibilityMode = VelaConfig::where('key', 'visibility_mode')->value('value');
+        if ($visibilityMode !== null) {
+            $config['visibility_mode'] = $visibilityMode;
+            $config['visibility_noindex'] = VelaConfig::where('key', 'visibility_noindex')->value('value') === '1';
+            $config['visibility_block_ai'] = VelaConfig::where('key', 'visibility_block_ai')->value('value') === '1';
+            $config['visibility_holding_page'] = VelaConfig::where('key', 'visibility_holding_page')->value('value') === '1';
+            $holdingId = VelaConfig::where('key', 'visibility_holding_page_id')->value('value') ?? '';
+            $config['visibility_holding_page_id'] = $holdingId;
+            $config['visibility_holding_page_slug'] = $holdingId
+                ? (Page::where('id', $holdingId)->value('slug') ?? '')
+                : '';
+        }
+
+        // x402 AI Payment settings
+        $x402Enabled = VelaConfig::where('key', 'x402_enabled')->value('value');
+        if ($x402Enabled !== null) {
+            $config['x402_enabled'] = $x402Enabled === '1';
+            $config['x402_pay_to'] = VelaConfig::where('key', 'x402_pay_to')->value('value') ?? '';
+            $config['x402_price_usd'] = VelaConfig::where('key', 'x402_price_usd')->value('value') ?? '0.01';
+            $config['x402_network'] = VelaConfig::where('key', 'x402_network')->value('value') ?? 'base';
+            $config['x402_description'] = VelaConfig::where('key', 'x402_description')->value('value') ?? '';
+        }
+
+        // GDPR settings (DB overrides .env when set by admin)
+        $gdprEnabled = VelaConfig::where('key', 'gdpr_enabled')->value('value');
+        if ($gdprEnabled !== null) {
+            $config['gdpr_enabled'] = $gdprEnabled === '1';
+        }
+        $gdprPrivacyUrl = VelaConfig::where('key', 'gdpr_privacy_url')->value('value');
+        if ($gdprPrivacyUrl !== null) {
+            $config['gdpr_privacy_url'] = $gdprPrivacyUrl;
+        }
+
         $content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
         $path = storage_path('app/vela-site.php');
         $tmp = $path . '.tmp';
@@ -432,6 +580,80 @@ class ConfigController extends Controller
         if (function_exists('opcache_invalidate')) {
             opcache_invalidate($path, true);
         }
+    }
+
+    public function installPrivacyPage(Request $request)
+    {
+        abort_if(Gate::denies('config_edit'), 403);
+
+        $slug = $request->input('slug', 'privacy');
+        $slug = preg_replace('/[^a-z0-9\-]/', '', $slug) ?: 'privacy';
+
+        // Check including soft-deleted pages (unique constraint covers trashed rows)
+        $existing = Page::withTrashed()->where('slug', $slug)->first();
+        if ($existing) {
+            if ($existing->trashed()) {
+                $existing->restore();
+                return redirect()->back()->with('success', __('vela::gdpr.privacy_page_restored'));
+            }
+            return redirect()->back()->with('error', __('vela::gdpr.privacy_page_exists'));
+        }
+
+        // Load privacy page template from JSON
+        $jsonPath = __DIR__ . '/../../../../resources/defaults/default-privacy.json';
+        if (!file_exists($jsonPath)) {
+            return redirect()->back()->with('error', 'Privacy template file not found.');
+        }
+
+        $rowsData = json_decode(file_get_contents($jsonPath), true);
+        if (!is_array($rowsData)) {
+            return redirect()->back()->with('error', 'Privacy template file is invalid.');
+        }
+
+        // Replace placeholders
+        $siteName = VelaConfig::where('key', 'site_name')->value('value')
+            ?: config('app.name', 'Our Website');
+        $date = now()->format('F j, Y');
+
+        $json = json_encode($rowsData);
+        $json = str_replace(['{{SITE_NAME}}', '{{DATE}}'], [$siteName, $date], $json);
+        $rowsData = json_decode($json, true);
+
+        DB::transaction(function () use ($slug, $rowsData) {
+            $page = Page::create([
+                'title'        => __('vela::gdpr.privacy_page_title'),
+                'slug'         => $slug,
+                'locale'       => config('vela.primary_language', 'en'),
+                'status'       => 'published',
+                'order_column' => 99,
+            ]);
+
+            foreach ($rowsData as $rowOrder => $rowData) {
+                $pageRow = PageRow::create([
+                    'page_id'          => $page->id,
+                    'name'             => $rowData['name'] ?? null,
+                    'css_class'        => $rowData['css_class'] ?? null,
+                    'background_color' => $rowData['background_color'] ?? null,
+                    'background_image' => $rowData['background_image'] ?? null,
+                    'order_column'     => $rowData['order'] ?? $rowOrder,
+                ]);
+
+                foreach ($rowData['blocks'] ?? [] as $blockOrder => $blockData) {
+                    $pageRow->blocks()->create([
+                        'column_index'     => $blockData['column_index'] ?? 0,
+                        'column_width'     => $blockData['column_width'] ?? 12,
+                        'order_column'     => $blockData['order'] ?? $blockOrder,
+                        'type'             => $blockData['type'],
+                        'content'          => $blockData['content'] ?? null,
+                        'settings'         => $blockData['settings'] ?? null,
+                        'background_color' => $blockData['background_color'] ?? null,
+                        'background_image' => $blockData['background_image'] ?? null,
+                    ]);
+                }
+            }
+        });
+
+        return redirect()->back()->with('success', __('vela::gdpr.privacy_page_created'));
     }
 
     private function deleteStaticDirectory(string $dir): void

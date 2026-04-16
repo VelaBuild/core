@@ -15,7 +15,7 @@
             @can($tool['gate'] ?? 'tools_access')
                 <a class="dropdown-item {{ $currentRoute === $tool['route'] ? 'active' : '' }}"
                    href="{{ route($tool['route']) }}">
-                    <i class="{{ $tool['icon'] }} mr-2"></i> {{ $tool['label'] }}
+                    <i class="{{ $tool['icon'] }} mr-2"></i> {{ trans($tool['label']) }}
                 </a>
             @endcan
         @endforeach

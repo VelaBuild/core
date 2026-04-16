@@ -9,7 +9,7 @@
 
 {{-- Block Edit Modal --}}
 <div class="modal fade" id="block-edit-modal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ trans('vela::global.edit_block') }}</h5>
@@ -80,6 +80,34 @@
     </div>
 </div>
 
+{{-- Media Browser Modal --}}
+<div class="modal fade" id="media-browser-modal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-images mr-2"></i> {{ trans('vela::media.library_title') }}</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body" style="max-height:70vh;overflow-y:auto;" id="media-browser-scroll">
+                <div class="mb-3 d-flex align-items-center" style="gap:10px;">
+                    <input type="file" id="media-browser-file" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
+                    <button type="button" class="btn btn-sm btn-primary" id="media-browser-upload-btn">
+                        <i class="fas fa-upload mr-1"></i> {{ trans('vela::global.upload') }}
+                    </button>
+                </div>
+                <div id="media-browser-grid" class="media-browser-grid"></div>
+                <div id="media-browser-loading" class="text-center py-3" style="display:none;">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+                <div id="media-browser-empty" class="text-center py-4" style="display:none;">
+                    <i class="fas fa-images fa-3x text-muted d-block mb-2"></i>
+                    <p class="text-muted">{{ trans('vela::media.no_media_found') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 .page-row-editor { border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 16px; }
 .page-row-editor .card-header { background: #f8f9fa; padding: 8px 12px; }
@@ -99,12 +127,23 @@
 .block-img-dz { border: 2px dashed #ced4da; border-radius: 4px; padding: 20px; text-align: center; cursor: pointer; min-height: 80px; background: #fafafa; transition: border-color 0.2s; }
 .block-img-dz:hover { border-color: #80bdff; }
 .block-img-dz .dz-message { margin: 0; color: #6c757d; }
+.media-browser-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.media-browser-item { cursor: pointer; border: 2px solid transparent; border-radius: 6px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; background: #f8f9fa; }
+.media-browser-item:hover { border-color: #321fdb; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+.media-browser-item img { width: 100%; height: 120px; object-fit: cover; display: block; }
+.media-browser-item .media-browser-name { padding: 4px 6px; font-size: 0.75em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #555; }
+.media-browser-item.selected { border-color: #321fdb; box-shadow: 0 0 0 3px rgba(50,31,219,.25); }
+.media-browser-item.selected::after { content: '\f058'; font-family: 'Font Awesome 5 Free'; font-weight: 900; position: absolute; top: 6px; right: 6px; color: #321fdb; font-size: 18px; text-shadow: 0 0 3px #fff; }
+.multi-select .media-browser-item { position: relative; }
+#media-browser-modal { z-index: 1070; }
 </style>
 
 @push('scripts')
 <script>
 window.PageEditorConfig = {
     uploadUrl: '{{ route("vela.admin.pages.storeCKEditorImages") }}',
+    mediaUrl: '{{ route("vela.admin.media.index") }}',
+    mediaUploadUrl: '{{ route("vela.admin.media.storeMedia") }}',
     categories: @json(\VelaBuild\Core\Models\Category::orderBy('order_by')->orderBy('name')->get(['id', 'name']))
 };
 </script>
@@ -116,5 +155,11 @@ window.PageEditorConfig = {
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/table@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/embed@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/image@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/delimiter@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/inline-code@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/marker@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/warning@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@1"></script>
 <script src="{{ asset('vendor/vela/js/page-editor.js') }}"></script>
 @endpush

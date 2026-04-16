@@ -2,3 +2,4 @@
 @if(\VelaBuild\Core\Models\VelaConfig::where('key', 'pwa_enabled')->value('value') !== '0')
     @include('vela::partials.pwa-registration')
 @endif
+@include('vela::partials.cookie-consent')

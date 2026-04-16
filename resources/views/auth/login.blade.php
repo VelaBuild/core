@@ -1,81 +1,49 @@
-@extends('vela::layouts.app')
+@extends('vela::layouts.auth')
+
+@section('subtitle')
+    <p>{{ trans('vela::global.login') }}</p>
+@endsection
+
 @section('content')
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card mx-4">
-            <div class="card-body p-4">
-                <h1>{{ config('app.name') }}</h1>
+    @if(session('message'))
+        <div class="alert alert-info">
+            {{ session('message') }}
+        </div>
+    @endif
 
-                <p class="text-muted">{{ trans('vela::global.login') }}</p>
+    <form method="POST" action="{{ route('vela.auth.login.submit') }}">
+        @csrf
 
-                @if(session('message'))
-                    <div class="alert alert-info" role="alert">
-                        {{ session('message') }}
-                    </div>
-                @endif
+        <div class="form-group">
+            <label for="email">{{ trans('vela::global.login_email') }}</label>
+            <input id="email" name="email" type="text" class="form-input{{ $errors->has('email') ? ' is-invalid' : '' }}" required autocomplete="email" autofocus value="{{ old('email', null) }}">
+            @if($errors->has('email'))
+                <div class="invalid-feedback">{{ $errors->first('email') }}</div>
+            @endif
+        </div>
 
-                <form method="POST" action="{{ route('vela.auth.login.submit') }}">
-                    @csrf
+        <div class="form-group">
+            <label for="password">{{ trans('vela::global.login_password') }}</label>
+            <input id="password" name="password" type="password" class="form-input{{ $errors->has('password') ? ' is-invalid' : '' }}" required>
+            @if($errors->has('password'))
+                <div class="invalid-feedback">{{ $errors->first('password') }}</div>
+            @endif
+        </div>
 
-                    <div class="input-group mb-3">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text">
-                                <i class="fa fa-user"></i>
-                            </span>
-                        </div>
-
-                        <input id="email" name="email" type="text" class="form-control{{ $errors->has('email') ? ' is-invalid' : '' }}" required autocomplete="email" autofocus placeholder="{{ trans('vela::global.login_email') }}" value="{{ old('email', null) }}">
-
-                        @if($errors->has('email'))
-                            <div class="invalid-feedback">
-                                {{ $errors->first('email') }}
-                            </div>
-                        @endif
-                    </div>
-
-                    <div class="input-group mb-3">
-                        <div class="input-group-prepend">
-                            <span class="input-group-text"><i class="fa fa-lock"></i></span>
-                        </div>
-
-                        <input id="password" name="password" type="password" class="form-control{{ $errors->has('password') ? ' is-invalid' : '' }}" required placeholder="{{ trans('vela::global.login_password') }}">
-
-                        @if($errors->has('password'))
-                            <div class="invalid-feedback">
-                                {{ $errors->first('password') }}
-                            </div>
-                        @endif
-                    </div>
-
-                    <div class="input-group mb-4">
-                        <div class="form-check checkbox">
-                            <input class="form-check-input" name="remember" type="checkbox" id="remember" style="vertical-align: middle;" />
-                            <label class="form-check-label" for="remember" style="vertical-align: middle;">
-                                {{ trans('vela::global.remember_me') }}
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-6">
-                            <button type="submit" class="btn btn-primary px-4">
-                                {{ trans('vela::global.login') }}
-                            </button>
-                        </div>
-                        <div class="col-6 text-right">
-                            @if(Route::has('vela.auth.password.request'))
-                                <a class="btn btn-link px-0" href="{{ route('vela.auth.password.request') }}">
-                                    {{ trans('vela::global.forgot_password') }}
-                                </a><br>
-                            @endif
-                            <a class="btn btn-link px-0" href="{{ route('vela.auth.register') }}">
-                                {{ trans('vela::global.register') }}
-                            </a>
-                        </div>
-                    </div>
-                </form>
+        <div class="form-group">
+            <div class="form-check">
+                <input type="checkbox" name="remember" id="remember">
+                <label for="remember">{{ trans('vela::global.remember_me') }}</label>
             </div>
         </div>
+
+        <button type="submit" class="btn btn-primary">{{ trans('vela::global.login') }}</button>
+    </form>
+
+    <div class="auth-footer">
+        @if(Route::has('vela.auth.password.request'))
+            <a href="{{ route('vela.auth.password.request') }}" class="btn-link">{{ trans('vela::global.forgot_password') }}</a>
+        @endif
+        <a href="{{ route('vela.auth.register') }}" class="btn-link">{{ trans('vela::global.register') }}</a>
     </div>
-</div>
 @endsection

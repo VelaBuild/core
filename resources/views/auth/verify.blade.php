@@ -1,28 +1,25 @@
-@extends('vela::layouts.app')
+@extends('vela::layouts.auth')
+
+@section('subtitle')
+    <p>{{ __('Verify Your Email Address') }}</p>
+@endsection
 
 @section('content')
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">{{ __('Verify Your Email Address') }}</div>
-
-                <div class="card-body">
-                    @if (session('resent'))
-                        <div class="alert alert-success" role="alert">
-                            {{ __('A fresh verification link has been sent to your email address.') }}
-                        </div>
-                    @endif
-
-                    {{ __('Before proceeding, please check your email for a verification link.') }}
-                    {{ __('If you did not receive the email') }},
-                    <form class="d-inline" method="POST" action="{{ route('vela.auth.verification.resend') }}">
-                        @csrf
-                        <button type="submit" class="btn btn-link p-0 m-0 align-baseline">{{ __('click here to request another') }}</button>.
-                    </form>
-                </div>
-            </div>
+    @if(session('resent'))
+        <div class="alert alert-success">
+            {{ __('A fresh verification link has been sent to your email address.') }}
         </div>
-    </div>
-</div>
+    @endif
+
+    <p style="color:#475569;font-size:14px;margin-bottom:20px">
+        {{ __('Before proceeding, please check your email for a verification link.') }}
+    </p>
+
+    <p style="color:#475569;font-size:14px">
+        {{ __('If you did not receive the email') }},
+        <form class="d-inline" method="POST" action="{{ route('vela.auth.verification.resend') }}" style="display:inline">
+            @csrf
+            <button type="submit" class="btn-link">{{ __('click here to request another') }}</button>.
+        </form>
+    </p>
 @endsection

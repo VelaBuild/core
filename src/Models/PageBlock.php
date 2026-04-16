@@ -42,6 +42,9 @@ class PageBlock extends Model implements HasMedia
         'settings',
         'background_color',
         'background_image',
+        'text_color',
+        'text_alignment',
+        'padding',
     ];
 
     protected $casts = [
