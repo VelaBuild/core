@@ -1,0 +1,14 @@
+@extends('vela-modern::layout')
+
+@section('title', __('vela::pwa.offline_title'))
+
+@section('content')
+<div class="md-container" style="display: flex; justify-content: center; align-items: center; min-height: 60vh;">
+    <div style="text-align: center; padding: 2rem;">
+        <div style="font-size: 4rem; margin-bottom: 1rem;">&#128268;</div>
+        <h1>{{ __('vela::pwa.offline_heading') }}</h1>
+        <p style="color: #94a3b8; margin-bottom: 1.5rem;">{{ __('vela::pwa.offline_message') }}</p>
+        <button onclick="window.location.reload()" class="md-btn md-btn-primary">{{ __('vela::pwa.try_again') }}</button>
+    </div>
+</div>
+@endsection

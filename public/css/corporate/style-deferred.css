@@ -1,0 +1,168 @@
+/* =========================================================
+   Corporate Theme — style-deferred.css
+   Non-critical: hover effects, animations, transitions
+   CSS Prefix: co-
+   ========================================================= */
+
+/* Nav scroll effect */
+.co-nav {
+    transition: box-shadow 0.2s ease;
+}
+.co-nav.scrolled {
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+}
+
+/* Nav link transitions */
+.co-nav-links a {
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* Card hover lift */
+.co-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.co-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.1);
+    border-color: #cbd5e1;
+}
+
+/* Button transitions */
+.co-btn {
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.co-btn-primary:hover {
+    box-shadow: 0 4px 16px rgba(30, 64, 175, 0.35);
+}
+.co-btn-white:hover {
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+}
+
+/* Featured article transitions */
+.co-featured-title {
+    transition: color 0.15s ease;
+}
+.co-featured-article .co-featured-img img {
+    transition: transform 0.4s ease;
+}
+.co-featured-article:hover .co-featured-img img {
+    transform: scale(1.03);
+}
+
+/* Card image zoom */
+.co-card-img-wrap img {
+    transition: transform 0.4s ease;
+}
+.co-card:hover .co-card-img-wrap img {
+    transform: scale(1.04);
+}
+
+/* Card title color transition */
+.co-card-title {
+    transition: color 0.15s ease;
+}
+
+/* Category card */
+.co-category-card {
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.2s ease;
+}
+.co-category-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+}
+.co-category-icon {
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.co-category-card:hover .co-category-icon {
+    background: #1e40af;
+    color: #fff;
+}
+
+/* Chip transitions */
+.co-chip {
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* Share button transitions */
+.co-share-btn {
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* Language dropdown */
+.co-lang-btn {
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+.co-lang-option {
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+/* Pagination transitions */
+.co-pagination a {
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+/* Hero decorative animation */
+@keyframes co-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+.co-hero-float {
+    animation: co-float 5s ease-in-out infinite;
+}
+
+/* Fade-in for content sections */
+@keyframes co-fadein {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.co-animate-in {
+    animation: co-fadein 0.5s ease both;
+}
+
+/* Footer link transitions */
+.co-footer-col a {
+    transition: color 0.15s ease;
+}
+.co-footer-brand .co-footer-logo {
+    transition: color 0.15s ease;
+}
+
+/* Scroll-to-top button (optional utility) */
+.co-scroll-top {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    width: 44px;
+    height: 44px;
+    background: #1e40af;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(30, 64, 175, 0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 800;
+}
+.co-scroll-top.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+.co-scroll-top:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(30, 64, 175, 0.4);
+}
+
+/* Underline section header on scroll */
+.co-section-header h2::after {
+    transition: width 0.4s ease;
+}
+
+/* Mobile menu animation */
+.co-nav-links.is-open {
+    animation: co-fadein 0.2s ease both;
+}

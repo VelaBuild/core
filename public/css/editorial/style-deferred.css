@@ -1,0 +1,114 @@
+/* =========================================================
+   Editorial Theme — style-deferred.css
+   Non-critical styles: hover effects, transitions, animations
+   ========================================================= */
+
+/* Smooth link transitions */
+a { transition: color 0.15s ease; }
+
+/* Card image zoom on hover */
+.ed-card-img-wrap { overflow: hidden; }
+.ed-card-img-wrap img { transition: transform 0.4s ease; }
+.ed-card:hover .ed-card-img-wrap img { transform: scale(1.03); }
+
+.ed-featured-img-wrap img { transition: transform 0.5s ease; }
+.ed-featured:hover .ed-featured-img-wrap img { transform: scale(1.02); }
+
+/* Language dropdown animation */
+.ed-lang-dropdown {
+    transform-origin: top right;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+[x-cloak] { display: none !important; }
+
+/* Nav link underline animation */
+.ed-nav-links a {
+    position: relative;
+    transition: color 0.15s, background-color 0.15s;
+}
+
+/* Category card hover */
+.ed-category-card {
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+/* Share buttons */
+.ed-share-btn {
+    transition: border-color 0.15s, color 0.15s;
+}
+
+/* Buttons */
+.ed-btn {
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+/* Pagination */
+.ed-pagination a {
+    transition: border-color 0.15s, color 0.15s;
+}
+
+/* Chips */
+.ed-chip {
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+/* Article featured image parallax-like effect */
+.ed-article-featured-img {
+    position: relative;
+    overflow: hidden;
+}
+.ed-article-featured-img img {
+    transition: transform 0.6s ease;
+}
+
+/* Sidebar widget smooth hover */
+.ed-sidebar-widget a {
+    transition: color 0.15s;
+}
+
+/* Footer link hover */
+.ed-footer-nav a {
+    transition: color 0.15s;
+}
+.ed-footer-brand .ed-footer-logo {
+    transition: color 0.15s;
+}
+
+/* Masthead scroll shadow */
+.ed-masthead {
+    transition: box-shadow 0.2s ease;
+}
+.ed-masthead.scrolled {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* Mobile nav slide */
+.ed-nav-links.is-open {
+    animation: slideDown 0.2s ease;
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive typography refinement */
+@media (max-width: 640px) {
+    .ed-prose { font-size: 1rem; }
+    .ed-prose > p:first-of-type::first-letter {
+        font-size: 2.8rem;
+    }
+    .ed-breadcrumb { font-size: 0.75rem; }
+    .ed-chips { gap: 6px; }
+}
+
+/* Print styles */
+@media print {
+    .ed-topbar,
+    .ed-masthead,
+    .ed-footer,
+    .ed-share,
+    .ed-sidebar,
+    .ed-related { display: none !important; }
+    .ed-prose { max-width: 100%; font-size: 11pt; line-height: 1.6; }
+    .ed-article-layout { grid-template-columns: 1fr !important; }
+}

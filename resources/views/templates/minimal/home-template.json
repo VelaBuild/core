@@ -1,0 +1,136 @@
+[
+    {
+        "name": "Hero",
+        "css_class": "home-row-hero",
+        "background_color": "#ffffff",
+        "background_image": null,
+        "order": 0,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "hero",
+                "content": {
+                    "title": "Simple. Clean. Focused.",
+                    "subtitle": "A space for thoughtful writing and curated content.",
+                    "primary_button_text": "Read Articles",
+                    "primary_button_url": "/posts",
+                    "secondary_button_text": "",
+                    "secondary_button_url": ""
+                },
+                "settings": {
+                    "background_overlay": "rgba(0,0,0,0)",
+                    "text_alignment": "center",
+                    "min_height": "50vh"
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Latest Posts",
+        "css_class": "home-row-posts",
+        "background_color": null,
+        "background_image": null,
+        "order": 1,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "text",
+                "content": {
+                    "blocks": [
+                        {"type": "header", "data": {"text": "Recent Writing", "level": 2}}
+                    ]
+                },
+                "settings": {},
+                "background_color": null,
+                "background_image": null
+            },
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 1,
+                "type": "posts_grid",
+                "content": {},
+                "settings": {
+                    "columns": 3,
+                    "max_count": 6,
+                    "category_id": "",
+                    "order_by": "newest",
+                    "show_excerpt": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Categories",
+        "css_class": "home-row-categories",
+        "background_color": null,
+        "background_image": null,
+        "order": 2,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "text",
+                "content": {
+                    "blocks": [
+                        {"type": "header", "data": {"text": "Topics", "level": 2}}
+                    ]
+                },
+                "settings": {},
+                "background_color": null,
+                "background_image": null
+            },
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 1,
+                "type": "categories_grid",
+                "content": {},
+                "settings": {
+                    "columns": 3,
+                    "max_count": 12,
+                    "show_post_count": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Call to Action",
+        "css_class": "home-row-cta",
+        "background_color": "#f9fafb",
+        "background_image": null,
+        "order": 3,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "cta",
+                "content": {
+                    "heading": "Keep Reading",
+                    "description": "Browse our full collection of articles and guides.",
+                    "primary_button_text": "All Articles",
+                    "primary_button_url": "/posts",
+                    "secondary_button_text": "",
+                    "secondary_button_url": ""
+                },
+                "settings": {
+                    "text_alignment": "center"
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    }
+]

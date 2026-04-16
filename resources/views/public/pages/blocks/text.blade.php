@@ -1,0 +1,34 @@
+@php
+    $content = $block->content;
+    $blocks = $content['blocks'] ?? [];
+@endphp
+<div class="block-text">
+    @foreach($blocks as $editorBlock)
+        @if($editorBlock['type'] === 'paragraph')
+            <p>{!! $editorBlock['data']['text'] ?? '' !!}</p>
+        @elseif($editorBlock['type'] === 'header')
+            <h{{ $editorBlock['data']['level'] ?? 2 }}>{!! $editorBlock['data']['text'] ?? '' !!}</h{{ $editorBlock['data']['level'] ?? 2 }}>
+        @elseif($editorBlock['type'] === 'list')
+            @if(($editorBlock['data']['style'] ?? 'unordered') === 'ordered')
+                <ol>@foreach($editorBlock['data']['items'] ?? [] as $item)<li>{!! $item !!}</li>@endforeach</ol>
+            @else
+                <ul>@foreach($editorBlock['data']['items'] ?? [] as $item)<li>{!! $item !!}</li>@endforeach</ul>
+            @endif
+        @elseif($editorBlock['type'] === 'quote')
+            <blockquote>{!! $editorBlock['data']['text'] ?? '' !!}</blockquote>
+        @elseif($editorBlock['type'] === 'table')
+            <table>
+                @foreach($editorBlock['data']['content'] ?? [] as $tableRow)
+                    <tr>@foreach($tableRow as $cell)<td>{!! $cell !!}</td>@endforeach</tr>
+                @endforeach
+            </table>
+        @elseif($editorBlock['type'] === 'image')
+            <figure>
+                <img src="{{ $editorBlock['data']['file']['url'] ?? '' }}" alt="{{ $editorBlock['data']['caption'] ?? '' }}">
+                @if(!empty($editorBlock['data']['caption']))
+                    <figcaption>{{ $editorBlock['data']['caption'] }}</figcaption>
+                @endif
+            </figure>
+        @endif
+    @endforeach
+</div>

@@ -1,0 +1,103 @@
+[
+    {
+        "name": "Featured Article",
+        "css_class": "home-row-featured",
+        "background_color": null,
+        "background_image": null,
+        "order": 0,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "posts_grid",
+                "content": {},
+                "settings": {
+                    "columns": 1,
+                    "max_count": 1,
+                    "category_id": "",
+                    "order_by": "newest",
+                    "show_excerpt": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "More Stories",
+        "css_class": "home-row-posts",
+        "background_color": null,
+        "background_image": null,
+        "order": 1,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "text",
+                "content": {
+                    "blocks": [
+                        {"type": "header", "data": {"text": "More Stories", "level": 2}}
+                    ]
+                },
+                "settings": {},
+                "background_color": null,
+                "background_image": null
+            },
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 1,
+                "type": "posts_grid",
+                "content": {},
+                "settings": {
+                    "columns": 2,
+                    "max_count": 4,
+                    "category_id": "",
+                    "order_by": "newest",
+                    "show_excerpt": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Categories",
+        "css_class": "home-row-categories",
+        "background_color": "#f8f7f4",
+        "background_image": null,
+        "order": 2,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "text",
+                "content": {
+                    "blocks": [
+                        {"type": "header", "data": {"text": "Sections", "level": 2}}
+                    ]
+                },
+                "settings": {},
+                "background_color": null,
+                "background_image": null
+            },
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 1,
+                "type": "categories_grid",
+                "content": {},
+                "settings": {
+                    "columns": 4,
+                    "max_count": 12,
+                    "show_post_count": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    }
+]

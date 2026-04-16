@@ -1,0 +1,137 @@
+[
+    {
+        "name": "Hero",
+        "css_class": "home-row-hero",
+        "background_color": "#1e3a5f",
+        "background_image": null,
+        "order": 0,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "hero",
+                "content": {
+                    "title": "Professional Insights & Industry Knowledge",
+                    "subtitle": "Trusted resources, expert analysis, and actionable guidance for professionals.",
+                    "primary_button_text": "Explore Articles",
+                    "primary_button_url": "/posts",
+                    "secondary_button_text": "Our Focus Areas",
+                    "secondary_button_url": "/categories"
+                },
+                "settings": {
+                    "background_overlay": "rgba(0,0,0,0.5)",
+                    "text_alignment": "center",
+                    "min_height": "70vh"
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Latest Posts",
+        "css_class": "home-row-posts",
+        "background_color": null,
+        "background_image": null,
+        "order": 1,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "text",
+                "content": {
+                    "blocks": [
+                        {"type": "header", "data": {"text": "Latest Publications", "level": 2}},
+                        {"type": "paragraph", "data": {"text": "Stay informed with our most recent articles and expert commentary."}}
+                    ]
+                },
+                "settings": {},
+                "background_color": null,
+                "background_image": null
+            },
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 1,
+                "type": "posts_grid",
+                "content": {},
+                "settings": {
+                    "columns": 3,
+                    "max_count": 6,
+                    "category_id": "",
+                    "order_by": "newest",
+                    "show_excerpt": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Categories",
+        "css_class": "home-row-categories",
+        "background_color": "#f1f5f9",
+        "background_image": null,
+        "order": 2,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "text",
+                "content": {
+                    "blocks": [
+                        {"type": "header", "data": {"text": "Focus Areas", "level": 2}}
+                    ]
+                },
+                "settings": {},
+                "background_color": null,
+                "background_image": null
+            },
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 1,
+                "type": "categories_grid",
+                "content": {},
+                "settings": {
+                    "columns": 3,
+                    "max_count": 12,
+                    "show_post_count": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Call to Action",
+        "css_class": "home-row-cta",
+        "background_color": "#0f172a",
+        "background_image": null,
+        "order": 3,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "cta",
+                "content": {
+                    "heading": "Explore Our Resources",
+                    "description": "Browse our full library of articles, analysis, and professional guides.",
+                    "primary_button_text": "All Articles",
+                    "primary_button_url": "/posts",
+                    "secondary_button_text": "Focus Areas",
+                    "secondary_button_url": "/categories"
+                },
+                "settings": {
+                    "text_alignment": "center"
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    }
+]

@@ -1,0 +1,149 @@
+/* =========================================================
+   Dark Theme — style-deferred.css
+   Non-critical styles: hover effects, glow effects, transitions
+   ========================================================= */
+
+/* Link transitions */
+a { transition: color 0.15s ease; }
+
+/* Card hover */
+.dk-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dk-card:hover {
+    box-shadow: 0 0 0 1px #14b8a6, 0 4px 24px rgba(20,184,166,0.08);
+}
+
+/* Card image zoom on hover */
+.dk-card-img-wrap { overflow: hidden; }
+.dk-card-img-wrap img { transition: transform 0.4s ease; }
+.dk-card:hover .dk-card-img-wrap img { transform: scale(1.04); }
+
+/* Nav floating effect on scroll */
+.dk-nav {
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.dk-nav.scrolled {
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    border-bottom-color: #14b8a6;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+}
+
+/* Nav link hover */
+.dk-nav-links a {
+    transition: background-color 0.15s, color 0.15s;
+}
+
+/* Language dropdown animation */
+.dk-lang-dropdown {
+    transform-origin: top right;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+[x-cloak] { display: none !important; }
+
+/* Buttons */
+.dk-btn {
+    transition: background-color 0.2s ease, color 0.15s, transform 0.1s ease, box-shadow 0.2s ease;
+}
+.dk-btn:hover { transform: translateY(-1px); }
+.dk-btn:active { transform: translateY(0); }
+.dk-btn-primary:hover { box-shadow: 0 4px 20px rgba(20,184,166,0.3); }
+
+/* Chips */
+.dk-chip {
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+/* Category card */
+.dk-category-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.dk-category-card:hover {
+    box-shadow: 0 0 0 1px #14b8a6, 0 4px 20px rgba(20,184,166,0.08);
+}
+
+/* Share buttons */
+.dk-share-btn {
+    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+/* Pagination */
+.dk-pagination a {
+    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+/* Footer col links */
+.dk-footer-col a {
+    transition: color 0.15s;
+}
+
+/* Teal glow pulse for accent elements */
+@keyframes tealGlow {
+    0%, 100% { box-shadow: 0 0 8px rgba(20,184,166,0.2); }
+    50% { box-shadow: 0 0 16px rgba(20,184,166,0.4); }
+}
+
+/* Section title accent animation */
+.dk-section-title::after {
+    transition: width 0.3s ease;
+}
+
+/* Mobile nav animation */
+.dk-nav-links.is-open {
+    animation: slideInDark 0.2s ease;
+}
+@keyframes slideInDark {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Fade-in utility */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Article featured image */
+.dk-article-featured-img {
+    overflow: hidden;
+}
+.dk-article-featured-img img {
+    transition: transform 0.6s ease;
+}
+
+/* Sidebar widget link hover */
+.dk-sidebar-widget a {
+    transition: color 0.15s;
+}
+
+/* Lang btn */
+.dk-lang-btn {
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+/* Responsive polish */
+@media (max-width: 640px) {
+    .dk-card:hover { box-shadow: none; }
+    .dk-prose { font-size: 1rem; }
+    .dk-breadcrumb { font-size: 0.78rem; }
+    .dk-chips { gap: 6px; }
+}
+
+/* Print styles */
+@media print {
+    .dk-nav,
+    .dk-footer,
+    .dk-share,
+    .dk-sidebar-widget,
+    .dk-related { display: none !important; }
+    body { background: #fff; color: #000; }
+    .dk-prose { font-size: 11pt; line-height: 1.6; color: #000; }
+    .dk-article-layout { grid-template-columns: 1fr !important; }
+    .dk-card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+/* Nav will-change hint */
+.dk-nav {
+    will-change: box-shadow;
+}

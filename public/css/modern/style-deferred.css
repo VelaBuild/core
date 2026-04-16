@@ -1,0 +1,150 @@
+/* =========================================================
+   Modern Theme — style-deferred.css
+   Non-critical styles: hover effects, transitions, animations
+   ========================================================= */
+
+/* Link transitions */
+a { transition: color 0.15s ease; }
+
+/* Card hover lift */
+.md-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.md-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(124,58,237,0.12), 0 2px 8px rgba(0,0,0,0.06);
+}
+.md-card::before {
+    transition: opacity 0.2s ease;
+}
+
+/* Card image zoom on hover */
+.md-card-img-wrap { overflow: hidden; }
+.md-card-img-wrap img { transition: transform 0.4s ease; }
+.md-card:hover .md-card-img-wrap img { transform: scale(1.04); }
+
+/* Nav floating effect on scroll */
+.md-nav {
+    transition: box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.md-nav.scrolled {
+    box-shadow: 0 4px 24px rgba(124,58,237,0.12);
+    background: rgba(255,255,255,0.98);
+}
+
+/* Nav link hover */
+.md-nav-links a {
+    transition: background-color 0.15s, color 0.15s;
+}
+
+/* Language dropdown animation */
+.md-lang-dropdown {
+    transform-origin: top right;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+}
+[x-cloak] { display: none !important; }
+
+/* Buttons */
+.md-btn {
+    transition: background 0.2s ease, color 0.15s, transform 0.1s ease, box-shadow 0.2s ease;
+}
+.md-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(124,58,237,0.25); }
+.md-btn:active { transform: translateY(0); }
+.md-btn-primary:hover { box-shadow: 0 4px 20px rgba(124,58,237,0.35); }
+
+/* Chips */
+.md-chip {
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+
+/* Category card */
+.md-category-card {
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.md-category-card::before {
+    transition: transform 0.3s ease;
+}
+
+/* Share buttons */
+.md-share-btn {
+    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+/* Pagination */
+.md-pagination a {
+    transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+/* Footer logo */
+.md-footer-col a {
+    transition: color 0.15s;
+}
+
+/* Gradient animation on hero elements */
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+.md-gradient-animate {
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
+}
+
+/* Section title accent line animation */
+.md-section-title::after {
+    transition: width 0.3s ease;
+}
+
+/* Fade-in for lazy loaded sections */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile nav animation */
+.md-nav-links.is-open {
+    animation: slideIn 0.2s ease;
+}
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(12px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+/* Article featured image */
+.md-article-featured-img {
+    overflow: hidden;
+}
+.md-article-featured-img img {
+    transition: transform 0.6s ease;
+}
+
+/* Sidebar widget hover */
+.md-sidebar-widget a {
+    transition: color 0.15s;
+}
+
+/* Responsive polish */
+@media (max-width: 640px) {
+    .md-card:hover { transform: translateY(-2px); }
+    .md-prose { font-size: 1rem; }
+    .md-breadcrumb { font-size: 0.78rem; }
+    .md-chips { gap: 6px; }
+}
+
+/* Print styles */
+@media print {
+    .md-nav,
+    .md-footer,
+    .md-share,
+    .md-sidebar-widget,
+    .md-related { display: none !important; }
+    .md-prose { font-size: 11pt; line-height: 1.6; }
+    .md-article-layout { grid-template-columns: 1fr !important; }
+    .md-card { box-shadow: none; border: 1px solid #e2e8f0; }
+}
+
+/* Scroll-triggered nav shadow via JS */
+.md-nav {
+    will-change: box-shadow;
+}

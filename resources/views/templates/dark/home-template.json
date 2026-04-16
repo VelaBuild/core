@@ -1,0 +1,108 @@
+[
+    {
+        "name": "Hero",
+        "css_class": "home-row-hero",
+        "background_color": "#1a1a2e",
+        "background_image": null,
+        "order": 0,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "hero",
+                "content": {
+                    "title": "Explore the Depths",
+                    "subtitle": "In-depth articles, expert analysis, and fresh perspectives — all in one place.",
+                    "primary_button_text": "Read Now",
+                    "primary_button_url": "/posts",
+                    "secondary_button_text": "View Topics",
+                    "secondary_button_url": "/categories"
+                },
+                "settings": {
+                    "background_overlay": "rgba(0,0,0,0.3)",
+                    "text_alignment": "center",
+                    "min_height": "70vh"
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Latest Posts",
+        "css_class": "home-row-posts",
+        "background_color": null,
+        "background_image": null,
+        "order": 1,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "text",
+                "content": {
+                    "blocks": [
+                        {"type": "header", "data": {"text": "Latest Posts", "level": 2}}
+                    ]
+                },
+                "settings": {},
+                "background_color": null,
+                "background_image": null
+            },
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 1,
+                "type": "posts_grid",
+                "content": {},
+                "settings": {
+                    "columns": 3,
+                    "max_count": 6,
+                    "category_id": "",
+                    "order_by": "newest",
+                    "show_excerpt": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    },
+    {
+        "name": "Categories",
+        "css_class": "home-row-categories",
+        "background_color": "#16213e",
+        "background_image": null,
+        "order": 2,
+        "blocks": [
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 0,
+                "type": "text",
+                "content": {
+                    "blocks": [
+                        {"type": "header", "data": {"text": "Topics", "level": 2}}
+                    ]
+                },
+                "settings": {},
+                "background_color": null,
+                "background_image": null
+            },
+            {
+                "column_index": 0,
+                "column_width": 12,
+                "order": 1,
+                "type": "categories_grid",
+                "content": {},
+                "settings": {
+                    "columns": 3,
+                    "max_count": 12,
+                    "show_post_count": true
+                },
+                "background_color": null,
+                "background_image": null
+            }
+        ]
+    }
+]
