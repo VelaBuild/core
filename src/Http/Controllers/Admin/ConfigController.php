@@ -23,7 +23,7 @@ class ConfigController extends Controller
         'app' => ['app_ios_url', 'app_android_url', 'app_name', 'app_custom_scheme'],
         'gdpr' => ['gdpr_enabled', 'gdpr_privacy_url'],
         'visibility' => ['visibility_mode', 'visibility_noindex', 'visibility_block_ai', 'visibility_holding_page', 'visibility_holding_page_id',
-            'x402_enabled', 'x402_pay_to', 'x402_price_usd', 'x402_network', 'x402_description'],
+            'x402_enabled', 'x402_mode', 'x402_pay_to', 'x402_price_usd', 'x402_network', 'x402_description'],
     ];
 
     public function index(Request $request)
@@ -37,8 +37,14 @@ class ConfigController extends Controller
     {
         abort_if(Gate::denies('config_access'), 403);
 
-        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility'])) {
+        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility', 'mcp'])) {
             abort(404);
+        }
+
+        if ($group === 'mcp') {
+            $mcp = app(\VelaBuild\Core\Services\McpSettingsService::class);
+            $status = $mcp->getStatus();
+            return view('vela::admin.settings.mcp', compact('status'));
         }
 
         if ($group === 'visibility') {
@@ -111,8 +117,13 @@ class ConfigController extends Controller
     {
         abort_if(Gate::denies('config_edit'), 403);
 
-        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility'])) {
+        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility', 'mcp'])) {
             abort(404);
+        }
+
+        if ($group === 'mcp') {
+            $mcpController = app(\VelaBuild\Core\Http\Controllers\Admin\McpSettingsController::class);
+            return $mcpController->update($request);
         }
 
         if ($group === 'visibility') {
@@ -145,12 +156,14 @@ class ConfigController extends Controller
 
             // x402 AI Payment — independent of public/restricted mode
             VelaConfig::updateOrCreate(['key' => 'x402_enabled'], ['value' => $request->boolean('x402_enabled') ? '1' : '0']);
+            VelaConfig::updateOrCreate(['key' => 'x402_mode'], ['value' => $request->input('x402_mode', 'sitewide')]);
             if ($request->filled('x402_pay_to')) {
                 $request->validate([
                     'x402_pay_to' => 'string|max:255',
                     'x402_price_usd' => 'numeric|min:0.001|max:1000',
                     'x402_network' => 'in:base,ethereum,polygon,arbitrum,optimism',
                     'x402_description' => 'nullable|string|max:500',
+                    'x402_mode' => 'in:sitewide,per_page',
                 ]);
             }
             VelaConfig::updateOrCreate(['key' => 'x402_pay_to'], ['value' => $request->input('x402_pay_to', '')]);
@@ -523,63 +536,7 @@ class ConfigController extends Controller
 
     private function writeSiteConfig(): void
     {
-        $config = [
-            'site_name' => VelaConfig::where('key', 'site_name')->value('value') ?? '',
-            'site_niche' => VelaConfig::where('key', 'site_niche')->value('value') ?? '',
-            'site_tagline' => VelaConfig::where('key', 'site_tagline')->value('value') ?? '',
-            'site_description' => VelaConfig::where('key', 'site_description')->value('value') ?? '',
-            'active_template' => VelaConfig::where('key', 'active_template')->value('value') ?? '',
-            'custom_css_global' => VelaConfig::where('key', 'custom_css_global')->value('value') ?? '',
-        ];
-
-        // Include all theme options
-        $config['theme'] = VelaConfig::where('key', 'like', 'theme_%')
-            ->pluck('value', 'key')
-            ->toArray();
-
-        // Site visibility settings
-        $visibilityMode = VelaConfig::where('key', 'visibility_mode')->value('value');
-        if ($visibilityMode !== null) {
-            $config['visibility_mode'] = $visibilityMode;
-            $config['visibility_noindex'] = VelaConfig::where('key', 'visibility_noindex')->value('value') === '1';
-            $config['visibility_block_ai'] = VelaConfig::where('key', 'visibility_block_ai')->value('value') === '1';
-            $config['visibility_holding_page'] = VelaConfig::where('key', 'visibility_holding_page')->value('value') === '1';
-            $holdingId = VelaConfig::where('key', 'visibility_holding_page_id')->value('value') ?? '';
-            $config['visibility_holding_page_id'] = $holdingId;
-            $config['visibility_holding_page_slug'] = $holdingId
-                ? (Page::where('id', $holdingId)->value('slug') ?? '')
-                : '';
-        }
-
-        // x402 AI Payment settings
-        $x402Enabled = VelaConfig::where('key', 'x402_enabled')->value('value');
-        if ($x402Enabled !== null) {
-            $config['x402_enabled'] = $x402Enabled === '1';
-            $config['x402_pay_to'] = VelaConfig::where('key', 'x402_pay_to')->value('value') ?? '';
-            $config['x402_price_usd'] = VelaConfig::where('key', 'x402_price_usd')->value('value') ?? '0.01';
-            $config['x402_network'] = VelaConfig::where('key', 'x402_network')->value('value') ?? 'base';
-            $config['x402_description'] = VelaConfig::where('key', 'x402_description')->value('value') ?? '';
-        }
-
-        // GDPR settings (DB overrides .env when set by admin)
-        $gdprEnabled = VelaConfig::where('key', 'gdpr_enabled')->value('value');
-        if ($gdprEnabled !== null) {
-            $config['gdpr_enabled'] = $gdprEnabled === '1';
-        }
-        $gdprPrivacyUrl = VelaConfig::where('key', 'gdpr_privacy_url')->value('value');
-        if ($gdprPrivacyUrl !== null) {
-            $config['gdpr_privacy_url'] = $gdprPrivacyUrl;
-        }
-
-        $content = "<?php\n\nreturn " . var_export($config, true) . ";\n";
-        $path = storage_path('app/vela-site.php');
-        $tmp = $path . '.tmp';
-        file_put_contents($tmp, $content);
-        rename($tmp, $path);
-
-        if (function_exists('opcache_invalidate')) {
-            opcache_invalidate($path, true);
-        }
+        app(\VelaBuild\Core\Services\SiteConfigWriter::class)->write();
     }
 
     public function installPrivacyPage(Request $request)

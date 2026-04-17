@@ -73,8 +73,9 @@ Route::resource('ideas', Admin\IdeasController::class);
 
 // Settings (replaces Config CRUD)
 Route::get('settings', [Admin\ConfigController::class, 'index'])->name('settings.index');
-Route::get('settings/{group}', [Admin\ConfigController::class, 'group'])->name('settings.group')->where('group', 'general|appearance|pwa|customcss|app|gdpr|visibility');
-Route::post('settings/{group}', [Admin\ConfigController::class, 'updateGroup'])->name('settings.updateGroup')->where('group', 'general|appearance|pwa|customcss|app|gdpr|visibility');
+Route::get('settings/{group}', [Admin\ConfigController::class, 'group'])->name('settings.group')->where('group', 'general|appearance|pwa|customcss|app|gdpr|visibility|mcp');
+Route::post('settings/{group}', [Admin\ConfigController::class, 'updateGroup'])->name('settings.updateGroup')->where('group', 'general|appearance|pwa|customcss|app|gdpr|visibility|mcp');
+Route::get('settings/mcp/generate-key', [Admin\McpSettingsController::class, 'generateKey'])->name('settings.mcp.generateKey');
 Route::post('settings/pwa/upload-icon', [Admin\ConfigController::class, 'uploadIcon'])->name('settings.uploadIcon');
 Route::get('settings/appearance/preview/{template}', [Admin\ConfigController::class, 'previewTemplate'])->name('settings.appearance.preview')->where('template', '[a-z\-]+');
 Route::post('settings/appearance/install-homepage', [Admin\ConfigController::class, 'installHomepage'])->name('settings.appearance.installHomepage');

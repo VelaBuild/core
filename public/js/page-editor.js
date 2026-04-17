@@ -190,6 +190,7 @@ PageEditor.registerBlockType = function(name, config) {
                     var thumb = item.preview || item.thumb || item.url;
                     var alt = (item.custom_properties && item.custom_properties.alt_text) || '';
                     var $el = $('<div class="media-browser-item">')
+                        .attr('data-id', item.id)
                         .attr('data-url', item.url)
                         .attr('data-alt', alt)
                         .append($('<img>').attr('src', thumb).attr('alt', item.file_name).attr('loading', 'lazy'))
@@ -1742,13 +1743,14 @@ PageEditor.registerBlockType = function(name, config) {
         $(document).on('click', '.media-browser-item', function() {
             var url = $(this).data('url');
             var alt = $(this).data('alt') || '';
+            var id = $(this).data('id');
 
             if (_mediaBrowserMulti) {
                 // Multi-select mode: toggle selection
                 $(this).toggleClass('selected');
                 _mediaBrowserSelected = [];
                 $('#media-browser-grid .media-browser-item.selected').each(function() {
-                    _mediaBrowserSelected.push({ url: $(this).data('url'), alt: $(this).data('alt') || '' });
+                    _mediaBrowserSelected.push({ id: $(this).data('id'), url: $(this).data('url'), alt: $(this).data('alt') || '' });
                 });
                 var count = _mediaBrowserSelected.length;
                 $('#bulk-count').text(count);
@@ -1757,7 +1759,7 @@ PageEditor.registerBlockType = function(name, config) {
             }
 
             if (_mediaBrowserCallback) {
-                _mediaBrowserCallback({ url: url, alt: alt });
+                _mediaBrowserCallback({ id: id, url: url, alt: alt });
             }
             $('#media-browser-modal').modal('hide');
         });

@@ -159,8 +159,9 @@ return [
 
     'x402' => [
         'enabled' => false,
+        'mode' => 'sitewide',                  // sitewide or per_page
         'pay_to' => '',                        // Your wallet address (receives USDC)
-        'price_usd' => '0.01',                 // Price per request in USD
+        'price_usd' => '0.01',                 // Price per request in USD (default for sitewide or per-page fallback)
         'network' => 'base',                   // base, ethereum, polygon, arbitrum, optimism
         'facilitator_url' => 'https://x402.org/facilitator',
         'description' => 'Access to website content',

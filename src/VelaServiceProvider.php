@@ -85,6 +85,9 @@ class VelaServiceProvider extends ServiceProvider
                 if (isset($siteConfig['x402_enabled'])) {
                     config(['vela.x402.enabled' => (bool) $siteConfig['x402_enabled']]);
                 }
+                if (!empty($siteConfig['x402_mode'])) {
+                    config(['vela.x402.mode' => $siteConfig['x402_mode']]);
+                }
                 if (!empty($siteConfig['x402_pay_to'])) {
                     config(['vela.x402.pay_to' => $siteConfig['x402_pay_to']]);
                 }
@@ -126,6 +129,7 @@ class VelaServiceProvider extends ServiceProvider
         // Register routes
         $this->registerHomeRedirect();
         $this->registerAdminRoutes();
+        $this->registerMcpRoutes();
         $this->registerWebhookRoutes();
         $this->registerAuthRoutes();
         // Image optimization routes (outside locale group)
@@ -167,6 +171,7 @@ class VelaServiceProvider extends ServiceProvider
         $router->aliasMiddleware('vela.template', \VelaBuild\Core\Http\Middleware\VelaSetTemplate::class);
         $router->aliasMiddleware('vela.visibility', \VelaBuild\Core\Http\Middleware\VelaSiteVisibility::class);
         $router->aliasMiddleware('vela.x402', \VelaBuild\Core\Http\Middleware\VelaX402Payment::class);
+        $router->aliasMiddleware('vela.mcp', \VelaBuild\Core\Http\Middleware\VelaMcpAuth::class);
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -230,6 +235,17 @@ class VelaServiceProvider extends ServiceProvider
                 return redirect()->route('vela.admin.home')->with('status', session('status'));
             }
             return redirect()->route('vela.admin.home');
+        });
+    }
+
+    protected function registerMcpRoutes(): void
+    {
+        Route::group([
+            'prefix' => 'api/mcp',
+            'as' => 'vela.api.mcp.',
+            'middleware' => ['vela.mcp'],
+        ], function () {
+            $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
         });
     }
 
