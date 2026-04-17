@@ -106,6 +106,7 @@
             {{-- x402 AI Payment --}}
             @php
                 $x402Enabled = old('x402_enabled', $settings['x402_enabled'] ?? '0') === '1';
+                $x402Mode = old('x402_mode', $settings['x402_mode'] ?? 'sitewide');
                 $x402PayTo = old('x402_pay_to', $settings['x402_pay_to'] ?? '');
                 $x402Price = old('x402_price_usd', $settings['x402_price_usd'] ?? '0.01');
                 $x402Network = old('x402_network', $settings['x402_network'] ?? 'base');
@@ -127,6 +128,31 @@
             </div>
 
             <div id="x402-options" style="{{ !$x402Enabled ? 'display:none' : '' }}">
+                {{-- Sitewide / Per Page toggle --}}
+                <div class="form-group">
+                    <label class="d-block mb-2"><strong>{{ __('vela::visibility.x402_mode_label') }}</strong></label>
+
+                    <div class="custom-control custom-radio mb-2">
+                        <input type="radio" class="custom-control-input" id="x402-mode-sitewide" name="x402_mode" value="sitewide"
+                            {{ $x402Mode === 'sitewide' ? 'checked' : '' }}>
+                        <label class="custom-control-label" for="x402-mode-sitewide">
+                            <i class="fas fa-globe text-primary mr-1"></i>
+                            {{ __('vela::visibility.x402_mode_sitewide') }}
+                        </label>
+                        <small class="form-text text-muted ml-4">{{ __('vela::visibility.x402_mode_sitewide_desc') }}</small>
+                    </div>
+
+                    <div class="custom-control custom-radio mb-3">
+                        <input type="radio" class="custom-control-input" id="x402-mode-perpage" name="x402_mode" value="per_page"
+                            {{ $x402Mode === 'per_page' ? 'checked' : '' }}>
+                        <label class="custom-control-label" for="x402-mode-perpage">
+                            <i class="fas fa-file-alt text-info mr-1"></i>
+                            {{ __('vela::visibility.x402_mode_per_page') }}
+                        </label>
+                        <small class="form-text text-muted ml-4">{{ __('vela::visibility.x402_mode_per_page_desc') }}</small>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label for="x402_pay_to">{{ __('vela::visibility.x402_wallet') }}</label>
                     <input type="text" class="form-control" name="x402_pay_to" id="x402_pay_to"

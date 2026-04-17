@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use VelaBuild\Core\Models\Page;
 
 /**
  * x402 Payment Required middleware.
@@ -58,17 +59,26 @@ class VelaX402Payment
             return $next($request);
         }
 
+        // Per-page mode: only gate pages that have x402 explicitly enabled
+        $pageOverride = null;
+        if (config('vela.x402.mode') === 'per_page') {
+            $pageOverride = $this->resolvePageForRequest($request);
+            if (!$pageOverride || !$pageOverride->x402_enabled) {
+                return $next($request);
+            }
+        }
+
         // Check for payment signature header
         $signature = $request->header('PAYMENT-SIGNATURE')
             ?? $request->header('X-PAYMENT')
             ?? $request->header('X-Payment-Signature');
 
         if (!$signature) {
-            return $this->respondPaymentRequired($request);
+            return $this->respondPaymentRequired($request, $pageOverride);
         }
 
         // Verify the payment
-        $verification = $this->verifyPayment($signature, $request);
+        $verification = $this->verifyPayment($signature, $request, $pageOverride);
 
         if ($verification['valid']) {
             $response = $next($request);
@@ -101,11 +111,40 @@ class VelaX402Payment
         return false;
     }
 
-    private function buildPaymentRequirements(Request $request): array
+    private function resolvePageForRequest(Request $request): ?Page
+    {
+        $path = trim($request->path(), '/');
+
+        // Home page
+        if ($path === '' || $path === '/') {
+            $slug = 'home';
+        } else {
+            // Strip known prefixes (posts/categories are content, not pages)
+            if (str_starts_with($path, 'posts/') || str_starts_with($path, 'categories/')) {
+                return null;
+            }
+            $slug = $path;
+        }
+
+        return Page::where('slug', $slug)
+            ->whereIn('status', ['published', 'unlisted'])
+            ->select('id', 'slug', 'x402_enabled', 'x402_price_usd')
+            ->first();
+    }
+
+    private function getEffectivePrice(?Page $page): float
+    {
+        if ($page && $page->x402_price_usd !== null && $page->x402_price_usd !== '') {
+            return (float) $page->x402_price_usd;
+        }
+        return (float) config('vela.x402.price_usd', '0.01');
+    }
+
+    private function buildPaymentRequirements(Request $request, ?Page $page = null): array
     {
         $network = config('vela.x402.network', 'base');
         $net = self::NETWORKS[$network] ?? self::NETWORKS['base'];
-        $priceUsd = (float) config('vela.x402.price_usd', '0.01');
+        $priceUsd = $this->getEffectivePrice($page);
 
         // USDC has 6 decimal places: $0.01 = 10000 atomic units
         $amountAtomic = (string) (int) round($priceUsd * 1_000_000);
@@ -127,9 +166,9 @@ class VelaX402Payment
         ];
     }
 
-    private function respondPaymentRequired(Request $request)
+    private function respondPaymentRequired(Request $request, ?Page $page = null)
     {
-        $requirements = $this->buildPaymentRequirements($request);
+        $requirements = $this->buildPaymentRequirements($request, $page);
         $encoded = base64_encode(json_encode($requirements));
 
         return response()->json([
@@ -143,7 +182,7 @@ class VelaX402Payment
         ]);
     }
 
-    private function verifyPayment(string $signature, Request $request): array
+    private function verifyPayment(string $signature, Request $request, ?Page $page = null): array
     {
         $facilitatorUrl = rtrim(config('vela.x402.facilitator_url', 'https://x402.org/facilitator'), '/');
 
@@ -153,7 +192,7 @@ class VelaX402Payment
                 return ['valid' => false, 'reason' => 'Invalid payment signature encoding'];
             }
 
-            $requirements = $this->buildPaymentRequirements($request);
+            $requirements = $this->buildPaymentRequirements($request, $page);
 
             $response = Http::timeout(15)
                 ->withHeaders(['Content-Type' => 'application/json'])
@@ -170,7 +209,7 @@ class VelaX402Payment
                     Log::info('x402 payment verified', [
                         'resource' => $request->path(),
                         'network' => config('vela.x402.network'),
-                        'amount' => config('vela.x402.price_usd'),
+                        'amount' => $this->getEffectivePrice($page),
                     ]);
                 }
 

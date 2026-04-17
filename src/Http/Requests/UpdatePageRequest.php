@@ -32,6 +32,9 @@ class UpdatePageRequest extends FormRequest
             'order_column'     => 'nullable|integer',
             'parent_id'        => 'nullable|integer|exists:vela_pages,id',
             'rows'             => 'nullable|string',
+            'og_image_media_id' => 'nullable|integer|exists:media,id',
+            'x402_enabled'     => 'nullable|boolean',
+            'x402_price_usd'   => 'nullable|numeric|min:0.001|max:1000',
         ];
     }
 }

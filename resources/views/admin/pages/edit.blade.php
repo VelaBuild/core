@@ -102,13 +102,6 @@
                                     @endforeach
                                 </select>
                             </div>
-                        </div>
-                    </div>
-
-                    {{-- SEO --}}
-                    <div class="section-card">
-                        <div class="section-header"><i class="fas fa-search"></i> {{ trans('vela::global.seo') }}</div>
-                        <div class="section-body">
                             <div class="form-group">
                                 <label>{{ trans('vela::global.meta_title') }}</label>
                                 <input class="form-control" type="text" name="meta_title" id="meta_title" value="{{ old('meta_title', $page->meta_title) }}" placeholder="{{ trans('vela::global.meta_title_placeholder') }}">
@@ -119,10 +112,52 @@
                             </div>
                             <div class="form-group">
                                 <label>{{ trans('vela::global.social_image') }}</label>
-                                <div class="needsclick dropzone" id="og_image-dropzone"></div>
+                                <div id="og-image-preview" style="display:none; margin-bottom:8px;">
+                                    <img src="" id="og-image-preview-img" style="max-width:100%; border-radius:4px; margin-bottom:6px; display:block;">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" id="og-image-remove">
+                                        <i class="fas fa-times mr-1"></i> {{ trans('vela::global.remove') }}
+                                    </button>
+                                </div>
+                                <div id="og-image-upload">
+                                    <div class="needsclick dropzone" id="og_image-dropzone"></div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-block mt-2" id="og-image-browse">
+                                        <i class="fas fa-images mr-1"></i> {{ trans('vela::global.browse_media') }}
+                                    </button>
+                                </div>
+                                <input type="hidden" name="og_image_media_id" id="og_image_media_id" value="">
                             </div>
                         </div>
                     </div>
+
+                    {{-- x402 AI Payment (per-page mode only) --}}
+                    @if(config('vela.x402.enabled') && config('vela.x402.mode') === 'per_page')
+                    <div class="section-card">
+                        <div class="section-header"><i class="fas fa-coins"></i> {{ trans('vela::visibility.x402_page_title') }}</div>
+                        <div class="section-body">
+                            <div class="custom-control custom-switch mb-3">
+                                <input type="hidden" name="x402_enabled" value="0">
+                                <input type="checkbox" class="custom-control-input" id="x402_enabled" name="x402_enabled" value="1"
+                                    {{ old('x402_enabled', $page->x402_enabled) ? 'checked' : '' }}>
+                                <label class="custom-control-label" for="x402_enabled">
+                                    {{ trans('vela::visibility.x402_page_enable') }}
+                                </label>
+                            </div>
+                            <div id="x402-page-options" style="{{ !old('x402_enabled', $page->x402_enabled) ? 'display:none' : '' }}">
+                                <div class="form-group">
+                                    <label for="x402_price_usd">{{ trans('vela::visibility.x402_page_price') }}</label>
+                                    <div class="input-group">
+                                        <div class="input-group-prepend"><span class="input-group-text">$</span></div>
+                                        <input type="number" class="form-control" name="x402_price_usd" id="x402_price_usd"
+                                            value="{{ old('x402_price_usd', $page->x402_price_usd) }}"
+                                            step="0.001" min="0.001" max="1000"
+                                            placeholder="{{ config('vela.x402.price_usd', '0.01') }}">
+                                    </div>
+                                    <small class="form-text text-muted">{{ trans('vela::visibility.x402_page_price_help') }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
 
                     {{-- Advanced --}}
                     <div class="section-card">
@@ -162,11 +197,12 @@
     headers: { 'X-CSRF-TOKEN': "{{ csrf_token() }}" },
     params: { size: 20, width: 4096, height: 4096 },
     success: function (file, response) {
-        $('form').find('input[name="og_image"]').remove()
-        $('form').append('<input type="hidden" name="og_image" value="' + response.name + '">')
+        $('form').find('input[name="og_image"]').remove();
+        $('#og_image_media_id').val('');
+        $('form').append('<input type="hidden" name="og_image" value="' + response.name + '">');
     },
     removedfile: function (file) {
-        file.previewElement.remove()
+        file.previewElement.remove();
         if (file.status !== 'error') { $('form').find('input[name="og_image"]').remove(); this.options.maxFiles++; }
     },
     init: function () {
@@ -190,6 +226,38 @@
 $(function() {
     var existingRows = @json($page->rows->load('blocks'));
     if (window.PageEditor) PageEditor.init(existingRows);
+
+    // OG image: browse media library
+    $('#og-image-browse').on('click', function() {
+        if (window.PageEditor && window.PageEditor.openMediaBrowser) {
+            window.PageEditor.openMediaBrowser(function(media) {
+                $('form').find('input[name="og_image"]').remove();
+                $('#og_image_media_id').val(media.id);
+                $('#og-image-preview-img').attr('src', media.url);
+                $('#og-image-preview').show();
+                $('#og-image-upload').hide();
+            });
+        }
+    });
+
+    // OG image: remove
+    $('#og-image-remove').on('click', function() {
+        $('form').find('input[name="og_image"]').remove();
+        $('#og_image_media_id').val('');
+        $('#og-image-preview').hide();
+        $('#og-image-upload').show();
+        // Reset dropzone if needed
+        var dz = Dropzone.forElement('#og_image-dropzone');
+        if (dz) { dz.removeAllFiles(true); dz.options.maxFiles = 1; }
+    });
+
+    var x402Toggle = document.getElementById('x402_enabled');
+    var x402Opts = document.getElementById('x402-page-options');
+    if (x402Toggle && x402Opts) {
+        x402Toggle.addEventListener('change', function() {
+            x402Opts.style.display = this.checked ? '' : 'none';
+        });
+    }
 });
 </script>
 @endsection

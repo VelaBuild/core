@@ -46,6 +46,8 @@ class Page extends Model implements HasMedia
         'custom_js',
         'order_column',
         'parent_id',
+        'x402_enabled',
+        'x402_price_usd',
     ];
 
     protected $appends = [

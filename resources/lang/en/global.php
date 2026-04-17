@@ -318,6 +318,7 @@ return [
     'invite_sent'                    => 'Invitation sent.',
     'manage_team_members'            => 'Manage team members',
     'remove'                         => 'Remove',
+    'browse_media'                   => 'Browse Media Library',
     'team_no_members_notice'         => 'Your team has no members yet.',
     'disband_team'                   => 'Disband team',
     'team_disband_notice'            => 'All your team members will no longer have team assigned.',

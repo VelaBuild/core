@@ -98,12 +98,24 @@ class PageController extends Controller
 
     public function store(StorePageRequest $request)
     {
-        $page = Page::create($request->only([
+        $data = $request->only([
             'title', 'slug', 'locale', 'status', 'meta_title',
             'meta_description', 'custom_css', 'custom_js', 'order_column', 'parent_id',
-        ]));
+        ]);
 
-        if ($request->input('og_image', false)) {
+        if (config('vela.x402.enabled') && config('vela.x402.mode') === 'per_page') {
+            $data['x402_enabled'] = $request->boolean('x402_enabled') ? 1 : 0;
+            $data['x402_price_usd'] = $request->input('x402_price_usd') ?: null;
+        }
+
+        $page = Page::create($data);
+
+        if ($request->filled('og_image_media_id')) {
+            $sourceMedia = Media::find($request->input('og_image_media_id'));
+            if ($sourceMedia) {
+                $sourceMedia->copy($page, 'og_image');
+            }
+        } elseif ($request->input('og_image', false)) {
             $page->addMedia(storage_path('tmp/uploads/' . basename($request->input('og_image'))))
                 ->toMediaCollection('og_image');
         }
@@ -164,12 +176,27 @@ class PageController extends Controller
 
     public function update(UpdatePageRequest $request, Page $page)
     {
-        $page->update($request->only([
+        $data = $request->only([
             'title', 'slug', 'locale', 'status', 'meta_title',
             'meta_description', 'custom_css', 'custom_js', 'order_column', 'parent_id',
-        ]));
+        ]);
 
-        if ($request->input('og_image', false)) {
+        if (config('vela.x402.enabled') && config('vela.x402.mode') === 'per_page') {
+            $data['x402_enabled'] = $request->boolean('x402_enabled') ? 1 : 0;
+            $data['x402_price_usd'] = $request->input('x402_price_usd') ?: null;
+        }
+
+        $page->update($data);
+
+        if ($request->filled('og_image_media_id')) {
+            if ($page->og_image) {
+                $page->og_image->delete();
+            }
+            $sourceMedia = Media::find($request->input('og_image_media_id'));
+            if ($sourceMedia) {
+                $sourceMedia->copy($page, 'og_image');
+            }
+        } elseif ($request->input('og_image', false)) {
             if (! $page->og_image || $request->input('og_image') !== $page->og_image->file_name) {
                 if ($page->og_image) {
                     $page->og_image->delete();
