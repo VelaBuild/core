@@ -681,4 +681,13 @@ return [
     'opt_group_sections'             => 'Sections',
     'opt_group_footer'               => 'Footer',
 
+    // Command palette & dashboard
+    'command_palette_placeholder'    => 'Jump to a page, ask Vela, run a command...',
+    'ask_vela'                       => 'Ask Vela',
+    'create_new_page'                => 'Create new page',
+    'create_new_article'             => 'Create new article',
+    'general_settings'               => 'General Settings',
+    'welcome'                        => 'Welcome',
+    'dashboard_subtitle'             => 'Here\'s what\'s happening on :app.',
+
 ];

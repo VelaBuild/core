@@ -1,108 +1,104 @@
-<div id="sidebar" class="c-sidebar c-sidebar-fixed c-sidebar-lg-show">
-
-    <div class="c-sidebar-brand d-md-down-none" style="justify-content: flex-start; padding-left: 1rem;">
-        <a class="c-sidebar-brand-full" href="{{ route('vela.admin.home') }}">
-            <img src="{{ asset('vendor/vela/images/vela-logo-white.png') }}" alt="{{ trans('vela::panel.brand_name') }}" style="height:32px;width:auto">
+<aside id="vela-sidebar" class="vela-sidebar">
+    <div class="vela-sidebar-brand">
+        <a href="{{ route('vela.admin.home') }}">
+            <img src="{{ asset('vendor/vela/images/vela-logo-white.png') }}" alt="{{ trans('vela::panel.brand_name') }}">
         </a>
     </div>
 
-    <ul class="c-sidebar-nav">
+    <nav class="vela-sidebar-nav">
         @foreach(app(\VelaBuild\Core\Vela::class)->menus()->grouped() as $group => $items)
-            @foreach($items as $name => $item)
-                @if(!empty($item['children']))
-                    @php
-                        $isActive = collect($item['children'])->contains(function($child) {
-                            return request()->routeIs($child['route'] . '*');
-                        });
-                    @endphp
-                    @if($item['gate'])
-                        @can($item['gate'])
-                            <li class="c-sidebar-nav-dropdown {{ $isActive ? 'c-show' : '' }}">
-                                <a class="c-sidebar-nav-dropdown-toggle" href="#">
-                                    <i class="fa-fw {{ $item['icon'] }} c-sidebar-nav-icon"></i>
+            <div class="vela-sidebar-group">
+                @if($group && $group !== 'default')
+                    <div class="vela-sidebar-group-label">{{ trans($group) }}</div>
+                @endif
+
+                @foreach($items as $name => $item)
+                    @if(!empty($item['children']))
+                        @php
+                            $isActive = collect($item['children'])->contains(function($child) {
+                                return request()->routeIs($child['route'] . '*');
+                            });
+                        @endphp
+                        @if($item['gate'])
+                            @can($item['gate'])
+                                <div class="vela-sidebar-link {{ $isActive ? 'is-active' : '' }}" onclick="this.nextElementSibling.classList.toggle('d-none')" style="cursor:pointer;">
+                                    <i class="fa-fw {{ $item['icon'] }} ico"></i>
                                     {{ trans($item['label']) }}
-                                </a>
-                                <ul class="c-sidebar-nav-dropdown-items">
+                                </div>
+                                <div class="vela-sidebar-dropdown-items {{ $isActive ? '' : 'd-none' }}">
                                     @foreach($item['children'] as $childName => $child)
                                         @if($child['gate'])
                                             @can($child['gate'])
-                                                <li class="c-sidebar-nav-item">
-                                                    <a href="{{ route($child['route']) }}" class="c-sidebar-nav-link {{ request()->routeIs($child['route'] . '*') ? 'c-active' : '' }}">
-                                                        <i class="fa-fw {{ $child['icon'] }} c-sidebar-nav-icon"></i>
-                                                        {{ trans($child['label']) }}
-                                                    </a>
-                                                </li>
-                                            @endcan
-                                        @else
-                                            <li class="c-sidebar-nav-item">
-                                                <a href="{{ route($child['route']) }}" class="c-sidebar-nav-link {{ request()->routeIs($child['route'] . '*') ? 'c-active' : '' }}">
-                                                    <i class="fa-fw {{ $child['icon'] }} c-sidebar-nav-icon"></i>
+                                                <a href="{{ route($child['route']) }}" class="vela-sidebar-link {{ request()->routeIs($child['route'] . '*') ? 'is-active' : '' }}">
+                                                    <i class="fa-fw {{ $child['icon'] }} ico"></i>
                                                     {{ trans($child['label']) }}
                                                 </a>
-                                            </li>
+                                            @endcan
+                                        @else
+                                            <a href="{{ route($child['route']) }}" class="vela-sidebar-link {{ request()->routeIs($child['route'] . '*') ? 'is-active' : '' }}">
+                                                <i class="fa-fw {{ $child['icon'] }} ico"></i>
+                                                {{ trans($child['label']) }}
+                                            </a>
                                         @endif
                                     @endforeach
-                                </ul>
-                            </li>
-                        @endcan
-                    @else
-                        <li class="c-sidebar-nav-dropdown {{ $isActive ? 'c-show' : '' }}">
-                            <a class="c-sidebar-nav-dropdown-toggle" href="#">
-                                <i class="fa-fw {{ $item['icon'] }} c-sidebar-nav-icon"></i>
+                                </div>
+                            @endcan
+                        @else
+                            <div class="vela-sidebar-link {{ $isActive ? 'is-active' : '' }}" onclick="this.nextElementSibling.classList.toggle('d-none')" style="cursor:pointer;">
+                                <i class="fa-fw {{ $item['icon'] }} ico"></i>
                                 {{ trans($item['label']) }}
-                            </a>
-                            <ul class="c-sidebar-nav-dropdown-items">
+                            </div>
+                            <div class="vela-sidebar-dropdown-items {{ $isActive ? '' : 'd-none' }}">
                                 @foreach($item['children'] as $childName => $child)
                                     @if($child['gate'])
                                         @can($child['gate'])
-                                            <li class="c-sidebar-nav-item">
-                                                <a href="{{ route($child['route']) }}" class="c-sidebar-nav-link {{ request()->routeIs($child['route'] . '*') ? 'c-active' : '' }}">
-                                                    <i class="fa-fw {{ $child['icon'] }} c-sidebar-nav-icon"></i>
-                                                    {{ trans($child['label']) }}
-                                                </a>
-                                            </li>
-                                        @endcan
-                                    @else
-                                        <li class="c-sidebar-nav-item">
-                                            <a href="{{ route($child['route']) }}" class="c-sidebar-nav-link {{ request()->routeIs($child['route'] . '*') ? 'c-active' : '' }}">
-                                                <i class="fa-fw {{ $child['icon'] }} c-sidebar-nav-icon"></i>
+                                            <a href="{{ route($child['route']) }}" class="vela-sidebar-link {{ request()->routeIs($child['route'] . '*') ? 'is-active' : '' }}">
+                                                <i class="fa-fw {{ $child['icon'] }} ico"></i>
                                                 {{ trans($child['label']) }}
                                             </a>
-                                        </li>
+                                        @endcan
+                                    @else
+                                        <a href="{{ route($child['route']) }}" class="vela-sidebar-link {{ request()->routeIs($child['route'] . '*') ? 'is-active' : '' }}">
+                                            <i class="fa-fw {{ $child['icon'] }} ico"></i>
+                                            {{ trans($child['label']) }}
+                                        </a>
                                     @endif
                                 @endforeach
-                            </ul>
-                        </li>
-                    @endif
-                @else
-                    @php
-                        $isLiteral = str_starts_with($item['route'], '#') || str_starts_with($item['route'], 'http');
-                        $menuHref = $isLiteral ? '#' : route($item['route']);
-                        $menuActive = !$isLiteral && request()->routeIs($item['route'] . '*');
-                        $menuId = $isLiteral ? 'menu-' . $name : '';
-                    @endphp
-                    @if($item['gate'])
-                        @can($item['gate'])
-                            <li class="c-sidebar-nav-item">
-<!--                                <a href="{{ $item['route'] === '#' ? '#' : route($item['route']) }}" class="c-sidebar-nav-link {{ $item['route'] !== '#' && request()->routeIs($item['route'] . '*') ? 'c-active' : '' }}">-->
-                                <a href="{{ $menuHref }}" class="c-sidebar-nav-link {{ $menuActive ? 'c-active' : '' }}" @if($menuId) id="{{ $menuId }}" @endif>
-                                    <i class="fa-fw {{ $item['icon'] }} c-sidebar-nav-icon"></i>
+                            </div>
+                        @endif
+                    @else
+                        @php
+                            $isLiteral = str_starts_with($item['route'], '#') || str_starts_with($item['route'], 'http');
+                            $menuHref = $isLiteral ? '#' : route($item['route']);
+                            $menuActive = !$isLiteral && request()->routeIs($item['route'] . '*');
+                            $menuId = $isLiteral ? 'menu-' . $name : '';
+                        @endphp
+                        @if($item['gate'])
+                            @can($item['gate'])
+                                <a href="{{ $menuHref }}" class="vela-sidebar-link {{ $menuActive ? 'is-active' : '' }}" @if($menuId) id="{{ $menuId }}" @endif>
+                                    <i class="fa-fw {{ $item['icon'] }} ico"></i>
                                     {{ trans($item['label']) }}
                                 </a>
-                            </li>
-                        @endcan
-                    @else
-                        <li class="c-sidebar-nav-item">
-                            <a href="{{ $menuHref }}" class="c-sidebar-nav-link {{ $menuActive ? 'c-active' : '' }}" @if($menuId) id="{{ $menuId }}" @endif>
-                                <i class="fa-fw {{ $item['icon'] }} c-sidebar-nav-icon"></i>
+                            @endcan
+                        @else
+                            <a href="{{ $menuHref }}" class="vela-sidebar-link {{ $menuActive ? 'is-active' : '' }}" @if($menuId) id="{{ $menuId }}" @endif>
+                                <i class="fa-fw {{ $item['icon'] }} ico"></i>
                                 {{ trans($item['label']) }}
                             </a>
-                        </li>
+                        @endif
                     @endif
-                @endif
-            @endforeach
+                @endforeach
+            </div>
         @endforeach
+    </nav>
 
-    </ul>
-
-</div>
+    <div class="vela-sidebar-user">
+        <div class="vela-avatar vela-avatar-sm" style="background: var(--vela-teal-500); color: #fff;">
+            {{ strtoupper(substr(auth('vela')->user()->name, 0, 1)) }}{{ strtoupper(substr(explode(' ', auth('vela')->user()->name)[1] ?? '', 0, 1)) }}
+        </div>
+        <div style="flex: 1; min-width: 0;">
+            <div class="name">{{ auth('vela')->user()->name }}</div>
+            <div class="plan">{{ auth('vela')->user()->roles->first()->title ?? 'Admin' }}</div>
+        </div>
+    </div>
+</aside>

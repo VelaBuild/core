@@ -32,4 +32,5 @@ return [
     'category_owner' => 'Category',
     'user_owner' => 'User',
     'standalone_owner' => 'Standalone',
+    'search_files' => 'Search files',
 ];

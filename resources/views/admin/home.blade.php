@@ -1,4 +1,5 @@
 @extends('vela::layouts.admin')
+@section('breadcrumb', trans('vela::global.dashboard'))
 @section('content')
 <div class="content">
     @if(session('status'))
@@ -7,39 +8,43 @@
         </div>
     @endif
 
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">{{ trans('vela::global.dashboard') }}</h4>
+    <div class="vela-page-head">
         <div>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="vela-widget-settings-toggle">
+            <h1>{{ trans('vela::global.welcome') }}, {{ auth('vela')->user()->name }}.</h1>
+            <div class="sub">{{ trans('vela::global.dashboard_subtitle', ['app' => config('app.name')]) }}</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button type="button" class="vela-btn vela-btn-secondary vela-btn-sm" id="vela-widget-settings-toggle">
                 <i class="fas fa-cog mr-1"></i> {{ trans('vela::global.customize') }}
             </button>
+            <a href="{{ url('/') }}" target="_blank" class="vela-btn vela-btn-secondary vela-btn-sm">
+                {{ trans('vela::global.preview') }} <i class="fas fa-external-link-alt ml-1"></i>
+            </a>
         </div>
     </div>
 
     {{-- Widget settings panel --}}
-    <div id="vela-widget-settings" class="card mb-3" style="display: none;">
-        <div class="card-body">
-            <h6 class="card-title">{{ trans('vela::global.dashboard_widgets') }}</h6>
-            <p class="text-muted small">{{ trans('vela::global.widget_reorder_help') }}</p>
-            <ul id="vela-widget-list" class="list-group">
-                @foreach($widgets as $name => $widget)
-                    <li class="list-group-item d-flex justify-content-between align-items-center" data-widget="{{ $name }}" style="cursor: grab;">
-                        <span>
-                            <i class="fas fa-grip-vertical text-muted mr-2"></i>
-                            <i class="{{ $widget['icon'] }} mr-1"></i>
-                            {{ $widget['label'] }}
-                        </span>
-                        <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input vela-widget-toggle" id="toggle-{{ $name }}" value="{{ $name }}" {{ in_array($name, $disabledWidgets) ? '' : 'checked' }}>
-                            <label class="custom-control-label" for="toggle-{{ $name }}"></label>
-                        </div>
-                    </li>
-                @endforeach
-            </ul>
-            <button type="button" class="btn btn-primary btn-sm mt-3" id="vela-save-widget-prefs">
-                <i class="fas fa-save mr-1"></i> {{ trans('vela::global.save_layout') }}
-            </button>
-        </div>
+    <div id="vela-widget-settings" class="vela-panel mb-4" style="display: none;">
+        <h6 style="font-weight: 600; margin-bottom: 8px;">{{ trans('vela::global.dashboard_widgets') }}</h6>
+        <p style="color: var(--v-fg-muted); font-size: var(--v-text-sm); margin-bottom: 12px;">{{ trans('vela::global.widget_reorder_help') }}</p>
+        <ul id="vela-widget-list" class="list-group">
+            @foreach($widgets as $name => $widget)
+                <li class="list-group-item d-flex justify-content-between align-items-center" data-widget="{{ $name }}" style="cursor: grab; border-radius: var(--v-r-sm); margin-bottom: 4px;">
+                    <span>
+                        <i class="fas fa-grip-vertical text-muted mr-2"></i>
+                        <i class="{{ $widget['icon'] }} mr-1"></i>
+                        {{ $widget['label'] }}
+                    </span>
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input vela-widget-toggle" id="toggle-{{ $name }}" value="{{ $name }}" {{ in_array($name, $disabledWidgets) ? '' : 'checked' }}>
+                        <label class="custom-control-label" for="toggle-{{ $name }}"></label>
+                    </div>
+                </li>
+            @endforeach
+        </ul>
+        <button type="button" class="vela-btn vela-btn-accent vela-btn-sm mt-3" id="vela-save-widget-prefs">
+            <i class="fas fa-save mr-1"></i> {{ trans('vela::global.save_layout') }}
+        </button>
     </div>
 
     {{-- Render widgets --}}
@@ -75,7 +80,6 @@ document.addEventListener('DOMContentLoaded', function () {
         settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
     });
 
-    // Simple drag-to-reorder
     var dragItem = null;
 
     widgetList.addEventListener('dragstart', function (e) {
@@ -89,7 +93,6 @@ document.addEventListener('DOMContentLoaded', function () {
     widgetList.addEventListener('dragend', function (e) {
         if (dragItem) dragItem.style.opacity = '';
         dragItem = null;
-        // Remove all drag-over styles
         widgetList.querySelectorAll('li').forEach(function (li) { li.style.borderTop = ''; });
     });
 
@@ -99,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var target = e.target.closest('li');
         if (target && target !== dragItem) {
             widgetList.querySelectorAll('li').forEach(function (li) { li.style.borderTop = ''; });
-            target.style.borderTop = '2px solid #4e73df';
+            target.style.borderTop = '2px solid var(--vela-teal-400)';
         }
     });
 
@@ -111,12 +114,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Make items draggable
     widgetList.querySelectorAll('li').forEach(function (li) {
         li.setAttribute('draggable', 'true');
     });
 
-    // Save preferences
     saveBtn.addEventListener('click', function () {
         var order = [];
         var disabled = [];
