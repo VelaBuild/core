@@ -75,6 +75,7 @@
     </div>
 </div>
 
+@push('head')
 <style>
     /* ── Consent bar (no overlay — site remains interactive) ── */
     #vela-consent { position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999; pointer-events: none; }
@@ -150,6 +151,7 @@
         .vc-privacy-link { margin-left: 0; text-align: center; }
     }
 </style>
+@endpush
 
 <script>
 (function() {

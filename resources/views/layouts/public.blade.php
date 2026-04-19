@@ -51,7 +51,7 @@
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=playfair+display:400,500,600,700|inter:300,400,500,600,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=playfair+display:400,500,600,700%7Cinter:300,400,500,600,700&display=swap" rel="stylesheet">
 
     <!-- Styles -->
     <link href="{{ asset('vendor/vela/css/premium.css') }}" rel="stylesheet">
@@ -61,6 +61,7 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     @include('vela::templates._partials.analytics')
+    @stack('head')
 </head>
 <body class="antialiased">
     <!-- Premium Navigation -->
@@ -86,37 +87,27 @@
                     <a href="{{ route('vela.public.categories.index') }}" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-300">{{ __('vela::public.topics') }}</a>
 
                     <!-- Language Switcher -->
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" class="language-switcher-btn">
-                            @php
-                                $currentLocale = app()->getLocale();
-                                $flagMap = [
-                                    'en' => 'gb',
-                                    'th' => 'th',
-                                    'zh-Hans' => 'cn',
-                                    'de' => 'de',
-                                    'nl' => 'nl',
-                                    'fr' => 'fr',
-                                    'it' => 'it',
-                                    'dk' => 'dk',
-                                    'ru' => 'ru',
-                                    'ar' => 'sa'
-                                ];
-                                $currentFlag = $flagMap[$currentLocale] ?? 'gb';
-                            @endphp
+                    @php
+                        $currentLocale = app()->getLocale();
+                        $flagMap = [
+                            'en' => 'gb', 'th' => 'th', 'zh-Hans' => 'cn', 'de' => 'de',
+                            'nl' => 'nl', 'fr' => 'fr', 'it' => 'it', 'dk' => 'dk',
+                            'ru' => 'ru', 'ar' => 'sa',
+                        ];
+                        $currentFlag = $flagMap[$currentLocale] ?? 'gb';
+                    @endphp
+                    <details class="language-switcher js-click-away">
+                        <summary class="language-switcher-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" class="language-flag">
                             <span class="language-code">{{ strtoupper($currentLocale) }}</span>
-                            <svg class="language-chevron" :class="{'rotate-180': open}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="language-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
-                        </button>
-
-                        <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="language-dropdown">
+                        </summary>
+                        <div class="language-dropdown">
                             <div class="language-dropdown-content">
                                 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
-                                    @php
-                                        $flagCode = $flagMap[$localeCode] ?? 'gb';
-                                    @endphp
+                                    @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
                                     <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}"
                                        class="language-option {{ app()->getLocale() == $localeCode ? 'language-option-active' : '' }}">
                                         <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" class="language-flag-small">
@@ -130,40 +121,21 @@
                                 @endforeach
                             </div>
                         </div>
-                    </div>
+                    </details>
                 </div>
 
                 <!-- Mobile Language Switcher -->
                 <div class="md:hidden flex items-center space-x-4">
                     <!-- Mobile Language Switcher -->
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" class="language-switcher-btn-mobile">
-                            @php
-                                $currentLocale = app()->getLocale();
-                                $flagMap = [
-                                    'en' => 'gb',
-                                    'th' => 'th',
-                                    'zh-Hans' => 'cn',
-                                    'ar' => 'sa',
-                                    'de' => 'de',
-                                    'fr' => 'fr',
-                                    'it' => 'it',
-                                    'nl' => 'nl',
-                                    'ru' => 'ru',
-                                    'dk' => 'dk'
-                                ];
-                                $currentFlag = $flagMap[$currentLocale] ?? 'gb';
-                            @endphp
+                    <details class="language-switcher-mobile js-click-away">
+                        <summary class="language-switcher-btn-mobile">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" class="language-flag-mobile">
                             <span class="language-code-mobile">{{ strtoupper($currentLocale) }}</span>
-                        </button>
-
-                        <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="language-dropdown-mobile">
+                        </summary>
+                        <div class="language-dropdown-mobile">
                             <div class="language-dropdown-content">
                                 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
-                                    @php
-                                        $flagCode = $flagMap[$localeCode] ?? 'gb';
-                                    @endphp
+                                    @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
                                     <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}"
                                        class="language-option-mobile {{ app()->getLocale() == $localeCode ? 'language-option-active' : '' }}">
                                         <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" class="language-flag-small">
@@ -172,7 +144,7 @@
                                 @endforeach
                             </div>
                         </div>
-                    </div>
+                    </details>
 
                     <!-- Mobile menu button -->
                     <button class="text-gray-700 hover:text-blue-600">
@@ -263,6 +235,6 @@
         });
     </script>
 
-    @include('vela::partials.cookie-consent')
+    @include('vela::templates._partials.scripts-footer')
 </body>
 </html>

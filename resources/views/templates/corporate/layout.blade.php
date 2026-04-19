@@ -8,7 +8,7 @@
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700|plus-jakarta-sans:500,600,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700%7Cplus-jakarta-sans:500,600,700&display=swap" rel="stylesheet">
 
     <!-- Styles -->
     <link href="{{ asset('vendor/vela/css/page-blocks.css') }}" rel="stylesheet">
@@ -18,7 +18,7 @@
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
 
-    @include('vela::templates._partials.analytics')
+@include('vela::templates._partials.analytics')
 
     <style>
         /* Critical inline CSS */
@@ -52,6 +52,7 @@
             margin: 0 auto;
             padding: 0 24px;
         }
+        .page-row-public.row-contained { max-width: 1200px; padding-left: 24px; padding-right: 24px; }
 
         /* Navigation */
         .co-nav {
@@ -165,14 +166,14 @@
         }
     </style>
 
-    @stack('head')
-    @include('vela::templates._partials.theme-colors')
-    @include('vela::templates._partials.custom-css')
+@stack('head')
+@include('vela::templates._partials.theme-colors')
+@include('vela::templates._partials.custom-css')
 </head>
 <body class="co-body">
 
     <!-- Navigation -->
-    <nav class="co-nav" x-data="{ mobileOpen: false }">
+    <nav class="co-nav">
         <div class="co-container">
             <div class="co-nav-inner">
                 <a href="{{ route('vela.public.home') }}" class="co-logo">
@@ -180,42 +181,41 @@
                     <span>{{ config('app.name', 'Vela CMS') }}</span>
                 </a>
 
-                <div class="co-nav-links" :class="{ 'is-open': mobileOpen }">
+                <div class="co-nav-links">
                     <a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a>
-                    @foreach($navPages as $navPage)
+@foreach($navPages as $navPage)
                         <a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}">{{ $navPage->title }}</a>
-                    @endforeach
+@endforeach
                     <a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.articles') }}</a>
                     <a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a>
                 </div>
 
                 <div class="co-nav-actions">
                     <!-- Language Switcher -->
-                    <div class="relative" x-data="{ open: false }">
-                        @php $currentFlag = $flagMap[$currentLocale] ?? 'gb'; @endphp
-                        <button @click="open = !open" class="co-lang-btn" type="button">
+@php $currentFlag = $flagMap[$currentLocale] ?? 'gb'; @endphp
+                    <details class="language-switcher js-click-away">
+                        <summary class="co-lang-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" width="18" height="18">
                             <span>{{ strtoupper($currentLocale) }}</span>
-                            <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
-                        </button>
-                        <div x-show="open" @click.away="open = false" x-transition class="co-lang-dropdown">
-                            @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
-                                @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}"
-                                   class="co-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
+                            <svg class="language-chevron" width="12" height="12" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                        </summary>
+                        <div class="co-lang-dropdown">
+@foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
+@php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="co-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" width="18" height="18">
                                     <span>{{ $properties['native'] }}</span>
                                 </a>
-                            @endforeach
+@endforeach
                         </div>
-                    </div>
+                    </details>
 
                     <!-- Mobile Toggle -->
-                    <button class="co-mobile-toggle" @click="mobileOpen = !mobileOpen" type="button" aria-label="Toggle navigation">
-                        <svg x-show="!mobileOpen" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button class="co-mobile-toggle" data-toggle-target=".co-nav-links" aria-expanded="false" type="button" aria-label="Toggle navigation">
+                        <svg class="icon-open" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
-                        <svg x-show="mobileOpen" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="icon-close" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
@@ -242,17 +242,17 @@
                 </div>
 
                 <div class="co-footer-col">
-                    <h4>{{ __('vela::public.quick_links') }}</h4>
+                    <h3>{{ __('vela::public.quick_links') }}</h3>
                     <ul>
                         <li><a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a></li>
-                        @foreach($navPages as $navPage)
+@foreach($navPages as $navPage)
                             <li><a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}">{{ $navPage->title }}</a></li>
-                        @endforeach
+@endforeach
                     </ul>
                 </div>
 
                 <div class="co-footer-col">
-                    <h4>{{ __('vela::public.resources') }}</h4>
+                    <h3>{{ __('vela::public.resources') }}</h3>
                     <ul>
                         <li><a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.all_articles') }}</a></li>
                         <li><a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a></li>
@@ -260,7 +260,7 @@
                 </div>
 
                 <div class="co-footer-col">
-                    <h4>{{ __('vela::public.contact_us') }}</h4>
+                    <h3>{{ __('vela::public.contact_us') }}</h3>
                     <ul>
                         <li>{{ config('app.name', 'Vela CMS') }}</li>
                     </ul>

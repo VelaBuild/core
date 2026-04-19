@@ -246,6 +246,10 @@ class VelaInstall extends Command
                     'css_class'        => $rowData['css_class'] ?? null,
                     'background_color' => $rowData['background_color'] ?? null,
                     'background_image' => $rowData['background_image'] ?? null,
+                    'text_color'       => $rowData['text_color'] ?? null,
+                    'text_alignment'   => $rowData['text_alignment'] ?? null,
+                    'padding'          => $rowData['padding'] ?? null,
+                    'width'            => in_array($rowData['width'] ?? null, ['full', 'contained'], true) ? $rowData['width'] : 'contained',
                     'order_column'     => $rowData['order'] ?? $rowOrder,
                 ]);
 
@@ -259,6 +263,9 @@ class VelaInstall extends Command
                         'settings'         => $blockData['settings'] ?? null,
                         'background_color' => $blockData['background_color'] ?? null,
                         'background_image' => $blockData['background_image'] ?? null,
+                        'text_color'       => $blockData['text_color'] ?? null,
+                        'text_alignment'   => $blockData['text_alignment'] ?? null,
+                        'padding'          => $blockData['padding'] ?? null,
                     ]);
                 }
             }

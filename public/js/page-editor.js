@@ -1231,6 +1231,7 @@ PageEditor.registerBlockType = function(name, config) {
                 text_color: row.text_color || '',
                 text_alignment: row.text_alignment || '',
                 padding: row.padding || '',
+                width: row.width || 'contained',
                 order: row.order_column || 0,
                 columns: columns
             };
@@ -1239,7 +1240,7 @@ PageEditor.registerBlockType = function(name, config) {
 
     // --- Row Management ---
     function addRow() {
-        var newRow = { id: uid(), name: '', css_class: '', background_color: '', background_image: '', text_color: '', text_alignment: '', padding: '', order: rows.length, columns: [{ width: 12, blocks: [] }] };
+        var newRow = { id: uid(), name: '', css_class: '', background_color: '', background_image: '', text_color: '', text_alignment: '', padding: '', width: 'contained', order: rows.length, columns: [{ width: 12, blocks: [] }] };
         rows.push(newRow);
         renderRows();
         initRowSortable();
@@ -1491,6 +1492,7 @@ PageEditor.registerBlockType = function(name, config) {
             row.text_color = $('#row-text-color-text').val() || '';
             row.text_alignment = $('#row-text-align').val() || '';
             row.padding = $('#row-padding').val() || '';
+            row.width = $('#row-width').val() === 'full' ? 'full' : 'contained';
             finalizeSave();
             return;
         }
@@ -1560,6 +1562,7 @@ PageEditor.registerBlockType = function(name, config) {
                 text_color: row.text_color || '',
                 text_alignment: row.text_alignment || '',
                 padding: row.padding || '',
+                width: row.width || 'contained',
                 order: ri,
                 blocks: blocks
             };
@@ -1678,7 +1681,15 @@ PageEditor.registerBlockType = function(name, config) {
             var rowId = $(this).data('row-id');
             var row = getRow(rowId);
             if (!row) return;
-            var html = '<div class="form-group"><label>Background Color</label>' +
+            var rowWidth = row.width === 'full' ? 'full' : 'contained';
+            var html = '<div class="form-group"><label>Row Width</label>' +
+                '<select class="form-control" id="row-width">' +
+                '<option value="contained"' + (rowWidth === 'contained' ? ' selected' : '') + '>Contained (template default width)</option>' +
+                '<option value="full"' + (rowWidth === 'full' ? ' selected' : '') + '>Full Width (edge to edge)</option>' +
+                '</select>' +
+                '<small class="form-text text-muted">Templates define their own contained width. Full width spans the viewport.</small>' +
+                '</div>' +
+                '<div class="form-group"><label>Background Color</label>' +
                 '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-bg-color" value="' + escHtml(row.background_color || '#ffffff') + '" style="width:60px;padding:2px;">' +
                 '<input type="text" class="form-control" id="row-bg-color-text" value="' + escHtml(row.background_color || '') + '" placeholder="#hex or empty for none">' +
                 '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +

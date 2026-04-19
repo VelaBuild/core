@@ -127,6 +127,10 @@
 .block-img-dz { border: 2px dashed #ced4da; border-radius: 4px; padding: 20px; text-align: center; cursor: pointer; min-height: 80px; background: #fafafa; transition: border-color 0.2s; }
 .block-img-dz:hover { border-color: #80bdff; }
 .block-img-dz .dz-message { margin: 0; color: #6c757d; }
+/* Hide redundant Dropzone preview icons — image preview + filename are enough signal. */
+.block-img-dz .dz-preview .dz-success-mark,
+.block-img-dz .dz-preview .dz-error-mark { display: none; }
+.block-img-dz .dz-preview .dz-progress { display: none; }
 .media-browser-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .media-browser-item { cursor: pointer; border: 2px solid transparent; border-radius: 6px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; background: #f8f9fa; }
 .media-browser-item:hover { border-color: #321fdb; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }

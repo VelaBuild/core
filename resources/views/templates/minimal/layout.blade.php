@@ -8,7 +8,7 @@
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=source-serif-4:400,500,600,700|inter:300,400,500,600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=source-serif-4:400,500,600,700%7Cinter:300,400,500,600&display=swap" rel="stylesheet">
 
     <!-- Page Blocks CSS (shared) -->
     <link href="{{ asset('vendor/vela/css/page-blocks.css') }}" rel="stylesheet">
@@ -16,7 +16,7 @@
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
 
-    @include('vela::templates._partials.analytics')
+@include('vela::templates._partials.analytics')
 
     <style>
         /* Minimal Template Styles */
@@ -41,6 +41,7 @@
 
         .mn-container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
         .mn-narrow { max-width: 720px; margin: 0 auto; padding: 0 24px; }
+        .page-row-public.row-contained { max-width: 1100px; padding-left: 24px; padding-right: 24px; }
 
         /* Navigation */
         .mn-nav {
@@ -126,9 +127,27 @@
             cursor: pointer;
             padding: 4px;
         }
+        .mn-mobile-actions { display: none; align-items: center; gap: 12px; }
+        .mn-lang-mobile { display: none; }
         @media (max-width: 768px) {
             .mn-nav-links { display: none; }
+            .mn-nav-links.is-open {
+                display: flex;
+                flex-direction: column;
+                position: absolute;
+                top: 64px;
+                left: 0;
+                right: 0;
+                background: #fff;
+                padding: 16px 24px;
+                border-bottom: 1px solid #e5e5e5;
+                gap: 16px;
+                z-index: 200;
+            }
             .mn-mobile-toggle { display: flex; }
+            .mn-mobile-actions { display: flex; }
+            .mn-lang-mobile { display: block; }
+            .mn-lang-desktop { display: none; }
         }
 
         /* Hero */
@@ -422,9 +441,9 @@
         }
         .mn-placeholder svg { width: 40px; height: 40px; }
     </style>
-    @stack('head')
-    @include('vela::templates._partials.theme-colors')
-    @include('vela::templates._partials.custom-css')
+@stack('head')
+@include('vela::templates._partials.theme-colors')
+@include('vela::templates._partials.custom-css')
 </head>
 <body>
     <!-- Navigation -->
@@ -438,61 +457,57 @@
 
                 <div class="mn-nav-links">
                     <a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a>
-                    @foreach($navPages as $navPage)
+@foreach($navPages as $navPage)
                         <a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}">{{ $navPage->title }}</a>
-                    @endforeach
+@endforeach
                     <a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.articles') }}</a>
                     <a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a>
 
                     <!-- Language Switcher -->
-                    <div class="relative" x-data="{ open: false }">
-                        <button @click="open = !open" class="mn-lang-btn">
-                            @php
-                                $currentLocale = app()->getLocale();
-                                $flagMap = [
-                                    'en' => 'gb', 'th' => 'th', 'zh-Hans' => 'cn', 'de' => 'de',
-                                    'nl' => 'nl', 'fr' => 'fr', 'it' => 'it', 'dk' => 'dk',
-                                    'ru' => 'ru', 'ar' => 'sa'
-                                ];
-                                $currentFlag = $flagMap[$currentLocale] ?? 'gb';
-                            @endphp
+@php
+                        $currentLocale = app()->getLocale();
+                        $flagMap = [
+                            'en' => 'gb', 'th' => 'th', 'zh-Hans' => 'cn', 'de' => 'de',
+                            'nl' => 'nl', 'fr' => 'fr', 'it' => 'it', 'dk' => 'dk',
+                            'ru' => 'ru', 'ar' => 'sa',
+                        ];
+                        $currentFlag = $flagMap[$currentLocale] ?? 'gb';
+@endphp
+                    <details class="language-switcher js-click-away mn-lang-desktop">
+                        <summary class="mn-lang-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}">
                             {{ strtoupper($currentLocale) }}
-                        </button>
-
-                        <div x-show="open" @click.away="open = false" x-transition class="mn-lang-dropdown">
-                            @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
-                                @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}"
-                                   class="mn-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
+                        </summary>
+                        <div class="mn-lang-dropdown">
+@foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
+@php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="mn-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}">
                                     {{ $properties['native'] }}
                                 </a>
-                            @endforeach
+@endforeach
                         </div>
-                    </div>
+                    </details>
                 </div>
 
                 <!-- Mobile -->
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <div class="relative" x-data="{ open: false }" style="display:none;" x-init="$el.style.display = window.innerWidth <= 768 ? 'block' : 'none'">
-                        <button @click="open = !open" class="mn-lang-btn">
-                            @php $currentFlag = $flagMap[$currentLocale] ?? 'gb'; @endphp
+                <div class="mn-mobile-actions">
+                    <details class="language-switcher js-click-away mn-lang-mobile">
+                        <summary class="mn-lang-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}">
                             {{ strtoupper($currentLocale) }}
-                        </button>
-                        <div x-show="open" @click.away="open = false" x-transition class="mn-lang-dropdown">
-                            @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
-                                @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}"
-                                   class="mn-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
+                        </summary>
+                        <div class="mn-lang-dropdown">
+@foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
+@php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="mn-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}">
                                     {{ $properties['native'] }}
                                 </a>
-                            @endforeach
+@endforeach
                         </div>
-                    </div>
-                    <button class="mn-mobile-toggle" x-data @click="document.querySelector('.mn-nav-links').style.display = document.querySelector('.mn-nav-links').style.display === 'flex' ? 'none' : 'flex'; document.querySelector('.mn-nav-links').style.flexDirection = 'column'; document.querySelector('.mn-nav-links').style.position = 'absolute'; document.querySelector('.mn-nav-links').style.top = '64px'; document.querySelector('.mn-nav-links').style.left = '0'; document.querySelector('.mn-nav-links').style.right = '0'; document.querySelector('.mn-nav-links').style.background = '#fff'; document.querySelector('.mn-nav-links').style.padding = '16px 24px'; document.querySelector('.mn-nav-links').style.borderBottom = '1px solid #e5e5e5'; document.querySelector('.mn-nav-links').style.gap = '16px'; document.querySelector('.mn-nav-links').style.zIndex = '200';">
+                    </details>
+                    <button class="mn-mobile-toggle" data-toggle-target=".mn-nav-links" aria-expanded="false" type="button" aria-label="Toggle navigation">
                         <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                         </svg>
@@ -520,19 +535,19 @@
                 </div>
 
                 <div class="mn-footer-links">
-                    <h4>{{ __('vela::public.quick_links') }}</h4>
+                    <h3>{{ __('vela::public.quick_links') }}</h3>
                     <ul>
                         <li><a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a></li>
-                        @foreach($navPages as $navPage)
+@foreach($navPages as $navPage)
                             <li><a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}">{{ $navPage->title }}</a></li>
-                        @endforeach
+@endforeach
                         <li><a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.all_articles') }}</a></li>
                         <li><a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a></li>
                     </ul>
                 </div>
 
                 <div class="mn-footer-links">
-                    <h4>{{ __('vela::public.contact_us') }}</h4>
+                    <h3>{{ __('vela::public.contact_us') }}</h3>
                     <ul>
                         <li>{{ config('app.name', 'Vela CMS') }}</li>
                     </ul>

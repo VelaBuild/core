@@ -2,6 +2,7 @@
 
 return [
     'settings_title'    => 'MCP Server',
+    'settings_desc'     => 'Expose your site content to AI assistants and external tools via the Model Context Protocol.',
     'settings_saved'    => 'MCP settings saved.',
 
     'title'             => 'MCP Server (Model Context Protocol)',

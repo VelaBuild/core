@@ -8,7 +8,7 @@
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=lora:400,500,600,700|inter:300,400,500&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=lora:400,500,600,700%7Cinter:300,400,500&display=swap" rel="stylesheet">
 
     <!-- Styles -->
     <link href="{{ asset('vendor/vela/css/page-blocks.css') }}" rel="stylesheet">
@@ -18,7 +18,7 @@
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
 
-    @include('vela::templates._partials.analytics')
+@include('vela::templates._partials.analytics')
 
     <style>
         /* Critical inline CSS */
@@ -59,6 +59,7 @@
             margin: 0 auto;
             padding: 0 24px;
         }
+        .page-row-public.row-contained { max-width: 1160px; padding-left: 24px; padding-right: 24px; }
 
         /* Navigation — magazine masthead */
         .ed-topbar {
@@ -173,9 +174,9 @@
         }
     </style>
 
-    @stack('head')
-    @include('vela::templates._partials.theme-colors')
-    @include('vela::templates._partials.custom-css')
+@stack('head')
+@include('vela::templates._partials.theme-colors')
+@include('vela::templates._partials.custom-css')
 </head>
 <body class="ed-body">
 
@@ -191,7 +192,7 @@
     </div>
 
     <!-- Masthead / Navigation -->
-    <header class="ed-masthead" x-data="{ mobileOpen: false }">
+    <header class="ed-masthead">
         <div class="ed-container">
             <div class="ed-masthead-inner">
                 <a href="{{ route('vela.public.home') }}" class="ed-logo">
@@ -199,41 +200,40 @@
                     <span class="ed-logo-name">{{ config('app.name', 'Vela CMS') }}</span>
                 </a>
 
-                <nav class="ed-nav-links" :class="{ 'is-open': mobileOpen }">
+                <nav class="ed-nav-links">
                     <a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a>
-                    @foreach($navPages as $navPage)
+@foreach($navPages as $navPage)
                         <a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}">{{ $navPage->title }}</a>
-                    @endforeach
+@endforeach
                     <a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.articles') }}</a>
                     <a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a>
                 </nav>
 
                 <div class="ed-nav-actions">
                     <!-- Language Switcher -->
-                    <div class="relative" x-data="{ open: false }">
-                        @php $currentFlag = $flagMap[$currentLocale] ?? 'gb'; @endphp
-                        <button @click="open = !open" class="ed-lang-btn" type="button">
+                    <details class="language-switcher js-click-away">
+@php $currentFlag = $flagMap[$currentLocale] ?? 'gb'; @endphp
+                        <summary class="ed-lang-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" width="16" height="16">
                             <span>{{ strtoupper($currentLocale) }}</span>
-                        </button>
-                        <div x-show="open" @click.away="open = false" x-transition class="ed-lang-dropdown">
-                            @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
-                                @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}"
-                                   class="ed-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
+                        </summary>
+                        <div class="ed-lang-dropdown">
+@foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
+@php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="ed-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" width="16" height="16">
                                     <span>{{ $properties['native'] }}</span>
                                 </a>
-                            @endforeach
+@endforeach
                         </div>
-                    </div>
+                    </details>
 
                     <!-- Mobile Toggle -->
-                    <button class="ed-mobile-toggle" @click="mobileOpen = !mobileOpen" type="button" aria-label="Toggle navigation">
-                        <svg x-show="!mobileOpen" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button class="ed-mobile-toggle" data-toggle-target=".ed-nav-links" aria-expanded="false" type="button" aria-label="Toggle navigation">
+                        <svg class="icon-open" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                         </svg>
-                        <svg x-show="mobileOpen" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="icon-close" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
@@ -260,9 +260,9 @@
 
                 <nav class="ed-footer-nav">
                     <a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a>
-                    @foreach($navPages as $navPage)
+@foreach($navPages as $navPage)
                         <a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}">{{ $navPage->title }}</a>
-                    @endforeach
+@endforeach
                     <a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.articles') }}</a>
                     <a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a>
                 </nav>

@@ -118,6 +118,22 @@
                     </div>
                 </div>
             </div>
+
+            {{-- MCP Server --}}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-plug fa-3x mb-3 text-primary"></i>
+                        <h5>{{ __('vela::mcp.settings_title') }}</h5>
+                        <p class="text-muted">{{ __('vela::mcp.settings_desc') }}</p>
+                        @can('config_access')
+                            <a href="{{ route('vela.admin.settings.group', 'mcp') }}" class="btn btn-primary btn-sm">
+                                {{ __('vela::pwa.manage') }}
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

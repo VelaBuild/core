@@ -229,6 +229,7 @@ class PageController extends Controller
                     'text_color'       => $rowData['text_color'] ?? null,
                     'text_alignment'   => $rowData['text_alignment'] ?? null,
                     'padding'          => $rowData['padding'] ?? null,
+                    'width'            => in_array($rowData['width'] ?? null, ['full', 'contained'], true) ? $rowData['width'] : 'contained',
                     'order_column'     => $rowData['order'] ?? $rowOrder,
                 ];
 

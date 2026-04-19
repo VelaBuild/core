@@ -21,6 +21,7 @@ class PageRow extends Model
         'text_color',
         'text_alignment',
         'padding',
+        'width',
         'order_column',
     ];
 

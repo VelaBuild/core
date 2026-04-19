@@ -25,6 +25,11 @@ body {
     background-color: #ffffff;
 }
 
+/* Pair the serif display font with Inter body across all page-builder blocks. */
+:root {
+    --block-heading-font: 'Playfair Display', Georgia, serif;
+}
+
 .font-display {
     font-family: 'Playfair Display', Georgia, serif;
 }
@@ -101,6 +106,12 @@ body {
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 24px;
+}
+
+.page-row-public.row-contained {
+    max-width: 1400px;
+    padding-left: 24px;
+    padding-right: 24px;
 }
 
 .text-premium {

@@ -4,6 +4,8 @@
         "css_class": "home-row-hero",
         "background_color": "#1e3a5f",
         "background_image": null,
+        "text_color": "#ffffff",
+        "width": "full",
         "order": 0,
         "blocks": [
             {
@@ -110,6 +112,9 @@
         "css_class": "home-row-cta",
         "background_color": "#1e3a5f",
         "background_image": null,
+        "text_color": "#ffffff",
+        "width": "full",
+        "padding": "40px 20px",
         "order": 3,
         "blocks": [
             {
