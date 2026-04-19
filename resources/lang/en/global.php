@@ -690,4 +690,14 @@ return [
     'welcome'                        => 'Welcome',
     'dashboard_subtitle'             => 'Here\'s what\'s happening on :app.',
 
+    // Languages settings
+    'languages'                      => 'Languages',
+    'languages_help'                 => 'Select which languages are active on your site. Content can be created in any active language.',
+    'primary_language'               => 'Primary Language',
+    'primary_language_help'          => 'The default language for your site. This language is always active and cannot be disabled.',
+    'active_languages'               => 'Active Languages',
+    'active_languages_help'          => 'Enable or disable languages. Only active languages will appear in the admin language switcher and can be used for content.',
+    'primary'                        => 'Primary',
+    'languages_saved'                => 'Language settings saved.',
+
 ];

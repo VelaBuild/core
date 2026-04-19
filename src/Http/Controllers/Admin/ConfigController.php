@@ -37,8 +37,18 @@ class ConfigController extends Controller
     {
         abort_if(Gate::denies('config_access'), 403);
 
-        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility', 'mcp'])) {
+        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility', 'mcp', 'languages'])) {
             abort(404);
+        }
+
+        if ($group === 'languages') {
+            $allLanguages = config('vela.available_languages', []);
+            $activeJson = VelaConfig::where('key', 'active_languages')->value('value');
+            $activeLanguages = $activeJson ? json_decode($activeJson, true) : array_keys($allLanguages);
+            $primaryLanguage = VelaConfig::where('key', 'primary_language')->value('value')
+                ?? config('vela.primary_language', 'en');
+
+            return view('vela::admin.settings.languages', compact('allLanguages', 'activeLanguages', 'primaryLanguage'));
         }
 
         if ($group === 'mcp') {
@@ -117,8 +127,32 @@ class ConfigController extends Controller
     {
         abort_if(Gate::denies('config_edit'), 403);
 
-        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility', 'mcp'])) {
+        if (! in_array($group, ['general', 'appearance', 'pwa', 'customcss', 'app', 'gdpr', 'visibility', 'mcp', 'languages'])) {
             abort(404);
+        }
+
+        if ($group === 'languages') {
+            $allLanguages = array_keys(config('vela.available_languages', []));
+
+            $request->validate([
+                'active_languages' => 'required|array|min:1',
+                'active_languages.*' => 'string|in:' . implode(',', $allLanguages),
+                'primary_language' => 'required|string|in:' . implode(',', $allLanguages),
+            ]);
+
+            $active = $request->input('active_languages', []);
+            $primary = $request->input('primary_language', 'en');
+
+            if (! in_array($primary, $active)) {
+                $active[] = $primary;
+            }
+
+            VelaConfig::updateOrCreate(['key' => 'active_languages'], ['value' => json_encode(array_values($active))]);
+            VelaConfig::updateOrCreate(['key' => 'primary_language'], ['value' => $primary]);
+
+            $this->writeSiteConfig();
+
+            return redirect()->back()->with('success', __('vela::global.languages_saved'));
         }
 
         if ($group === 'mcp') {
