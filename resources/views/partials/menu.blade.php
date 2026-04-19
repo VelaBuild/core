@@ -92,13 +92,33 @@
         @endforeach
     </nav>
 
-    <div class="vela-sidebar-user">
-        <div class="vela-avatar vela-avatar-sm" style="background: var(--vela-teal-500); color: #fff;">
-            {{ strtoupper(substr(auth('vela')->user()->name, 0, 1)) }}{{ strtoupper(substr(explode(' ', auth('vela')->user()->name)[1] ?? '', 0, 1)) }}
+    <details class="vela-sidebar-user js-click-away">
+        <summary class="vela-sidebar-user-trigger" aria-label="{{ trans('vela::global.my_profile') }}">
+            <div class="vela-avatar vela-avatar-sm" style="background: var(--vela-teal-500); color: #fff;">
+                {{ strtoupper(substr(auth('vela')->user()->name, 0, 1)) }}{{ strtoupper(substr(explode(' ', auth('vela')->user()->name)[1] ?? '', 0, 1)) }}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <div class="name">{{ auth('vela')->user()->name }}</div>
+                <div class="plan">{{ auth('vela')->user()->roles->first()->title ?? 'Admin' }}</div>
+            </div>
+            <i class="fas fa-chevron-up vela-sidebar-user-chevron" aria-hidden="true"></i>
+        </summary>
+        <div class="vela-sidebar-user-menu">
+@foreach(app(\VelaBuild\Core\Vela::class)->profileMenu()->all() as $itemName => $item)
+@if($item['divider_before'])
+            <div class="vela-sidebar-user-divider"></div>
+@endif
+@if($item['gate'] && !Gate::allows($item['gate'])) @continue @endif
+@if($item['route'] === '#logout')
+            <a class="vela-sidebar-user-item" href="#" onclick="event.preventDefault(); document.getElementById('logoutform').submit();">
+                <i class="{{ $item['icon'] }} fa-fw"></i><span>{{ trans($item['label']) }}</span>
+            </a>
+@else
+            <a class="vela-sidebar-user-item" href="{{ route($item['route']) }}">
+                <i class="{{ $item['icon'] }} fa-fw"></i><span>{{ trans($item['label']) }}</span>
+            </a>
+@endif
+@endforeach
         </div>
-        <div style="flex: 1; min-width: 0;">
-            <div class="name">{{ auth('vela')->user()->name }}</div>
-            <div class="plan">{{ auth('vela')->user()->roles->first()->title ?? 'Admin' }}</div>
-        </div>
-    </div>
+    </details>
 </aside>

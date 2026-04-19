@@ -124,47 +124,6 @@
                     {{ trans('vela::global.visit_site') }} <i class="fas fa-external-link-alt ml-1"></i>
                 </a>
 
-                {{-- Profile dropdown --}}
-                <div class="dropdown">
-                    <button class="vela-btn vela-btn-ghost vela-btn-sm" data-toggle="dropdown" style="gap:8px;">
-                        <img src="{{ auth('vela')->user()->getAvatarUrl(32) }}" alt="{{ auth('vela')->user()->name }}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
-                        <span class="d-md-down-none">{{ auth('vela')->user()->name }}</span>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-right vela-dropdown-styled pt-0">
-                        <div class="dropdown-header bg-light py-2">
-                            <strong>{{ auth('vela')->user()->name }}</strong><br>
-                            <small class="text-muted">{{ auth('vela')->user()->email }}</small>
-                        </div>
-                        @foreach(app(\VelaBuild\Core\Vela::class)->profileMenu()->all() as $itemName => $item)
-                            @if($item['divider_before'])
-                                <div class="dropdown-divider"></div>
-                            @endif
-                            @if($item['gate'])
-                                @can($item['gate'])
-                                    @if($item['route'] === '#logout')
-                                        <a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logoutform').submit();">
-                                            <i class="{{ $item['icon'] }} mr-2"></i> {{ trans($item['label']) }}
-                                        </a>
-                                    @else
-                                        <a class="dropdown-item" href="{{ route($item['route']) }}">
-                                            <i class="{{ $item['icon'] }} mr-2"></i> {{ trans($item['label']) }}
-                                        </a>
-                                    @endif
-                                @endcan
-                            @else
-                                @if($item['route'] === '#logout')
-                                    <a class="dropdown-item" href="#" onclick="event.preventDefault(); document.getElementById('logoutform').submit();">
-                                        <i class="{{ $item['icon'] }} mr-2"></i> {{ trans($item['label']) }}
-                                    </a>
-                                @else
-                                    <a class="dropdown-item" href="{{ route($item['route']) }}">
-                                        <i class="{{ $item['icon'] }} mr-2"></i> {{ trans($item['label']) }}
-                                    </a>
-                                @endif
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
             </div>
         </header>
 
@@ -296,6 +255,7 @@
 });
 
     </script>
+    <script>document.addEventListener('click',function(e){document.querySelectorAll('details.js-click-away[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open')})})</script>
     @stack('vela-page-editor-blocks')
     @yield('scripts')
     @stack('scripts')
