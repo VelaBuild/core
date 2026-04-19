@@ -8,6 +8,7 @@
         'app'        => ['label' => __('vela::pwa.settings_app'),        'icon' => 'fas fa-tablet-alt'],
         'visibility' => ['label' => __('vela::visibility.settings_title'), 'icon' => 'fas fa-eye'],
         'gdpr'       => ['label' => __('vela::gdpr.settings_title'),     'icon' => 'fas fa-shield-alt'],
+        'languages'  => ['label' => __('vela::global.languages'),          'icon' => 'fas fa-language'],
         'mcp'        => ['label' => __('vela::mcp.settings_title'),      'icon' => 'fas fa-plug'],
     ];
     $current = $settingsGroups[$currentGroup] ?? null;

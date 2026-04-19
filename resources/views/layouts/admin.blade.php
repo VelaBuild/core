@@ -93,7 +93,13 @@
                 </div>
                 @endcan
 
-                @if(count(config('vela.available_languages', [])) > 1)
+                @php
+                    $allLangs = config('vela.available_languages', []);
+                    $activeJson = \VelaBuild\Core\Models\VelaConfig::where('key', 'active_languages')->value('value');
+                    $activeLangs = $activeJson ? json_decode($activeJson, true) : array_keys($allLangs);
+                    $visibleLangs = array_intersect_key($allLangs, array_flip($activeLangs));
+                @endphp
+                @if(count($visibleLangs) > 1)
                 <div class="dropdown">
                     <button class="vela-btn vela-btn-ghost vela-btn-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <span class="vela-flag">{{ $localeFlags[app()->getLocale()] ?? "\u{1F310}" }}</span>
@@ -102,7 +108,7 @@
                         <h6 class="dropdown-header">
                             <i class="fas fa-globe mr-1"></i> {{ trans('vela::global.language') }}
                         </h6>
-                        @foreach(config('vela.available_languages') as $langLocale => $langName)
+                        @foreach($visibleLangs as $langLocale => $langName)
                             <a class="dropdown-item {{ app()->getLocale() === $langLocale ? 'active' : '' }}" href="{{ url()->current() }}?change_language={{ $langLocale }}">
                                 <span class="vela-flag mr-2">{{ $localeFlags[$langLocale] ?? "\u{1F310}" }}</span> {{ $langName }}
                                 @if(app()->getLocale() === $langLocale)
