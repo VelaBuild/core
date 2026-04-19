@@ -22,7 +22,7 @@
             </div>
             @endcan
             @can('article_create')
-            <div class="vela-cmd-item" data-action="navigate" data-url="{{ route('vela.admin.articles.create') }}">
+            <div class="vela-cmd-item" data-action="navigate" data-url="{{ route('vela.admin.contents.create') }}">
                 <div class="lead"><div class="ico"><i class="fas fa-pen" style="font-size:10px;"></i></div><span>{{ trans('vela::global.create_new_article') }}</span></div>
             </div>
             @endcan
