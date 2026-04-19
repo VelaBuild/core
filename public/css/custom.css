@@ -100,67 +100,40 @@ table.dataTable thead .sorting_desc {
 
 .custom-select.form-control-sm { padding: 0.25rem 1.5rem; }
 
-/* Modernized Admin Look */
+/* Modernized Admin Look — Vela Design System */
 :root {
-    --admin-bg: #f6f8fb;
-    --admin-card-bg: #ffffff;
-    --admin-primary: #4f46e5;
-    --admin-accent: #22c55e;
-    --admin-muted: #6b7280;
+    --admin-bg: var(--v-bg, #FBF9F5);
+    --admin-card-bg: var(--v-surface, #ffffff);
+    --admin-primary: var(--vela-teal-500, #22A2AB);
+    --admin-accent: var(--vela-success, #16A374);
+    --admin-muted: var(--v-fg-muted, #6b7280);
 }
 
 body.c-app { background: var(--admin-bg); }
 
-.c-header { background: #ffffff; border-bottom: 1px solid #e5e7eb; }
-.c-header .c-header-nav-link { color: #111827; }
-.c-header .c-header-brand { font-weight: 700; letter-spacing: .2px; }
-
-.card { border: 1px solid #e5e7eb; box-shadow: 0 6px 16px rgba(17,24,39,.06); border-radius: 12px; }
-.card-header { background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%); border-bottom: 1px solid #e5e7eb; font-weight: 600; }
+.card { border: 1px solid var(--v-border, #DCE0E9); box-shadow: var(--v-shadow-xs); border-radius: var(--v-r-lg, 14px); }
+.card-header { background: var(--v-surface, #fff); border-bottom: 1px solid var(--v-border-subtle, #EDEFF3); font-weight: 600; }
 
 .btn-primary,
 .dataTables_wrapper .dt-buttons .btn-primary { background-color: var(--admin-primary); border-color: var(--admin-primary); }
 .btn-primary:hover { filter: brightness(0.95); }
 
-.c-sidebar { background: #0b1220; color: #c7d2fe; }
-.c-sidebar .c-sidebar-nav-link { color: #cbd5e1; border-radius: 8px; margin: 2px 8px; }
-.c-sidebar .c-sidebar-nav-link.c-active,
-.c-sidebar .c-sidebar-nav-link:hover { background: rgba(79,70,229,0.18); color: #ffffff; }
-.c-sidebar .c-sidebar-nav-icon { color: #93c5fd; }
-.c-sidebar-brand-full { color: #ffffff; font-weight: 700; }
-
 /* Form layout helpers */
 .form-section-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: .06em; color: var(--admin-muted); margin-bottom: .5rem; }
 .sticky-panel { position: sticky; top: 1rem; }
 
-/* Header action pills (cache, language) */
-.vela-header-actions { gap: 6px; align-items: center; }
-.c-header .vela-header-pill { display: inline-flex; align-items: center; padding: .35rem .75rem; border-radius: 20px; margin: 0; font-size: .8125rem; font-weight: 500; line-height: 1.4; border: 1px solid transparent; transition: all .18s ease; }
-.c-header .vela-header-pill i { font-size: .8rem; }
-
-.c-header .vela-header-pill.vela-header-pill--cache { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
-.c-header .vela-header-pill.vela-header-pill--cache:hover { background: #dcfce7; color: #15803d; border-color: #86efac; }
-
-.c-header .vela-header-pill.vela-header-pill--lang { background: #eff6ff; color: #2563eb; border-color: #bfdbfe; }
-.c-header .vela-header-pill.vela-header-pill--lang:hover { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
-
 /* Styled dropdowns (cache, language, profile) */
-.vela-dropdown-styled { border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(17,24,39,.10); padding: .35rem 0; min-width: 220px; overflow: hidden; }
-.vela-dropdown-styled .dropdown-header { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--admin-muted); padding: .6rem 1rem; background: #f9fafb; border-bottom: 1px solid #f0f0f0; }
+.vela-dropdown-styled { border: 1px solid var(--v-border, #DCE0E9); border-radius: var(--v-r-md, 10px); box-shadow: var(--v-shadow-lg); padding: .35rem 0; min-width: 220px; overflow: hidden; background: var(--v-surface, #fff); }
+.vela-dropdown-styled .dropdown-header { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--admin-muted); padding: .6rem 1rem; background: var(--v-bg-muted, #F6F7F9); border-bottom: 1px solid var(--v-border-subtle, #EDEFF3); }
 .vela-dropdown-styled .dropdown-item { padding: .45rem 1rem; font-size: .875rem; display: flex; align-items: center; transition: background .12s; }
-.vela-dropdown-styled .dropdown-item:hover { background: rgba(79,70,229,.06); }
-.vela-dropdown-styled .dropdown-item.active { background: rgba(79,70,229,.08); color: var(--admin-primary); font-weight: 600; }
+.vela-dropdown-styled .dropdown-item:hover { background: var(--v-accent-muted, rgba(64,182,189,.06)); }
+.vela-dropdown-styled .dropdown-item.active { background: var(--v-accent-muted, rgba(64,182,189,.08)); color: var(--v-fg-accent, #0F8B9E); font-weight: 600; }
 .vela-dropdown-styled .dropdown-divider { margin: .25rem 0; }
-.vela-dropdown-item-danger { color: #dc3545 !important; font-weight: 600; }
-.vela-dropdown-item-danger:hover { background: rgba(220,53,69,.06) !important; }
+.vela-dropdown-item-danger { color: var(--vela-danger, #D94A42) !important; font-weight: 600; }
+.vela-dropdown-item-danger:hover { background: var(--vela-danger-bg, rgba(220,53,69,.06)) !important; }
 
 /* Flag emoji */
 .vela-flag { font-size: 1.15rem; line-height: 1; }
 
-/* Profile dropdown */
-.c-header-nav .dropdown .c-avatar-img { border: 2px solid #e5e7eb; transition: border-color .2s; }
-.c-header-nav .dropdown:hover .c-avatar-img { border-color: var(--admin-primary); }
-.c-header-nav .dropdown .dropdown-header { min-width: 200px; }
-
 /* EditorJS container */
-#editorjs { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; min-height: 220px; }
+#editorjs { background: var(--v-surface, #fff); border: 1px solid var(--v-border, #DCE0E9); border-radius: var(--v-r-md, 8px); padding: 16px; min-height: 220px; }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ app()->getLocale() }}">
 
 <head>
     <meta charset="UTF-8">
@@ -19,47 +19,47 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.5/css/select2.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/css/bootstrap-datetimepicker.min.css" rel="stylesheet" />
     <link href="https://unpkg.com/@coreui/coreui@3.2/dist/css/coreui.min.css" rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.5.1/min/dropzone.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.perfect-scrollbar/1.5.0/css/perfect-scrollbar.min.css" rel="stylesheet" />
+    <link href="{{ asset('vendor/vela/css/vela-admin.css') }}" rel="stylesheet" />
     <link href="{{ asset('vendor/vela/css/custom.css') }}?v={{ filemtime(public_path('vendor/vela/css/custom.css')) }}" rel="stylesheet" />
     @yield('styles')
 </head>
 
-<body class="c-app">
+<body class="c-app vela-admin">
+    {{-- New Vela Sidebar --}}
     @include('vela::partials.menu')
-    <div class="c-wrapper">
-        <header class="c-header c-header-fixed px-3">
-            <button class="c-header-toggler c-class-toggler d-lg-none mfe-auto" type="button" data-target="#sidebar" data-class="c-sidebar-show">
-                <i class="fas fa-fw fa-bars"></i>
+
+    {{-- Main content area --}}
+    <div class="vela-main-wrapper">
+        {{-- Topbar --}}
+        <header class="vela-topbar">
+            <button class="vela-sidebar-toggle" type="button" onclick="document.getElementById('vela-sidebar').classList.toggle('is-open')">
+                <i class="fas fa-bars"></i>
             </button>
 
-            <a class="c-header-brand d-lg-none" href="{{ route('vela.admin.home') }}">
-                <img src="{{ asset('vendor/vela/images/vela-logo-black.png') }}" alt="{{ trans('vela::panel.brand_name') }}" style="height:28px;width:auto">
-            </a>
+            <nav class="breadcrumb">
+                <span>{{ config('app.name') }}</span>
+                <span class="sep">/</span>
+                <span class="cur">@yield('breadcrumb', trans('vela::global.dashboard'))</span>
+            </nav>
 
-            <button class="c-header-toggler mfs-3 d-md-down-none" type="button" responsive="true">
-                <i class="fas fa-fw fa-bars"></i>
-            </button>
+            <div class="vela-search-bar">
+                <span class="search-ico"><i class="fas fa-search"></i></span>
+                <input placeholder="{{ trans('vela::global.search') }}..." id="vela-cmd-trigger">
+                <span class="kbd-hint"><span class="vela-kbd">⌘K</span></span>
+            </div>
 
-            <span class="d-md-down-none ml-2" style="display:flex;align-items:center;height:100%">
-                <strong>{{ config('app.name') }}</strong>
-                <a href="{{ url('/') }}" target="_blank" class="ml-2 text-muted" title="{{ trans('vela::global.visit_site') }}" style="font-size:0.85em;">
-                    <i class="fas fa-external-link-alt"></i>
-                </a>
-            </span>
+            <div class="vela-topbar-actions">
+                @php
+                    $localeFlags = ['en'=>"\u{1F1EC}\u{1F1E7}",'de'=>"\u{1F1E9}\u{1F1EA}",'ru'=>"\u{1F1F7}\u{1F1FA}",'fr'=>"\u{1F1EB}\u{1F1F7}",'nl'=>"\u{1F1F3}\u{1F1F1}",'it'=>"\u{1F1EE}\u{1F1F9}",'ar'=>"\u{1F1F8}\u{1F1E6}",'dk'=>"\u{1F1E9}\u{1F1F0}",'zh-Hans'=>"\u{1F1E8}\u{1F1F3}",'th'=>"\u{1F1F9}\u{1F1ED}"];
+                @endphp
 
-            @php
-                $localeFlags = ['en'=>"\u{1F1EC}\u{1F1E7}",'de'=>"\u{1F1E9}\u{1F1EA}",'ru'=>"\u{1F1F7}\u{1F1FA}",'fr'=>"\u{1F1EB}\u{1F1F7}",'nl'=>"\u{1F1F3}\u{1F1F1}",'it'=>"\u{1F1EE}\u{1F1F9}",'ar'=>"\u{1F1F8}\u{1F1E6}",'dk'=>"\u{1F1E9}\u{1F1F0}",'zh-Hans'=>"\u{1F1E8}\u{1F1F3}",'th'=>"\u{1F1F9}\u{1F1ED}"];
-            @endphp
-
-            <ul class="c-header-nav ml-auto vela-header-actions">
                 @can('config_edit')
-                <li class="c-header-nav-item dropdown">
-                    <a class="c-header-nav-link vela-header-pill vela-header-pill--cache" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false" title="{{ trans('vela::global.refresh_cache') }}">
+                <div class="dropdown">
+                    <button class="vela-btn vela-btn-ghost vela-btn-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="{{ trans('vela::global.refresh_cache') }}">
                         <i class="fas fa-sync-alt"></i>
-                        <span class="d-md-down-none ml-1">{{ trans('vela::global.cache') }}</span>
-                    </a>
+                    </button>
                     <div class="dropdown-menu dropdown-menu-right vela-dropdown-styled">
                         <h6 class="dropdown-header">
                             <i class="fas fa-sync-alt mr-1"></i> {{ trans('vela::global.refresh_cache') }}
@@ -90,37 +90,40 @@
                             <button type="submit" class="dropdown-item"><i class="fas fa-mobile-alt fa-fw mr-2"></i> {{ trans('vela::global.app_install') }}</button>
                         </form>
                     </div>
-                </li>
+                </div>
                 @endcan
 
                 @if(count(config('vela.available_languages', [])) > 1)
-                    <li class="c-header-nav-item dropdown">
-                        <a class="c-header-nav-link vela-header-pill vela-header-pill--lang" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
-                            <span class="vela-flag">{{ $localeFlags[app()->getLocale()] ?? "\u{1F310}" }}</span>
-                            <span class="d-md-down-none ml-1">{{ strtoupper(app()->getLocale()) }}</span>
-                        </a>
-                        <div class="dropdown-menu dropdown-menu-right vela-dropdown-styled">
-                            <h6 class="dropdown-header">
-                                <i class="fas fa-globe mr-1"></i> {{ trans('vela::global.language') }}
-                            </h6>
-                            @foreach(config('vela.available_languages') as $langLocale => $langName)
-                                <a class="dropdown-item {{ app()->getLocale() === $langLocale ? 'active' : '' }}" href="{{ url()->current() }}?change_language={{ $langLocale }}">
-                                    <span class="vela-flag mr-2">{{ $localeFlags[$langLocale] ?? "\u{1F310}" }}</span> {{ $langName }}
-                                    @if(app()->getLocale() === $langLocale)
-                                        <i class="fas fa-check ml-auto text-success"></i>
-                                    @endif
-                                </a>
-                            @endforeach
-                        </div>
-                    </li>
+                <div class="dropdown">
+                    <button class="vela-btn vela-btn-ghost vela-btn-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span class="vela-flag">{{ $localeFlags[app()->getLocale()] ?? "\u{1F310}" }}</span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-right vela-dropdown-styled">
+                        <h6 class="dropdown-header">
+                            <i class="fas fa-globe mr-1"></i> {{ trans('vela::global.language') }}
+                        </h6>
+                        @foreach(config('vela.available_languages') as $langLocale => $langName)
+                            <a class="dropdown-item {{ app()->getLocale() === $langLocale ? 'active' : '' }}" href="{{ url()->current() }}?change_language={{ $langLocale }}">
+                                <span class="vela-flag mr-2">{{ $localeFlags[$langLocale] ?? "\u{1F310}" }}</span> {{ $langName }}
+                                @if(app()->getLocale() === $langLocale)
+                                    <i class="fas fa-check ml-auto text-success"></i>
+                                @endif
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
                 @endif
 
+                <a href="{{ url('/') }}" target="_blank" class="vela-btn vela-btn-secondary vela-btn-sm" title="{{ trans('vela::global.visit_site') }}">
+                    {{ trans('vela::global.visit_site') }} <i class="fas fa-external-link-alt ml-1"></i>
+                </a>
+
                 {{-- Profile dropdown --}}
-                <li class="c-header-nav-item dropdown">
-                    <a class="c-header-nav-link" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
-                        <img class="c-avatar-img" src="{{ auth('vela')->user()->getAvatarUrl(32) }}" alt="{{ auth('vela')->user()->name }}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
-                        <span class="d-md-down-none ml-2">{{ auth('vela')->user()->name }}</span>
-                    </a>
+                <div class="dropdown">
+                    <button class="vela-btn vela-btn-ghost vela-btn-sm" data-toggle="dropdown" style="gap:8px;">
+                        <img src="{{ auth('vela')->user()->getAvatarUrl(32) }}" alt="{{ auth('vela')->user()->name }}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+                        <span class="d-md-down-none">{{ auth('vela')->user()->name }}</span>
+                    </button>
                     <div class="dropdown-menu dropdown-menu-right vela-dropdown-styled pt-0">
                         <div class="dropdown-header bg-light py-2">
                             <strong>{{ auth('vela')->user()->name }}</strong><br>
@@ -155,42 +158,35 @@
                             @endif
                         @endforeach
                     </div>
-                </li>
-            </ul>
+                </div>
+            </div>
         </header>
 
-        <div class="c-body">
-            <main class="c-main">
-
-
-                <div class="container-fluid">
-                    @if(session('message'))
-                        <div class="row mb-2">
-                            <div class="col-lg-12">
-                                <div class="alert alert-success" role="alert">{{ session('message') }}</div>
-                            </div>
-                        </div>
-                    @endif
-                    @if($errors->count() > 0)
-                        <div class="alert alert-danger">
-                            <ul class="list-unstyled">
-                                @foreach($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-                    @yield('content')
-
+        {{-- Main content --}}
+        <main class="vela-content">
+            @if(session('message'))
+                <div class="alert alert-success" role="alert">{{ session('message') }}</div>
+            @endif
+            @if($errors->count() > 0)
+                <div class="alert alert-danger">
+                    <ul class="list-unstyled mb-0">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
                 </div>
+            @endif
+            @yield('content')
+        </main>
 
-
-            </main>
-            <form id="logoutform" action="{{ route('vela.auth.logout') }}" method="POST" style="display: none;">
-                {{ csrf_field() }}
-            </form>
-        </div>
+        <form id="logoutform" action="{{ route('vela.auth.logout') }}" method="POST" style="display: none;">
+            {{ csrf_field() }}
+        </form>
     </div>
+
+    {{-- Command Palette --}}
+    @include('vela::partials.command-palette')
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.perfect-scrollbar/1.5.0/perfect-scrollbar.min.js"></script>
     <script src="https://unpkg.com/@coreui/coreui@3.2/dist/js/coreui.bundle.min.js"></script>
@@ -298,7 +294,7 @@
     @yield('scripts')
     @stack('scripts')
     @can('ai_chat_access')
-        <div id="ai-chat-toggle" style="position:fixed;right:0;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;background:#4f46e5;color:#fff;padding:12px 6px;border-radius:8px 0 0 8px;cursor:pointer;font-size:13px;font-weight:600;letter-spacing:1px;z-index:1050;box-shadow:-2px 0 8px rgba(0,0,0,.15);transition:background .2s;" onmouseover="this.style.background='#4338ca'" onmouseout="this.style.background='#4f46e5'">{{ trans('vela::ai.helper_title') }}</div>
+        <div id="ai-chat-toggle" style="position:fixed;right:0;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;background:linear-gradient(180deg, var(--vela-teal-400), var(--vela-teal-600));color:#fff;padding:12px 6px;border-radius:8px 0 0 8px;cursor:pointer;font-size:13px;font-weight:600;letter-spacing:1px;z-index:1050;box-shadow:-2px 0 8px rgba(0,0,0,.15);transition:background .2s;">{{ trans('vela::ai.helper_title') }}</div>
         @include('vela::partials.ai-chatbot')
         <link href="{{ asset('vendor/vela/css/ai-chatbot.css') }}" rel="stylesheet" />
         <script src="{{ asset('vendor/vela/js/ai-chatbot.js') }}"></script>

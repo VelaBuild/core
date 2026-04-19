@@ -1,5 +1,6 @@
 @extends('vela::layouts.admin')
 
+@section('breadcrumb', trans('vela::media.library_title'))
 @section('styles')
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
 <style>
@@ -8,94 +9,73 @@
     .media-card img { width: 100%; height: 180px; object-fit: cover; }
     .media-card .card-body { padding: 8px; }
     .media-card .card-body small { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .media-card.selected { border: 2px solid #321fdb; }
-    .view-toggle .btn.active { background-color: #321fdb; color: #fff; }
+    .media-card.selected { border: 2px solid var(--vela-teal-400); }
+    .view-toggle .btn.active { background-color: var(--vela-teal-500); color: #fff; border-color: var(--vela-teal-500); }
     #crop-image { max-width: 100%; display: block; }
 </style>
 @endsection
 
 @section('content')
-<div class="row">
-    <div class="col-lg-12">
-        <h5 class="mb-3">
-            {{ trans('vela::media.library_title') }}
-            <small class="text-muted breadcrumb d-inline-flex align-items-center mb-0 ml-2" style="font-size:0.8rem;">
-                <a href="{{ route('vela.admin.home') }}" class="breadcrumb-item">{{ trans('vela::global.home') }}</a>
-                <span class="breadcrumb-item active">{{ trans('vela::media.library_title') }}</span>
-            </small>
-        </h5>
-    </div>
-</div>
 
-<!-- Filter Bar -->
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="row align-items-end">
-            <div class="col-md-2">
-                <label for="type-filter">{{ trans('vela::global.type') }}</label>
-                <select id="type-filter" class="form-control form-control-sm">
-                    <option value="">{{ trans('vela::media.all_types') }}</option>
-                    <option value="image">{{ trans('vela::media.all_images') }} (image/*)</option>
-                    <option value="application/pdf">{{ trans('vela::media.all_documents') }} (PDF)</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="collection-filter">{{ trans('vela::global.collection') }}</label>
-                <select id="collection-filter" class="form-control form-control-sm">
-                    <option value="">{{ trans('vela::global.all_collections') }}</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="model-filter">{{ trans('vela::global.owner_type') }}</label>
-                <select id="model-filter" class="form-control form-control-sm">
-                    <option value="">{{ trans('vela::media.all_types') }}</option>
-                    <option value="VelaBuild\Core\Models\Content">{{ trans('vela::media.content_owner') }}</option>
-                    <option value="VelaBuild\Core\Models\Page">{{ trans('vela::media.page_owner') }}</option>
-                    <option value="VelaBuild\Core\Models\Category">{{ trans('vela::media.category_owner') }}</option>
-                    <option value="VelaBuild\Core\Models\VelaUser">{{ trans('vela::media.user_owner') }}</option>
-                    <option value="VelaBuild\Core\Models\MediaItem">{{ trans('vela::media.standalone_owner') }}</option>
-                </select>
-            </div>
-            <div class="col-md-6 d-flex align-items-end justify-content-end flex-wrap" style="gap:6px;">
-                <div class="btn-group view-toggle" role="group">
-                    <button type="button" class="btn btn-outline-secondary active" data-view="grid" title="{{ trans('vela::global.grid_view') }}">
-                        <i class="fas fa-th"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" data-view="list" title="{{ trans('vela::global.list_view') }}">
-                        <i class="fas fa-list"></i>
-                    </button>
-                </div>
-                <button class="btn btn-primary" id="upload-btn">
-                    <i class="fas fa-upload"></i> {{ trans('vela::global.upload') }}
-                </button>
-                @if($hasAiProvider)
-                <button class="btn btn-info" id="ai-generate-btn">
-                    <i class="fas fa-magic"></i> {{ trans('vela::global.generate') }}
-                </button>
-                @endif
-                <button class="btn btn-danger" id="bulk-delete-btn" style="display:none;">
-                    <i class="fas fa-trash"></i> {{ trans('vela::global.delete_selected') }}
-                </button>
-            </div>
+{{-- Filter Bar --}}
+<div class="vela-panel" style="padding: 0; overflow: hidden; margin-bottom: var(--v-space-4);">
+    <div style="padding: var(--v-space-4); display: flex; gap: var(--v-space-3); align-items: center; border-bottom: 1px solid var(--v-border); flex-wrap: wrap;">
+        <div class="vela-search-bar" style="max-width: 280px;">
+            <span class="search-ico"><i class="fas fa-search"></i></span>
+            <input placeholder="{{ trans('vela::media.search_files') }}..." id="media-search-input">
         </div>
+        <select id="type-filter" class="form-control form-control-sm" style="width: auto; max-width: 160px; height: 34px; border-radius: var(--v-r-full); font-size: var(--v-text-sm);">
+            <option value="">{{ trans('vela::media.all_types') }}</option>
+            <option value="image">{{ trans('vela::media.all_images') }}</option>
+            <option value="application/pdf">{{ trans('vela::media.all_documents') }} (PDF)</option>
+        </select>
+        <select id="collection-filter" class="form-control form-control-sm" style="width: auto; max-width: 160px; height: 34px; border-radius: var(--v-r-full); font-size: var(--v-text-sm);">
+            <option value="">{{ trans('vela::global.all_collections') }}</option>
+        </select>
+        <select id="model-filter" class="form-control form-control-sm" style="width: auto; max-width: 160px; height: 34px; border-radius: var(--v-r-full); font-size: var(--v-text-sm);">
+            <option value="">{{ trans('vela::global.owner_type') }}</option>
+            <option value="VelaBuild\Core\Models\Content">{{ trans('vela::media.content_owner') }}</option>
+            <option value="VelaBuild\Core\Models\Page">{{ trans('vela::media.page_owner') }}</option>
+            <option value="VelaBuild\Core\Models\Category">{{ trans('vela::media.category_owner') }}</option>
+            <option value="VelaBuild\Core\Models\VelaUser">{{ trans('vela::media.user_owner') }}</option>
+            <option value="VelaBuild\Core\Models\MediaItem">{{ trans('vela::media.standalone_owner') }}</option>
+        </select>
+        <span id="media-selected-count" class="vela-badge vela-badge-accent" style="margin-left: auto; display: none;"></span>
+        @if($hasAiProvider)
+        <button class="vela-btn vela-btn-ghost vela-btn-sm" id="ai-generate-btn">
+            <i class="fas fa-magic mr-1"></i> {{ trans('vela::global.generate') }}
+        </button>
+        @endif
+        <button class="vela-btn vela-btn-accent vela-btn-sm" id="upload-btn">
+            <i class="fas fa-cloud-upload-alt mr-1"></i> {{ trans('vela::global.upload') }}
+        </button>
+        <div class="btn-group view-toggle" role="group">
+            <button type="button" class="btn btn-outline-secondary btn-sm active" data-view="grid" title="{{ trans('vela::global.grid_view') }}">
+                <i class="fas fa-th"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" data-view="list" title="{{ trans('vela::global.list_view') }}">
+                <i class="fas fa-list"></i>
+            </button>
+        </div>
+        <button class="vela-btn vela-btn-sm" id="bulk-delete-btn" style="display:none; background: var(--vela-danger-bg); color: var(--vela-danger); border: 1px solid var(--vela-danger);">
+            <i class="fas fa-trash mr-1"></i> {{ trans('vela::global.delete_selected') }}
+        </button>
     </div>
 </div>
 
-<!-- Upload Zone (hidden by default) -->
-<div class="card mb-3" id="upload-zone" style="display:none;">
-    <div class="card-body">
-        <div class="needsclick dropzone" id="media-library-dropzone"></div>
-    </div>
+{{-- Upload Zone --}}
+<div class="vela-panel mb-3" id="upload-zone" style="display:none;">
+    <div class="needsclick dropzone" id="media-library-dropzone"></div>
 </div>
 
-<!-- Grid View Container -->
+{{-- Grid View Container --}}
 <div id="media-grid" class="row"></div>
 <div id="grid-loading" class="text-center py-4" style="display:none;">
-    <i class="fas fa-spinner fa-spin fa-2x"></i>
+    <i class="fas fa-spinner fa-spin fa-2x" style="color: var(--v-accent);"></i>
 </div>
 <div id="grid-empty" class="text-center py-5" style="display:none;">
-    <i class="fas fa-images fa-4x text-muted mb-3 d-block"></i>
-    <p class="text-muted">{{ trans('vela::media.no_media_found') }}</p>
+    <i class="fas fa-images fa-4x mb-3 d-block" style="color: var(--v-fg-subtle);"></i>
+    <p style="color: var(--v-fg-muted);">{{ trans('vela::media.no_media_found') }}</p>
 </div>
 
 <!-- List View Container (hidden by default) -->
