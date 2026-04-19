@@ -1,0 +1,17 @@
+{
+    "label": "Default",
+    "namespace": "vela",
+    "description": "Feature-rich theme with hero images and animations",
+    "screenshot": "vendor/vela/screenshots/default.png",
+    "category": "premium",
+    "options": {
+        "primary_color":    { "type": "color",  "label": "Primary Colour",    "group": "Colours",  "default": "#2A5894" },
+        "secondary_color":  { "type": "color",  "label": "Secondary Colour",  "group": "Colours",  "default": "#808183" },
+        "background_color": { "type": "color",  "label": "Background Colour", "group": "Colours",  "default": "#F8FAFC" },
+        "hero_image":       { "type": "image",  "label": "Hero Image",        "group": "Hero",     "default": "images/hero.png" },
+        "logo_image":       { "type": "image",  "label": "Site Logo",         "group": "Branding", "default": "images/logo.png" },
+        "show_hero":        { "type": "toggle", "label": "Show Hero Section", "group": "Hero",     "default": true },
+        "show_cta":         { "type": "toggle", "label": "Show Call to Action","group": "Sections","default": true },
+        "footer_copyright": { "type": "text",   "label": "Copyright Text",    "group": "Footer",   "default": "" }
+    }
+}

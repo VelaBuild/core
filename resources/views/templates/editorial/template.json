@@ -1,0 +1,14 @@
+{
+    "label": "Editorial",
+    "namespace": "vela-editorial",
+    "description": "Magazine-style layout with featured articles",
+    "screenshot": "vendor/vela/screenshots/editorial.png",
+    "category": "content",
+    "options": {
+        "primary_color":    { "type": "color", "label": "Accent Colour",     "group": "Colours",  "default": "#b91c1c" },
+        "secondary_color":  { "type": "color", "label": "Secondary Colour",  "group": "Colours",  "default": "#4b5563" },
+        "background_color": { "type": "color", "label": "Background Colour", "group": "Colours",  "default": "#f8f7f4" },
+        "logo_image":       { "type": "image", "label": "Site Logo",         "group": "Branding", "default": "images/logo.png" },
+        "footer_copyright": { "type": "text",  "label": "Copyright Text",    "group": "Footer",   "default": "" }
+    }
+}

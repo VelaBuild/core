@@ -114,9 +114,21 @@ class VelaServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'vela');
         $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'vela');
 
-        // Share navigation data across all template layouts
+        // Share navigation data across every registered template's layout view.
+        // Templates auto-discover from core + app-local, so we build the view
+        // list dynamically. We cover three resolution paths the helper uses:
+        //   1. Host app views (resources/views/templates/{name}/layout.blade.php)
+        //   2. Package namespace (vela::templates.{name}.layout)
+        //   3. The template's own registered namespace (e.g. vela-site::layout)
+        $vela = $this->app->make(\VelaBuild\Core\Vela::class);
+        $layoutViews = ['vela::templates.*.layout', 'templates.*.layout'];
+        foreach ($vela->templates()->all() as $template) {
+            if (! empty($template['namespace'])) {
+                $layoutViews[] = $template['namespace'] . '::layout';
+            }
+        }
         \Illuminate\Support\Facades\View::composer(
-            ['vela::templates.*.layout', 'vela-minimal::layout', 'vela-corporate::layout', 'vela-editorial::layout', 'vela-modern::layout', 'vela-dark::layout'],
+            $layoutViews,
             \VelaBuild\Core\View\Composers\TemplateComposer::class
         );
 
@@ -424,6 +436,28 @@ class VelaServiceProvider extends ServiceProvider
                 'settings' => ['text_alignment' => 'center'],
             ],
         ]);
+
+        $vela->registerBlock('code', [
+            'label' => 'vela::global.block_type_code',
+            'icon' => 'fas fa-code',
+            'view' => 'vela::public.pages.blocks.code',
+            'editor' => null,
+            'defaults' => [
+                'content' => ['code' => '', 'filename' => '', 'caption' => ''],
+                'settings' => ['language' => 'bash', 'theme' => 'dark', 'show_copy' => true],
+            ],
+        ]);
+
+        $vela->registerBlock('pricing_tiers', [
+            'label' => 'vela::global.block_type_pricing_tiers',
+            'icon' => 'fas fa-tags',
+            'view' => 'vela::public.pages.blocks.pricing_tiers',
+            'editor' => null,
+            'defaults' => [
+                'content' => ['tiers' => []],
+                'settings' => ['columns' => 3],
+            ],
+        ]);
     }
 
     protected function registerDefaultMenuItems(): void
@@ -533,7 +567,7 @@ class VelaServiceProvider extends ServiceProvider
     {
         $vela = $this->app->make(\VelaBuild\Core\Vela::class);
 
-        // Standard theme options (naming conventions for cross-theme compatibility):
+        // Standard theme-option conventions (use these names across templates):
         //   hero_image (image)       - Hero/banner background image
         //   logo_image (image)       - Site logo override
         //   show_hero  (toggle)      - Show/hide hero section
@@ -542,112 +576,15 @@ class VelaServiceProvider extends ServiceProvider
         //   secondary_color (color)  - Secondary/muted color
         //   background_color (color) - Page background color
         //   footer_copyright (text)  - Copyright text override
+        //
+        // Templates self-register by living under resources/views/templates/<name>/
+        // with an optional template.json manifest (label, namespace, description,
+        // category, options). Core's bundled templates come first; the app's own
+        // resources/views/templates/ directory is scanned after so site-local
+        // templates appear alongside without any manual provider code.
 
-        $vela->registerTemplate('default', [
-            'label' => 'Default',
-            'namespace' => 'vela',
-            'path' => __DIR__.'/../resources/views/templates/default',
-            'description' => 'Feature-rich theme with hero images and animations',
-            'screenshot' => 'vendor/vela/screenshots/default.png',
-            'category' => 'premium',
-            'options' => [
-                'primary_color' => ['type' => 'color', 'label' => 'Primary Colour', 'group' => 'Colours', 'default' => '#2A5894'],
-                'secondary_color' => ['type' => 'color', 'label' => 'Secondary Colour', 'group' => 'Colours', 'default' => '#808183'],
-                'background_color' => ['type' => 'color', 'label' => 'Background Colour', 'group' => 'Colours', 'default' => '#F8FAFC'],
-                'hero_image' => ['type' => 'image', 'label' => 'Hero Image', 'group' => 'Hero', 'default' => 'images/hero.png'],
-                'logo_image' => ['type' => 'image', 'label' => 'Site Logo', 'group' => 'Branding', 'default' => 'images/logo.png'],
-                'show_hero' => ['type' => 'toggle', 'label' => 'Show Hero Section', 'group' => 'Hero', 'default' => true],
-                'show_cta' => ['type' => 'toggle', 'label' => 'Show Call to Action', 'group' => 'Sections', 'default' => true],
-                'footer_copyright' => ['type' => 'text', 'label' => 'Copyright Text', 'group' => 'Footer', 'default' => ''],
-            ],
-        ]);
-
-        $vela->registerTemplate('minimal', [
-            'label' => 'Minimal',
-            'namespace' => 'vela-minimal',
-            'path' => __DIR__.'/../resources/views/templates/minimal',
-            'description' => 'Clean, content-focused design with minimal distractions',
-            'screenshot' => 'vendor/vela/screenshots/minimal.png',
-            'category' => 'minimal',
-            'options' => [
-                'primary_color' => ['type' => 'color', 'label' => 'Primary Colour', 'group' => 'Colours', 'default' => '#111827'],
-                'secondary_color' => ['type' => 'color', 'label' => 'Accent Colour', 'group' => 'Colours', 'default' => '#6b7280'],
-                'background_color' => ['type' => 'color', 'label' => 'Background Colour', 'group' => 'Colours', 'default' => '#ffffff'],
-                'logo_image' => ['type' => 'image', 'label' => 'Site Logo', 'group' => 'Branding', 'default' => 'images/logo.png'],
-                'show_cta' => ['type' => 'toggle', 'label' => 'Show Call to Action', 'group' => 'Sections', 'default' => true],
-                'footer_copyright' => ['type' => 'text', 'label' => 'Copyright Text', 'group' => 'Footer', 'default' => ''],
-            ],
-        ]);
-
-        $vela->registerTemplate('corporate', [
-            'label' => 'Corporate',
-            'namespace' => 'vela-corporate',
-            'path' => __DIR__.'/../resources/views/templates/corporate',
-            'description' => 'Professional layout for business and enterprise sites',
-            'screenshot' => 'vendor/vela/screenshots/corporate.png',
-            'category' => 'professional',
-            'options' => [
-                'primary_color' => ['type' => 'color', 'label' => 'Primary Colour', 'group' => 'Colours', 'default' => '#1e40af'],
-                'secondary_color' => ['type' => 'color', 'label' => 'Secondary Colour', 'group' => 'Colours', 'default' => '#64748b'],
-                'background_color' => ['type' => 'color', 'label' => 'Background Colour', 'group' => 'Colours', 'default' => '#f8fafc'],
-                'logo_image' => ['type' => 'image', 'label' => 'Site Logo', 'group' => 'Branding', 'default' => 'images/logo.png'],
-                'show_hero' => ['type' => 'toggle', 'label' => 'Show Hero Section', 'group' => 'Hero', 'default' => true],
-                'show_cta' => ['type' => 'toggle', 'label' => 'Show Call to Action', 'group' => 'Sections', 'default' => true],
-                'footer_copyright' => ['type' => 'text', 'label' => 'Copyright Text', 'group' => 'Footer', 'default' => ''],
-            ],
-        ]);
-
-        $vela->registerTemplate('editorial', [
-            'label' => 'Editorial',
-            'namespace' => 'vela-editorial',
-            'path' => __DIR__.'/../resources/views/templates/editorial',
-            'description' => 'Magazine-style layout with featured articles',
-            'screenshot' => 'vendor/vela/screenshots/editorial.png',
-            'category' => 'content',
-            'options' => [
-                'primary_color' => ['type' => 'color', 'label' => 'Accent Colour', 'group' => 'Colours', 'default' => '#b91c1c'],
-                'secondary_color' => ['type' => 'color', 'label' => 'Secondary Colour', 'group' => 'Colours', 'default' => '#4b5563'],
-                'background_color' => ['type' => 'color', 'label' => 'Background Colour', 'group' => 'Colours', 'default' => '#f8f7f4'],
-                'logo_image' => ['type' => 'image', 'label' => 'Site Logo', 'group' => 'Branding', 'default' => 'images/logo.png'],
-                'footer_copyright' => ['type' => 'text', 'label' => 'Copyright Text', 'group' => 'Footer', 'default' => ''],
-            ],
-        ]);
-
-        $vela->registerTemplate('modern', [
-            'label' => 'Modern',
-            'namespace' => 'vela-modern',
-            'path' => __DIR__.'/../resources/views/templates/modern',
-            'description' => 'Bold gradients and contemporary design',
-            'screenshot' => 'vendor/vela/screenshots/modern.png',
-            'category' => 'creative',
-            'options' => [
-                'primary_color' => ['type' => 'color', 'label' => 'Primary Colour', 'group' => 'Colours', 'default' => '#7c3aed'],
-                'secondary_color' => ['type' => 'color', 'label' => 'Secondary Colour', 'group' => 'Colours', 'default' => '#2563eb'],
-                'background_color' => ['type' => 'color', 'label' => 'Background Colour', 'group' => 'Colours', 'default' => '#f1f5f9'],
-                'logo_image' => ['type' => 'image', 'label' => 'Site Logo', 'group' => 'Branding', 'default' => 'images/logo.png'],
-                'show_hero' => ['type' => 'toggle', 'label' => 'Show Hero Section', 'group' => 'Hero', 'default' => true],
-                'show_cta' => ['type' => 'toggle', 'label' => 'Show Call to Action', 'group' => 'Sections', 'default' => true],
-                'footer_copyright' => ['type' => 'text', 'label' => 'Copyright Text', 'group' => 'Footer', 'default' => ''],
-            ],
-        ]);
-
-        $vela->registerTemplate('dark', [
-            'label' => 'Dark',
-            'namespace' => 'vela-dark',
-            'path' => __DIR__.'/../resources/views/templates/dark',
-            'description' => 'Dark colour scheme for low-light reading',
-            'screenshot' => 'vendor/vela/screenshots/dark.png',
-            'category' => 'dark',
-            'options' => [
-                'primary_color' => ['type' => 'color', 'label' => 'Accent Colour', 'group' => 'Colours', 'default' => '#14b8a6'],
-                'secondary_color' => ['type' => 'color', 'label' => 'Secondary Colour', 'group' => 'Colours', 'default' => '#737373'],
-                'background_color' => ['type' => 'color', 'label' => 'Background Colour', 'group' => 'Colours', 'default' => '#0f0f0f'],
-                'logo_image' => ['type' => 'image', 'label' => 'Site Logo', 'group' => 'Branding', 'default' => 'images/logo.png'],
-                'show_hero' => ['type' => 'toggle', 'label' => 'Show Hero Section', 'group' => 'Hero', 'default' => true],
-                'show_cta' => ['type' => 'toggle', 'label' => 'Show Call to Action', 'group' => 'Sections', 'default' => true],
-                'footer_copyright' => ['type' => 'text', 'label' => 'Copyright Text', 'group' => 'Footer', 'default' => ''],
-            ],
-        ]);
+        $vela->templates()->autoDiscover(__DIR__ . '/../resources/views/templates');
+        $vela->templates()->autoDiscover(resource_path('views/templates'));
     }
 
     protected function registerDefaultWidgets(): void

@@ -1,0 +1,16 @@
+{
+    "label": "Corporate",
+    "namespace": "vela-corporate",
+    "description": "Professional layout for business and enterprise sites",
+    "screenshot": "vendor/vela/screenshots/corporate.png",
+    "category": "professional",
+    "options": {
+        "primary_color":    { "type": "color",  "label": "Primary Colour",    "group": "Colours",  "default": "#1e40af" },
+        "secondary_color":  { "type": "color",  "label": "Secondary Colour",  "group": "Colours",  "default": "#64748b" },
+        "background_color": { "type": "color",  "label": "Background Colour", "group": "Colours",  "default": "#f8fafc" },
+        "logo_image":       { "type": "image",  "label": "Site Logo",         "group": "Branding", "default": "images/logo.png" },
+        "show_hero":        { "type": "toggle", "label": "Show Hero Section", "group": "Hero",     "default": true },
+        "show_cta":         { "type": "toggle", "label": "Show Call to Action","group": "Sections","default": true },
+        "footer_copyright": { "type": "text",   "label": "Copyright Text",    "group": "Footer",   "default": "" }
+    }
+}

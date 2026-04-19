@@ -1,0 +1,15 @@
+{
+    "label": "Minimal",
+    "namespace": "vela-minimal",
+    "description": "Clean, content-focused design with minimal distractions",
+    "screenshot": "vendor/vela/screenshots/minimal.png",
+    "category": "minimal",
+    "options": {
+        "primary_color":    { "type": "color",  "label": "Primary Colour",    "group": "Colours",  "default": "#111827" },
+        "secondary_color":  { "type": "color",  "label": "Accent Colour",     "group": "Colours",  "default": "#6b7280" },
+        "background_color": { "type": "color",  "label": "Background Colour", "group": "Colours",  "default": "#ffffff" },
+        "logo_image":       { "type": "image",  "label": "Site Logo",         "group": "Branding", "default": "images/logo.png" },
+        "show_cta":         { "type": "toggle", "label": "Show Call to Action","group": "Sections","default": true },
+        "footer_copyright": { "type": "text",   "label": "Copyright Text",    "group": "Footer",   "default": "" }
+    }
+}
