@@ -130,7 +130,10 @@ class UsersController extends Controller
 
     public function update(UpdateUserRequest $request, VelaUser $user)
     {
-        $user->update($request->all());
+        // Never accept audit fields from the admin form — belt-and-braces
+        // on top of the request rules, in case a curl caller posts them
+        // directly. These are set on login only.
+        $user->update($request->except(['last_login_at', 'last_ip', 'useragent']));
         $user->roles()->sync($request->input('roles', []));
         if ($request->input('profile_pic', false)) {
             if (! $user->profile_pic || $request->input('profile_pic') !== $user->profile_pic->file_name) {

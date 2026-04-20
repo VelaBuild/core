@@ -31,6 +31,14 @@ class LoginController extends Controller
 
         $user = auth('vela')->user();
 
+        // Capture audit fields on every successful login. Admins see these
+        // read-only on the edit page; they are never writeable from the UI.
+        $user->forceFill([
+            'last_login_at' => now(),
+            'last_ip'       => $request->ip(),
+            'useragent'     => substr((string) $request->userAgent(), 0, 255),
+        ])->saveQuietly();
+
         if ($user->two_factor) {
             $user->generateTwoFactorCode();
             $user->notify(new TwoFactorCodeNotification());

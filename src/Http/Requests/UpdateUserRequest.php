@@ -30,18 +30,9 @@ class UpdateUserRequest extends FormRequest
                 'required',
                 'array',
             ],
-            'last_login_at' => [
-                'date_format:' . config('vela.date_format'),
-                'nullable',
-            ],
-            'last_ip' => [
-                'string',
-                'nullable',
-            ],
-            'useragent' => [
-                'string',
-                'nullable',
-            ],
+            // last_login_at / last_ip / useragent are audit fields — set
+            // automatically on login (see LoginController). Not accepted
+            // from the admin edit form to prevent spoofing.
         ];
     }
 }

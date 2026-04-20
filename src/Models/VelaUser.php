@@ -147,14 +147,14 @@ class VelaUser extends Authenticatable implements MustVerifyEmail, HasMedia
         $this->notify(new ResetPassword($token));
     }
 
+    /**
+     * last_login_at is a datetime audit field — set automatically by
+     * LoginController on successful auth. Rendered human-readably via
+     * the accessor; stored as ISO Y-m-d H:i:s.
+     */
     public function getLastLoginAtAttribute($value)
     {
-        return $value ? Carbon::parse($value)->format(config('vela.date_format')) : null;
-    }
-
-    public function setLastLoginAtAttribute($value)
-    {
-        $this->attributes['last_login_at'] = $value ? Carbon::createFromFormat(config('vela.date_format'), $value)->format('Y-m-d') : null;
+        return $value ? \Carbon\Carbon::parse($value)->format('Y-m-d H:i') : null;
     }
 
     public function getProfilePicAttribute()
