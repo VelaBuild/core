@@ -66,6 +66,16 @@ class PwaIconGenerator
             }
         }
 
+        // Generate public/favicon.ico from the 48x48 icon. Browsers hit
+        // /favicon.ico automatically — shipping an empty placeholder yields a
+        // blank tab icon across the site.
+        $faviconSource = "{$outputDir}/icon-48x48.png";
+        $faviconTarget = public_path('favicon.ico');
+        if (is_file($faviconSource) && @copy($faviconSource, $faviconTarget)) {
+            @chmod($faviconTarget, 0664);
+            $generated[] = $faviconTarget;
+        }
+
         $success = empty($errors);
 
         if ($success) {

@@ -9,19 +9,32 @@ class TemplateComposer
 {
     public function compose(View $view): void
     {
-        // When holding page is active, hide navigation for non-admin visitors
+        // When holding page is active, hide navigation for non-admin visitors.
+        // Guard auth()->check() against DB failures (static-cache prod deploys
+        // without a database can still have stale session cookies).
+        try {
+            $isAuthed = auth('vela')->check();
+        } catch (\Throwable $e) {
+            $isAuthed = false;
+        }
         $holdingPageActive = config('vela.visibility.mode') === 'restricted'
             && config('vela.visibility.holding_page')
-            && !auth('vela')->check();
+            && !$isAuthed;
 
-        $navPages = $holdingPageActive
-            ? collect()
-            : Page::where('locale', app()->getLocale())
-                ->where('status', 'published')
-                ->whereNull('parent_id')
-                ->where('slug', '!=', 'home')
-                ->orderBy('order_column')
-                ->get();
+        // No DB on static-cache deploys — fail safe to an empty nav so the
+        // offline page and every other public template still renders.
+        try {
+            $navPages = $holdingPageActive
+                ? collect()
+                : Page::where('locale', app()->getLocale())
+                    ->where('status', 'published')
+                    ->whereNull('parent_id')
+                    ->where('slug', '!=', 'home')
+                    ->orderBy('order_column')
+                    ->get();
+        } catch (\Throwable $e) {
+            $navPages = collect();
+        }
 
         $currentLocale = app()->getLocale();
         $flagMap = [
