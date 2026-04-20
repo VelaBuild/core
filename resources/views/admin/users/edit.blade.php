@@ -98,32 +98,74 @@
     </div>
 </div>
 
-{{-- Related data (merged in from the former show page). Tabs for the
-     user's authored content and their comments — useful context while
-     editing without requiring a second page. --}}
-@if(($user->authorContents?->isNotEmpty() ?? false) || ($user->userComments?->isNotEmpty() ?? false))
-<div class="card mt-4">
-    <div class="card-header">
-        {{ trans('vela::global.relatedData') }}
-    </div>
+{{-- Related data: user's articles + comments. Lightweight inline list —
+     each item links to its own edit page for the full view. Hidden
+     entirely if the user has nothing authored. --}}
+@php
+    $articles = $user->authorContents ?? collect();
+    $comments = $user->userComments  ?? collect();
+@endphp
+@if($articles->isNotEmpty() || $comments->isNotEmpty())
+<div class="card mt-3">
+    <div class="card-header">{{ trans('vela::global.relatedData') }}</div>
     <ul class="nav nav-tabs" role="tablist" id="relationship-tabs">
         <li class="nav-item">
             <a class="nav-link active" href="#author_contents" role="tab" data-toggle="tab">
-                {{ trans('vela::cruds.content.title') }} ({{ $user->authorContents?->count() ?? 0 }})
+                Articles <span class="badge badge-secondary ml-1">{{ $articles->count() }}</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link" href="#user_comments" role="tab" data-toggle="tab">
-                {{ trans('vela::cruds.comment.title') }} ({{ $user->userComments?->count() ?? 0 }})
+                Comments <span class="badge badge-secondary ml-1">{{ $comments->count() }}</span>
             </a>
         </li>
     </ul>
     <div class="tab-content">
         <div class="tab-pane active" role="tabpanel" id="author_contents">
-            @includeIf('vela::admin.users.relationships.authorContents', ['contents' => $user->authorContents])
+            @if($articles->isEmpty())
+                <p class="text-muted m-3 mb-0">No articles authored.</p>
+            @else
+                <ul class="list-group list-group-flush">
+                    @foreach($articles as $a)
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="{{ route('vela.admin.contents.edit', $a->id) }}"><strong>{{ $a->title }}</strong></a>
+                                <br>
+                                <small class="text-muted">
+                                    <code>/{{ $a->slug }}</code> ·
+                                    <span class="badge badge-{{ $a->status === 'published' ? 'success' : 'secondary' }}">{{ $a->status }}</span>
+                                    @if($a->published_at) · {{ \Carbon\Carbon::parse($a->published_at)->format('M j, Y') }}@endif
+                                </small>
+                            </div>
+                            <a href="{{ route('vela.admin.contents.edit', $a->id) }}" class="btn btn-sm btn-info">Edit</a>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
         <div class="tab-pane" role="tabpanel" id="user_comments">
-            @includeIf('vela::admin.users.relationships.userComments', ['comments' => $user->userComments])
+            @if($comments->isEmpty())
+                <p class="text-muted m-3 mb-0">No comments posted.</p>
+            @else
+                <ul class="list-group list-group-flush">
+                    @foreach($comments as $c)
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p class="mb-1">{{ \Illuminate\Support\Str::limit(strip_tags($c->comment ?? $c->body ?? ''), 160) }}</p>
+                                    <small class="text-muted">
+                                        @if($c->content_id && $c->content)
+                                            on <a href="{{ route('vela.admin.contents.edit', $c->content_id) }}">{{ $c->content->title }}</a> ·
+                                        @endif
+                                        {{ $c->created_at?->format('M j, Y · H:i') }}
+                                    </small>
+                                </div>
+                                <a href="{{ route('vela.admin.comments.edit', $c->id) }}" class="btn btn-sm btn-info ml-3">Edit</a>
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
         </div>
     </div>
 </div>
