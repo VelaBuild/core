@@ -166,6 +166,7 @@
         }
     </style>
 
+@include('vela::partials.cookie-consent-styles')
 @stack('head')
 @include('vela::templates._partials.theme-colors')
 @include('vela::templates._partials.custom-css')

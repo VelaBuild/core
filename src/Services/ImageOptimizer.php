@@ -12,7 +12,11 @@ class ImageOptimizer
     public function __construct()
     {
         $this->cachePath = config('vela.images.cache_path', storage_path('app/image-cache'));
-        $this->signingKey = hash_hmac('sha256', 'vela-image-signing', config('app.key'));
+        // Prefer an explicit VELA_IMAGE_SIGNING_KEY so signed URLs baked into the
+        // static cache on dev still validate on a production server with a
+        // different APP_KEY. Falls back to APP_KEY for single-env installs.
+        $secret = config('vela.images.signing_key') ?: config('app.key');
+        $this->signingKey = hash_hmac('sha256', 'vela-image-signing', $secret);
     }
 
     public function generateUrl(string $src, int $width, int $height = 0, string $mode = 'fit'): string

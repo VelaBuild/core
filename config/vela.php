@@ -199,6 +199,11 @@ return [
         'quality' => 85,
         'allowed_source_paths' => ['storage/app/public', 'public'],
         'default_sizes' => [400, 800, 1200],
+        // Stable secret used to sign /imgp/ and /imgr/ URLs. MUST match
+        // between dev and prod when using committed static cache, otherwise
+        // baked-in signed URLs won't validate on prod. Leave null to fall
+        // back to APP_KEY (fine for single-env sites).
+        'signing_key' => env('VELA_IMAGE_SIGNING_KEY'),
     ],
 
 ];

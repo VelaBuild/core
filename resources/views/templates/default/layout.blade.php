@@ -18,6 +18,7 @@
     <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
 
 @include('vela::templates._partials.analytics')
+@include('vela::partials.cookie-consent-styles')
 @stack('head')
 @include('vela::templates._partials.theme-colors')
 @include('vela::templates._partials.custom-css')
