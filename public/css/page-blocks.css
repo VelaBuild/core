@@ -340,3 +340,16 @@
 .block-pricing-tier-cta:hover { background: var(--block-accent-hover); color: #fff; text-decoration: none; }
 .block-pricing-tier.is-featured .block-pricing-tier-cta { background: #40B6BD; color: #0A1020; }
 .block-pricing-tier.is-featured .block-pricing-tier-cta:hover { background: #5FC6CD; }
+
+/* Pricing tier extensions — subtitle, price currency/note, features cap, muted feature */
+.block-pricing-tier-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--block-text-muted); margin-bottom: 4px; }
+.block-pricing-tier.is-featured .block-pricing-tier-label { color: rgba(255,255,255,0.7); }
+.block-pricing-tier-headline { font-family: var(--block-heading-font); font-size: 1.5rem; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
+.block-pricing-tier-price-cur { font-size: 1.2rem; font-weight: 500; margin-right: 2px; opacity: 0.7; align-self: flex-start; line-height: 1.2; }
+.block-pricing-tier-price-note { font-size: 0.8rem; color: currentColor; opacity: 0.6; margin-top: -4px; }
+.block-pricing-tier-features-cap { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; color: currentColor; opacity: 0.55; margin-top: 4px; }
+.block-pricing-tier-features li.is-muted { opacity: 0.55; }
+.block-pricing-tier-features li.is-muted::before { opacity: 0.4; }
+
+/* CTA note — small fine-print line under the buttons */
+.block-cta-note { margin-top: 14px; font-size: 0.85rem; opacity: 0.65; }

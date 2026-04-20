@@ -7,39 +7,60 @@
     <div class="block-pricing-tiers" style="--tier-cols: {{ $columns }};">
 @foreach($tiers as $tier)
 @php
-    $name        = $tier['name'] ?? '';
-    $price       = $tier['price'] ?? '';
-    $period      = $tier['period'] ?? '';
-    $description = $tier['description'] ?? '';
-    $features    = $tier['features'] ?? [];
-    $ctaText     = $tier['cta_text'] ?? 'Get started';
-    $ctaUrl      = $tier['cta_url'] ?? '#';
-    $featured    = ! empty($tier['featured']);
+    $name         = $tier['name'] ?? '';
+    $subtitle     = $tier['subtitle'] ?? '';
+    $price        = $tier['price'] ?? '';
+    $priceCurrency = $tier['price_currency'] ?? '$';
+    $period       = $tier['period'] ?? '';
+    $priceNote    = $tier['price_note'] ?? '';
+    $description  = $tier['description'] ?? '';
+    $featuresCap  = $tier['features_cap'] ?? '';
+    $features     = $tier['features'] ?? [];
+    $ctaText      = $tier['cta_text'] ?? 'Get started';
+    $ctaUrl       = $tier['cta_url'] ?? '#';
+    $featured     = ! empty($tier['featured']);
+    $badge        = $tier['badge'] ?? 'Most popular';
 @endphp
         <div class="block-pricing-tier{{ $featured ? ' is-featured' : '' }}">
 @if($featured)
-            <div class="block-pricing-tier-badge">Most popular</div>
+            <span class="block-pricing-tier-badge">{{ e($badge) }}</span>
 @endif
-            <h3 class="block-pricing-tier-name">{{ e($name) }}</h3>
+@if($name !== '')
+            <div class="block-pricing-tier-label">{{ e($name) }}</div>
+@endif
+@if($subtitle !== '')
+            <h3 class="block-pricing-tier-headline">{{ e($subtitle) }}</h3>
+@endif
+@if($description !== '')
+            <p class="block-pricing-tier-desc">{{ e($description) }}</p>
+@endif
 @if($price !== '')
             <div class="block-pricing-tier-price">
+                <span class="block-pricing-tier-price-cur">{{ e($priceCurrency) }}</span>
                 <span class="block-pricing-tier-price-num">{{ e($price) }}</span>
 @if($period !== '')
                 <span class="block-pricing-tier-price-period">{{ e($period) }}</span>
 @endif
             </div>
 @endif
-@if($description !== '')
-            <p class="block-pricing-tier-desc">{{ e($description) }}</p>
+@if($priceNote !== '')
+            <div class="block-pricing-tier-price-note">{{ e($priceNote) }}</div>
+@endif
+            <a href="{{ e($ctaUrl) }}" class="block-pricing-tier-cta">{{ e($ctaText) }}</a>
+@if($featuresCap !== '')
+            <div class="block-pricing-tier-features-cap">{{ e($featuresCap) }}</div>
 @endif
 @if(count($features) > 0)
             <ul class="block-pricing-tier-features">
 @foreach($features as $feature)
-                <li>{{ e($feature) }}</li>
+@php
+    $text  = is_array($feature) ? ($feature['text'] ?? '') : $feature;
+    $muted = is_array($feature) ? !empty($feature['muted']) : false;
+@endphp
+                <li class="{{ $muted ? 'is-muted' : '' }}">{{ $text }}</li>
 @endforeach
             </ul>
 @endif
-            <a href="{{ e($ctaUrl) }}" class="block-pricing-tier-cta">{{ e($ctaText) }}</a>
         </div>
 @endforeach
     </div>
