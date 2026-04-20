@@ -221,6 +221,14 @@ class VelaServiceProvider extends ServiceProvider
             ]);
         }
 
+        // Admin UI anonymous Blade components — <x-vela::edit-page>, etc.
+        // Lives in core/resources/views/components/. Used by admin edit
+        // pages for consistent layout + design-system look.
+        \Illuminate\Support\Facades\Blade::anonymousComponentPath(
+            __DIR__.'/../resources/views/components',
+            'vela'
+        );
+
         \Illuminate\Support\Facades\Blade::directive('velaAssets', function ($expression) {
             return "<?php echo app(\\VelaBuild\\Core\\Services\\AssetBundler::class)->tags([{$expression}]); ?>";
         });

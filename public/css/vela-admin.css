@@ -1415,6 +1415,9 @@ body.vela-admin .vela-meta-head .dot {
 }
 body.vela-admin .vela-meta-head .dot.on { background: var(--v-accent); box-shadow: 0 0 0 3px rgba(64,182,189,0.18); }
 
+body.vela-admin .vela-meta-body { padding: var(--v-space-3) var(--v-space-4); }
+body.vela-admin .vela-meta-body .vela-switch-row { padding: 0; }
+
 body.vela-admin .vela-meta-list {
     margin: 0; padding: var(--v-space-3) var(--v-space-4);
     display: grid; grid-template-columns: 1fr; gap: var(--v-space-3);
