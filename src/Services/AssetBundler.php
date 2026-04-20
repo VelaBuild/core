@@ -174,20 +174,27 @@ class AssetBundler
         foreach ($bundleNames as $bundle) {
             $key = "{$bundle}.css";
             if (isset($manifest[$key])) {
-                $url = rtrim($this->publicPath, '/') . '/' . $manifest[$key];
-                $html .= '<link rel="stylesheet" href="' . e($url) . '">' . "\n";
+                $html .= '<link rel="stylesheet" href="' . e($this->bundleUrl($manifest[$key])) . '">' . "\n";
             }
         }
 
         foreach ($bundleNames as $bundle) {
             $key = "{$bundle}.js";
             if (isset($manifest[$key])) {
-                $url = rtrim($this->publicPath, '/') . '/' . $manifest[$key];
-                $html .= '<script src="' . e($url) . '" defer></script>' . "\n";
+                $html .= '<script src="' . e($this->bundleUrl($manifest[$key])) . '" defer></script>' . "\n";
             }
         }
 
         return $html;
+    }
+
+    protected function bundleUrl(string $filename): string
+    {
+        // asset() honors APP_URL — crucial for subdirectory installs like
+        // http://localhost/vela/vela.build/public where a bare "/vendor/..."
+        // would resolve at the wrong origin and 404.
+        $path = ltrim($this->publicPath, '/') . '/' . $filename;
+        return asset($path);
     }
 
     protected function rawTags(array $bundleNames): string
@@ -216,10 +223,11 @@ class AssetBundler
 
     protected function sourceUrl(string $file): string
     {
-        $url = '/' . ltrim(preg_replace('#^public/#', '', $file), '/');
+        $rel = ltrim(preg_replace('#^public/#', '', $file), '/');
+        $url = asset($rel);
         $path = $this->resolvePath($file);
         if (is_file($path)) {
-            $url .= '?v=' . filemtime($path);
+            $url .= (str_contains($url, '?') ? '&' : '?') . 'v=' . filemtime($path);
         }
         return $url;
     }
