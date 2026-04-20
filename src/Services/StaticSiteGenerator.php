@@ -205,11 +205,13 @@ class StaticSiteGenerator
 
     public function generatePostsIndex(): void
     {
+        // Use paginate() so the view's $posts->hasPages() / ->links() calls
+        // have the right object type. Static page 1 ships with the cache;
+        // subsequent pages still resolve dynamically via PostController.
         $posts = Content::where('status', 'published')
             ->where('type', 'post')
             ->orderByRaw('COALESCE(published_at, created_at) DESC')
-            ->limit(12)
-            ->get();
+            ->paginate(12);
 
         $categories = Category::orderBy('order_by', 'asc')
             ->orderBy('name', 'asc')
