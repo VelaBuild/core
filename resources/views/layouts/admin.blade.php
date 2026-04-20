@@ -256,9 +256,12 @@
 
     </script>
     <script>document.addEventListener('click',function(e){document.querySelectorAll('details.js-click-away[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open')})})</script>
-    @stack('vela-page-editor-blocks')
     @yield('scripts')
     @stack('scripts')
+    {{-- Plugin extension point — emits AFTER @stack('scripts'), so plugins
+         that add Page Builder block types can call PageEditor.registerBlockType
+         directly (page-editor.js has already executed by this point). --}}
+    @stack('vela-page-editor-blocks')
     @can('ai_chat_access')
         <div id="ai-chat-toggle" style="position:fixed;right:0;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;background:linear-gradient(180deg, var(--vela-teal-400), var(--vela-teal-600));color:#fff;padding:12px 6px;border-radius:8px 0 0 8px;cursor:pointer;font-size:13px;font-weight:600;letter-spacing:1px;z-index:1050;box-shadow:-2px 0 8px rgba(0,0,0,.15);transition:background .2s;">{{ trans('vela::ai.helper_title') }}</div>
         @include('vela::partials.ai-chatbot')
