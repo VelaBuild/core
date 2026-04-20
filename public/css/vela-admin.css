@@ -1294,3 +1294,236 @@ body.vela-admin table.dataTable tbody tr.selected td.select-checkbox::after {
 
 /* Card wrapping a datatable — drop card-body padding so the wrapper's own padding takes over */
 body.vela-admin .card-body > .dataTables_wrapper { padding: 0; margin: calc(-1 * var(--v-space-5)); padding: var(--v-space-4); }
+
+/* =====================================================================
+   EDIT-PAGE LAYOUT — used by users/edit.blade.php, will scale to other
+   resources. Page head + 2-col grid (sectioned form + meta sidebar).
+   Design-system typography; proper breathing room; no flat-file feel.
+   ===================================================================== */
+
+body.vela-admin .vela-edit-page { padding: 0 0 var(--v-space-8); }
+
+/* --- Page head ----- */
+body.vela-admin .vela-page-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: var(--v-space-5); flex-wrap: wrap;
+    padding: var(--v-space-6) 0 var(--v-space-5);
+    border-bottom: 1px solid var(--v-border);
+    margin-bottom: var(--v-space-6);
+}
+body.vela-admin .vela-page-head-left { display: flex; flex-direction: column; gap: var(--v-space-3); min-width: 0; }
+body.vela-admin .vela-breadcrumb {
+    font-family: var(--v-font-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--v-fg-subtle); font-weight: 600;
+}
+body.vela-admin .vela-breadcrumb a { color: var(--v-fg-accent); text-decoration: none; }
+body.vela-admin .vela-breadcrumb .sep { margin: 0 6px; color: var(--v-border-strong); }
+body.vela-admin .vela-breadcrumb .cur { color: var(--v-fg); }
+
+body.vela-admin .vela-page-title-row { display: flex; align-items: center; gap: var(--v-space-4); min-width: 0; }
+body.vela-admin .vela-page-avatar,
+body.vela-admin .vela-page-avatar-fallback {
+    width: 56px; height: 56px; border-radius: var(--v-r-full);
+    object-fit: cover; flex-shrink: 0;
+    box-shadow: var(--v-shadow-sm);
+}
+body.vela-admin .vela-page-avatar-fallback {
+    background: linear-gradient(135deg, var(--vela-teal-400), var(--vela-teal-600));
+    color: #fff; font-family: var(--v-font-display); font-size: 22px; font-weight: 600;
+    display: grid; place-items: center;
+}
+body.vela-admin .vela-page-title-row h1 {
+    font-family: var(--v-font-display); font-weight: 500;
+    font-size: 28px; line-height: 1.1;
+    letter-spacing: -0.015em;
+    margin: 0 0 2px;
+    color: var(--v-fg);
+}
+body.vela-admin .vela-page-sub { margin: 0; color: var(--v-fg-muted); font-size: 14px; }
+
+body.vela-admin .vela-page-actions { display: flex; gap: var(--v-space-2); align-items: center; flex-shrink: 0; }
+
+/* --- Grid ----- */
+body.vela-admin .vela-edit-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--v-space-5);
+    align-items: start;
+}
+@media (max-width: 1100px) {
+    body.vela-admin .vela-edit-grid { grid-template-columns: 1fr; }
+}
+
+body.vela-admin .vela-edit-main { display: flex; flex-direction: column; gap: var(--v-space-4); min-width: 0; }
+body.vela-admin .vela-edit-side { display: flex; flex-direction: column; gap: var(--v-space-4); position: sticky; top: calc(var(--v-space-4) + 56px); }
+@media (max-width: 1100px) {
+    body.vela-admin .vela-edit-side { position: static; }
+}
+
+/* --- Section card ----- */
+body.vela-admin .vela-section {
+    background: var(--v-surface);
+    border: 1px solid var(--v-border);
+    border-radius: var(--v-r-md);
+    box-shadow: var(--v-shadow-xs);
+    overflow: hidden;
+}
+body.vela-admin .vela-section-head {
+    padding: var(--v-space-4) var(--v-space-5) var(--v-space-3);
+    border-bottom: 1px solid var(--v-border-subtle);
+    background: linear-gradient(180deg, var(--v-bg-muted) 0%, var(--v-surface) 100%);
+}
+body.vela-admin .vela-section-head h2 {
+    font-family: var(--v-font-display); font-weight: 500;
+    font-size: 18px; line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+    color: var(--v-fg);
+}
+body.vela-admin .vela-section-head p {
+    font-size: 13px; color: var(--v-fg-muted);
+    margin: 0;
+}
+body.vela-admin .vela-section-body { padding: var(--v-space-5); }
+body.vela-admin .vela-section-body .form-row:last-child,
+body.vela-admin .vela-section-body .form-group:last-child { margin-bottom: 0; }
+
+/* --- Meta sidebar cards ----- */
+body.vela-admin .vela-meta-card {
+    background: var(--v-surface);
+    border: 1px solid var(--v-border);
+    border-radius: var(--v-r-md);
+    box-shadow: var(--v-shadow-xs);
+    overflow: hidden;
+}
+body.vela-admin .vela-meta-head {
+    padding: var(--v-space-3) var(--v-space-4);
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--v-border-subtle);
+    background: var(--v-bg-muted);
+}
+body.vela-admin .vela-meta-head h3 {
+    font-family: var(--v-font-mono); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
+    color: var(--v-fg-muted);
+    margin: 0;
+}
+body.vela-admin .vela-meta-head .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--vela-gray-300);
+}
+body.vela-admin .vela-meta-head .dot.on { background: var(--v-accent); box-shadow: 0 0 0 3px rgba(64,182,189,0.18); }
+
+body.vela-admin .vela-meta-list {
+    margin: 0; padding: var(--v-space-3) var(--v-space-4);
+    display: grid; grid-template-columns: 1fr; gap: var(--v-space-3);
+    font-size: 13px;
+}
+body.vela-admin .vela-meta-list dt {
+    font-family: var(--v-font-mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--v-fg-subtle); font-weight: 600;
+    margin: 0 0 2px;
+}
+body.vela-admin .vela-meta-list dd {
+    margin: 0 0 var(--v-space-3);
+    color: var(--v-fg);
+    line-height: 1.4;
+}
+body.vela-admin .vela-meta-list dd:last-child { margin-bottom: 0; }
+body.vela-admin .vela-meta-list dd code {
+    font-family: var(--v-font-mono); font-size: 12px;
+    background: var(--v-bg-muted); padding: 1px 6px; border-radius: var(--v-r-xs);
+    color: var(--v-fg-accent);
+}
+body.vela-admin .vela-meta-list dd.small-text {
+    font-size: 11px; color: var(--v-fg-muted);
+    word-break: break-all; line-height: 1.4;
+}
+
+/* --- Mini tabs inside a meta card ----- */
+body.vela-admin .vela-mini-tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--v-border-subtle);
+    background: var(--v-bg-muted);
+}
+body.vela-admin .vela-mini-tabs button {
+    flex: 1;
+    background: transparent; border: none;
+    padding: var(--v-space-3) var(--v-space-3);
+    font-family: var(--v-font-sans); font-size: 12px; font-weight: 600;
+    color: var(--v-fg-muted); cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color var(--v-dur-fast), border-color var(--v-dur-fast);
+}
+body.vela-admin .vela-mini-tabs button:hover { color: var(--v-fg); }
+body.vela-admin .vela-mini-tabs button.is-active { color: var(--v-fg); border-bottom-color: var(--v-accent); background: var(--v-surface); }
+body.vela-admin .vela-mini-tabs button span {
+    display: inline-block; margin-left: 4px;
+    font-family: var(--v-font-mono); font-size: 10px; font-weight: 700;
+    background: rgba(64,182,189,0.14); color: var(--v-fg-accent);
+    padding: 1px 6px; border-radius: var(--v-r-full);
+}
+
+body.vela-admin .vela-mini-tab-body { display: none; padding: 0; }
+body.vela-admin .vela-mini-tab-body[data-active] { display: block; }
+
+body.vela-admin .vela-activity-item {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: var(--v-space-3);
+    padding: var(--v-space-3) var(--v-space-4);
+    color: var(--v-fg);
+    border-bottom: 1px solid var(--v-border-subtle);
+    transition: background var(--v-dur-fast);
+}
+body.vela-admin .vela-activity-item:last-child { border-bottom: none; }
+body.vela-admin .vela-activity-item:hover { background: var(--v-bg-muted); text-decoration: none; color: var(--v-fg); }
+body.vela-admin .vela-activity-main { min-width: 0; flex: 1; }
+body.vela-admin .vela-activity-main strong { display: block; font-size: 13px; line-height: 1.3; color: var(--v-fg); margin-bottom: 4px; }
+body.vela-admin .vela-activity-main p { margin: 0 0 4px; font-size: 12px; line-height: 1.4; color: var(--v-fg); }
+body.vela-admin .vela-activity-meta {
+    font-family: var(--v-font-mono); font-size: 11px;
+    color: var(--v-fg-subtle); line-height: 1.3;
+}
+body.vela-admin .vela-activity-meta .badge { font-size: 9px; padding: 2px 6px; margin-right: 4px; }
+body.vela-admin .vela-activity-arr { color: var(--v-fg-subtle); font-family: var(--v-font-mono); font-size: 14px; flex-shrink: 0; }
+body.vela-admin .vela-activity-item:hover .vela-activity-arr { color: var(--v-fg-accent); }
+body.vela-admin .vela-activity-empty {
+    margin: 0; padding: var(--v-space-4); text-align: center;
+    color: var(--v-fg-subtle); font-size: 13px;
+}
+
+/* --- Switch-row: nice labelled checkbox ----- */
+body.vela-admin .vela-switch-row {
+    display: flex; align-items: start; gap: var(--v-space-3);
+    cursor: pointer; margin: 0;
+}
+body.vela-admin .vela-switch-row input[type="checkbox"] {
+    width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0;
+    accent-color: var(--v-accent);
+}
+body.vela-admin .vela-switch-label { display: flex; flex-direction: column; gap: 2px; }
+body.vela-admin .vela-switch-label strong { font-size: 14px; font-weight: 500; color: var(--v-fg); }
+body.vela-admin .vela-switch-label small { font-size: 13px; color: var(--v-fg-muted); }
+
+/* --- Make select2 match the form theme in vela-edit context ----- */
+body.vela-admin .vela-section-body .select2-container--default .select2-selection--multiple {
+    background: var(--v-surface);
+    border: 1px solid var(--v-border);
+    border-radius: var(--v-r-sm);
+    min-height: 38px;
+    padding: 2px 6px;
+}
+body.vela-admin .vela-section-body .select2-container--default.select2-container--focus .select2-selection--multiple {
+    border-color: var(--v-accent);
+    box-shadow: var(--v-shadow-ring);
+}
+body.vela-admin .vela-section-body .select2-selection__choice {
+    background: var(--v-bg-muted) !important;
+    border: 1px solid var(--v-border) !important;
+    border-radius: var(--v-r-xs) !important;
+    color: var(--v-fg) !important;
+    padding: 2px 8px !important;
+    font-size: 13px !important;
+}
