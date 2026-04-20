@@ -216,6 +216,7 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\AppInit::class,
                 \VelaBuild\Core\Commands\AppBuild::class,
                 \VelaBuild\Core\Commands\BuildAssets::class,
+                \VelaBuild\Core\Commands\RunChecks::class,
             ]);
         }
 
