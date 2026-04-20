@@ -10,128 +10,124 @@
         <form method="POST" action="{{ route("vela.admin.users.update", [$user->id]) }}" enctype="multipart/form-data">
             @method('PUT')
             @csrf
-            <div class="form-group">
-                <label class="required" for="name">{{ trans('vela::cruds.user.fields.name') }}</label>
-                <input class="form-control {{ $errors->has('name') ? 'is-invalid' : '' }}" type="text" name="name" id="name" value="{{ old('name', $user->name) }}" required>
-                @if($errors->has('name'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('name') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.name_helper') }}</span>
-            </div>
-            <div class="form-group">
-                <label class="required" for="email">{{ trans('vela::cruds.user.fields.email') }}</label>
-                <input class="form-control {{ $errors->has('email') ? 'is-invalid' : '' }}" type="email" name="email" id="email" value="{{ old('email', $user->email) }}" required>
-                @if($errors->has('email'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('email') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.email_helper') }}</span>
-            </div>
-            <div class="form-group">
-                <label class="required" for="password">{{ trans('vela::cruds.user.fields.password') }}</label>
-                <input class="form-control {{ $errors->has('password') ? 'is-invalid' : '' }}" type="password" name="password" id="password">
-                @if($errors->has('password'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('password') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.password_helper') }}</span>
-            </div>
-            <div class="form-group">
-                <label class="required" for="roles">{{ trans('vela::cruds.user.fields.roles') }}</label>
-                <div style="padding-bottom: 4px">
-                    <span class="btn btn-info btn-xs select-all" style="border-radius: 0">{{ trans('vela::global.select_all') }}</span>
-                    <span class="btn btn-info btn-xs deselect-all" style="border-radius: 0">{{ trans('vela::global.deselect_all') }}</span>
+
+            {{-- Identity: name + email side-by-side --}}
+            <div class="form-row">
+                <div class="form-group col-md-6">
+                    <label class="required" for="name">{{ trans('vela::cruds.user.fields.name') }}</label>
+                    <input class="form-control {{ $errors->has('name') ? 'is-invalid' : '' }}" type="text" name="name" id="name" value="{{ old('name', $user->name) }}" required>
+                    @if($errors->has('name'))<div class="invalid-feedback">{{ $errors->first('name') }}</div>@endif
                 </div>
-                <select class="form-control select2 {{ $errors->has('roles') ? 'is-invalid' : '' }}" name="roles[]" id="roles" multiple required>
-                    @foreach($roles as $id => $role)
-                        <option value="{{ $id }}" {{ (in_array($id, old('roles', [])) || $user->roles->contains($id)) ? 'selected' : '' }}>{{ $role }}</option>
-                    @endforeach
-                </select>
-                @if($errors->has('roles'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('roles') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.roles_helper') }}</span>
-            </div>
-            <div class="form-group">
-                <label for="last_login_at">{{ trans('vela::cruds.user.fields.last_login_at') }}</label>
-                <input class="form-control date {{ $errors->has('last_login_at') ? 'is-invalid' : '' }}" type="text" name="last_login_at" id="last_login_at" value="{{ old('last_login_at', $user->last_login_at) }}">
-                @if($errors->has('last_login_at'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('last_login_at') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.last_login_at_helper') }}</span>
-            </div>
-            <div class="form-group">
-                <label for="last_ip">{{ trans('vela::cruds.user.fields.last_ip') }}</label>
-                <input class="form-control {{ $errors->has('last_ip') ? 'is-invalid' : '' }}" type="text" name="last_ip" id="last_ip" value="{{ old('last_ip', $user->last_ip) }}">
-                @if($errors->has('last_ip'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('last_ip') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.last_ip_helper') }}</span>
-            </div>
-            <div class="form-group">
-                <label for="useragent">{{ trans('vela::cruds.user.fields.useragent') }}</label>
-                <input class="form-control {{ $errors->has('useragent') ? 'is-invalid' : '' }}" type="text" name="useragent" id="useragent" value="{{ old('useragent', $user->useragent) }}">
-                @if($errors->has('useragent'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('useragent') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.useragent_helper') }}</span>
-            </div>
-            <div class="form-group">
-                <label for="profile_pic">{{ trans('vela::cruds.user.fields.profile_pic') }}</label>
-                <div class="needsclick dropzone {{ $errors->has('profile_pic') ? 'is-invalid' : '' }}" id="profile_pic-dropzone">
+                <div class="form-group col-md-6">
+                    <label class="required" for="email">{{ trans('vela::cruds.user.fields.email') }}</label>
+                    <input class="form-control {{ $errors->has('email') ? 'is-invalid' : '' }}" type="email" name="email" id="email" value="{{ old('email', $user->email) }}" required>
+                    @if($errors->has('email'))<div class="invalid-feedback">{{ $errors->first('email') }}</div>@endif
                 </div>
-                @if($errors->has('profile_pic'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('profile_pic') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.profile_pic_helper') }}</span>
             </div>
-            <div class="form-group">
-                <label for="bio">{{ trans('vela::cruds.user.fields.bio') }}</label>
-                <textarea class="form-control ckeditor {{ $errors->has('bio') ? 'is-invalid' : '' }}" name="bio" id="bio">{!! old('bio', $user->bio) !!}</textarea>
-                @if($errors->has('bio'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('bio') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.bio_helper') }}</span>
+
+            {{-- Security: password + roles --}}
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label for="password">{{ trans('vela::cruds.user.fields.password') }}</label>
+                    <input class="form-control {{ $errors->has('password') ? 'is-invalid' : '' }}" type="password" name="password" id="password" placeholder="Leave blank to keep current">
+                    @if($errors->has('password'))<div class="invalid-feedback">{{ $errors->first('password') }}</div>@endif
+                    <small class="form-text text-muted">{{ trans('vela::cruds.user.fields.password_helper') }}</small>
+                </div>
+                <div class="form-group col-md-8">
+                    <label class="required" for="roles">{{ trans('vela::cruds.user.fields.roles') }}</label>
+                    <select class="form-control select2 {{ $errors->has('roles') ? 'is-invalid' : '' }}" name="roles[]" id="roles" multiple required>
+                        @foreach($roles as $id => $role)
+                            <option value="{{ $id }}" {{ (in_array($id, old('roles', [])) || $user->roles->contains($id)) ? 'selected' : '' }}>{{ $role }}</option>
+                        @endforeach
+                    </select>
+                    @if($errors->has('roles'))<div class="invalid-feedback">{{ $errors->first('roles') }}</div>@endif
+                </div>
             </div>
+
+            {{-- Profile: picture + bio --}}
+            <div class="form-row">
+                <div class="form-group col-md-4">
+                    <label for="profile_pic">{{ trans('vela::cruds.user.fields.profile_pic') }}</label>
+                    <div class="needsclick dropzone {{ $errors->has('profile_pic') ? 'is-invalid' : '' }}" id="profile_pic-dropzone"></div>
+                    @if($errors->has('profile_pic'))<div class="invalid-feedback">{{ $errors->first('profile_pic') }}</div>@endif
+                </div>
+                <div class="form-group col-md-8">
+                    <label for="bio">{{ trans('vela::cruds.user.fields.bio') }}</label>
+                    <textarea class="form-control ckeditor {{ $errors->has('bio') ? 'is-invalid' : '' }}" name="bio" id="bio">{!! old('bio', $user->bio) !!}</textarea>
+                    @if($errors->has('bio'))<div class="invalid-feedback">{{ $errors->first('bio') }}</div>@endif
+                </div>
+            </div>
+
+            {{-- Preferences --}}
             <div class="form-group">
-                <div class="form-check {{ $errors->has('subscribe_newsletter') ? 'is-invalid' : '' }}">
+                <div class="form-check">
                     <input type="hidden" name="subscribe_newsletter" value="0">
-                    <input class="form-check-input" type="checkbox" name="subscribe_newsletter" id="subscribe_newsletter" value="1" {{ $user->subscribe_newsletter || old('subscribe_newsletter', 0) === 1 ? 'checked' : '' }}>
+                    <input class="form-check-input" type="checkbox" name="subscribe_newsletter" id="subscribe_newsletter" value="1" {{ $user->subscribe_newsletter ? 'checked' : '' }}>
                     <label class="form-check-label" for="subscribe_newsletter">{{ trans('vela::cruds.user.fields.subscribe_newsletter') }}</label>
                 </div>
-                @if($errors->has('subscribe_newsletter'))
-                    <div class="invalid-feedback">
-                        {{ $errors->first('subscribe_newsletter') }}
-                    </div>
-                @endif
-                <span class="help-block">{{ trans('vela::cruds.user.fields.subscribe_newsletter_helper') }}</span>
             </div>
-            <div class="form-group">
-                <button class="btn btn-danger" type="submit">
-                    {{ trans('vela::global.save') }}
-                </button>
+
+            <div class="form-group mt-4 mb-0">
+                <button class="btn btn-success" type="submit">{{ trans('vela::global.save') }}</button>
+                <a href="{{ route('vela.admin.users.index') }}" class="btn btn-secondary">{{ trans('vela::global.cancel') ?: 'Cancel' }}</a>
             </div>
         </form>
     </div>
 </div>
 
+{{-- Session info: read-only, three columns, subtle. Shown below the
+     main form so it doesn't compete for attention with the editable
+     fields. --}}
+<div class="card mt-3">
+    <div class="card-header">Session info</div>
+    <div class="card-body">
+        <div class="form-row">
+            <div class="form-group col-md-3">
+                <label>{{ trans('vela::cruds.user.fields.last_login_at') }}</label>
+                <input class="form-control" type="text" value="{{ $user->last_login_at ?: '—' }}" readonly>
+            </div>
+            <div class="form-group col-md-3">
+                <label>{{ trans('vela::cruds.user.fields.last_ip') }}</label>
+                <input class="form-control" type="text" value="{{ $user->last_ip ?: '—' }}" readonly>
+            </div>
+            <div class="form-group col-md-6">
+                <label>{{ trans('vela::cruds.user.fields.useragent') }}</label>
+                <input class="form-control" type="text" value="{{ $user->useragent ?: '—' }}" readonly>
+            </div>
+        </div>
+    </div>
+</div>
 
+{{-- Related data (merged in from the former show page). Tabs for the
+     user's authored content and their comments — useful context while
+     editing without requiring a second page. --}}
+@if(($user->authorContents?->isNotEmpty() ?? false) || ($user->userComments?->isNotEmpty() ?? false))
+<div class="card mt-4">
+    <div class="card-header">
+        {{ trans('vela::global.relatedData') }}
+    </div>
+    <ul class="nav nav-tabs" role="tablist" id="relationship-tabs">
+        <li class="nav-item">
+            <a class="nav-link active" href="#author_contents" role="tab" data-toggle="tab">
+                {{ trans('vela::cruds.content.title') }} ({{ $user->authorContents?->count() ?? 0 }})
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#user_comments" role="tab" data-toggle="tab">
+                {{ trans('vela::cruds.comment.title') }} ({{ $user->userComments?->count() ?? 0 }})
+            </a>
+        </li>
+    </ul>
+    <div class="tab-content">
+        <div class="tab-pane active" role="tabpanel" id="author_contents">
+            @includeIf('vela::admin.users.relationships.authorContents', ['contents' => $user->authorContents])
+        </div>
+        <div class="tab-pane" role="tabpanel" id="user_comments">
+            @includeIf('vela::admin.users.relationships.userComments', ['comments' => $user->userComments])
+        </div>
+    </div>
+</div>
+@endif
 
 @endsection
 

@@ -30,7 +30,7 @@ return [
     */
 
     'middleware' => [
-        'admin' => ['web', 'vela.auth', 'vela.2fa', 'vela.gates', 'vela.locale'],
+        'admin' => ['web', 'vela.auth', 'vela.2fa', 'vela.gates', 'vela.locale', 'vela.show-to-edit'],
     ],
 
     /*

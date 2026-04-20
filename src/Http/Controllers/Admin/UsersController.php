@@ -121,7 +121,9 @@ class UsersController extends Controller
 
         $roles = Role::pluck('title', 'id');
 
-        $user->load('roles');
+        // Eager-load relationships shown in the "Related data" card below
+        // the form (merged here from the former show page).
+        $user->load(['roles', 'authorContents', 'userComments']);
 
         return view('vela::admin.users.edit', compact('roles', 'user'));
     }
