@@ -75,7 +75,9 @@
     </div>
 </div>
 
-@push('head')
+{{-- NOTE: <style> is inline in body (technically invalid HTML5 but widely supported).
+     Can't use @push('head') because this partial is included from scripts-footer,
+     which runs after @stack('head') has already rendered. --}}
 <style>
     /* ── Consent bar (no overlay — site remains interactive) ── */
     #vela-consent { position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999; pointer-events: none; }
@@ -151,7 +153,6 @@
         .vc-privacy-link { margin-left: 0; text-align: center; }
     }
 </style>
-@endpush
 
 <script>
 (function() {

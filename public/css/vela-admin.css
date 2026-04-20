@@ -3,8 +3,8 @@
    "Set Sail" — Navy authority, teal motion, editorial soul
    ========================================================= */
 
-/* ---------- Fonts ---------- */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+/* ---------- Fonts (Bunny Fonts — GDPR-compliant Google Fonts mirror; never use fonts.googleapis.com) ---------- */
+@import url('https://fonts.bunny.net/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
 
 :root {
   /* ===== BRAND PALETTE ===== */

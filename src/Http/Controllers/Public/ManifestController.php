@@ -4,13 +4,12 @@ namespace VelaBuild\Core\Http\Controllers\Public;
 
 use Illuminate\Http\Request;
 use VelaBuild\Core\Http\Controllers\Controller;
-use VelaBuild\Core\Models\VelaConfig;
 
 class ManifestController extends Controller
 {
     public function show(Request $request, ?string $locale = null)
     {
-        $pwaEnabled = VelaConfig::where('key', 'pwa_enabled')->value('value');
+        $pwaEnabled = vela_config('pwa_enabled', '1');
         if ($pwaEnabled === '0') {
             abort(404);
         }
@@ -26,12 +25,12 @@ class ManifestController extends Controller
         }
 
         // Build manifest
-        $name = VelaConfig::where('key', 'pwa_name')->value('value') ?: config('app.name');
-        $shortName = VelaConfig::where('key', 'pwa_short_name')->value('value') ?: substr($name, 0, 12);
-        $description = VelaConfig::where('key', 'pwa_description')->value('value') ?: '';
-        $display = VelaConfig::where('key', 'pwa_display')->value('value') ?: 'standalone';
-        $themeColor = VelaConfig::where('key', 'pwa_theme_color')->value('value') ?: '#1f2937';
-        $bgColor = VelaConfig::where('key', 'pwa_background_color')->value('value') ?: '#ffffff';
+        $name = vela_config('pwa_name') ?: config('app.name');
+        $shortName = vela_config('pwa_short_name') ?: substr($name, 0, 12);
+        $description = vela_config('pwa_description', '');
+        $display = vela_config('pwa_display', 'standalone');
+        $themeColor = vela_config('pwa_theme_color', '#1f2937');
+        $bgColor = vela_config('pwa_background_color', '#ffffff');
 
         $defaultLocale = config('app.locale', 'en');
         $startUrl = ($locale === $defaultLocale) ? '/' : '/' . $locale;

@@ -5,8 +5,8 @@
     $description = $content['description'] ?? '';
     $alignment   = $settings['text_alignment'] ?? 'center';
 
-    $iosUrl     = \VelaBuild\Core\Models\VelaConfig::where('key', 'app_ios_url')->value('value');
-    $androidUrl = \VelaBuild\Core\Models\VelaConfig::where('key', 'app_android_url')->value('value');
+    $iosUrl     = vela_config('app_ios_url');
+    $androidUrl = vela_config('app_android_url');
 @endphp
 @if($iosUrl || $androidUrl)
 <div class="block-app-download" style="text-align:{{ e($alignment) }};">

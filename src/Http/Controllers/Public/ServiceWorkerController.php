@@ -3,13 +3,12 @@
 namespace VelaBuild\Core\Http\Controllers\Public;
 
 use VelaBuild\Core\Http\Controllers\Controller;
-use VelaBuild\Core\Models\VelaConfig;
 
 class ServiceWorkerController extends Controller
 {
     public function show()
     {
-        $pwaEnabled = VelaConfig::where('key', 'pwa_enabled')->value('value');
+        $pwaEnabled = vela_config('pwa_enabled', '1');
 
         if ($pwaEnabled === '0') {
             return response("self.addEventListener('install', () => self.skipWaiting()); self.addEventListener('activate', () => self.registration.unregister());", 200)
@@ -17,9 +16,9 @@ class ServiceWorkerController extends Controller
                 ->header('Service-Worker-Allowed', '/');
         }
 
-        $swVersion = VelaConfig::where('key', 'sw_version')->value('value') ?? '1';
-        $precacheUrls = VelaConfig::where('key', 'pwa_precache_urls')->value('value') ?? '';
-        $offlineEnabled = VelaConfig::where('key', 'pwa_offline_enabled')->value('value') ?? '1';
+        $swVersion = vela_config('sw_version', '1');
+        $precacheUrls = vela_config('pwa_precache_urls', '');
+        $offlineEnabled = vela_config('pwa_offline_enabled', '1');
 
         $content = view('vela::pwa.sw', [
             'version' => $swVersion,

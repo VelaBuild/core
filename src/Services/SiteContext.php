@@ -43,9 +43,13 @@ class SiteContext
 
     private function getConfig(string $velaConfigKey, string $configPath, string $default = ''): string
     {
-        $dbValue = VelaConfig::where('key', $velaConfigKey)->value('value');
-        if ($dbValue !== null && $dbValue !== '') {
-            return $dbValue;
+        try {
+            $dbValue = VelaConfig::where('key', $velaConfigKey)->value('value');
+            if ($dbValue !== null && $dbValue !== '') {
+                return $dbValue;
+            }
+        } catch (\Throwable $e) {
+            // DB unavailable (e.g. no-DB static cache deploy) — fall through to config file.
         }
         return config($configPath, $default);
     }

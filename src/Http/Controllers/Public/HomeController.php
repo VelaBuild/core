@@ -74,11 +74,12 @@ class HomeController extends Controller
         $dir = dirname($path);
 
         if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            mkdir($dir, 0775, true);
         }
 
         $tmp = $path . '.tmp';
         file_put_contents($tmp, $html);
+        @chmod($tmp, 0664);
         rename($tmp, $path);
     }
 }

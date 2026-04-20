@@ -33,6 +33,7 @@ class StaticSiteGenerator
         }
 
         try {
+            view()->share('canonicalUrl', url($page->slug === 'home' ? '/' : '/' . $page->slug));
             $html = view(vela_template_view('page'), compact('page'))->render();
             $this->atomicWrite($this->basePath . '/pages/' . $page->slug . '/index.html', $html);
         } catch (\Throwable $e) {
@@ -114,6 +115,7 @@ class StaticSiteGenerator
         $metaTags = MetaTagsHelper::forContent($post);
 
         try {
+            view()->share('canonicalUrl', url('/posts/' . $content->slug));
             $html = view(vela_template_view('article'), compact('post', 'relatedPosts', 'categories', 'metaTags'))->render();
             $this->atomicWrite($this->basePath . '/posts/' . $content->slug . '/index.html', $html);
         } catch (\Throwable $e) {
@@ -161,6 +163,7 @@ class StaticSiteGenerator
             ->first();
 
         try {
+            view()->share('canonicalUrl', url('/'));
             if ($homePage) {
                 $page = $homePage;
                 $html = view(vela_template_view('page'), compact('page'))->render();
@@ -215,6 +218,7 @@ class StaticSiteGenerator
         $metaTags = MetaTagsHelper::forArticlesIndex();
 
         try {
+            view()->share('canonicalUrl', url('/posts'));
             $html = view(vela_template_view('articles'), compact('posts', 'categories', 'metaTags'))->render();
             $this->atomicWrite($this->basePath . '/posts/index.html', $html);
         } catch (\Throwable $e) {
@@ -239,6 +243,7 @@ class StaticSiteGenerator
         $metaTags = MetaTagsHelper::forCategory($category);
 
         try {
+            view()->share('canonicalUrl', url('/categories/' . Str::slug($category->name)));
             $html = view(vela_template_view('categories_show'), compact('category', 'posts', 'categories', 'metaTags'))->render();
             $this->atomicWrite($this->basePath . '/categories/' . Str::slug($category->name) . '/index.html', $html);
         } catch (\Throwable $e) {
@@ -255,6 +260,7 @@ class StaticSiteGenerator
         $metaTags = MetaTagsHelper::forCategoriesIndex();
 
         try {
+            view()->share('canonicalUrl', url('/categories'));
             $html = view(vela_template_view('categories_index'), compact('categories', 'metaTags'))->render();
             $this->atomicWrite($this->basePath . '/categories/index.html', $html);
         } catch (\Throwable $e) {
@@ -374,10 +380,11 @@ class StaticSiteGenerator
     {
         $dir = dirname($path);
         if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+            mkdir($dir, 0775, true);
         }
         $tmp = $path . '.tmp';
         file_put_contents($tmp, $content);
+        @chmod($tmp, 0664);
         rename($tmp, $path);
     }
 }
