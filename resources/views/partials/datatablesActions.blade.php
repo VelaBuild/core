@@ -1,8 +1,8 @@
-@can($viewGate)
-    <a class="btn btn-xs btn-primary" href="{{ $viewUrl ?? route('vela.admin.' . $crudRoutePart . '.show', $row->id) }}"{{ !empty($viewNewTab) ? ' target="_blank"' : '' }}>
-        {{ trans('vela::global.view') }}
-    </a>
-@endcan
+{{-- Single action per row: edit. There is no separate "view" path.
+     Show routes 302 to edit via VelaRedirectShowToEdit middleware; if
+     a user lacks edit permission they see no row-level action at all
+     (they shouldn't be on the list page in the first place if they
+     can't act on it). --}}
 @can($editGate)
     <a class="btn btn-xs btn-info" href="{{ route('vela.admin.' . $crudRoutePart . '.edit', $row->id) }}">
         {{ trans('vela::global.edit') }}

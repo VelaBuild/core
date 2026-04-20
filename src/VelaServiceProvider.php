@@ -192,6 +192,7 @@ class VelaServiceProvider extends ServiceProvider
         $router->aliasMiddleware('vela.visibility', \VelaBuild\Core\Http\Middleware\VelaSiteVisibility::class);
         $router->aliasMiddleware('vela.x402', \VelaBuild\Core\Http\Middleware\VelaX402Payment::class);
         $router->aliasMiddleware('vela.mcp', \VelaBuild\Core\Http\Middleware\VelaMcpAuth::class);
+        $router->aliasMiddleware('vela.show-to-edit', \VelaBuild\Core\Http\Middleware\VelaRedirectShowToEdit::class);
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -288,7 +289,7 @@ class VelaServiceProvider extends ServiceProvider
         Route::group([
             'prefix' => config('vela.admin_prefix', 'admin'),
             'as' => 'vela.admin.',
-            'middleware' => config('vela.middleware.admin', ['web', 'vela.auth', 'vela.2fa', 'vela.gates']),
+            'middleware' => config('vela.middleware.admin', ['web', 'vela.auth', 'vela.2fa', 'vela.gates', 'vela.show-to-edit']),
         ], function () {
             $this->loadRoutesFrom(__DIR__.'/../routes/admin.php');
         });
