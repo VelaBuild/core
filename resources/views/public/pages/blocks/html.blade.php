@@ -1,3 +1,3 @@
 <div class="block-html">
-    {!! $block->content['html'] ?? '' !!}
+    {!! vela_optimize_imgs($block->content['html'] ?? '') !!}
 </div>

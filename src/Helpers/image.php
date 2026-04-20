@@ -45,6 +45,61 @@ if (!function_exists('vela_image')) {
     }
 }
 
+if (!function_exists('vela_optimize_imgs')) {
+    /**
+     * Rewrite every raw <img src="..."> in a blob of HTML through vela_image().
+     *
+     * Used as a render-time safety net for author-supplied HTML (html blocks,
+     * CMS editors, AI-generated copy) so the "every public <img> goes through
+     * the optimiser" rule can't be broken by a copy-paste. Idempotent — images
+     * whose src already points at /imgp/ or /imgr/ are left alone, as are
+     * data: URLs and cross-origin images (we can't process remote files).
+     *
+     * Runs on the rendered HTML, not per request: in the static-cache deploy
+     * model this fires once per page per regen, cost is a regex + URL build.
+     */
+    function vela_optimize_imgs(string $html): string
+    {
+        if ($html === '' || stripos($html, '<img') === false) {
+            return $html;
+        }
+
+        return preg_replace_callback(
+            '#<img\s([^>]*?)\s*/?>#i',
+            function ($m) {
+                $attrs = [];
+                preg_match_all('#([\w:-]+)\s*=\s*"([^"]*)"#', $m[1], $matches, PREG_SET_ORDER);
+                foreach ($matches as $a) {
+                    $attrs[strtolower($a[1])] = $a[2];
+                }
+
+                $src = $attrs['src'] ?? '';
+                if ($src === ''
+                    || str_contains($src, '/imgp/')
+                    || str_contains($src, '/imgr/')
+                    || str_starts_with($src, 'data:')) {
+                    return $m[0];
+                }
+
+                // Skip cross-origin — we can't resize what we don't host.
+                if (preg_match('#^https?://#', $src)) {
+                    $host = parse_url($src, PHP_URL_HOST);
+                    $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
+                    if ($host && $appHost && $host !== $appHost) {
+                        return $m[0];
+                    }
+                }
+
+                $alt = $attrs['alt'] ?? '';
+                unset($attrs['src'], $attrs['alt'], $attrs['srcset'], $attrs['loading']);
+
+                return vela_image($src, $alt, [640, 960, 1280, 1920], 'fit', $attrs);
+            },
+            $html
+        );
+    }
+}
+
 if (!function_exists('vela_image_relative_path')) {
     /**
      * Convert a URL, absolute path, or relative path to a path relative to base_path().
