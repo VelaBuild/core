@@ -73,6 +73,9 @@ class VelaPermissionsSeeder extends Seeder
             'admin_tools_access',
             'theme_check_access',
             'design_builder_access',
+            'marketplace_browse',
+            'marketplace_install',
+            'marketplace_manage',
         ];
 
         foreach ($permissions as $name) {

@@ -37,6 +37,10 @@ class VelaServiceProvider extends ServiceProvider
             return new \VelaBuild\Core\Services\ToolSettingsService();
         });
 
+        $this->app->singleton(\VelaBuild\Core\Services\Marketplace\MarketplaceSettingsService::class, function ($app) {
+            return new \VelaBuild\Core\Services\Marketplace\MarketplaceSettingsService();
+        });
+
         config([
             'auth.guards.vela' => [
                 'driver' => 'session',
@@ -116,6 +120,14 @@ class VelaServiceProvider extends ServiceProvider
                     config(['vela.gdpr.privacy_url' => $siteConfig['gdpr_privacy_url']]);
                 }
             }
+        }
+
+        // Load marketplace license cache
+        $licenseConfigPath = storage_path('app/vela-licenses.php');
+        if (file_exists($licenseConfigPath)) {
+            $this->app->instance('vela.licenses', include $licenseConfigPath);
+        } else {
+            $this->app->instance('vela.licenses', []);
         }
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
@@ -218,6 +230,11 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\AppBuild::class,
                 \VelaBuild\Core\Commands\BuildAssets::class,
                 \VelaBuild\Core\Commands\RunChecks::class,
+                \VelaBuild\Core\Commands\PackageInstallCommand::class,
+                \VelaBuild\Core\Commands\PackageRemoveCommand::class,
+                \VelaBuild\Core\Commands\PackageUpdateCommand::class,
+                \VelaBuild\Core\Commands\PackageListCommand::class,
+                \VelaBuild\Core\Commands\SafeModeCommand::class,
             ]);
         }
 
@@ -289,6 +306,11 @@ class VelaServiceProvider extends ServiceProvider
         Route::middleware('web')
             ->post('/webhook/repostra', [\VelaBuild\Core\Http\Controllers\Public\RepostraWebhookController::class, 'handle'])
             ->name('vela.webhook.repostra')
+            ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
+
+        Route::middleware('web')
+            ->post('/webhook/marketplace', [\VelaBuild\Core\Http\Controllers\Public\MarketplaceWebhookController::class, 'handle'])
+            ->name('vela.webhook.marketplace')
             ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
     }
 
@@ -566,6 +588,27 @@ class VelaServiceProvider extends ServiceProvider
             'gate' => 'config_access',
             'group' => 'admin',
             'order' => 40,
+        ]);
+
+        $vela->registerMenuItem('marketplace', [
+            'label' => 'Marketplace',
+            'icon' => 'fas fa-store',
+            'route' => 'vela.admin.marketplace.index',
+            'gate' => 'marketplace_browse',
+            'group' => 'admin',
+            'order' => 35,
+            'children' => [
+                [
+                    'label' => 'Browse',
+                    'route' => 'vela.admin.marketplace.index',
+                    'gate' => 'marketplace_browse',
+                ],
+                [
+                    'label' => 'Installed Packages',
+                    'route' => 'vela.admin.packages.index',
+                    'gate' => 'marketplace_browse',
+                ],
+            ],
         ]);
 
         // Profile dropdown menu items
