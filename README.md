@@ -71,18 +71,35 @@ See the [CMS starter's `public/index.php`](https://github.com/VelaBuild/cms/blob
 
 ## Usage
 
-### Registering Custom Blocks
+### Writing a plugin
+
+Vela plugins are Laravel packages that register with Vela's extension points (blocks, menus, templates, widgets, tools). The canonical walkthrough — including the service-provider template, the `vela-page-editor-blocks` JS extension point, permission seeding, and the no-DB safety rules — lives in **[docs/plugins.md](docs/plugins.md)**.
+
+The reference implementation is [**velabuild/snippets**](https://github.com/VelaBuild/snippets) — a real, small plugin that adds a Snippets admin page + a `Snippet` Page Builder block. Read its `SnippetsServiceProvider` alongside the plugin doc.
+
+### Registering a block (quick example)
 
 ```php
-use VelaBuild\Core\Facades\Vela;
+use VelaBuild\Core\Vela;
 
-Vela::registerBlock('my-block', MyBlockClass::class);
+$vela = $this->app->make(Vela::class);
+
+$vela->registerBlock('my-block', [
+    'label'  => 'My Block',
+    'icon'   => 'fas fa-cube',
+    'view'   => 'my-namespace::public.block',    // public render
+    'editor' => 'my-namespace::admin.block-form', // admin editor
+    'defaults' => ['content' => [], 'settings' => []],
+]);
 ```
 
-### Registering Templates
+### Registering a template
 
 ```php
-Vela::registerTemplate('my-template', MyTemplateClass::class);
+$vela->registerTemplate('my-template', [
+    'label' => 'My Template',
+    'path'  => __DIR__.'/resources/views/templates/my-template',
+]);
 ```
 
 ### Artisan Commands
