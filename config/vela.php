@@ -206,4 +206,82 @@ return [
         'signing_key' => env('VELA_IMAGE_SIGNING_KEY'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Asset Bundling
+    |--------------------------------------------------------------------------
+    |
+    | Combine + minify CSS/JS into hashed bundles that ship with the static
+    | cache. Built via `php artisan vela:assets:build` (runs automatically at
+    | static cache regeneration time).
+    |
+    | Each bundle is a named group of source files, combined into one file
+    | named `{bundle}-{sha256[:12]}.{css,js}` and written to output_dir.
+    | The manifest maps logical names to hashed filenames so the
+    | `@velaAssets('name')` directive can emit the right <link>/<script>.
+    |
+    | Host apps can add or override bundles in their own config/vela.php.
+    |
+    */
+
+    'assets' => [
+
+        'enabled'  => env('VELA_ASSETS_BUNDLE', true),
+        'minify'   => env('VELA_ASSETS_MINIFY', env('APP_ENV', 'production') !== 'local'),
+
+        'output_dir'  => public_path('vendor/vela/bundles'),
+        'public_path' => '/vendor/vela/bundles',
+        'manifest'    => public_path('vendor/vela/bundles/manifest.json'),
+
+        'bundles' => [
+
+            // Shared CSS/JS loaded on every public page (any template).
+            'public' => [
+                'css' => [
+                    'public/vendor/vela/css/page-blocks.css',
+                ],
+                'js' => [],
+            ],
+
+            // Per-template bundles — layouts include these in addition to `public`.
+            'template-corporate' => [
+                'css' => [
+                    'public/vendor/vela/css/corporate/style.css',
+                    'public/vendor/vela/css/corporate/style-deferred.css',
+                ],
+            ],
+
+            'template-editorial' => [
+                'css' => [
+                    'public/vendor/vela/css/editorial/style.css',
+                    'public/vendor/vela/css/editorial/style-deferred.css',
+                ],
+            ],
+
+            'template-dark' => [
+                'css' => [
+                    'public/vendor/vela/css/dark/style.css',
+                    'public/vendor/vela/css/dark/style-deferred.css',
+                ],
+            ],
+
+            'template-modern' => [
+                'css' => [
+                    'public/vendor/vela/css/modern/style.css',
+                    'public/vendor/vela/css/modern/style-deferred.css',
+                ],
+            ],
+
+            'template-default' => [
+                'css' => [
+                    'public/vendor/vela/css/premium.css',
+                ],
+            ],
+
+            // `minimal` has no extra CSS beyond `public`.
+
+        ],
+
+    ],
+
 ];

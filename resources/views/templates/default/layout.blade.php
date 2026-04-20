@@ -10,9 +10,8 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=playfair+display:400,500,600,700%7Cinter:300,400,500,600,700&display=swap" rel="stylesheet">
 
-    <!-- Styles -->
-    <link href="{{ asset('vendor/vela/css/premium.css') }}" rel="stylesheet">
-    <link href="{{ asset('vendor/vela/css/page-blocks.css') }}" rel="stylesheet">
+    <!-- Styles (combined + minified bundles) -->
+    @velaAssets('public', 'template-default')
 
     <!-- Alpine.js (retained for page-builder blocks: carousel, gallery) -->
     <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>

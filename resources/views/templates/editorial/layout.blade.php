@@ -10,11 +10,8 @@
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=lora:400,500,600,700%7Cinter:300,400,500&display=swap" rel="stylesheet">
 
-    <!-- Styles -->
-    <link href="{{ asset('vendor/vela/css/page-blocks.css') }}" rel="stylesheet">
-    <link href="{{ asset('vendor/vela/css/editorial/style.css') }}" rel="stylesheet">
-    <link href="{{ asset('vendor/vela/css/editorial/style-deferred.css') }}" rel="stylesheet" media="print" onload="this.media='all'">
-
+    <!-- Styles (combined + minified bundles) -->
+    @velaAssets('public', 'template-editorial')
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
 

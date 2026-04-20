@@ -313,6 +313,14 @@ class StaticSiteGenerator
 
     public function regenerateAll(): void
     {
+        // Rebuild hashed CSS/JS bundles before rendering so the generated HTML
+        // references the latest manifest filenames.
+        try {
+            app(\VelaBuild\Core\Services\AssetBundler::class)->build();
+        } catch (\Throwable $e) {
+            Log::error('StaticSiteGenerator: asset bundle build failed: ' . $e->getMessage());
+        }
+
         // Generate synchronously (called from within a job)
         Page::where('status', 'published')
             ->with('rows.blocks')

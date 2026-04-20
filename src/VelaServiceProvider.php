@@ -9,7 +9,13 @@ class VelaServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/vela.php', 'vela');
+        // Deep-merge: host app's config/vela.php wins on conflict, package fills
+        // in everything else. Laravel's default mergeConfigFrom is shallow,
+        // which would drop package-default nested arrays (e.g. asset bundles)
+        // the moment a host app defines ANY value under the same top-level key.
+        $packageConfig = require __DIR__.'/../config/vela.php';
+        $appConfig = $this->app['config']->get('vela', []);
+        $this->app['config']->set('vela', array_replace_recursive($packageConfig, $appConfig));
 
         $this->app->singleton(\VelaBuild\Core\Vela::class, function ($app) {
             return new \VelaBuild\Core\Vela(
@@ -24,6 +30,8 @@ class VelaServiceProvider extends ServiceProvider
         $this->app->singleton(\VelaBuild\Core\Services\AiProviderManager::class, function ($app) {
             return new \VelaBuild\Core\Services\AiProviderManager();
         });
+
+        $this->app->singleton(\VelaBuild\Core\Services\AssetBundler::class);
 
         $this->app->singleton(\VelaBuild\Core\Services\ToolSettingsService::class, function ($app) {
             return new \VelaBuild\Core\Services\ToolSettingsService();
@@ -207,8 +215,13 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\GenerateThemeScreenshots::class,
                 \VelaBuild\Core\Commands\AppInit::class,
                 \VelaBuild\Core\Commands\AppBuild::class,
+                \VelaBuild\Core\Commands\BuildAssets::class,
             ]);
         }
+
+        \Illuminate\Support\Facades\Blade::directive('velaAssets', function ($expression) {
+            return "<?php echo app(\\VelaBuild\\Core\\Services\\AssetBundler::class)->tags([{$expression}]); ?>";
+        });
 
         // Publishable assets
         $this->publishes([
