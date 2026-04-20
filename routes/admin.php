@@ -155,3 +155,20 @@ Route::prefix('tools')->name('tools.')->group(function () {
     Route::post('reviews/sync', [Admin\Tools\ReviewsController::class, 'sync'])->name('reviews.sync');
     Route::post('reviews/config', [Admin\Tools\ReviewsController::class, 'updateConfig'])->name('reviews.config');
 });
+
+// Marketplace
+Route::prefix('marketplace')->name('marketplace.')->group(function () {
+    Route::get('/', [Admin\Marketplace\MarketplaceBrowseController::class, 'index'])->name('index');
+    Route::get('/search', [Admin\Marketplace\MarketplaceBrowseController::class, 'search'])->name('search');
+    Route::get('/purchase/callback', [Admin\Marketplace\MarketplacePurchaseController::class, 'callback'])->name('purchase.callback');
+    Route::get('/{slug}', [Admin\Marketplace\MarketplaceBrowseController::class, 'show'])->name('show');
+});
+
+// Installed Packages
+Route::prefix('packages')->name('packages.')->group(function () {
+    Route::get('/', [Admin\Marketplace\InstalledPackagesController::class, 'index'])->name('index');
+    Route::post('/{id}/disable', [Admin\Marketplace\InstalledPackagesController::class, 'disable'])->name('disable');
+    Route::post('/{id}/enable', [Admin\Marketplace\InstalledPackagesController::class, 'enable'])->name('enable');
+    Route::post('/{id}/update', [Admin\Marketplace\InstalledPackagesController::class, 'update'])->name('update');
+    Route::delete('/{id}', [Admin\Marketplace\InstalledPackagesController::class, 'destroy'])->name('destroy');
+});

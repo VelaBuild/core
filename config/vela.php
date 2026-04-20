@@ -284,4 +284,16 @@ return [
 
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Marketplace
+    |--------------------------------------------------------------------------
+    */
+
+    'marketplace' => [
+        'url' => env('VELA_MARKETPLACE_URL', 'https://marketplace.vela.build'),
+        'cache_ttl' => env('VELA_MARKETPLACE_CACHE_TTL', 3600),
+        'webhook_secret' => env('VELA_MARKETPLACE_WEBHOOK_SECRET'),
+    ],
+
 ];
