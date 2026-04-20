@@ -66,14 +66,17 @@ class PwaIconGenerator
             }
         }
 
-        // Generate public/favicon.ico from the 48x48 icon. Browsers hit
-        // /favicon.ico automatically — shipping an empty placeholder yields a
-        // blank tab icon across the site.
+        // Wrap the 48x48 PNG in a real ICO container and write public/favicon.ico.
+        // Browsers auto-request /favicon.ico — a renamed PNG is technically
+        // invalid ICO and some strict parsers (Chrome DevTools preview, older
+        // tooling) reject it.
         $faviconSource = "{$outputDir}/icon-48x48.png";
         $faviconTarget = public_path('favicon.ico');
-        if (is_file($faviconSource) && @copy($faviconSource, $faviconTarget)) {
-            @chmod($faviconTarget, 0664);
-            $generated[] = $faviconTarget;
+        if (is_file($faviconSource)) {
+            $png = @file_get_contents($faviconSource);
+            if ($png !== false && $this->writeIco($faviconTarget, $png, 48, 48)) {
+                $generated[] = $faviconTarget;
+            }
         }
 
         $success = empty($errors);
@@ -239,5 +242,35 @@ class PwaIconGenerator
     public function getOutputPath(): string
     {
         return storage_path('app/public/pwa-icons');
+    }
+
+    /**
+     * Write a valid ICO file wrapping a PNG payload.
+     *
+     * ICO layout:
+     *   ICONDIR        (6 bytes)  — reserved=0, type=1 (icon), count=1
+     *   ICONDIRENTRY   (16 bytes) — width, height, colors, reserved, planes=1,
+     *                               bpp=32, pngSize, offset=22
+     *   PNG payload
+     *
+     * Width/height are stored as 0 when >= 256 (ICO dimension field is 1 byte).
+     * Modern browsers handle PNG-in-ICO; older IE needed BMP, but we don't.
+     */
+    private function writeIco(string $path, string $png, int $width, int $height): bool
+    {
+        $w = $width >= 256 ? 0 : $width;
+        $h = $height >= 256 ? 0 : $height;
+        $size = strlen($png);
+
+        $ico  = pack('vvv', 0, 1, 1);                      // ICONDIR
+        $ico .= pack('CCCCvvVV', $w, $h, 0, 0, 1, 32, $size, 22); // ICONDIRENTRY
+        $ico .= $png;
+
+        $tmp = $path . '.tmp';
+        if (@file_put_contents($tmp, $ico) === false) {
+            return false;
+        }
+        @chmod($tmp, 0664);
+        return @rename($tmp, $path);
     }
 }

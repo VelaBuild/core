@@ -45,6 +45,24 @@ if (!function_exists('vela_image')) {
     }
 }
 
+if (!function_exists('vela_image_url')) {
+    /**
+     * Get an optimised /imgp/ URL (no <img> tag wrap). Useful for
+     * <link rel="icon">, og:image meta tags, CSS background-image, etc.
+     * Returns the raw src unchanged when bundling is disabled or the source
+     * can't be resolved.
+     */
+    function vela_image_url(string $src, int $width, int $height = 0, string $mode = 'fit'): string
+    {
+        $relativePath = vela_image_relative_path($src);
+        if (!config('vela.images.enabled', true) || $relativePath === null) {
+            return $src;
+        }
+        return app(\VelaBuild\Core\Services\ImageOptimizer::class)
+            ->generateUrl($relativePath, $width, $height, $mode);
+    }
+}
+
 if (!function_exists('vela_optimize_imgs')) {
     /**
      * Rewrite every raw <img src="..."> in a blob of HTML through vela_image().
