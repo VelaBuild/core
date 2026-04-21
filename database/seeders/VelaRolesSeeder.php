@@ -32,6 +32,7 @@ class VelaRolesSeeder extends Seeder
                 'user_create', 'user_edit', 'user_delete',
                 'config_access', 'config_create', 'config_edit', 'config_show', 'config_delete',
                 'ai_chat_template_edit', 'ai_chat_config_manage',
+                'marketplace_install', 'marketplace_manage',
             ];
 
             $userPermissions = Permission::whereNotIn('title', $userExcluded)->pluck('id')->toArray();

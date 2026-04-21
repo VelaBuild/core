@@ -18,11 +18,11 @@ return new class extends Migration
             Permission::firstOrCreate(['title' => $title]);
         }
 
-        // Attach all permissions to Admin role
+        // Attach new marketplace permissions to Admin role (without removing existing ones)
         $adminRole = Role::find(1);
         if ($adminRole) {
-            $allPermissions = Permission::all();
-            $adminRole->permissions()->sync($allPermissions->pluck('id'));
+            $newPermissions = Permission::whereIn('title', $permissions)->pluck('id');
+            $adminRole->permissions()->syncWithoutDetaching($newPermissions);
         }
 
         // Attach only browse to User role
