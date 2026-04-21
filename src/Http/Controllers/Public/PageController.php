@@ -16,29 +16,43 @@ class PageController extends Controller
     public function show($slug)
     {
         $locale = app()->getLocale();
-        $page = Page::where('slug', $slug)
-            ->where('locale', $locale)
-            ->whereIn('status', ['published', 'unlisted'])
-            ->with(['rows.blocks'])
-            ->first();
 
-        if (!$page) {
-            // Try primary locale and serve with translations
-            $primaryLocale = config('vela.primary_language', 'en');
+        // DB may be unavailable on a fresh deploy (migrations not run) or during
+        // an outage. The static front-controller serves pre-rendered HTML before
+        // Laravel boots, so if we got here, no snapshot exists for this path.
+        // Fall back to 404 — never surface raw PDO/Query exceptions to visitors.
+        try {
             $page = Page::where('slug', $slug)
-                ->where('locale', $primaryLocale)
+                ->where('locale', $locale)
                 ->whereIn('status', ['published', 'unlisted'])
                 ->with(['rows.blocks'])
-                ->firstOrFail();
+                ->first();
 
-            // Queue translation snapshot for future static serving
-            if ($locale !== $primaryLocale && config('vela.static.enabled', true)) {
-                $snapshotPath = config('vela.static.path', resource_path('static'))
-                    . '/pages/' . $slug . '/translations/' . $locale . '.html';
-                if (!file_exists($snapshotPath)) {
-                    \VelaBuild\Core\Jobs\GenerateTranslationSnapshotJob::dispatch('page', $slug, $locale);
+            if (!$page) {
+                // Try primary locale and serve with translations
+                $primaryLocale = config('vela.primary_language', 'en');
+                $page = Page::where('slug', $slug)
+                    ->where('locale', $primaryLocale)
+                    ->whereIn('status', ['published', 'unlisted'])
+                    ->with(['rows.blocks'])
+                    ->firstOrFail();
+
+                // Queue translation snapshot for future static serving
+                if ($locale !== $primaryLocale && config('vela.static.enabled', true)) {
+                    $snapshotPath = config('vela.static.path', resource_path('static'))
+                        . '/pages/' . $slug . '/translations/' . $locale . '.html';
+                    if (!file_exists($snapshotPath)) {
+                        \VelaBuild\Core\Jobs\GenerateTranslationSnapshotJob::dispatch('page', $slug, $locale);
+                    }
                 }
             }
+        } catch (\Illuminate\Database\QueryException | \PDOException $e) {
+            Log::warning('Vela: DB unavailable serving page', [
+                'slug'   => $slug,
+                'locale' => $locale,
+                'error'  => $e->getMessage(),
+            ]);
+            abort(404);
         }
 
         return view(vela_template_view('page'), compact('page'));

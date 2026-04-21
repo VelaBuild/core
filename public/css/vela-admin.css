@@ -1,13 +1,29 @@
 /* =========================================================
-   VELA DESIGN SYSTEM — ADMIN TOKENS & FOUNDATIONS
-   "Set Sail" — Navy authority, teal motion, editorial soul
+   VELA ADMIN — canonical stylesheet
+   Source of truth for the admin UI. Follows the design system in
+   /design-system/project/{tokens.css,components.css,patterns-admin.html}.
+
+   Structure:
+     1.  Fonts (Bunny — GDPR)
+     2.  Tokens (light + dark)
+     3.  Base + typography
+     4.  Components: buttons, forms, card, badge, alert, code, table,
+         avatar, tabs, stat, modal, separator
+     5.  Admin shell: app-frame / sidebar / topbar / content / page-head
+     6.  Panel + prop-row + activity-row
+     7.  Bootstrap-legacy compatibility (.form-control, .card, .btn-*, …)
+     8.  DataTables polish
+
+   Everything is scoped under `body.vela-admin` so it can't leak into
+   public templates.
    ========================================================= */
 
-/* ---------- Fonts (Bunny Fonts — GDPR-compliant Google Fonts mirror; never use fonts.googleapis.com) ---------- */
-@import url('https://fonts.bunny.net/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,600&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+/* ---------- 1. Fonts ---------- */
+@import url('https://fonts.bunny.net/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,600&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
 
-:root {
-  /* ===== BRAND PALETTE ===== */
+/* ---------- 2. Tokens ---------- */
+body.vela-admin {
+  /* Brand palette */
   --vela-navy-50:  #EEF1F7;
   --vela-navy-100: #D6DCEA;
   --vela-navy-200: #AEB8D1;
@@ -38,17 +54,21 @@
   --vela-sand-400: #B5A580;
   --vela-sand-500: #8A7B58;
 
-  /* Semantic accents */
-  --vela-success: #16A374;
-  --vela-success-bg: #E4F5EC;
-  --vela-warn: #E8A53A;
-  --vela-warn-bg: #FDF2DE;
-  --vela-danger: #D94A42;
-  --vela-danger-bg: #FBE8E6;
-  --vela-info: #3D7DDB;
-  --vela-info-bg: #E6EFFB;
+  --vela-success-300: #7ED4A8;
+  --vela-success-500: #16A374;
+  --vela-success-700: #0C6B4B;
+  --vela-warn-300:    #FFD37A;
+  --vela-warn-500:    #E8A53A;
+  --vela-warn-700:    #9E6810;
+  --vela-danger-300:  #F4A7A3;
+  --vela-danger-500:  #D94A42;
+  --vela-danger-700:  #932A24;
+  --vela-info-300:    #9EC2F2;
+  --vela-info-500:    #3D7DDB;
+  --vela-info-700:    #1E4E96;
 
-  /* Gray scale — navy-tinted */
+  --vela-gray-0:   #FFFFFF;
+  --vela-gray-25:  #FBFBFC;
   --vela-gray-50:  #F6F7F9;
   --vela-gray-100: #EDEFF3;
   --vela-gray-200: #DCE0E9;
@@ -59,1205 +79,1104 @@
   --vela-gray-700: #373E52;
   --vela-gray-800: #232939;
   --vela-gray-900: #151A28;
+  --vela-gray-950: #0A0E18;
 
-  /* ===== SEMANTIC ALIASES (LIGHT) ===== */
-  --v-bg:            var(--vela-sand-50);
-  --v-bg-subtle:     var(--vela-sand-100);
-  --v-bg-muted:      var(--vela-gray-50);
-  --v-surface:       #FFFFFF;
-  --v-border:        var(--vela-gray-200);
-  --v-border-strong: var(--vela-gray-300);
-  --v-border-subtle: var(--vela-gray-100);
-  --v-fg:            var(--vela-navy-900);
-  --v-fg-muted:      var(--vela-gray-600);
-  --v-fg-subtle:     var(--vela-gray-500);
-  --v-fg-accent:     var(--vela-teal-600);
-  --v-accent:        var(--vela-teal-500);
-  --v-accent-hover:  var(--vela-teal-600);
-  --v-accent-muted:  var(--vela-teal-50);
-  --v-brand:         var(--vela-navy-700);
-  --v-brand-fg:      #FFFFFF;
+  /* Semantic (light) */
+  --bg:           var(--vela-sand-50);
+  --bg-subtle:    var(--vela-sand-100);
+  --bg-muted:     var(--vela-gray-50);
+  --surface:      #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: var(--vela-gray-50);
+  --surface-inverse: var(--vela-navy-900);
 
-  /* ===== TYPOGRAPHY ===== */
-  --v-font-display: 'Fraunces', 'Georgia', serif;
-  --v-font-sans:    'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --v-font-mono:    'Geist Mono', 'SF Mono', Menlo, monospace;
+  --border:       var(--vela-gray-200);
+  --border-strong:var(--vela-gray-300);
+  --border-subtle:var(--vela-gray-100);
+  --ring:         var(--vela-teal-400);
 
-  --v-text-sm: 0.875rem;
-  --v-text-xs: 0.75rem;
-  --v-text-2xs: 0.6875rem;
+  --fg:           var(--vela-navy-900);
+  --fg-muted:     var(--vela-gray-600);
+  --fg-subtle:    var(--vela-gray-500);
+  --fg-inverse:   var(--vela-sand-50);
+  --fg-brand:     var(--vela-navy-700);
+  --fg-accent:    var(--vela-teal-600);
 
-  /* ===== SPACING ===== */
-  --v-space-1: 0.25rem;
-  --v-space-2: 0.5rem;
-  --v-space-3: 0.75rem;
-  --v-space-4: 1rem;
-  --v-space-5: 1.25rem;
-  --v-space-6: 1.5rem;
-  --v-space-8: 2rem;
+  --brand:        var(--vela-navy-700);
+  --brand-fg:     #FFFFFF;
+  --brand-hover:  var(--vela-navy-800);
+  --brand-muted:  var(--vela-navy-50);
 
-  /* ===== RADIUS ===== */
-  --v-r-xs: 3px;
-  --v-r-sm: 6px;
-  --v-r-md: 10px;
-  --v-r-lg: 14px;
-  --v-r-xl: 20px;
-  --v-r-full: 999px;
+  --accent:       var(--vela-teal-500);
+  --accent-fg:    #FFFFFF;
+  --accent-hover: var(--vela-teal-600);
+  --accent-muted: var(--vela-teal-50);
+  --accent-contrast: var(--vela-teal-700);
 
-  /* ===== SHADOWS ===== */
-  --v-shadow-xs: 0 1px 2px rgba(18,27,46,0.06);
-  --v-shadow-sm: 0 1px 2px rgba(18,27,46,0.05), 0 2px 4px rgba(18,27,46,0.04);
-  --v-shadow-md: 0 2px 4px rgba(18,27,46,0.06), 0 6px 12px rgba(18,27,46,0.06);
-  --v-shadow-lg: 0 4px 8px rgba(18,27,46,0.06), 0 16px 32px rgba(18,27,46,0.10);
-  --v-shadow-glow: 0 0 0 1px rgba(64,182,189,0.22), 0 8px 24px rgba(64,182,189,0.25);
-  --v-shadow-ring: 0 0 0 3px rgba(64,182,189,0.28);
+  --success:      var(--vela-success-500);
+  --success-bg:   #E4F5EC;
+  --success-border: var(--vela-success-300);
+  --warn:         var(--vela-warn-500);
+  --warn-bg:      #FDF2DE;
+  --warn-border:  var(--vela-warn-300);
+  --danger:       var(--vela-danger-500);
+  --danger-bg:    #FBE8E6;
+  --danger-border:var(--vela-danger-300);
+  --info:         var(--vela-info-500);
+  --info-bg:      #E6EFFB;
+  --info-border:  var(--vela-info-300);
 
-  /* ===== MOTION ===== */
-  --v-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --v-dur-fast: 140ms;
-  --v-dur-normal: 220ms;
+  /* Typography */
+  --font-display: 'Fraunces', 'Georgia', 'Times New Roman', serif;
+  --font-sans:    'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:    'Geist Mono', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+
+  --text-display-md: clamp(1.75rem, 3.5vw, 2.25rem);
+  --text-display-sm: 1.5rem;
+  --text-2xl: 1.5rem;
+  --text-xl:  1.25rem;
+  --text-lg:  1.125rem;
+  --text-md:  1rem;
+  --text-sm:  0.875rem;
+  --text-xs:  0.75rem;
+  --text-2xs: 0.6875rem;
+
+  --leading-tight:   1.15;
+  --leading-snug:    1.3;
+  --leading-normal:  1.5;
+  --leading-relaxed: 1.65;
+
+  --tracking-tight: -0.02em;
+  --tracking-snug:  -0.01em;
+  --tracking-wide:  0.02em;
+  --tracking-caps:  0.08em;
+
+  --weight-regular: 400;
+  --weight-medium:  500;
+  --weight-semibold:600;
+  --weight-bold:    700;
+
+  /* Spacing */
+  --space-0:  0;
+  --space-1:  0.25rem;
+  --space-2:  0.5rem;
+  --space-3:  0.75rem;
+  --space-4:  1rem;
+  --space-5:  1.25rem;
+  --space-6:  1.5rem;
+  --space-8:  2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Radius */
+  --r-xs: 3px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-full: 999px;
+
+  /* Shadows — navy-tinted */
+  --shadow-xs: 0 1px 2px rgba(18, 27, 46, 0.06);
+  --shadow-sm: 0 1px 2px rgba(18, 27, 46, 0.05), 0 2px 4px rgba(18, 27, 46, 0.04);
+  --shadow-md: 0 2px 4px rgba(18, 27, 46, 0.06), 0 6px 12px rgba(18, 27, 46, 0.06);
+  --shadow-lg: 0 4px 8px rgba(18, 27, 46, 0.06), 0 16px 32px rgba(18, 27, 46, 0.10);
+  --shadow-xl: 0 8px 16px rgba(18, 27, 46, 0.08), 0 32px 64px rgba(18, 27, 46, 0.14);
+  --shadow-ring: 0 0 0 3px rgba(64, 182, 189, 0.28);
+  --shadow-glow: 0 0 0 1px rgba(64, 182, 189, 0.22), 0 8px 24px rgba(64, 182, 189, 0.25);
+
+  /* Motion */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:    140ms;
+  --dur-normal:  220ms;
+
+  /* Layout */
+  --header-h: 56px;
+  --sidebar-w: 240px;
+  --z-sticky: 100;
+  --z-modal: 1000;
 }
 
-/* ===== BASE OVERRIDES ===== */
+/* Dark mode */
+body.vela-admin[data-theme="dark"] {
+  --bg:           var(--vela-navy-950);
+  --bg-subtle:    var(--vela-navy-900);
+  --bg-muted:     var(--vela-navy-800);
+  --surface:      var(--vela-navy-900);
+  --surface-raised: var(--vela-navy-800);
+  --border:       rgba(255, 255, 255, 0.08);
+  --border-strong:rgba(255, 255, 255, 0.14);
+  --border-subtle:rgba(255, 255, 255, 0.04);
+  --fg:           var(--vela-sand-50);
+  --fg-muted:     #A9B2C7;
+  --fg-subtle:    #727B93;
+  --fg-brand:     var(--vela-teal-300);
+  --fg-accent:    var(--vela-teal-300);
+  --brand:        var(--vela-teal-400);
+  --brand-fg:     var(--vela-navy-950);
+  --brand-hover:  var(--vela-teal-300);
+  --accent:       var(--vela-teal-400);
+  --accent-fg:    var(--vela-navy-950);
+  --accent-hover: var(--vela-teal-300);
+  --accent-muted: rgba(64, 182, 189, 0.12);
+}
+
+/* ---------- 3. Base ---------- */
 body.vela-admin {
-  font-family: var(--v-font-sans);
-  background: var(--v-bg);
-  color: var(--v-fg);
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--fg);
+  background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
-body.vela-admin ::selection {
-  background: var(--vela-teal-400);
-  color: var(--vela-navy-900);
-}
+body.vela-admin h1, body.vela-admin h2, body.vela-admin h3,
+body.vela-admin h4, body.vela-admin h5, body.vela-admin h6 { margin: 0; font-weight: 500; }
+body.vela-admin p { margin: 0; }
+body.vela-admin a { color: inherit; text-decoration: none; }
+body.vela-admin ::selection { background: var(--vela-teal-400); color: var(--vela-navy-900); }
 
-/* ===== SIDEBAR ===== */
-.vela-sidebar {
-  background: var(--vela-navy-900);
-  color: var(--vela-sand-100);
-  width: 240px;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  z-index: 1030;
-  transition: transform var(--v-dur-normal) var(--v-ease-out);
-}
-.vela-sidebar-brand {
-  padding: 18px 18px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-}
-.vela-sidebar-brand img { height: 22px; width: auto; }
-.vela-sidebar-brand .brand-name {
-  font-family: var(--v-font-display);
-  font-style: italic;
-  font-size: 1.25rem;
-  font-weight: 500;
-  color: #fff;
-}
-.vela-sidebar-nav {
-  flex: 1;
-  padding: 8px 8px 0;
-  overflow-y: auto;
-}
-.vela-sidebar-group { margin-bottom: 16px; }
-.vela-sidebar-group-label {
-  padding: 8px 12px 4px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--vela-sand-400);
-  font-weight: 600;
-}
-.vela-sidebar-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
-  font-size: var(--v-text-sm);
-  color: var(--vela-sand-200);
-  border-radius: var(--v-r-sm);
-  cursor: pointer;
-  margin: 1px 0;
-  text-decoration: none;
-  transition: background var(--v-dur-fast) var(--v-ease-out), color var(--v-dur-fast) var(--v-ease-out);
-}
-.vela-sidebar-link:hover {
-  background: rgba(255,255,255,0.05);
-  color: #fff;
-  text-decoration: none;
-}
-.vela-sidebar-link.is-active {
-  background: rgba(64,182,189,0.15);
-  color: #fff;
-}
-.vela-sidebar-link .ico {
-  width: 16px;
-  text-align: center;
-  opacity: 0.8;
-  font-size: 14px;
-}
-.vela-sidebar-link .count {
-  margin-left: auto;
-  font-size: 11px;
-  background: rgba(255,255,255,0.08);
-  padding: 1px 7px;
-  border-radius: var(--v-r-full);
-  color: var(--vela-sand-300);
-}
-.vela-sidebar-dropdown-items {
-  list-style: none;
-  padding: 0 0 0 26px;
-  margin: 0;
-}
-.vela-sidebar-dropdown-items .vela-sidebar-link {
-  font-size: var(--v-text-xs);
-  padding: 5px 12px;
-}
-.vela-sidebar-user {
-  position: relative;
-  border-top: 1px solid rgba(255,255,255,0.07);
-  font-size: var(--v-text-sm);
-}
-.vela-sidebar-user > summary {
-  list-style: none;
-  cursor: pointer;
-  padding: 12px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  transition: background .15s;
-}
-.vela-sidebar-user > summary::-webkit-details-marker { display: none; }
-.vela-sidebar-user > summary:hover { background: rgba(255,255,255,0.04); }
-.vela-sidebar-user .name { color: #fff; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vela-sidebar-user .plan { font-size: 11px; color: var(--vela-teal-300); }
-.vela-sidebar-user-chevron { font-size: 11px; color: rgba(255,255,255,0.5); transition: transform .2s; }
-.vela-sidebar-user[open] .vela-sidebar-user-chevron { transform: rotate(180deg); }
+/* ---------- 4. Components ---------- */
 
-.vela-sidebar-user-menu {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 12px;
-  right: 12px;
-  background: var(--vela-bg-elevated, #1a1a1a);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  padding: 6px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-  z-index: 200;
-}
-.vela-sidebar-user-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  color: rgba(255,255,255,0.85);
-  text-decoration: none;
-  font-size: var(--v-text-sm);
-  transition: background .12s;
-}
-.vela-sidebar-user-item:hover { background: rgba(255,255,255,0.06); color: #fff; text-decoration: none; }
-.vela-sidebar-user-item i { width: 14px; opacity: 0.7; }
-.vela-sidebar-user-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0; }
-
-/* Sidebar toggle for mobile */
-.vela-sidebar-toggle {
-  display: none;
-  background: none;
-  border: none;
-  color: var(--v-fg);
-  font-size: 20px;
-  cursor: pointer;
-  padding: 4px 8px;
-}
-@media (max-width: 991px) {
-  .vela-sidebar { transform: translateX(-100%); }
-  .vela-sidebar.is-open { transform: translateX(0); }
-  .vela-sidebar-toggle { display: block; }
-  .vela-main-wrapper { margin-left: 0 !important; }
-}
-
-/* ===== MAIN WRAPPER =====
- * body.c-app (CoreUI) is display:flex row. The Vela sidebar is position:fixed
- * so it doesn't consume flex space; the wrapper needs flex:1 + min-width:0 to
- * fill the remaining viewport and allow children (datatables) to shrink.
- */
-.vela-main-wrapper {
-  flex: 1;
-  min-width: 0;
-  margin-left: 240px;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ===== TOPBAR ===== */
-.vela-topbar {
-  display: flex;
-  align-items: center;
-  gap: var(--v-space-3);
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--v-border);
-  background: var(--v-surface);
-  min-height: 56px;
-  position: sticky;
-  top: 0;
-  z-index: 1020;
-}
-.vela-topbar .breadcrumb {
-  background: none;
-  margin: 0;
-  padding: 0;
-  font-size: var(--v-text-sm);
-}
-.vela-topbar .breadcrumb .sep {
-  margin: 0 6px;
-  color: var(--v-fg-subtle);
-}
-.vela-topbar .breadcrumb .cur { font-weight: 600; }
-.vela-search-bar {
-  flex: 1;
-  max-width: 420px;
-  position: relative;
-}
-.vela-search-bar input {
-  width: 100%;
-  height: 34px;
-  padding: 0 12px 0 34px;
-  border-radius: var(--v-r-full);
-  border: 1px solid var(--v-border-strong);
-  font-size: var(--v-text-sm);
-  background: var(--v-bg-muted);
-  font-family: var(--v-font-sans);
-  transition: border-color var(--v-dur-fast) var(--v-ease-out), box-shadow var(--v-dur-fast) var(--v-ease-out);
-}
-.vela-search-bar input:focus {
-  outline: none;
-  border-color: var(--v-accent);
-  box-shadow: var(--v-shadow-ring);
-}
-.vela-search-bar .search-ico {
-  position: absolute;
-  left: 11px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--v-fg-subtle);
-  font-size: 14px;
-}
-.vela-search-bar .kbd-hint {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-.vela-topbar-actions {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* ===== CONTENT AREA ===== */
-.vela-content {
-  flex: 1;
-  padding: var(--v-space-6);
-  overflow-y: auto;
-}
-.vela-page-head {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  margin-bottom: var(--v-space-6);
-  gap: var(--v-space-4);
-  flex-wrap: wrap;
-}
-.vela-page-head h1 {
-  font-family: var(--v-font-display);
-  font-style: italic;
-  font-size: 2.25rem;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  color: var(--v-fg);
-  line-height: 1;
-  margin: 0;
-}
-.vela-page-head .sub {
-  color: var(--v-fg-muted);
-  font-size: var(--v-text-sm);
-  margin-top: 6px;
-}
-
-/* ===== VELA BUTTONS ===== */
-.vela-btn {
+/* Buttons */
+body.vela-admin .btn,
+body.vela-admin .btn-xs, body.vela-admin .btn-sm, body.vela-admin .btn-lg, body.vela-admin .btn-xl {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--v-space-2);
+  gap: var(--space-2);
   border: 1px solid transparent;
-  border-radius: var(--v-r-md);
-  padding: 0 var(--v-space-4);
+  border-radius: var(--r-md);
+  padding: 0 var(--space-4);
   height: 40px;
-  font-family: var(--v-font-sans);
-  font-size: var(--v-text-sm);
-  font-weight: 600;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.005em;
   cursor: pointer;
-  transition: all var(--v-dur-fast) var(--v-ease-out);
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
   white-space: nowrap;
   text-decoration: none;
+  -webkit-appearance: none;
+  appearance: none;
   background: transparent;
-  color: var(--v-fg);
+  color: var(--fg);
 }
-.vela-btn:active { transform: translateY(1px); }
-.vela-btn:focus-visible { outline: none; box-shadow: var(--v-shadow-ring); }
-.vela-btn-accent {
+body.vela-admin .btn:active { transform: translateY(1px); }
+body.vela-admin .btn:focus,
+body.vela-admin .btn:focus-visible { outline: none; box-shadow: var(--shadow-ring); }
+
+body.vela-admin .btn-primary,
+body.vela-admin .btn-info {
+  background: var(--brand);
+  color: var(--brand-fg);
+  border-color: var(--brand);
+}
+body.vela-admin .btn-primary:hover,
+body.vela-admin .btn-info:hover { background: var(--brand-hover); border-color: var(--brand-hover); color: #fff; }
+
+body.vela-admin .btn-accent {
   background: linear-gradient(180deg, var(--vela-teal-400) 0%, var(--vela-teal-500) 100%);
   color: #03333A;
   border-color: var(--vela-teal-500);
-  box-shadow: var(--v-shadow-glow);
+  box-shadow: var(--shadow-glow);
 }
-.vela-btn-accent:hover { filter: brightness(1.05); color: #03333A; text-decoration: none; }
-.vela-btn-secondary {
-  background: var(--v-surface);
-  color: var(--v-fg);
-  border-color: var(--v-border-strong);
-  box-shadow: var(--v-shadow-xs);
-}
-.vela-btn-secondary:hover { background: var(--v-bg-muted); text-decoration: none; color: var(--v-fg); }
-.vela-btn-ghost { color: var(--v-fg); background: transparent; }
-.vela-btn-ghost:hover { background: var(--v-bg-muted); text-decoration: none; color: var(--v-fg); }
-.vela-btn-sm { height: 32px; font-size: var(--v-text-xs); padding: 0 var(--v-space-3); border-radius: var(--v-r-sm); }
-.vela-btn-icon { width: 40px; padding: 0; }
-.vela-btn-icon.vela-btn-sm { width: 32px; }
+body.vela-admin .btn-accent:hover { filter: brightness(1.05); }
 
-/* ===== KBD ===== */
-.vela-kbd {
-  font-family: var(--v-font-mono);
-  font-size: 0.75rem;
+body.vela-admin .btn-success {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+body.vela-admin .btn-success:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+
+body.vela-admin .btn-secondary,
+body.vela-admin .btn-light {
+  background: var(--surface);
+  color: var(--fg);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-xs);
+}
+body.vela-admin .btn-secondary:hover,
+body.vela-admin .btn-light:hover { background: var(--bg-muted); border-color: var(--fg-subtle); }
+
+body.vela-admin .btn-ghost,
+body.vela-admin .btn-outline-secondary { color: var(--fg); background: transparent; border-color: transparent; }
+body.vela-admin .btn-ghost:hover,
+body.vela-admin .btn-outline-secondary:hover { background: var(--bg-muted); }
+
+body.vela-admin .btn-outline-primary,
+body.vela-admin .btn-outline-info {
+  background: transparent;
+  color: var(--fg-brand);
+  border-color: var(--border-strong);
+}
+body.vela-admin .btn-outline-primary:hover { background: var(--brand); color: var(--brand-fg); border-color: var(--brand); }
+
+body.vela-admin .btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+body.vela-admin .btn-danger:hover { filter: brightness(0.95); }
+
+body.vela-admin .btn-warning {
+  background: var(--warn);
+  color: var(--vela-navy-900);
+  border-color: var(--warn);
+}
+
+body.vela-admin .btn-xs { height: 28px; font-size: var(--text-xs); padding: 0 var(--space-2); border-radius: var(--r-xs); }
+body.vela-admin .btn-sm { height: 32px; font-size: var(--text-xs); padding: 0 var(--space-3); border-radius: var(--r-sm); }
+body.vela-admin .btn-lg { height: 48px; font-size: var(--text-md); padding: 0 var(--space-6); }
+body.vela-admin .btn-xl { height: 56px; font-size: var(--text-md); padding: 0 var(--space-8); border-radius: var(--r-lg); }
+body.vela-admin .btn-block { width: 100%; }
+body.vela-admin .btn-icon { width: 40px; padding: 0; }
+
+/* Form controls (canonical + Bootstrap .form-control) */
+body.vela-admin .input,
+body.vela-admin .select,
+body.vela-admin .textarea,
+body.vela-admin .form-control,
+body.vela-admin .custom-select {
+  display: block;
+  width: 100%;
+  height: 40px;
+  padding: 0 var(--space-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+body.vela-admin .textarea,
+body.vela-admin textarea.form-control { height: auto; padding: var(--space-3); min-height: 96px; resize: vertical; line-height: var(--leading-normal); }
+body.vela-admin .input:hover, body.vela-admin .select:hover, body.vela-admin .textarea:hover,
+body.vela-admin .form-control:hover { border-color: var(--fg-subtle); }
+body.vela-admin .input:focus, body.vela-admin .select:focus, body.vela-admin .textarea:focus,
+body.vela-admin .form-control:focus, body.vela-admin .custom-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-ring);
+}
+body.vela-admin .input::placeholder,
+body.vela-admin .textarea::placeholder,
+body.vela-admin .form-control::placeholder { color: var(--fg-subtle); }
+body.vela-admin .form-control[readonly] { background: var(--bg-muted); }
+
+/* Field */
+body.vela-admin .field { display: flex; flex-direction: column; gap: var(--space-2); }
+body.vela-admin .field-label,
+body.vela-admin label {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--fg);
+  letter-spacing: -0.005em;
+  margin-bottom: 6px;
+  display: block;
+}
+body.vela-admin label.required::after { content: ' *'; color: var(--danger); font-weight: 700; }
+body.vela-admin .field-hint,
+body.vela-admin .help-block,
+body.vela-admin .form-text,
+body.vela-admin small.text-muted { font-size: var(--text-xs); color: var(--fg-subtle); display: block; margin-top: 4px; }
+body.vela-admin .field-error,
+body.vela-admin .invalid-feedback { font-size: var(--text-xs); color: var(--danger); font-weight: var(--weight-medium); display: block; margin-top: 4px; }
+body.vela-admin .is-invalid,
+body.vela-admin .form-control.is-invalid,
+body.vela-admin .field.is-invalid .input { border-color: var(--danger); }
+body.vela-admin .form-control.is-invalid:focus { box-shadow: 0 0 0 3px rgba(217, 74, 66, 0.25); }
+
+/* Bootstrap form-group spacing */
+body.vela-admin .form-group { margin-bottom: var(--space-4); }
+body.vela-admin .form-group:last-child,
+body.vela-admin .form-group.mb-0 { margin-bottom: 0; }
+body.vela-admin .form-row { display: flex; flex-wrap: wrap; margin-left: -8px; margin-right: -8px; }
+body.vela-admin .form-row > [class*="col-"] { padding-left: 8px; padding-right: 8px; }
+
+/* Checkbox / radio / toggle */
+body.vela-admin .checkbox,
+body.vela-admin .radio,
+body.vela-admin input[type="checkbox"].form-check-input,
+body.vela-admin input[type="radio"].form-check-input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-xs);
+  background: var(--surface);
+  cursor: pointer;
+  position: relative;
+  transition: all var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+  margin: 0 var(--space-2) 0 0;
+}
+body.vela-admin .radio,
+body.vela-admin input[type="radio"].form-check-input { border-radius: var(--r-full); }
+body.vela-admin .checkbox:checked,
+body.vela-admin .radio:checked,
+body.vela-admin input[type="checkbox"].form-check-input:checked,
+body.vela-admin input[type="radio"].form-check-input:checked { background: var(--accent); border-color: var(--accent); }
+body.vela-admin .checkbox:checked::after,
+body.vela-admin input[type="checkbox"].form-check-input:checked::after {
+  content: ''; position: absolute;
+  left: 5px; top: 1px; width: 5px; height: 10px;
+  border: solid #fff; border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+body.vela-admin .form-check { padding-left: 0; display: flex; align-items: center; gap: var(--space-2); }
+body.vela-admin .form-check-label { margin: 0; font-weight: var(--weight-medium); color: var(--fg); }
+
+.vela-admin .toggle,
+body.vela-admin .toggle {
+  appearance: none; -webkit-appearance: none;
+  width: 36px; height: 20px;
+  border-radius: var(--r-full);
+  background: var(--vela-gray-300);
+  position: relative; cursor: pointer;
+  transition: background var(--dur-normal) var(--ease-out);
+  flex-shrink: 0; margin: 0;
+}
+body.vela-admin .toggle::after {
+  content: ''; position: absolute;
+  top: 2px; left: 2px; width: 16px; height: 16px;
+  background: #fff; border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-normal) var(--ease-spring);
+}
+body.vela-admin .toggle:checked { background: var(--accent); }
+body.vela-admin .toggle:checked::after { transform: translateX(16px); }
+
+/* Card (canonical + Bootstrap .card) */
+body.vela-admin .card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 0;
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+body.vela-admin .card + .card { margin-top: var(--space-4); }
+body.vela-admin .card-raised { box-shadow: var(--shadow-md); }
+body.vela-admin .card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  margin: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--fg);
+  letter-spacing: -0.01em;
+}
+body.vela-admin .card-body { padding: var(--space-5); }
+body.vela-admin .card-footer {
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-muted);
+  border-top: 1px solid var(--border-subtle);
+}
+body.vela-admin .card-title {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--fg);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+body.vela-admin .card-subtitle { color: var(--fg-muted); font-size: var(--text-sm); margin-top: 2px; }
+
+/* Badge */
+body.vela-admin .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  border-radius: var(--r-full);
+  line-height: 1.5;
+  letter-spacing: -0.005em;
+  text-transform: none;
+}
+body.vela-admin .badge-primary,
+body.vela-admin .badge-brand    { background: var(--brand-muted); color: var(--fg-brand); }
+body.vela-admin .badge-accent   { background: var(--accent-muted); color: var(--accent-contrast); }
+body.vela-admin .badge-success  { background: var(--success-bg); color: var(--success); }
+body.vela-admin .badge-warning,
+body.vela-admin .badge-warn     { background: var(--warn-bg); color: var(--vela-warn-700); }
+body.vela-admin .badge-danger   { background: var(--danger-bg); color: var(--danger); }
+body.vela-admin .badge-info     { background: var(--info-bg); color: var(--info); }
+body.vela-admin .badge-secondary,
+body.vela-admin .badge-neutral  { background: var(--bg-muted); color: var(--fg-muted); }
+body.vela-admin .badge-outline  { background: transparent; border: 1px solid var(--border-strong); color: var(--fg-muted); }
+body.vela-admin .badge-dot::before {
+  content: ''; width: 6px; height: 6px;
+  border-radius: 50%; background: currentColor;
+  display: inline-block;
+}
+body.vela-admin .label-info.label-many { background: var(--brand-muted); color: var(--fg-brand); padding: 2px 8px; border-radius: var(--r-full); font-size: var(--text-xs); font-weight: var(--weight-semibold); margin-right: 4px; }
+
+/* Alert */
+body.vela-admin .alert {
+  display: flex; gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--r-md);
+  border: 1px solid;
+  align-items: flex-start;
+  font-size: var(--text-sm);
+}
+body.vela-admin .alert-success { background: var(--success-bg); border-color: var(--success-border); color: var(--vela-success-700); }
+body.vela-admin .alert-warning { background: var(--warn-bg); border-color: var(--warn-border); color: var(--vela-warn-700); }
+body.vela-admin .alert-danger  { background: var(--danger-bg); border-color: var(--danger-border); color: var(--vela-danger-700); }
+body.vela-admin .alert-info    { background: var(--info-bg); border-color: var(--info-border); color: var(--vela-info-700); }
+
+/* Code */
+body.vela-admin code, body.vela-admin pre, body.vela-admin kbd, body.vela-admin samp { font-family: var(--font-mono); }
+body.vela-admin code {
+  font-size: 0.875em;
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  color: var(--fg);
+}
+body.vela-admin .kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
   padding: 2px 6px;
-  border-radius: var(--v-r-xs);
-  background: var(--v-surface);
-  border: 1px solid var(--v-border-strong);
+  border-radius: var(--r-xs);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
   border-bottom-width: 2px;
-  color: var(--v-fg-muted);
+  color: var(--fg-muted);
+  display: inline-block;
   line-height: 1;
 }
 
-/* ===== PANELS ===== */
-.vela-panel {
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-lg);
-  padding: var(--v-space-5);
-  box-shadow: var(--v-shadow-xs);
+/* Table */
+body.vela-admin .table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--surface);
 }
-.vela-panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--v-space-4);
+body.vela-admin .table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--text-sm);
+  color: var(--fg);
+  margin: 0;
 }
-.vela-panel-title { font-weight: 600; font-size: var(--v-text-sm); }
-
-/* ===== STAT CARDS ===== */
-.vela-dash-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--v-space-4);
-  margin-bottom: var(--v-space-6);
-}
-@media (max-width: 991px) { .vela-dash-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 575px) { .vela-dash-grid { grid-template-columns: 1fr; } }
-.vela-stat {
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-lg);
-  padding: var(--v-space-5);
-  box-shadow: var(--v-shadow-xs);
-}
-.vela-stat-label {
-  font-size: var(--v-text-xs);
-  color: var(--v-fg-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-.vela-stat-value {
-  font-family: var(--v-font-display);
-  font-size: 2rem;
-  font-weight: 500;
-  letter-spacing: -0.02em;
-  color: var(--v-fg);
-  line-height: 1.1;
-  margin-top: 4px;
-}
-.vela-stat-delta {
-  font-size: var(--v-text-xs);
-  font-weight: 600;
-  color: var(--vela-success);
-  margin-top: 4px;
-}
-.vela-stat-delta.down { color: var(--vela-danger); }
-
-/* ===== TABS PILL ===== */
-.vela-tabs-pill {
-  display: inline-flex;
-  gap: 2px;
-  background: var(--v-bg-muted);
-  padding: 3px;
-  border-radius: var(--v-r-sm);
-}
-.vela-tab {
-  padding: 5px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--v-fg-muted);
-  cursor: pointer;
-  border-radius: 4px;
+body.vela-admin .table th,
+body.vela-admin .table td {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
   border: none;
-  background: none;
-  transition: all var(--v-dur-fast) var(--v-ease-out);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
 }
-.vela-tab:hover { color: var(--v-fg); }
-.vela-tab.is-active {
-  background: var(--v-surface);
-  color: var(--v-fg);
-  box-shadow: var(--v-shadow-xs);
+body.vela-admin .table thead th {
+  font-weight: var(--weight-semibold);
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
 }
+body.vela-admin .table tbody tr:last-child td { border-bottom: none; }
+body.vela-admin .table tbody tr:hover td { background: var(--bg-muted); }
+body.vela-admin .table-bordered { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+body.vela-admin .table-bordered th,
+body.vela-admin .table-bordered td { border-right: 1px solid var(--border-subtle); }
+body.vela-admin .table-bordered th:last-child,
+body.vela-admin .table-bordered td:last-child { border-right: none; }
 
-/* ===== ACTIVITY FEED ===== */
-.vela-activity-row {
-  display: flex;
-  align-items: start;
-  gap: 10px;
-  padding: 10px 0;
-  font-size: var(--v-text-sm);
-  border-bottom: 1px solid var(--v-border-subtle);
-}
-.vela-activity-row:last-child { border-bottom: none; }
-.vela-activity-row .tm { color: var(--v-fg-subtle); font-size: 11px; margin-top: 2px; }
-.vela-activity-row b { font-weight: 600; color: var(--v-fg); }
-
-/* ===== AVATAR ===== */
-.vela-avatar {
-  width: 32px;
-  height: 32px;
+/* Avatar */
+body.vela-admin .avatar {
+  width: 32px; height: 32px;
   border-radius: 50%;
-  background: var(--v-accent-muted);
-  color: var(--v-fg-accent);
-  font-weight: 600;
-  font-size: var(--v-text-xs);
+  background: var(--accent-muted);
+  color: var(--accent-contrast);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
 }
-.vela-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.vela-avatar-sm { width: 24px; height: 24px; font-size: 10px; }
+body.vela-admin .avatar img { width: 100%; height: 100%; object-fit: cover; }
+body.vela-admin .avatar-sm { width: 24px; height: 24px; font-size: 10px; }
+body.vela-admin .avatar-lg { width: 40px; height: 40px; font-size: var(--text-sm); }
+body.vela-admin .avatar-xl { width: 56px; height: 56px; font-size: var(--text-md); }
 
-/* ===== BADGE ===== */
-.vela-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--v-space-1);
-  padding: 2px 8px;
-  font-size: var(--v-text-xs);
-  font-weight: 600;
-  border-radius: var(--v-r-full);
+/* Tabs (underline default) */
+body.vela-admin .tabs {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-4);
 }
-.vela-badge-accent { background: var(--v-accent-muted); color: var(--vela-teal-700); }
-.vela-badge-success { background: var(--vela-success-bg); color: var(--vela-success); }
-.vela-badge-warn { background: var(--vela-warn-bg); color: var(--vela-warn); }
-.vela-badge-danger { background: var(--vela-danger-bg); color: var(--vela-danger); }
-
-/* ===== MEDIA LIBRARY GRID ===== */
-.vela-media-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: var(--v-space-3);
-}
-@media (max-width: 1200px) { .vela-media-grid { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 768px) { .vela-media-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 480px) { .vela-media-grid { grid-template-columns: repeat(2, 1fr); } }
-.vela-media-item {
-  aspect-ratio: 1;
-  background: var(--v-bg-muted);
-  border-radius: var(--v-r-sm);
-  position: relative;
-  overflow: hidden;
-  border: 1px solid var(--v-border);
+body.vela-admin .tab,
+body.vela-admin .tabs > a,
+body.vela-admin .tabs > button {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--fg-muted);
   cursor: pointer;
-  transition: all var(--v-dur-fast) var(--v-ease-out);
-}
-.vela-media-item:hover {
-  box-shadow: var(--v-shadow-md);
-  transform: translateY(-2px);
-  border-color: var(--v-accent);
-}
-.vela-media-item.is-selected {
-  border-color: var(--v-accent);
-  box-shadow: 0 0 0 2px var(--v-accent);
-}
-.vela-media-item .fill { position: absolute; inset: 0; object-fit: cover; width: 100%; height: 100%; }
-.vela-media-item .check {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 18px;
-  height: 18px;
-  background: var(--v-accent);
-  border-radius: 4px;
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 10px;
-  opacity: 0;
-  transition: opacity var(--v-dur-fast);
-}
-.vela-media-item.is-selected .check { opacity: 1; }
-.vela-media-item .meta-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.7));
-  color: #fff;
-  padding: 12px 8px 6px;
-  font-size: 10px;
-  font-weight: 500;
-}
-.vela-media-item .type-badge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  font-size: 9px;
-  background: rgba(0,0,0,0.6);
-  color: #fff;
-  padding: 1px 6px;
-  border-radius: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-/* ===== AI CHAT COMPOSER ===== */
-.vela-ai-chat {
-  display: flex;
-  flex-direction: column;
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-xl);
-  overflow: hidden;
-  box-shadow: var(--v-shadow-lg);
-}
-.vela-ai-chat-head {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--v-border);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.vela-ai-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--vela-teal-400), var(--vela-navy-700));
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-family: var(--v-font-display);
-  font-style: italic;
-  font-weight: 500;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-.vela-ai-chat-title { font-weight: 600; font-size: var(--v-text-sm); }
-.vela-ai-chat-status {
-  font-size: 11px;
-  color: var(--vela-success);
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.vela-ai-chat-status::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.vela-ai-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  font-size: var(--v-text-sm);
-}
-.vela-msg-user {
-  align-self: flex-end;
-  background: var(--v-brand);
-  color: var(--v-brand-fg);
-  padding: 9px 14px;
-  border-radius: 14px 14px 4px 14px;
-  max-width: 82%;
-}
-.vela-msg-ai {
-  background: var(--v-bg-muted);
-  color: var(--v-fg);
-  padding: 9px 14px;
-  border-radius: 14px 14px 14px 4px;
-  max-width: 88%;
-  line-height: 1.5;
-}
-.vela-msg-ai .suggestion {
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  margin-top: 8px;
-  font-size: var(--v-text-xs);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: border-color var(--v-dur-fast) var(--v-ease-out);
-}
-.vela-msg-ai .suggestion:hover { border-color: var(--v-accent); }
-.vela-msg-ai .suggestion::before { content: '+'; color: var(--v-accent); font-weight: 700; font-size: 14px; }
-.vela-ai-compose {
-  padding: 12px;
-  border-top: 1px solid var(--v-border);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.vela-ai-compose input {
-  flex: 1;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: var(--v-r-md);
-  border: 1px solid var(--v-border-strong);
-  font-size: var(--v-text-sm);
-  font-family: var(--v-font-sans);
-  background: var(--v-surface);
-}
-.vela-ai-compose input:focus {
-  outline: none;
-  border-color: var(--v-accent);
-  box-shadow: var(--v-shadow-ring);
-}
-
-/* ===== COMMAND PALETTE ===== */
-.vela-cmd-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(10,16,32,0.5);
-  z-index: 2000;
-  display: none;
-  place-items: center;
-  padding: 80px 40px;
-}
-.vela-cmd-overlay.is-open { display: grid; }
-.vela-cmd-palette {
-  width: 100%;
-  max-width: 560px;
-  background: var(--v-surface);
-  border-radius: var(--v-r-lg);
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  overflow: hidden;
-}
-.vela-cmd-input {
-  padding: 18px 20px 14px;
-  border-bottom: 1px solid var(--v-border-subtle);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.vela-cmd-input input {
-  flex: 1;
-  border: none;
-  outline: none;
-  font-size: 1rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
-  color: var(--v-fg);
-  font-family: var(--v-font-sans);
+  border-top: none; border-left: none; border-right: none;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
 }
-.vela-cmd-results {
-  max-height: 340px;
-  overflow-y: auto;
-  padding: 8px;
+body.vela-admin .tab:hover { color: var(--fg); }
+body.vela-admin .tab.is-active,
+body.vela-admin .tabs > .is-active { color: var(--fg); border-bottom-color: var(--accent); }
+
+body.vela-admin .tabs-pill {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--bg-muted);
+  padding: 3px;
+  border-radius: var(--r-sm);
 }
-.vela-cmd-section-label {
-  padding: 10px 12px 4px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--v-fg-subtle);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+body.vela-admin .tabs-pill .tab {
+  border: none;
+  padding: 5px 12px;
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  border-radius: var(--r-xs);
+  margin: 0;
 }
-.vela-cmd-item {
+body.vela-admin .tabs-pill .tab.is-active { background: var(--surface); color: var(--fg); box-shadow: var(--shadow-xs); }
+
+/* Bootstrap nav-tabs → align to underline tabs */
+body.vela-admin .nav-tabs {
+  border-bottom: 1px solid var(--border);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: var(--v-r-sm);
-  cursor: pointer;
-  font-size: var(--v-text-sm);
-  transition: background var(--v-dur-fast) var(--v-ease-out);
 }
-.vela-cmd-item:hover { background: var(--v-bg-muted); }
-.vela-cmd-item.is-active { background: var(--v-accent-muted); }
-.vela-cmd-item .lead { display: flex; align-items: center; gap: 10px; }
-.vela-cmd-item .ico {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  background: var(--v-bg-muted);
-  display: grid;
-  place-items: center;
-  color: var(--v-fg-muted);
-  font-size: 12px;
+body.vela-admin .nav-tabs .nav-link {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm); font-weight: var(--weight-semibold);
+  color: var(--fg-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
 }
-.vela-cmd-item.is-active .ico { background: var(--v-accent); color: #fff; }
+body.vela-admin .nav-tabs .nav-link.active,
+body.vela-admin .nav-tabs .nav-link:hover { color: var(--fg); }
+body.vela-admin .nav-tabs .nav-link.active { border-bottom-color: var(--accent); }
 
-/* ===== SPARKLINE ===== */
-.vela-sparkline { stroke: var(--v-accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* Stat */
+body.vela-admin .stat {
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+}
+body.vela-admin .stat-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--fg-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+body.vela-admin .stat-value {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 2.5rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+  line-height: 1;
+  margin-top: 8px;
+}
 
-/* ===== EDITOR FRAME ===== */
-.vela-editor-frame {
-  display: grid;
-  grid-template-columns: 260px 1fr 300px;
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-xl);
-  overflow: hidden;
-  background: var(--v-surface);
-  min-height: 600px;
+/* Modal (Bootstrap) */
+body.vela-admin .modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-xl);
 }
-@media (max-width: 991px) {
-  .vela-editor-frame { grid-template-columns: 1fr; }
+body.vela-admin .modal-header { padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border-subtle); }
+body.vela-admin .modal-title {
+  font-family: var(--font-display); font-style: italic;
+  font-size: var(--text-xl); font-weight: 500;
+  color: var(--fg); letter-spacing: -0.01em;
 }
-.vela-editor-rail {
-  border-right: 1px solid var(--v-border);
-  background: var(--v-bg-muted);
-  padding: var(--v-space-3);
-  overflow-y: auto;
+body.vela-admin .modal-body { padding: var(--space-5); }
+body.vela-admin .modal-footer { padding: var(--space-3) var(--space-5); background: var(--bg-muted); border-top: 1px solid var(--border-subtle); }
+
+/* ---------- 5. Admin shell ---------- */
+body.vela-admin.c-app { display: block; }
+body.vela-admin .vela-sidebar-toggle {
+  display: none; background: transparent; border: none; color: var(--fg);
+  font-size: 18px; padding: 6px 10px; cursor: pointer;
 }
-.vela-editor-canvas {
-  overflow-y: auto;
-  background: var(--v-bg-subtle);
-  padding: var(--v-space-8) var(--v-space-6);
+
+/* Sidebar — navy-900 bg, sand text */
+body.vela-admin .vela-sidebar,
+body.vela-admin .app-sidebar {
+  background: var(--vela-navy-900);
+  color: var(--vela-sand-100);
+  width: var(--sidebar-w);
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  display: flex; flex-direction: column;
+  z-index: 1030;
+  border-right: 1px solid rgba(255,255,255,0.05);
 }
-.vela-editor-sidebar {
-  border-left: 1px solid var(--v-border);
-  padding: var(--v-space-4);
-  overflow-y: auto;
-  background: var(--v-surface);
+body.vela-admin .vela-sidebar-brand,
+body.vela-admin .app-brand {
+  padding: 18px 18px 14px;
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
 }
-.vela-block-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+body.vela-admin .vela-sidebar-brand img,
+body.vela-admin .app-brand img { height: 36px; }
+body.vela-admin .vela-sidebar-brand .name,
+body.vela-admin .app-brand .name {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 1.25rem; font-weight: 500; color: #fff;
 }
-.vela-block-tile {
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-sm);
-  padding: 10px 8px;
-  text-align: center;
-  cursor: grab;
-  transition: all var(--v-dur-fast) var(--v-ease-out);
-}
-.vela-block-tile:hover { border-color: var(--v-accent); box-shadow: var(--v-shadow-sm); transform: translateY(-1px); }
-.vela-block-tile .mini {
-  height: 34px;
-  background: var(--v-bg-muted);
-  border-radius: 3px;
-  margin-bottom: 6px;
-  display: grid;
-  place-items: center;
-  color: var(--v-fg-subtle);
+
+body.vela-admin .sidebar-nav,
+body.vela-admin .vela-sidebar-nav { flex: 1; padding: 8px 8px 0; overflow-y: auto; }
+body.vela-admin .sidebar-group,
+body.vela-admin .vela-sidebar-group { margin-bottom: 16px; }
+body.vela-admin .sidebar-group-label,
+body.vela-admin .vela-sidebar-group-label {
+  padding: 8px 12px 4px;
   font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--vela-sand-400);
+  font-weight: 600;
 }
-.vela-block-tile .name { font-size: 11px; font-weight: 500; }
+body.vela-admin .sidebar-link,
+body.vela-admin .vela-sidebar-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 12px;
+  font-size: var(--text-sm);
+  color: var(--vela-sand-200);
+  border-radius: var(--r-sm);
+  cursor: pointer; margin: 1px 0;
+  text-decoration: none;
+}
+body.vela-admin .sidebar-link:hover,
+body.vela-admin .vela-sidebar-link:hover { background: rgba(255,255,255,0.05); color: #fff; }
+body.vela-admin .sidebar-link.is-active,
+body.vela-admin .sidebar-link.active,
+body.vela-admin .vela-sidebar-link.is-active,
+body.vela-admin .vela-sidebar-link.active { background: rgba(64,182,189,0.15); color: #fff; }
+body.vela-admin .sidebar-link .ico,
+body.vela-admin .vela-sidebar-link .ico { width: 16px; height: 16px; opacity: 0.8; }
+body.vela-admin .sidebar-link .count,
+body.vela-admin .vela-sidebar-link .count {
+  margin-left: auto; font-size: 11px;
+  background: rgba(255,255,255,0.08);
+  padding: 1px 7px; border-radius: var(--r-full);
+  color: var(--vela-sand-300);
+}
+body.vela-admin .sidebar-user,
+body.vela-admin .vela-sidebar-bottom {
+  padding: 12px; border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex; align-items: center; gap: 10px;
+  font-size: var(--text-sm); color: var(--vela-sand-200);
+}
+body.vela-admin .sidebar-user .name { color: #fff; font-weight: 500; }
+body.vela-admin .sidebar-user .plan { font-size: 11px; color: var(--vela-teal-300); }
 
-/* ===== HELPER: TWO-COL LAYOUT ===== */
-.vela-split { display: grid; grid-template-columns: 2fr 1fr; gap: var(--v-space-4); }
-@media (max-width: 991px) { .vela-split { grid-template-columns: 1fr; } }
+/* Main wrapper — right of sidebar */
+body.vela-admin .vela-main-wrapper,
+body.vela-admin .app-main {
+  margin-left: var(--sidebar-w);
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+}
 
-/* ===== OVERRIDE COREUI SIDEBAR (hide old, use new) ===== */
-body.vela-admin .c-sidebar { display: none; }
-body.vela-admin .c-wrapper { margin-left: 0; padding-left: 0; }
-body.vela-admin .c-header { display: none; }
-body.vela-admin .c-body { margin: 0; }
-body.vela-admin .c-main { padding: 0; }
+/* Topbar */
+body.vela-admin .vela-topbar,
+body.vela-admin .app-topbar {
+  display: flex; align-items: center;
+  gap: var(--space-3);
+  padding: 10px var(--space-6);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-height: var(--header-h);
+  position: sticky; top: 0;
+  z-index: var(--z-sticky);
+}
+body.vela-admin .vela-topbar .breadcrumb,
+body.vela-admin .app-topbar .breadcrumb {
+  background: none; padding: 0; margin: 0;
+  font-size: var(--text-sm); color: var(--fg-muted);
+}
+body.vela-admin .vela-topbar .breadcrumb .sep { margin: 0 6px; color: var(--fg-subtle); }
+body.vela-admin .vela-topbar .breadcrumb .cur,
+body.vela-admin .vela-topbar .breadcrumb > .cur { color: var(--fg); font-weight: var(--weight-semibold); }
 
-/* =====================================================================
-   BOOTSTRAP / COREUI COMPONENT POLISH
-   Align Bootstrap 4 components used in admin views with the Vela design
-   system (navy + teal + sand, 10px radius, navy-tinted shadows, teal focus).
-   Scoped under body.vela-admin so this never leaks to the public site.
-   ===================================================================== */
+body.vela-admin .vela-topbar-actions,
+body.vela-admin .app-topbar .actions {
+  margin-left: auto;
+  display: flex; align-items: center;
+  gap: var(--space-2);
+}
 
-/* ----- CARDS ----- */
-body.vela-admin .card {
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-md);
-  box-shadow: var(--v-shadow-xs);
+/* Content area */
+body.vela-admin .vela-content,
+body.vela-admin .app-content {
+  flex: 1; min-width: 0;
+  padding: var(--space-6);
+  overflow-y: auto;
+}
+
+/* Page head — the biggest visual signature */
+body.vela-admin .app-page-head,
+body.vela-admin .vela-page-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+  flex-wrap: wrap;
+}
+body.vela-admin .app-page-head h1,
+body.vela-admin .vela-page-head h1 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: var(--text-display-md);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+  line-height: 1;
+  margin: 0;
+}
+body.vela-admin .app-page-head .sub,
+body.vela-admin .vela-page-head .sub,
+body.vela-admin .vela-page-sub {
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  margin-top: 6px;
+}
+body.vela-admin .vela-breadcrumb {
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  text-transform: uppercase; letter-spacing: var(--tracking-caps);
+  color: var(--fg-subtle); font-weight: var(--weight-semibold);
+  margin-bottom: var(--space-2);
+}
+body.vela-admin .vela-breadcrumb a { color: var(--fg-accent); }
+body.vela-admin .vela-breadcrumb .sep { margin: 0 6px; color: var(--border-strong); }
+body.vela-admin .vela-breadcrumb .cur { color: var(--fg); }
+
+body.vela-admin .vela-page-head-left { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+body.vela-admin .vela-page-title-row { display: flex; align-items: center; gap: var(--space-4); min-width: 0; }
+body.vela-admin .vela-page-avatar,
+body.vela-admin .vela-page-avatar-fallback {
+  width: 48px; height: 48px; border-radius: var(--r-full);
+  object-fit: cover; flex-shrink: 0;
+}
+body.vela-admin .vela-page-avatar-fallback {
+  background: var(--accent-muted);
+  color: var(--accent-contrast);
+  font-family: var(--font-display); font-style: italic;
+  font-size: 20px; font-weight: 500;
+  display: grid; place-items: center;
+}
+body.vela-admin .vela-page-actions {
+  display: flex; gap: var(--space-2);
+  align-items: center; flex-shrink: 0;
+}
+
+/* ---------- 6. Panel + prop-row + activity ---------- */
+body.vela-admin .panel,
+body.vela-admin .vela-section,
+body.vela-admin .vela-meta-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 0;
+  box-shadow: var(--shadow-xs);
   overflow: hidden;
 }
-body.vela-admin .card + .card { margin-top: var(--v-space-4); }
-body.vela-admin .card-header {
-  background: var(--v-surface);
-  border-bottom: 1px solid var(--v-border);
-  padding: var(--v-space-4) var(--v-space-5);
-  font-family: var(--v-font-sans);
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--v-fg);
+body.vela-admin .vela-section + .vela-section,
+body.vela-admin .vela-meta-card + .vela-meta-card { margin-top: var(--space-4); }
+
+body.vela-admin .vela-section-head,
+body.vela-admin .panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  margin: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+body.vela-admin .vela-section-head h2,
+body.vela-admin .vela-section-head h3,
+body.vela-admin .panel-title {
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--fg);
+  margin: 0;
   letter-spacing: -0.005em;
 }
-body.vela-admin .card-body { padding: var(--v-space-5); }
-body.vela-admin .card-footer {
-  background: var(--v-bg-muted);
-  border-top: 1px solid var(--v-border);
-  padding: var(--v-space-3) var(--v-space-5);
+body.vela-admin .vela-section-head p { font-size: var(--text-xs); color: var(--fg-subtle); margin-top: 2px; }
+body.vela-admin .vela-section-body,
+body.vela-admin .panel-body { padding: var(--space-5); }
+
+body.vela-admin .vela-meta-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+body.vela-admin .vela-meta-head h3 {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: var(--tracking-caps);
+  color: var(--fg-muted); margin: 0;
+}
+body.vela-admin .vela-meta-head .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--vela-gray-300);
+}
+body.vela-admin .vela-meta-head .dot.on {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(64,182,189,0.18);
+}
+body.vela-admin .vela-meta-body { padding: var(--space-3) var(--space-4); }
+
+body.vela-admin .prop-row,
+body.vela-admin .vela-meta-list {
+  display: grid; grid-template-columns: 80px 1fr;
+  align-items: center; gap: var(--space-3);
+  margin-bottom: 10px;
+}
+body.vela-admin .vela-meta-list {
+  grid-template-columns: 1fr;
+  padding: var(--space-3) var(--space-4);
+  margin: 0;
+  gap: var(--space-3);
+}
+body.vela-admin .prop-row label,
+body.vela-admin .vela-meta-list dt {
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: var(--tracking-caps);
+  color: var(--fg-subtle); margin-bottom: 2px;
+}
+body.vela-admin .vela-meta-list dd { margin: 0 0 var(--space-3); font-size: var(--text-sm); color: var(--fg); line-height: 1.4; }
+body.vela-admin .vela-meta-list dd:last-child { margin-bottom: 0; }
+body.vela-admin .vela-meta-list dd.small-text { font-size: var(--text-xs); color: var(--fg-muted); word-break: break-all; }
+
+body.vela-admin .activity-row,
+body.vela-admin .vela-activity-item {
+  display: flex; align-items: start; gap: 10px;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--fg);
+  transition: background var(--dur-fast);
+}
+body.vela-admin .vela-activity-item:last-child,
+body.vela-admin .activity-row:last-child { border-bottom: none; }
+body.vela-admin .vela-activity-item:hover { background: var(--bg-muted); text-decoration: none; color: var(--fg); }
+body.vela-admin .vela-activity-main { flex: 1; min-width: 0; }
+body.vela-admin .vela-activity-main strong { display: block; font-size: var(--text-sm); line-height: 1.3; color: var(--fg); margin-bottom: 4px; }
+body.vela-admin .vela-activity-main p { margin: 0 0 4px; font-size: var(--text-xs); line-height: 1.4; color: var(--fg); }
+body.vela-admin .vela-activity-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-subtle); line-height: 1.3; }
+body.vela-admin .vela-activity-meta .badge { font-size: 10px; padding: 1px 6px; margin-right: 4px; }
+body.vela-admin .vela-activity-arr { color: var(--fg-subtle); font-family: var(--font-mono); font-size: 14px; flex-shrink: 0; }
+body.vela-admin .vela-activity-item:hover .vela-activity-arr { color: var(--fg-accent); }
+body.vela-admin .vela-activity-empty { margin: 0; padding: var(--space-5); text-align: center; color: var(--fg-subtle); font-size: var(--text-sm); }
+
+/* Mini tabs inside a meta-card */
+body.vela-admin .vela-mini-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+}
+body.vela-admin .vela-mini-tabs button {
+  flex: 1; background: transparent; border: none;
+  padding: var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs); font-weight: var(--weight-semibold);
+  color: var(--fg-muted); cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color var(--dur-fast), border-color var(--dur-fast);
+}
+body.vela-admin .vela-mini-tabs button.is-active { color: var(--fg); border-bottom-color: var(--accent); }
+body.vela-admin .vela-mini-tabs button span {
+  display: inline-block; margin-left: 4px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700;
+  background: var(--accent-muted); color: var(--accent-contrast);
+  padding: 1px 6px; border-radius: var(--r-full);
+}
+body.vela-admin .vela-mini-tab-body { display: none; }
+body.vela-admin .vela-mini-tab-body[data-active] { display: block; }
+
+/* Switch row — nice labelled checkbox */
+body.vela-admin .vela-switch-row {
+  display: flex; align-items: flex-start;
+  gap: var(--space-3); cursor: pointer; margin: 0;
+}
+body.vela-admin .vela-switch-row input[type="checkbox"] { margin-top: 2px; }
+body.vela-admin .vela-switch-label { display: flex; flex-direction: column; gap: 2px; }
+body.vela-admin .vela-switch-label strong { font-size: var(--text-sm); font-weight: var(--weight-medium); color: var(--fg); }
+body.vela-admin .vela-switch-label small { font-size: var(--text-sm); color: var(--fg-muted); }
+
+/* Edit page grid */
+body.vela-admin .vela-edit-page { padding: 0 0 var(--space-8); }
+body.vela-admin .vela-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--space-5);
+  align-items: start;
+}
+body.vela-admin .vela-edit-grid.no-side { grid-template-columns: 1fr; }
+@media (max-width: 1100px) {
+  body.vela-admin .vela-edit-grid { grid-template-columns: 1fr; }
+}
+body.vela-admin .vela-edit-main { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+body.vela-admin .vela-edit-side { display: flex; flex-direction: column; gap: var(--space-4); position: sticky; top: calc(var(--header-h) + var(--space-4)); }
+@media (max-width: 1100px) {
+  body.vela-admin .vela-edit-side { position: static; }
 }
 
-/* ----- BUTTONS ----- */
-body.vela-admin .btn {
-  font-family: var(--v-font-sans);
-  font-size: 0.875rem;
-  font-weight: 500;
-  padding: 0.5rem 0.875rem;
-  border-radius: var(--v-r-sm);
-  border: 1px solid transparent;
-  transition: background var(--v-dur-fast) var(--v-ease-out),
-              border-color var(--v-dur-fast) var(--v-ease-out),
-              box-shadow var(--v-dur-fast) var(--v-ease-out),
-              transform var(--v-dur-fast) var(--v-ease-out);
-  line-height: 1.25;
-}
-body.vela-admin .btn:focus,
-body.vela-admin .btn.focus { outline: none; box-shadow: var(--v-shadow-ring); }
-body.vela-admin .btn:active { transform: translateY(1px); }
-body.vela-admin .btn-sm { font-size: 0.8125rem; padding: 0.375rem 0.625rem; border-radius: var(--v-r-xs); }
-body.vela-admin .btn-lg { font-size: 0.9375rem; padding: 0.625rem 1.125rem; border-radius: var(--v-r-md); }
-
-/* Primary = navy brand */
-body.vela-admin .btn-primary,
-body.vela-admin .btn-info {
-  background: var(--v-brand);
-  border-color: var(--v-brand);
-  color: var(--v-brand-fg);
-}
-body.vela-admin .btn-primary:hover,
-body.vela-admin .btn-info:hover {
-  background: var(--vela-navy-800);
-  border-color: var(--vela-navy-800);
-  color: #fff;
-}
-
-/* Accent / success = teal */
-body.vela-admin .btn-success {
-  background: var(--v-accent);
-  border-color: var(--v-accent);
-  color: #fff;
-}
-body.vela-admin .btn-success:hover {
-  background: var(--v-accent-hover);
-  border-color: var(--v-accent-hover);
-  color: #fff;
-}
-
-/* Danger = semantic red */
-body.vela-admin .btn-danger {
-  background: var(--vela-danger);
-  border-color: var(--vela-danger);
-  color: #fff;
-}
-body.vela-admin .btn-danger:hover { background: #B93931; border-color: #B93931; color: #fff; }
-
-/* Warning = amber */
-body.vela-admin .btn-warning {
-  background: var(--vela-warn);
-  border-color: var(--vela-warn);
-  color: var(--vela-navy-900);
-}
-body.vela-admin .btn-warning:hover { background: #D08E27; border-color: #D08E27; color: var(--vela-navy-900); }
-
-/* Secondary = sand/gray tonal */
-body.vela-admin .btn-secondary,
-body.vela-admin .btn-light {
-  background: var(--v-bg-muted);
-  border-color: var(--v-border);
-  color: var(--v-fg);
-}
-body.vela-admin .btn-secondary:hover,
-body.vela-admin .btn-light:hover {
-  background: var(--vela-gray-100);
-  border-color: var(--v-border-strong);
-  color: var(--v-fg);
-}
-
-/* Outline variants */
-body.vela-admin .btn-outline-primary {
-  background: transparent;
-  border-color: var(--v-brand);
-  color: var(--v-brand);
-}
-body.vela-admin .btn-outline-primary:hover {
-  background: var(--v-brand);
-  border-color: var(--v-brand);
-  color: var(--v-brand-fg);
-}
-
-/* ----- FORMS ----- */
-body.vela-admin .form-control,
-body.vela-admin .custom-select {
-  font-family: var(--v-font-sans);
-  font-size: 0.875rem;
-  padding: 0.5rem 0.75rem;
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-sm);
-  color: var(--v-fg);
-  transition: border-color var(--v-dur-fast) var(--v-ease-out),
-              box-shadow var(--v-dur-fast) var(--v-ease-out);
-}
-body.vela-admin .form-control:focus,
-body.vela-admin .custom-select:focus {
-  border-color: var(--v-accent);
-  box-shadow: var(--v-shadow-ring);
-  outline: none;
-}
-body.vela-admin .form-control::placeholder { color: var(--v-fg-subtle); }
-body.vela-admin label { font-size: 0.8125rem; font-weight: 500; color: var(--v-fg-muted); }
-
-/* ----- BADGES ----- */
-body.vela-admin .badge {
-  font-family: var(--v-font-sans);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 0.25em 0.625em;
-  border-radius: var(--v-r-sm);
-  text-transform: uppercase;
-  line-height: 1.4;
-}
-body.vela-admin .badge-success,
-body.vela-admin .badge-published { background: var(--vela-success-bg); color: var(--vela-success); }
-body.vela-admin .badge-warning,
-body.vela-admin .badge-unlisted { background: var(--vela-warn-bg); color: #A36E13; }
-body.vela-admin .badge-danger { background: var(--vela-danger-bg); color: var(--vela-danger); }
-body.vela-admin .badge-info { background: var(--vela-info-bg); color: var(--vela-info); }
-body.vela-admin .badge-primary,
-body.vela-admin .badge-secondary { background: var(--v-bg-muted); color: var(--v-fg-muted); }
-
-/* ----- ALERTS ----- */
-body.vela-admin .alert {
-  font-family: var(--v-font-sans);
-  font-size: 0.875rem;
-  border-radius: var(--v-r-md);
-  border: 1px solid transparent;
-  padding: var(--v-space-3) var(--v-space-4);
-}
-body.vela-admin .alert-success { background: var(--vela-success-bg); color: #0E7A54; border-color: #C3E6D4; }
-body.vela-admin .alert-danger  { background: var(--vela-danger-bg);  color: #A6342E; border-color: #F1C6C2; }
-body.vela-admin .alert-warning { background: var(--vela-warn-bg);    color: #8A6014; border-color: #F4D9A3; }
-body.vela-admin .alert-info    { background: var(--vela-info-bg);    color: #2458A3; border-color: #C8D7F2; }
-
-/* =====================================================================
-   DATATABLES (jquery.dataTables + buttons + select plug-ins)
-   ===================================================================== */
-
+/* ---------- 7. DataTables polish (legacy jquery-DT) ---------- */
 body.vela-admin .dataTables_wrapper {
-  font-family: var(--v-font-sans);
-  font-size: 0.875rem;
-  color: var(--v-fg);
-  padding: var(--v-space-4);
+  font-family: var(--font-sans); font-size: var(--text-sm);
+  color: var(--fg); padding: var(--space-4);
 }
-
-/* Top toolbar row (show entries + buttons + search) */
 body.vela-admin .dataTables_wrapper .dataTables_length,
 body.vela-admin .dataTables_wrapper .dataTables_filter,
-body.vela-admin .dataTables_wrapper .dt-buttons {
-  margin-bottom: var(--v-space-4);
-}
+body.vela-admin .dataTables_wrapper .dt-buttons { margin-bottom: var(--space-4); }
 body.vela-admin .dataTables_wrapper .dataTables_length label,
 body.vela-admin .dataTables_wrapper .dataTables_filter label {
-  font-size: 0.8125rem;
-  color: var(--v-fg-muted);
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
+  font-size: var(--text-xs); color: var(--fg-muted); font-weight: var(--weight-medium);
+  display: inline-flex; align-items: center; gap: 8px; margin: 0;
 }
 body.vela-admin .dataTables_wrapper .dataTables_filter input {
-  font-family: var(--v-font-sans);
-  font-size: 0.875rem;
-  padding: 0.375rem 0.625rem;
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-sm);
-  color: var(--v-fg);
-  margin-left: 0.5rem;
-  min-width: 240px;
-  transition: border-color var(--v-dur-fast), box-shadow var(--v-dur-fast);
+  font-family: var(--font-sans); font-size: var(--text-sm);
+  padding: 0 var(--space-3); height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--fg); margin-left: 8px; min-width: 240px;
 }
-body.vela-admin .dataTables_wrapper .dataTables_filter input:focus {
-  outline: none;
-  border-color: var(--v-accent);
-  box-shadow: var(--v-shadow-ring);
-}
+body.vela-admin .dataTables_wrapper .dataTables_filter input:focus { outline: none; border-color: var(--accent); box-shadow: var(--shadow-ring); }
 body.vela-admin .dataTables_wrapper .dataTables_length select {
-  font-family: var(--v-font-sans);
-  font-size: 0.875rem;
-  padding: 0.25rem 0.5rem;
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-xs);
-  color: var(--v-fg);
+  height: 32px; padding: 0 var(--space-2);
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-xs);
+  color: var(--fg); font-size: var(--text-xs);
 }
-
-/* DataTables buttons toolbar */
-body.vela-admin .dt-buttons { display: inline-flex; gap: 0.375rem; flex-wrap: wrap; }
+body.vela-admin .dt-buttons { display: inline-flex; gap: 6px; flex-wrap: wrap; }
 body.vela-admin .dt-buttons .btn,
 body.vela-admin .dt-button {
-  background: var(--v-surface);
-  border: 1px solid var(--v-border);
-  color: var(--v-fg);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  padding: 0.375rem 0.75rem;
-  border-radius: var(--v-r-sm);
-  margin: 0;
-  box-shadow: none;
-  line-height: 1.3;
+  background: var(--surface); border: 1px solid var(--border-strong); color: var(--fg);
+  font-size: var(--text-xs); font-weight: var(--weight-semibold);
+  padding: 0 var(--space-3); height: 32px; border-radius: var(--r-sm);
+  margin: 0; box-shadow: none; line-height: 1;
+  display: inline-flex; align-items: center; gap: 6px;
 }
 body.vela-admin .dt-buttons .btn:hover,
-body.vela-admin .dt-button:hover {
-  background: var(--v-bg-muted);
-  border-color: var(--v-border-strong);
-  color: var(--v-fg);
-}
-body.vela-admin .dt-buttons .btn-danger { background: var(--vela-danger-bg); color: var(--vela-danger); border-color: #F1C6C2; }
-body.vela-admin .dt-buttons .btn-danger:hover { background: var(--vela-danger); color: #fff; border-color: var(--vela-danger); }
+body.vela-admin .dt-button:hover { background: var(--bg-muted); border-color: var(--fg-subtle); }
+body.vela-admin .dt-buttons .btn-danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+body.vela-admin .dt-buttons .btn-danger:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-/* Table core */
 body.vela-admin table.dataTable {
-  border-collapse: separate;
-  border-spacing: 0;
-  border: 1px solid var(--v-border);
-  border-radius: var(--v-r-md);
+  border-collapse: separate; border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
   overflow: hidden;
   margin: 0 !important;
   width: 100% !important;
+  background: var(--surface);
 }
 body.vela-admin table.dataTable thead th {
-  background: var(--v-bg-muted);
-  border-bottom: 1px solid var(--v-border);
-  color: var(--v-fg-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0.75rem 0.875rem;
+  background: var(--bg-muted);
+  border: none !important; border-bottom: 1px solid var(--border) !important;
+  color: var(--fg-muted);
+  font-size: var(--text-xs); font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps); text-transform: uppercase;
+  padding: var(--space-3) var(--space-4);
   white-space: nowrap;
 }
-body.vela-admin table.dataTable.table-bordered thead th,
 body.vela-admin table.dataTable tbody td {
-  border-color: var(--v-border-subtle) !important;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--fg); vertical-align: middle;
+  border: none !important; border-top: 1px solid var(--border-subtle) !important;
+  background: var(--surface);
 }
-body.vela-admin table.dataTable tbody td {
-  padding: 0.75rem 0.875rem;
-  font-size: 0.875rem;
-  color: var(--v-fg);
-  vertical-align: middle;
-  border-top: 1px solid var(--v-border-subtle);
-  background: var(--v-surface);
+body.vela-admin table.dataTable tbody tr:hover td { background: var(--bg-muted) !important; }
+body.vela-admin table.dataTable tbody tr.selected td {
+  background: var(--accent-muted) !important;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
-body.vela-admin table.dataTable.table-striped tbody tr:nth-of-type(odd) td {
-  background: var(--vela-sand-50);
-}
-body.vela-admin table.dataTable tbody tr:hover td {
-  background: var(--vela-teal-50) !important;
-}
-
-/* Sort indicators */
 body.vela-admin table.dataTable thead .sorting,
 body.vela-admin table.dataTable thead .sorting_asc,
 body.vela-admin table.dataTable thead .sorting_desc {
-  background-image: none !important;
-  cursor: pointer;
-  padding-right: 1.5rem !important;
-  position: relative;
+  background-image: none !important; cursor: pointer;
+  padding-right: 1.25rem !important; position: relative;
 }
 body.vela-admin table.dataTable thead .sorting::after,
 body.vela-admin table.dataTable thead .sorting_asc::after,
 body.vela-admin table.dataTable thead .sorting_desc::after {
-  content: '';
-  position: absolute;
-  right: 0.625rem;
-  top: 50%;
-  width: 8px; height: 8px;
-  border-right: 2px solid var(--v-fg-subtle);
-  border-bottom: 2px solid var(--v-fg-subtle);
+  content: ''; position: absolute;
+  right: 10px; top: 50%;
+  width: 6px; height: 6px;
+  border-right: 2px solid var(--fg-subtle); border-bottom: 2px solid var(--fg-subtle);
   transform: translateY(-75%) rotate(45deg);
   opacity: 0.5;
-  transition: opacity var(--v-dur-fast), border-color var(--v-dur-fast), transform var(--v-dur-fast);
+  transition: opacity var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast);
 }
-body.vela-admin table.dataTable thead .sorting_asc::after { transform: translateY(-25%) rotate(-135deg); opacity: 1; border-color: var(--v-accent); }
-body.vela-admin table.dataTable thead .sorting_desc::after { transform: translateY(-75%) rotate(45deg); opacity: 1; border-color: var(--v-accent); }
+body.vela-admin table.dataTable thead .sorting_asc::after { transform: translateY(-25%) rotate(-135deg); opacity: 1; border-color: var(--accent); }
+body.vela-admin table.dataTable thead .sorting_desc::after { opacity: 1; border-color: var(--accent); }
 
-/* Selected rows (DataTables Select plugin) */
-body.vela-admin table.dataTable tbody tr.selected td {
-  background: var(--vela-teal-50) !important;
-  box-shadow: inset 3px 0 0 var(--v-accent);
-}
-
-/* Row action buttons (View/Edit/Delete in last column) */
-body.vela-admin table.dataTable tbody td .btn + .btn { margin-left: 0.25rem; }
-
-/* Pagination */
 body.vela-admin .dataTables_paginate {
-  margin-top: var(--v-space-4);
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.25rem;
+  margin-top: var(--space-4);
+  display: flex; justify-content: flex-end;
+  gap: 4px;
 }
 body.vela-admin .dataTables_paginate .paginate_button {
-  padding: 0.375rem 0.75rem !important;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--v-fg-muted) !important;
+  padding: 0 var(--space-3) !important;
+  height: 32px;
+  display: inline-flex; align-items: center;
+  font-size: var(--text-xs); font-weight: var(--weight-semibold);
+  color: var(--fg-muted) !important;
   background: transparent !important;
   border: 1px solid transparent !important;
-  border-radius: var(--v-r-sm);
-  margin: 0 !important;
-  cursor: pointer;
-  transition: background var(--v-dur-fast), color var(--v-dur-fast);
+  border-radius: var(--r-sm);
+  margin: 0 !important; cursor: pointer;
 }
 body.vela-admin .dataTables_paginate .paginate_button:hover {
-  background: var(--v-bg-muted) !important;
-  color: var(--v-fg) !important;
-  border-color: var(--v-border) !important;
+  background: var(--bg-muted) !important;
+  color: var(--fg) !important;
+  border-color: var(--border) !important;
 }
 body.vela-admin .dataTables_paginate .paginate_button.current,
 body.vela-admin .dataTables_paginate .paginate_button.current:hover {
-  background: var(--v-brand) !important;
-  color: var(--v-brand-fg) !important;
-  border-color: var(--v-brand) !important;
+  background: var(--brand) !important;
+  color: var(--brand-fg) !important;
+  border-color: var(--brand) !important;
 }
 body.vela-admin .dataTables_paginate .paginate_button.disabled,
 body.vela-admin .dataTables_paginate .paginate_button.disabled:hover {
@@ -1266,267 +1185,332 @@ body.vela-admin .dataTables_paginate .paginate_button.disabled:hover {
   border-color: transparent !important;
   cursor: not-allowed;
 }
-
-/* "Showing 1 to N" info */
 body.vela-admin .dataTables_info {
-  font-size: 0.8125rem;
-  color: var(--v-fg-muted);
-  padding-top: var(--v-space-3);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  padding-top: var(--space-3);
 }
 
-/* Checkbox column (DataTables Select plug-in uses its own rendering) */
-body.vela-admin table.dataTable tbody td.select-checkbox::before {
-  border: 2px solid var(--v-border-strong) !important;
-  border-radius: var(--v-r-xs) !important;
-  width: 16px !important; height: 16px !important;
-  margin-top: -8px !important; margin-left: -8px !important;
+/* ---------- 8. Select2 polish ---------- */
+body.vela-admin .select2-container--default .select2-selection--multiple,
+body.vela-admin .select2-container--default .select2-selection--single {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  min-height: 40px;
+  padding: 2px 6px;
 }
-body.vela-admin table.dataTable tbody tr.selected td.select-checkbox::before {
-  background: var(--v-accent) !important;
-  border-color: var(--v-accent) !important;
+body.vela-admin .select2-container--default.select2-container--focus .select2-selection--multiple,
+body.vela-admin .select2-container--default.select2-container--focus .select2-selection--single {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-ring);
 }
-body.vela-admin table.dataTable tbody tr.selected td.select-checkbox::after {
-  color: #fff !important;
-  text-shadow: none !important;
-  margin-top: -6px !important;
-  margin-left: -4px !important;
-}
-
-/* Card wrapping a datatable — drop card-body padding so the wrapper's own padding takes over */
-body.vela-admin .card-body > .dataTables_wrapper { padding: 0; margin: calc(-1 * var(--v-space-5)); padding: var(--v-space-4); }
-
-/* =====================================================================
-   EDIT-PAGE LAYOUT — used by users/edit.blade.php, will scale to other
-   resources. Page head + 2-col grid (sectioned form + meta sidebar).
-   Design-system typography; proper breathing room; no flat-file feel.
-   ===================================================================== */
-
-body.vela-admin .vela-edit-page { padding: 0 0 var(--v-space-8); }
-
-/* --- Page head ----- */
-body.vela-admin .vela-page-head {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    gap: var(--v-space-5); flex-wrap: wrap;
-    padding: var(--v-space-6) 0 var(--v-space-5);
-    border-bottom: 1px solid var(--v-border);
-    margin-bottom: var(--v-space-6);
-}
-body.vela-admin .vela-page-head-left { display: flex; flex-direction: column; gap: var(--v-space-3); min-width: 0; }
-body.vela-admin .vela-breadcrumb {
-    font-family: var(--v-font-mono); font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.08em;
-    color: var(--v-fg-subtle); font-weight: 600;
-}
-body.vela-admin .vela-breadcrumb a { color: var(--v-fg-accent); text-decoration: none; }
-body.vela-admin .vela-breadcrumb .sep { margin: 0 6px; color: var(--v-border-strong); }
-body.vela-admin .vela-breadcrumb .cur { color: var(--v-fg); }
-
-body.vela-admin .vela-page-title-row { display: flex; align-items: center; gap: var(--v-space-4); min-width: 0; }
-body.vela-admin .vela-page-avatar,
-body.vela-admin .vela-page-avatar-fallback {
-    width: 56px; height: 56px; border-radius: var(--v-r-full);
-    object-fit: cover; flex-shrink: 0;
-    box-shadow: var(--v-shadow-sm);
-}
-body.vela-admin .vela-page-avatar-fallback {
-    background: linear-gradient(135deg, var(--vela-teal-400), var(--vela-teal-600));
-    color: #fff; font-family: var(--v-font-display); font-size: 22px; font-weight: 600;
-    display: grid; place-items: center;
-}
-body.vela-admin .vela-page-title-row h1 {
-    font-family: var(--v-font-display); font-weight: 500;
-    font-size: 28px; line-height: 1.1;
-    letter-spacing: -0.015em;
-    margin: 0 0 2px;
-    color: var(--v-fg);
-}
-body.vela-admin .vela-page-sub { margin: 0; color: var(--v-fg-muted); font-size: 14px; }
-
-body.vela-admin .vela-page-actions { display: flex; gap: var(--v-space-2); align-items: center; flex-shrink: 0; }
-
-/* --- Grid ----- */
-body.vela-admin .vela-edit-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: var(--v-space-5);
-    align-items: start;
-}
-@media (max-width: 1100px) {
-    body.vela-admin .vela-edit-grid { grid-template-columns: 1fr; }
+body.vela-admin .select2-container--default .select2-selection__choice {
+  background: var(--bg-muted) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r-xs) !important;
+  color: var(--fg) !important;
+  padding: 2px 8px !important;
+  font-size: var(--text-xs) !important;
+  font-weight: var(--weight-medium);
 }
 
-body.vela-admin .vela-edit-main { display: flex; flex-direction: column; gap: var(--v-space-4); min-width: 0; }
-body.vela-admin .vela-edit-side { display: flex; flex-direction: column; gap: var(--v-space-4); position: sticky; top: calc(var(--v-space-4) + 56px); }
-@media (max-width: 1100px) {
-    body.vela-admin .vela-edit-side { position: static; }
+/* ---------- 9. Dropzone polish ---------- */
+body.vela-admin .dropzone {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  padding: var(--space-5);
+  min-height: 120px;
+  color: var(--fg-muted);
+}
+body.vela-admin .dropzone:hover { border-color: var(--accent); background: var(--accent-muted); }
+
+/* ---------- 10. Bootstrap grid helpers still used ---------- */
+body.vela-admin .row { display: flex; flex-wrap: wrap; margin-left: -12px; margin-right: -12px; }
+body.vela-admin .row > [class*="col-"] { padding-left: 12px; padding-right: 12px; }
+
+/* ---------- 11. Mobile: sidebar off-canvas ---------- */
+@media (max-width: 991px) {
+  body.vela-admin .vela-sidebar,
+  body.vela-admin .app-sidebar {
+    transform: translateX(-100%);
+    transition: transform var(--dur-normal) var(--ease-out);
+  }
+  body.vela-admin .vela-sidebar.is-open,
+  body.vela-admin .app-sidebar.is-open { transform: translateX(0); }
+  body.vela-admin .vela-sidebar-toggle { display: inline-flex; }
+  body.vela-admin .vela-main-wrapper,
+  body.vela-admin .app-main { margin-left: 0 !important; }
 }
 
-/* --- Section card ----- */
-body.vela-admin .vela-section {
-    background: var(--v-surface);
-    border: 1px solid var(--v-border);
-    border-radius: var(--v-r-md);
-    box-shadow: var(--v-shadow-xs);
-    overflow: hidden;
-}
-body.vela-admin .vela-section-head {
-    padding: var(--v-space-4) var(--v-space-5) var(--v-space-3);
-    border-bottom: 1px solid var(--v-border-subtle);
-    background: linear-gradient(180deg, var(--v-bg-muted) 0%, var(--v-surface) 100%);
-}
-body.vela-admin .vela-section-head h2 {
-    font-family: var(--v-font-display); font-weight: 500;
-    font-size: 18px; line-height: 1.2;
-    letter-spacing: -0.01em;
-    margin: 0 0 4px;
-    color: var(--v-fg);
-}
-body.vela-admin .vela-section-head p {
-    font-size: 13px; color: var(--v-fg-muted);
-    margin: 0;
-}
-body.vela-admin .vela-section-body { padding: var(--v-space-5); }
-body.vela-admin .vela-section-body .form-row:last-child,
-body.vela-admin .vela-section-body .form-group:last-child { margin-bottom: 0; }
+/* ---------- 12. CoreUI overrides (legacy) ---------- */
+body.vela-admin .c-sidebar { display: none; }
+body.vela-admin .c-wrapper { margin-left: 0; padding-left: 0; }
+body.vela-admin .c-header { display: none; }
+body.vela-admin .c-body { margin: 0; }
+body.vela-admin .c-main { padding: 0; }
 
-/* --- Meta sidebar cards ----- */
-body.vela-admin .vela-meta-card {
-    background: var(--v-surface);
-    border: 1px solid var(--v-border);
-    border-radius: var(--v-r-md);
-    box-shadow: var(--v-shadow-xs);
-    overflow: hidden;
-}
-body.vela-admin .vela-meta-head {
-    padding: var(--v-space-3) var(--v-space-4);
-    display: flex; justify-content: space-between; align-items: center;
-    border-bottom: 1px solid var(--v-border-subtle);
-    background: var(--v-bg-muted);
-}
-body.vela-admin .vela-meta-head h3 {
-    font-family: var(--v-font-mono); font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;
-    color: var(--v-fg-muted);
-    margin: 0;
-}
-body.vela-admin .vela-meta-head .dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--vela-gray-300);
-}
-body.vela-admin .vela-meta-head .dot.on { background: var(--v-accent); box-shadow: 0 0 0 3px rgba(64,182,189,0.18); }
+/* ---------- 13. Helpers ---------- */
+body.vela-admin .text-muted { color: var(--fg-muted) !important; }
+body.vela-admin .text-subtle { color: var(--fg-subtle) !important; }
+body.vela-admin .mt-3 { margin-top: var(--space-3) !important; }
+body.vela-admin .mt-4 { margin-top: var(--space-4) !important; }
+body.vela-admin .mt-5 { margin-top: var(--space-5) !important; }
+body.vela-admin .mb-0 { margin-bottom: 0 !important; }
+body.vela-admin .mb-1 { margin-bottom: var(--space-1) !important; }
+body.vela-admin .mb-2 { margin-bottom: var(--space-2) !important; }
+body.vela-admin .mb-3 { margin-bottom: var(--space-3) !important; }
+body.vela-admin .mb-4 { margin-bottom: var(--space-4) !important; }
 
-body.vela-admin .vela-meta-body { padding: var(--v-space-3) var(--v-space-4); }
-body.vela-admin .vela-meta-body .vela-switch-row { padding: 0; }
+/* Legacy helpers to make old admin pages usable while migrating */
+body.vela-admin .sticky-panel { position: sticky; top: calc(var(--header-h) + var(--space-4)); }
+body.vela-admin .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-xs); margin-bottom: var(--space-4); overflow: hidden; }
+body.vela-admin .section-header { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle); font-weight: var(--weight-semibold); font-size: var(--text-sm); display: flex; align-items: center; gap: 8px; }
+body.vela-admin .section-body { padding: var(--space-5); }
+body.vela-admin .form-section-title { font-size: var(--text-xs); font-weight: var(--weight-semibold); color: var(--fg-muted); text-transform: uppercase; letter-spacing: var(--tracking-caps); margin-bottom: var(--space-3); }
+body.vela-admin .title-input { font-family: var(--font-display); font-style: italic; font-size: var(--text-xl); font-weight: 500; border: none; padding: 8px 0; background: transparent; }
+body.vela-admin .publish-btn { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+body.vela-admin .publish-btn:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
 
-body.vela-admin .vela-meta-list {
-    margin: 0; padding: var(--v-space-3) var(--v-space-4);
-    display: grid; grid-template-columns: 1fr; gap: var(--v-space-3);
-    font-size: 13px;
-}
-body.vela-admin .vela-meta-list dt {
-    font-family: var(--v-font-mono); font-size: 10px;
-    text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--v-fg-subtle); font-weight: 600;
-    margin: 0 0 2px;
-}
-body.vela-admin .vela-meta-list dd {
-    margin: 0 0 var(--v-space-3);
-    color: var(--v-fg);
-    line-height: 1.4;
-}
-body.vela-admin .vela-meta-list dd:last-child { margin-bottom: 0; }
-body.vela-admin .vela-meta-list dd code {
-    font-family: var(--v-font-mono); font-size: 12px;
-    background: var(--v-bg-muted); padding: 1px 6px; border-radius: var(--v-r-xs);
-    color: var(--v-fg-accent);
-}
-body.vela-admin .vela-meta-list dd.small-text {
-    font-size: 11px; color: var(--v-fg-muted);
-    word-break: break-all; line-height: 1.4;
-}
+/* ---------- 14. Legacy vela-* class aliases (layout, menu, command palette) ---------- */
 
-/* --- Mini tabs inside a meta card ----- */
-body.vela-admin .vela-mini-tabs {
-    display: flex; gap: 0;
-    border-bottom: 1px solid var(--v-border-subtle);
-    background: var(--v-bg-muted);
+/* vela-btn family → aliases onto .btn tokens so the topbar + plugin buttons match */
+body.vela-admin .vela-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: 0 var(--space-4);
+  height: 40px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+  text-decoration: none;
+  background: transparent;
+  color: var(--fg);
 }
-body.vela-admin .vela-mini-tabs button {
-    flex: 1;
-    background: transparent; border: none;
-    padding: var(--v-space-3) var(--v-space-3);
-    font-family: var(--v-font-sans); font-size: 12px; font-weight: 600;
-    color: var(--v-fg-muted); cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: color var(--v-dur-fast), border-color var(--v-dur-fast);
+body.vela-admin .vela-btn:active { transform: translateY(1px); }
+body.vela-admin .vela-btn:focus,
+body.vela-admin .vela-btn:focus-visible { outline: none; box-shadow: var(--shadow-ring); }
+body.vela-admin .vela-btn-accent {
+  background: linear-gradient(180deg, var(--vela-teal-400) 0%, var(--vela-teal-500) 100%);
+  color: #03333A;
+  border-color: var(--vela-teal-500);
 }
-body.vela-admin .vela-mini-tabs button:hover { color: var(--v-fg); }
-body.vela-admin .vela-mini-tabs button.is-active { color: var(--v-fg); border-bottom-color: var(--v-accent); background: var(--v-surface); }
-body.vela-admin .vela-mini-tabs button span {
-    display: inline-block; margin-left: 4px;
-    font-family: var(--v-font-mono); font-size: 10px; font-weight: 700;
-    background: rgba(64,182,189,0.14); color: var(--v-fg-accent);
-    padding: 1px 6px; border-radius: var(--v-r-full);
+body.vela-admin .vela-btn-accent:hover { filter: brightness(1.05); color: #03333A; }
+body.vela-admin .vela-btn-secondary {
+  background: var(--surface);
+  color: var(--fg);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-xs);
 }
+body.vela-admin .vela-btn-secondary:hover { background: var(--bg-muted); color: var(--fg); }
+body.vela-admin .vela-btn-ghost { color: var(--fg); background: transparent; }
+body.vela-admin .vela-btn-ghost:hover { background: var(--bg-muted); color: var(--fg); }
+body.vela-admin .vela-btn-sm { height: 32px; font-size: var(--text-xs); padding: 0 var(--space-3); border-radius: var(--r-sm); }
+body.vela-admin .vela-btn-icon { width: 40px; padding: 0; }
+body.vela-admin .vela-btn-icon.vela-btn-sm { width: 32px; }
 
-body.vela-admin .vela-mini-tab-body { display: none; padding: 0; }
-body.vela-admin .vela-mini-tab-body[data-active] { display: block; }
+/* Topbar search bar */
+body.vela-admin .vela-search-bar {
+  flex: 1;
+  max-width: 420px;
+  position: relative;
+}
+body.vela-admin .vela-search-bar input {
+  width: 100%;
+  height: 34px;
+  padding: 0 12px 0 34px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-strong);
+  font-size: var(--text-sm);
+  background: var(--bg-muted);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+body.vela-admin .vela-search-bar input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--shadow-ring);
+}
+body.vela-admin .vela-search-bar .search-ico {
+  position: absolute; left: 11px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-subtle); font-size: 14px;
+}
+body.vela-admin .vela-search-bar .kbd-hint {
+  position: absolute; right: 6px; top: 50%;
+  transform: translateY(-50%);
+}
+body.vela-admin .vela-kbd {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  color: var(--fg-muted);
+}
+body.vela-admin .vela-flag { font-size: 16px; line-height: 1; }
 
-body.vela-admin .vela-activity-item {
-    display: flex; justify-content: space-between; align-items: center;
-    gap: var(--v-space-3);
-    padding: var(--v-space-3) var(--v-space-4);
-    color: var(--v-fg);
-    border-bottom: 1px solid var(--v-border-subtle);
-    transition: background var(--v-dur-fast);
+/* Avatars used in menu + topbar */
+body.vela-admin .vela-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--accent-muted);
+  color: var(--accent-contrast);
+  font-weight: 600;
+  font-size: var(--text-xs);
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
 }
-body.vela-admin .vela-activity-item:last-child { border-bottom: none; }
-body.vela-admin .vela-activity-item:hover { background: var(--v-bg-muted); text-decoration: none; color: var(--v-fg); }
-body.vela-admin .vela-activity-main { min-width: 0; flex: 1; }
-body.vela-admin .vela-activity-main strong { display: block; font-size: 13px; line-height: 1.3; color: var(--v-fg); margin-bottom: 4px; }
-body.vela-admin .vela-activity-main p { margin: 0 0 4px; font-size: 12px; line-height: 1.4; color: var(--v-fg); }
-body.vela-admin .vela-activity-meta {
-    font-family: var(--v-font-mono); font-size: 11px;
-    color: var(--v-fg-subtle); line-height: 1.3;
-}
-body.vela-admin .vela-activity-meta .badge { font-size: 9px; padding: 2px 6px; margin-right: 4px; }
-body.vela-admin .vela-activity-arr { color: var(--v-fg-subtle); font-family: var(--v-font-mono); font-size: 14px; flex-shrink: 0; }
-body.vela-admin .vela-activity-item:hover .vela-activity-arr { color: var(--v-fg-accent); }
-body.vela-admin .vela-activity-empty {
-    margin: 0; padding: var(--v-space-4); text-align: center;
-    color: var(--v-fg-subtle); font-size: 13px;
-}
+body.vela-admin .vela-avatar img { width: 100%; height: 100%; object-fit: cover; }
+body.vela-admin .vela-avatar-sm { width: 24px; height: 24px; font-size: 10px; }
 
-/* --- Switch-row: nice labelled checkbox ----- */
-body.vela-admin .vela-switch-row {
-    display: flex; align-items: start; gap: var(--v-space-3);
-    cursor: pointer; margin: 0;
+/* Sidebar nested nav + user chip at bottom of sidebar */
+body.vela-admin .vela-sidebar-dropdown-items {
+  list-style: none;
+  padding: 0 0 0 26px;
+  margin: 0;
 }
-body.vela-admin .vela-switch-row input[type="checkbox"] {
-    width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0;
-    accent-color: var(--v-accent);
+body.vela-admin .vela-sidebar-dropdown-items .vela-sidebar-link {
+  font-size: var(--text-xs);
+  padding: 5px 12px;
 }
-body.vela-admin .vela-switch-label { display: flex; flex-direction: column; gap: 2px; }
-body.vela-admin .vela-switch-label strong { font-size: 14px; font-weight: 500; color: var(--v-fg); }
-body.vela-admin .vela-switch-label small { font-size: 13px; color: var(--v-fg-muted); }
+body.vela-admin .vela-sidebar-user {
+  position: relative;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  font-size: var(--text-sm);
+}
+body.vela-admin .vela-sidebar-user > summary,
+body.vela-admin .vela-sidebar-user-trigger {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px;
+  display: flex; align-items: center; gap: 10px;
+  transition: background var(--dur-fast) var(--ease-out);
+  background: transparent; border: none; width: 100%; color: inherit; text-align: left;
+}
+body.vela-admin .vela-sidebar-user > summary::-webkit-details-marker { display: none; }
+body.vela-admin .vela-sidebar-user > summary:hover,
+body.vela-admin .vela-sidebar-user-trigger:hover { background: rgba(255,255,255,0.04); }
+body.vela-admin .vela-sidebar-user .name { color: #fff; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.vela-admin .vela-sidebar-user .plan { font-size: 11px; color: var(--vela-teal-300); }
+body.vela-admin .vela-sidebar-user-chevron { font-size: 11px; color: rgba(255,255,255,0.5); transition: transform var(--dur-base) var(--ease-out); margin-left: auto; }
+body.vela-admin .vela-sidebar-user[open] .vela-sidebar-user-chevron { transform: rotate(180deg); }
+body.vela-admin .vela-sidebar-user-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px; right: 12px;
+  background: var(--vela-navy-800);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--r-md);
+  padding: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  z-index: 200;
+}
+body.vela-admin .vela-sidebar-user-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+body.vela-admin .vela-sidebar-user-item:hover { background: rgba(255,255,255,0.06); color: #fff; text-decoration: none; }
+body.vela-admin .vela-sidebar-user-item i { width: 14px; opacity: 0.7; }
+body.vela-admin .vela-sidebar-user-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 6px 0; }
 
-/* --- Make select2 match the form theme in vela-edit context ----- */
-body.vela-admin .vela-section-body .select2-container--default .select2-selection--multiple {
-    background: var(--v-surface);
-    border: 1px solid var(--v-border);
-    border-radius: var(--v-r-sm);
-    min-height: 38px;
-    padding: 2px 6px;
+/* Bootstrap dropdown polish inside topbar */
+body.vela-admin .vela-dropdown-styled {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 6px;
+  box-shadow: var(--shadow-md);
+  min-width: 200px;
 }
-body.vela-admin .vela-section-body .select2-container--default.select2-container--focus .select2-selection--multiple {
-    border-color: var(--v-accent);
-    box-shadow: var(--v-shadow-ring);
+body.vela-admin .vela-dropdown-styled .dropdown-header {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: var(--tracking-caps);
+  color: var(--fg-subtle);
+  padding: 8px 10px 4px; margin: 0;
 }
-body.vela-admin .vela-section-body .select2-selection__choice {
-    background: var(--v-bg-muted) !important;
-    border: 1px solid var(--v-border) !important;
-    border-radius: var(--v-r-xs) !important;
-    color: var(--v-fg) !important;
-    padding: 2px 8px !important;
-    font-size: 13px !important;
+body.vela-admin .vela-dropdown-styled .dropdown-item {
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--text-sm);
+  color: var(--fg);
+  display: flex; align-items: center; gap: 8px;
+  background: transparent; border: none; width: 100%; text-align: left;
 }
+body.vela-admin .vela-dropdown-styled .dropdown-item:hover { background: var(--bg-muted); color: var(--fg); }
+body.vela-admin .vela-dropdown-styled .dropdown-item.active { background: var(--accent-muted); color: var(--accent-contrast); }
+body.vela-admin .vela-dropdown-styled .dropdown-divider { margin: 4px 0; border-top-color: var(--border-subtle); }
+body.vela-admin .vela-dropdown-item-danger { color: var(--danger) !important; }
+body.vela-admin .vela-dropdown-item-danger:hover { background: var(--danger-bg) !important; color: var(--danger) !important; }
+
+/* Command palette */
+body.vela-admin .vela-cmd-overlay {
+  position: fixed; inset: 0;
+  background: rgba(10,16,32,0.5);
+  z-index: 2000;
+  display: none; place-items: center;
+  padding: 80px 40px;
+}
+body.vela-admin .vela-cmd-overlay.is-open { display: grid; }
+body.vela-admin .vela-cmd-palette {
+  width: 100%; max-width: 560px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+body.vela-admin .vela-cmd-input {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; gap: 12px;
+}
+body.vela-admin .vela-cmd-input input {
+  flex: 1; border: none; outline: none;
+  font-size: 1rem; background: transparent; color: var(--fg);
+  font-family: var(--font-sans);
+}
+body.vela-admin .vela-cmd-results {
+  max-height: 340px; overflow-y: auto;
+  padding: 8px;
+}
+body.vela-admin .vela-cmd-section-label {
+  padding: 10px 12px 4px;
+  font-size: 10px; font-weight: 600;
+  color: var(--fg-subtle);
+  text-transform: uppercase; letter-spacing: var(--tracking-caps);
+}
+body.vela-admin .vela-cmd-item {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; padding: 9px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer; font-size: var(--text-sm);
+  transition: background var(--dur-fast) var(--ease-out);
+  color: var(--fg); text-decoration: none;
+}
+body.vela-admin .vela-cmd-item:hover { background: var(--bg-muted); color: var(--fg); }
+body.vela-admin .vela-cmd-item.is-active { background: var(--accent-muted); color: var(--accent-contrast); }
+body.vela-admin .vela-cmd-item .lead { display: flex; align-items: center; gap: 10px; }
+body.vela-admin .vela-cmd-item .ico {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  background: var(--bg-muted);
+  display: grid; place-items: center;
+  color: var(--fg-muted);
+  font-size: 12px;
+}
+body.vela-admin .vela-cmd-item.is-active .ico { background: var(--accent); color: #fff; }
+body.vela-admin .vela-cmd-ai-label { color: var(--fg-subtle); font-size: var(--text-xs); padding: 0 12px 8px; }

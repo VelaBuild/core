@@ -16,12 +16,29 @@ class AiSettingsService
         'gemini_api_key',
         'chat_provider',
         'image_provider',
+        'vela_gateway_url',
+        'vela_gateway_site',
+        'vela_gateway_secret',
+        'vela_gateway_model',
     ];
 
     private const ENCRYPTED_KEYS = [
         'openai_api_key',
         'anthropic_api_key',
         'gemini_api_key',
+        'vela_gateway_secret',
+    ];
+
+    private const ENV_MAP = [
+        'openai_api_key'      => 'OPENAI_API_KEY',
+        'anthropic_api_key'   => 'ANTHROPIC_API_KEY',
+        'gemini_api_key'      => 'GEMINI_API_KEY',
+        'chat_provider'       => 'AI_TEXT_PROVIDER',
+        'image_provider'      => 'AI_IMAGE_PROVIDER',
+        'vela_gateway_url'    => 'VELA_GATEWAY_URL',
+        'vela_gateway_site'   => 'VELA_GATEWAY_SITE',
+        'vela_gateway_secret' => 'VELA_GATEWAY_SECRET',
+        'vela_gateway_model'  => 'VELA_GATEWAY_MODEL',
     ];
 
     /**
@@ -29,14 +46,7 @@ class AiSettingsService
      */
     public function get(string $key, $default = null)
     {
-        // Map setting keys to env vars
-        $envMap = [
-            'openai_api_key' => 'OPENAI_API_KEY',
-            'anthropic_api_key' => 'ANTHROPIC_API_KEY',
-            'gemini_api_key' => 'GEMINI_API_KEY',
-            'chat_provider' => 'AI_TEXT_PROVIDER',
-            'image_provider' => 'AI_IMAGE_PROVIDER',
-        ];
+        $envMap = self::ENV_MAP;
 
         // Env always wins
         if (isset($envMap[$key])) {
@@ -89,24 +99,17 @@ class AiSettingsService
      */
     public function isEnvLocked(string $key): bool
     {
-        $envMap = [
-            'openai_api_key' => 'OPENAI_API_KEY',
-            'anthropic_api_key' => 'ANTHROPIC_API_KEY',
-            'gemini_api_key' => 'GEMINI_API_KEY',
-            'chat_provider' => 'AI_TEXT_PROVIDER',
-            'image_provider' => 'AI_IMAGE_PROVIDER',
-        ];
-
-        if (!isset($envMap[$key])) {
+        if (!isset(self::ENV_MAP[$key])) {
             return false;
         }
 
-        $val = env($envMap[$key]);
+        $val = env(self::ENV_MAP[$key]);
         return $val !== null && $val !== '';
     }
 
     /**
      * Get the API key for a specific provider (env or DB).
+     * For 'vela_gateway', "has api key" means all three (url/site/secret) are present.
      */
     public function getApiKey(string $provider): ?string
     {
@@ -114,16 +117,32 @@ class AiSettingsService
             'openai' => 'openai_api_key',
             'anthropic' => 'anthropic_api_key',
             'gemini' => 'gemini_api_key',
+            'vela_gateway' => 'vela_gateway_secret',
         ];
 
         return isset($keyMap[$provider]) ? $this->get($keyMap[$provider]) : null;
     }
 
     /**
+     * True when all three pieces (url, site slug, secret) needed to call the gateway are set.
+     */
+    public function isGatewayConfigured(): bool
+    {
+        return (string) $this->get('vela_gateway_url', '')    !== ''
+            && (string) $this->get('vela_gateway_site', '')   !== ''
+            && (string) $this->get('vela_gateway_secret', '') !== '';
+    }
+
+    /**
      * Check if an API key is configured for a provider.
+     * For 'vela_gateway', all three config pieces must be present.
      */
     public function hasApiKey(string $provider): bool
     {
+        if ($provider === 'vela_gateway') {
+            return $this->isGatewayConfigured();
+        }
+
         $key = $this->getApiKey($provider);
         return $key !== null && $key !== '';
     }

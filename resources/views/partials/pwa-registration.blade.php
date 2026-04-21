@@ -1,7 +1,10 @@
 <script>
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' });
+        // Use Blade to emit the APP_URL-respecting path so subdirectory
+        // installs (e.g. /vela/site/public/) register at the correct
+        // scope instead of failing with 404 at the origin root.
+        navigator.serviceWorker.register('{{ url('/sw.js') }}', { scope: '{{ url('/') }}/' });
     });
 
     // Handle install prompt

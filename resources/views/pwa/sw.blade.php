@@ -1,12 +1,15 @@
 // Service Worker v{{ $version }}
 const CACHE_NAME = 'vela-cache-v{{ $version }}';
-const OFFLINE_URL = '/offline';
+// Scope base derived from registration.scope at runtime so the SW
+// survives subdirectory installs. e.g. http://host/site/public/
+const SCOPE = new URL(self.registration.scope).pathname.replace(/\/$/, '');
+const OFFLINE_URL = SCOPE + '/offline';
 
 const PRECACHE_URLS = [
     OFFLINE_URL,
 @if($precacheUrls)
 @foreach(explode(',', $precacheUrls) as $url)
-    '{{ trim($url) }}',
+    SCOPE + '{{ '/' . ltrim(trim($url), '/') }}',
 @endforeach
 @endif
 ];
@@ -40,9 +43,11 @@ self.addEventListener('fetch', event => {
     if (request.method !== 'GET') return;
     if (!request.url.startsWith('http')) return;
 
-    // Skip admin, auth, and API routes
+    // Skip admin, auth, and API routes. Match against the scope-relative
+    // path so subdirectory installs work.
     const url = new URL(request.url);
-    if (url.pathname.startsWith('/admin') || url.pathname.startsWith('/vela') || url.pathname.startsWith('/api')) return;
+    const path = url.pathname.startsWith(SCOPE) ? url.pathname.slice(SCOPE.length) : url.pathname;
+    if (path.startsWith('/admin') || path.startsWith('/vela') || path.startsWith('/api')) return;
 
     // Don't cache the manifest
     if (url.pathname.endsWith('/manifest.json')) return;

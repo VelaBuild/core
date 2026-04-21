@@ -8,6 +8,7 @@ use VelaBuild\Core\Contracts\AiImageProvider;
 class AiProviderManager
 {
     private array $textProviderMap = [
+        'vela_gateway' => VelaGatewayTextService::class,
         'openai' => OpenAiTextService::class,
         'anthropic' => ClaudeTextService::class,
         'gemini' => GeminiTextService::class,
@@ -23,8 +24,24 @@ class AiProviderManager
         return app(AiSettingsService::class);
     }
 
+    /**
+     * True when the Vela AI Gateway is configured via env. In this mode, the
+     * gateway is the ONLY available text provider — hosted sites cannot fall
+     * back to direct provider keys.
+     */
+    private function gatewayLocked(): bool
+    {
+        return $this->settings()->isGatewayConfigured()
+            && $this->settings()->isEnvLocked('vela_gateway_url');
+    }
+
     public function resolveTextProvider(?string $provider = null): AiTextProvider
     {
+        // Gateway lockdown: ignore all other providers if env is pointing at the gateway.
+        if ($this->gatewayLocked()) {
+            return app(VelaGatewayTextService::class);
+        }
+
         if ($provider && $this->settings()->hasApiKey($provider) && isset($this->textProviderMap[$provider])) {
             return app($this->textProviderMap[$provider]);
         }
@@ -34,7 +51,7 @@ class AiProviderManager
             return app($this->textProviderMap[$default]);
         }
 
-        foreach (['openai', 'anthropic', 'gemini'] as $name) {
+        foreach (['vela_gateway', 'openai', 'anthropic', 'gemini'] as $name) {
             if ($this->settings()->hasApiKey($name) && isset($this->textProviderMap[$name])) {
                 return app($this->textProviderMap[$name]);
             }

@@ -267,6 +267,15 @@ class VelaServiceProvider extends ServiceProvider
             __DIR__.'/../public' => public_path('vendor/vela'),
         ], 'vela-assets');
 
+        // Error pages: publish to the host app's `resources/views/errors/`
+        // because Laravel's exception handler looks there (not in package
+        // namespaces) when rendering {code}.blade.php. `vela:install` runs
+        // this automatically; host apps can also re-publish with
+        // `vendor:publish --tag=vela-errors --force` to refresh.
+        $this->publishes([
+            __DIR__.'/../resources/views/errors' => resource_path('views/errors'),
+        ], 'vela-errors');
+
         // Register defaults
         $this->registerDefaultBlocks();
         $this->registerDefaultMenuItems();

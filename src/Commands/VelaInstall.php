@@ -30,6 +30,11 @@ class VelaInstall extends Command
         $this->step('Publishing configuration and assets...');
         $this->callSilently('vendor:publish', ['--tag' => 'vela-config', '--force' => true]);
         $this->callSilently('vendor:publish', ['--tag' => 'vela-assets', '--force' => true]);
+        // Error pages go into resources/views/errors/ (Laravel's lookup path),
+        // NOT vendor/vela/, so they work out of the box. Host apps that already
+        // have their own error views are unaffected because this is first-run only:
+        // the installer is idempotent but we don't overwrite existing files.
+        $this->callSilently('vendor:publish', ['--tag' => 'vela-errors']);
         $this->components->twoColumnDetail('Config & assets', '<fg=green>published</>');
 
         // 2. Queue setup

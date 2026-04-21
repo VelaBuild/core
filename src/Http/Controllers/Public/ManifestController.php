@@ -33,13 +33,17 @@ class ManifestController extends Controller
         $bgColor = vela_config('pwa_background_color', '#ffffff');
 
         $defaultLocale = config('app.locale', 'en');
-        $startUrl = ($locale === $defaultLocale) ? '/' : '/' . $locale;
+        // start_url must be absolute (or at least respect APP_URL) so it
+        // works on subdirectory installs (e.g. http://host/site/public/).
+        // A bare "/" would resolve to the origin root and miss the subdir.
+        $startUrl = url($locale === $defaultLocale ? '/' : '/' . $locale);
 
         $manifest = [
             'name' => $name,
             'short_name' => $shortName,
             'description' => $description,
             'start_url' => $startUrl,
+            'scope' => url('/'),
             'display' => $display,
             'orientation' => 'any',
             'theme_color' => $themeColor,
@@ -49,13 +53,14 @@ class ManifestController extends Controller
             'icons' => [],
         ];
 
-        // Only include icons that actually exist on disk
+        // Only include icons that actually exist on disk. Paths use
+        // asset() so APP_URL is respected under subdirectory installs.
         $iconDir = storage_path('app/public/pwa-icons');
         $standardSizes = [48, 72, 96, 128, 144, 192, 512];
         foreach ($standardSizes as $size) {
             if (file_exists("{$iconDir}/icon-{$size}x{$size}.png")) {
                 $manifest['icons'][] = [
-                    'src' => "/storage/pwa-icons/icon-{$size}x{$size}.png",
+                    'src' => asset("storage/pwa-icons/icon-{$size}x{$size}.png"),
                     'sizes' => "{$size}x{$size}",
                     'type' => 'image/png',
                 ];
@@ -64,7 +69,7 @@ class ManifestController extends Controller
         foreach ([192, 512] as $size) {
             if (file_exists("{$iconDir}/icon-{$size}x{$size}-maskable.png")) {
                 $manifest['icons'][] = [
-                    'src' => "/storage/pwa-icons/icon-{$size}x{$size}-maskable.png",
+                    'src' => asset("storage/pwa-icons/icon-{$size}x{$size}-maskable.png"),
                     'sizes' => "{$size}x{$size}",
                     'type' => 'image/png',
                     'purpose' => 'maskable',
