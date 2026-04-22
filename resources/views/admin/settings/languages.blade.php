@@ -2,10 +2,9 @@
 @section('breadcrumb', trans('vela::global.settings') . ' / ' . trans('vela::global.languages'))
 
 @section('content')
+@include('vela::admin.settings._page-head')
+
 <div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        @include('vela::admin.settings._nav')
-    </div>
     <div class="card-body">
         @if(session('success'))
             <div class="alert alert-success">{{ session('success') }}</div>

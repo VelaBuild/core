@@ -22,7 +22,7 @@
                         @if($item['gate'])
                             @can($item['gate'])
                                 <div class="vela-sidebar-link {{ $isActive ? 'is-active' : '' }}" onclick="this.nextElementSibling.classList.toggle('d-none')" style="cursor:pointer;">
-                                    <i class="fa-fw {{ $item['icon'] }} ico"></i>
+                                    <i class="fa-fw {{ ($item['icon'] ?? 'fa-circle') }} ico"></i>
                                     {{ trans($item['label']) }}
                                 </div>
                                 <div class="vela-sidebar-dropdown-items {{ $isActive ? '' : 'd-none' }}">
@@ -30,13 +30,13 @@
                                         @if($child['gate'])
                                             @can($child['gate'])
                                                 <a href="{{ route($child['route']) }}" class="vela-sidebar-link {{ request()->routeIs($child['route'] . '*') ? 'is-active' : '' }}">
-                                                    <i class="fa-fw {{ $child['icon'] }} ico"></i>
+                                                    <i class="fa-fw {{ ($child['icon'] ?? 'fa-circle') }} ico"></i>
                                                     {{ trans($child['label']) }}
                                                 </a>
                                             @endcan
                                         @else
                                             <a href="{{ route($child['route']) }}" class="vela-sidebar-link {{ request()->routeIs($child['route'] . '*') ? 'is-active' : '' }}">
-                                                <i class="fa-fw {{ $child['icon'] }} ico"></i>
+                                                <i class="fa-fw {{ ($child['icon'] ?? 'fa-circle') }} ico"></i>
                                                 {{ trans($child['label']) }}
                                             </a>
                                         @endif
@@ -45,7 +45,7 @@
                             @endcan
                         @else
                             <div class="vela-sidebar-link {{ $isActive ? 'is-active' : '' }}" onclick="this.nextElementSibling.classList.toggle('d-none')" style="cursor:pointer;">
-                                <i class="fa-fw {{ $item['icon'] }} ico"></i>
+                                <i class="fa-fw {{ ($item['icon'] ?? 'fa-circle') }} ico"></i>
                                 {{ trans($item['label']) }}
                             </div>
                             <div class="vela-sidebar-dropdown-items {{ $isActive ? '' : 'd-none' }}">
@@ -53,13 +53,13 @@
                                     @if($child['gate'])
                                         @can($child['gate'])
                                             <a href="{{ route($child['route']) }}" class="vela-sidebar-link {{ request()->routeIs($child['route'] . '*') ? 'is-active' : '' }}">
-                                                <i class="fa-fw {{ $child['icon'] }} ico"></i>
+                                                <i class="fa-fw {{ ($child['icon'] ?? 'fa-circle') }} ico"></i>
                                                 {{ trans($child['label']) }}
                                             </a>
                                         @endcan
                                     @else
                                         <a href="{{ route($child['route']) }}" class="vela-sidebar-link {{ request()->routeIs($child['route'] . '*') ? 'is-active' : '' }}">
-                                            <i class="fa-fw {{ $child['icon'] }} ico"></i>
+                                            <i class="fa-fw {{ ($child['icon'] ?? 'fa-circle') }} ico"></i>
                                             {{ trans($child['label']) }}
                                         </a>
                                     @endif
@@ -76,13 +76,13 @@
                         @if($item['gate'])
                             @can($item['gate'])
                                 <a href="{{ $menuHref }}" class="vela-sidebar-link {{ $menuActive ? 'is-active' : '' }}" @if($menuId) id="{{ $menuId }}" @endif>
-                                    <i class="fa-fw {{ $item['icon'] }} ico"></i>
+                                    <i class="fa-fw {{ ($item['icon'] ?? 'fa-circle') }} ico"></i>
                                     {{ trans($item['label']) }}
                                 </a>
                             @endcan
                         @else
                             <a href="{{ $menuHref }}" class="vela-sidebar-link {{ $menuActive ? 'is-active' : '' }}" @if($menuId) id="{{ $menuId }}" @endif>
-                                <i class="fa-fw {{ $item['icon'] }} ico"></i>
+                                <i class="fa-fw {{ ($item['icon'] ?? 'fa-circle') }} ico"></i>
                                 {{ trans($item['label']) }}
                             </a>
                         @endif
@@ -111,11 +111,11 @@
 @if($item['gate'] && !Gate::allows($item['gate'])) @continue @endif
 @if($item['route'] === '#logout')
             <a class="vela-sidebar-user-item" href="#" onclick="event.preventDefault(); document.getElementById('logoutform').submit();">
-                <i class="{{ $item['icon'] }} fa-fw"></i><span>{{ trans($item['label']) }}</span>
+                <i class="{{ ($item['icon'] ?? 'fa-circle') }} fa-fw"></i><span>{{ trans($item['label']) }}</span>
             </a>
 @else
             <a class="vela-sidebar-user-item" href="{{ route($item['route']) }}">
-                <i class="{{ $item['icon'] }} fa-fw"></i><span>{{ trans($item['label']) }}</span>
+                <i class="{{ ($item['icon'] ?? 'fa-circle') }} fa-fw"></i><span>{{ trans($item['label']) }}</span>
             </a>
 @endif
 @endforeach

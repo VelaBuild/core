@@ -1,30 +1,7 @@
-@php $gaId = config('services.google_analytics.id'); @endphp
-@if($gaId)
-    @if(config('vela.gdpr.enabled'))
-    {{-- GDPR mode: defer GA until analytics consent is granted --}}
-    <script>
-    document.addEventListener('vela:consent:analytics', function() {
-        if (window.__velaGaLoaded) return;
-        window.__velaGaLoaded = true;
-        var s = document.createElement('script');
-        s.async = true;
-        s.src = 'https://www.googletagmanager.com/gtag/js?id={{ $gaId }}';
-        document.head.appendChild(s);
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        window.gtag = gtag;
-        gtag('js', new Date());
-        gtag('config', '{{ $gaId }}', { 'anonymize_ip': true });
-    });
-    </script>
-    @else
-    {{-- No GDPR: load GA immediately --}}
-    <script async src="https://www.googletagmanager.com/gtag/js?id={{ $gaId }}"></script>
-    <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', '{{ $gaId }}');
-    </script>
-    @endif
-@endif
+{{-- Legacy alias — kept so existing template layouts (default / modern /
+     editorial / dark / corporate / minimal) continue to work without edit.
+     The full tracking stack (GA4 + GTM + Meta Pixel + Google Ads) lives in
+     vela::partials.tracking-head, plus the event dispatcher in
+     vela::partials.tracking-events. --}}
+@include('vela::partials.tracking-head')
+@include('vela::partials.tracking-events')

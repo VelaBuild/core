@@ -134,6 +134,50 @@
                     </div>
                 </div>
             </div>
+
+            {{-- Tracking & conversion --}}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-bullseye fa-3x mb-3 text-primary"></i>
+                        <h5>{{ __('Tracking') }}</h5>
+                        <p class="text-muted">{{ __('GA4, GTM, Meta Pixel + Conversions API, Google Ads.') }}</p>
+                        @can('config_access')
+                            <a href="{{ route('vela.admin.settings.tracking.index') }}" class="btn btn-primary btn-sm">
+                                {{ __('vela::pwa.manage') }}
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
+
+            {{-- Design System --}}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-swatchbook fa-3x mb-3 text-primary"></i>
+                        <h5>{{ __('Design System') }}</h5>
+                        <p class="text-muted">{{ __('Files, colour palette, fonts — used by the block editor and the AI.') }}</p>
+                        @can('config_access')
+                            <a href="{{ route('vela.admin.settings.design-system.index') }}" class="btn btn-primary btn-sm">
+                                {{ __('vela::pwa.manage') }}
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
+
+            {{-- Plugin-contributed cards.
+                 Any plugin that wants to expose its settings on this index
+                 should provide a `<namespace>::admin.partials.settings-card`
+                 view. Core includes each when present — no direct coupling
+                 to specific plugins. Add new plugins to this list as they
+                 grow; a proper registry is future work. --}}
+            @foreach(['vela-store', 'vela-marketplace'] as $__pluginNs)
+                @if(view()->exists($__pluginNs . '::admin.partials.settings-card'))
+                    @include($__pluginNs . '::admin.partials.settings-card')
+                @endif
+            @endforeach
         </div>
     </div>
 </div>

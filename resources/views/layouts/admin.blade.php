@@ -258,6 +258,11 @@
     <script>document.addEventListener('click',function(e){document.querySelectorAll('details.js-click-away[open]').forEach(function(d){if(!d.contains(e.target))d.removeAttribute('open')})})</script>
     @yield('scripts')
     @stack('scripts')
+    {{-- Design system globals — exposes window.__velaDesignSystem {palette, fonts}
+         and auto-enhances <input type="color"> with palette swatches. Loads
+         AFTER @stack('scripts') so the page editor's dynamically-inserted
+         inputs get picked up by the MutationObserver inside. --}}
+    @include('vela::partials.design-system-global')
     {{-- Plugin extension point — emits AFTER @stack('scripts'), so plugins
          that add Page Builder block types can call PageEditor.registerBlockType
          directly (page-editor.js has already executed by this point). --}}

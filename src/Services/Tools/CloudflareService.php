@@ -39,6 +39,53 @@ class CloudflareService
     }
 
     /**
+     * Purge by Cache-Tag values.
+     *
+     * Cloudflare has been expanding Cache-Tag purge availability across
+     * plan tiers, and the zone's dashboard is the authoritative signal for
+     * what's enabled right now. We just call the API — if a zone can't use
+     * it, the error body surfaces in the log and the caller can fall back
+     * to URL-based purging. This method never throws on a non-2xx so the
+     * URL path stays operational alongside.
+     *
+     * Cloudflare caps at 30 tags per request here, so we chunk.
+     *
+     * @param array<int, string> $tags
+     */
+    public function purgeByTags(array $tags): array
+    {
+        $tags = array_values(array_unique(array_filter($tags)));
+        if (empty($tags)) {
+            return ['success' => true, 'noop' => true];
+        }
+
+        $results = [];
+        foreach (array_chunk($tags, 30) as $chunk) {
+            $zoneId = $this->settings->get('cf_zone_id');
+            $token  = $this->settings->get('cf_api_token');
+
+            $response = Http::timeout(30)
+                ->withToken($token)
+                ->post(self::BASE_URL . "/zones/{$zoneId}/purge_cache", [
+                    'tags' => array_values($chunk),
+                ]);
+
+            $json = $response->json();
+            if (!$response->successful()) {
+                Log::warning('Cloudflare purge-by-tags non-2xx', [
+                    'status' => $response->status(),
+                    'tags'   => $chunk,
+                    'errors' => $json['errors'] ?? null,
+                ]);
+            } else {
+                Log::info('Cloudflare purge-by-tags success', ['count' => count($chunk)]);
+            }
+            $results[] = $json;
+        }
+        return ['success' => true, 'batches' => $results];
+    }
+
+    /**
      * Purge entire zone cache.
      */
     public function purgeAll(): array

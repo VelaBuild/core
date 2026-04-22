@@ -35,6 +35,7 @@
         "files": [
             "src/Helpers/template.php",
             "src/Helpers/image.php",
+            "src/Helpers/cache_tag.php",
             "src/helpers.php"
         ]
     },

@@ -20,11 +20,29 @@ class PurgeCloudflareCacheJob implements ShouldQueue
     public $backoff = [5, 15];
 
     /**
-     * @param array $urls  URLs to purge. Empty array = purge all.
+     * @param array $urls  URLs to purge. Kept for back-compat with callers
+     *                     that already exist.
+     * @param array $tags  Cache-Tag values to purge. Preferred for CMS
+     *                     content mutations because one tag can wipe a
+     *                     whole cohort of URLs at once.
+     *
+     * Either list — or both — may be provided. Empty both = purge
+     * everything when cf_purge_mode = full, no-op otherwise.
      */
     public function __construct(
-        private array $urls = []
+        private array $urls = [],
+        private array $tags = [],
     ) {}
+
+    public static function purgeTags(array $tags): self
+    {
+        return new self([], $tags);
+    }
+
+    public static function purgeUrls(array $urls): self
+    {
+        return new self($urls, []);
+    }
 
     public function handle(CloudflareService $cloudflare, ToolSettingsService $settings): void
     {
@@ -34,9 +52,20 @@ class PurgeCloudflareCacheJob implements ShouldQueue
 
         $purgeMode = $settings->get('cf_purge_mode', 'smart');
 
-        if (empty($this->urls) || $purgeMode === 'full') {
+        // Full purge wins when configured.
+        if ($purgeMode === 'full' || (empty($this->urls) && empty($this->tags))) {
+            if (empty($this->urls) && empty($this->tags)) {
+                // No work at all — don't purge everything by accident.
+                return;
+            }
             $cloudflare->purgeAll();
-        } else {
+            return;
+        }
+
+        if (!empty($this->tags)) {
+            $cloudflare->purgeByTags($this->tags);
+        }
+        if (!empty($this->urls)) {
             $cloudflare->purgeUrls($this->urls);
         }
     }
@@ -47,7 +76,8 @@ class PurgeCloudflareCacheJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error('Cloudflare purge job failed', [
-            'urls' => $this->urls,
+            'urls'  => $this->urls,
+            'tags'  => $this->tags,
             'error' => $exception->getMessage(),
         ]);
 

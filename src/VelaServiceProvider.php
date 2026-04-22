@@ -9,6 +9,12 @@ class VelaServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        // Helper functions — loaded defensively in addition to composer's
+        // `files` autoload entry, so path-repo installs that haven't run
+        // `composer dump-autoload` after a core upgrade don't 500 on calls
+        // to functions declared in these files. Each file is `function_exists`-guarded internally.
+        require_once __DIR__.'/Helpers/cache_tag.php';
+
         // Deep-merge: host app's config/vela.php wins on conflict, package fills
         // in everything else. Laravel's default mergeConfigFrom is shallow,
         // which would drop package-default nested arrays (e.g. asset bundles)
@@ -36,6 +42,20 @@ class VelaServiceProvider extends ServiceProvider
         $this->app->singleton(\VelaBuild\Core\Services\ToolSettingsService::class, function ($app) {
             return new \VelaBuild\Core\Services\ToolSettingsService();
         });
+
+        // Singleton so events queued in a controller survive to the layout
+        // partial where they're flushed into window.__velaTrack.
+        $this->app->singleton(\VelaBuild\Core\Services\TrackingService::class, function ($app) {
+            return new \VelaBuild\Core\Services\TrackingService(
+                $app->make(\VelaBuild\Core\Services\ToolSettingsService::class)
+            );
+        });
+
+        // One instance per HTTP request — Laravel re-boots the container per
+        // request so singleton semantics are what we want. Collects
+        // Cloudflare Cache-Tag entries from controllers/views; emitted as a
+        // single header by the EmitCacheTags middleware at request end.
+        $this->app->singleton(\VelaBuild\Core\Services\CacheTagger::class);
 
         $this->app->singleton(\VelaBuild\Core\Services\Marketplace\MarketplaceSettingsService::class, function ($app) {
             return new \VelaBuild\Core\Services\Marketplace\MarketplaceSettingsService();
@@ -206,6 +226,12 @@ class VelaServiceProvider extends ServiceProvider
         $router->aliasMiddleware('vela.mcp', \VelaBuild\Core\Http\Middleware\VelaMcpAuth::class);
         $router->aliasMiddleware('vela.show-to-edit', \VelaBuild\Core\Http\Middleware\VelaRedirectShowToEdit::class);
 
+        // Cloudflare Cache-Tag emission for every public (web) response.
+        // Pushed onto the `web` group so host apps don't need to register
+        // the middleware themselves. Non-GET / non-2xx responses are
+        // skipped by the middleware itself.
+        $router->pushMiddlewareToGroup('web', \VelaBuild\Core\Http\Middleware\EmitCacheTags::class);
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \VelaBuild\Core\Commands\VelaInstall::class,
@@ -287,6 +313,20 @@ class VelaServiceProvider extends ServiceProvider
         \VelaBuild\Core\Models\Category::observe(\VelaBuild\Core\Observers\CategoryObserver::class);
         \VelaBuild\Core\Models\Page::observe(\VelaBuild\Core\Observers\PageObserver::class);
         \VelaBuild\Core\Models\Content::observe(\VelaBuild\Core\Observers\ContentObserver::class);
+
+        // Cloudflare Cache-Tag invalidation. Hooked via Eloquent model
+        // events (not Model::observe) so one shared observer class handles
+        // multiple models without needing per-model wrapper classes. Jobs
+        // dispatch after the HTTP response so admin saves feel instant.
+        $cachePurge = new \VelaBuild\Core\Observers\CachePurgeObserver();
+        \VelaBuild\Core\Models\Page::saved(      fn ($m) => $cachePurge->savedPage($m));
+        \VelaBuild\Core\Models\Page::deleted(    fn ($m) => $cachePurge->deletedPage($m));
+        \VelaBuild\Core\Models\Content::saved(   fn ($m) => $cachePurge->savedContent($m));
+        \VelaBuild\Core\Models\Content::deleted( fn ($m) => $cachePurge->deletedContent($m));
+        \VelaBuild\Core\Models\PageRow::saved(   fn ($m) => $cachePurge->savedPageRow($m));
+        \VelaBuild\Core\Models\PageRow::deleted( fn ($m) => $cachePurge->deletedPageRow($m));
+        \VelaBuild\Core\Models\PageBlock::saved( fn ($m) => $cachePurge->savedPageBlock($m));
+        \VelaBuild\Core\Models\PageBlock::deleted(fn ($m) => $cachePurge->deletedPageBlock($m));
     }
 
     protected function registerHomeRedirect(): void

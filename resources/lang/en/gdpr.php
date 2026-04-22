@@ -15,6 +15,8 @@ return [
     'cat_functional_desc' => 'Remembers your preferences such as language and UI state.',
     'cat_analytics'       => 'Analytics',
     'cat_analytics_desc'  => 'Helps us understand how visitors use the site so we can improve it.',
+    'cat_marketing'       => 'Marketing',
+    'cat_marketing_desc'  => 'Allows us to measure ad effectiveness and show you relevant offers. Enables conversion tracking pixels.',
 
     // Admin settings
     'settings_title'      => 'GDPR & Cookie Consent',

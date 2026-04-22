@@ -10,16 +10,29 @@ class ToolSettingsService
     private const PREFIX = 'tool_';
 
     private const ENV_MAP = [
-        'ga_measurement_id'       => 'GA_MEASUREMENT_ID',
-        'ga_property_id'          => 'GA_PROPERTY_ID',
-        'ga_service_account_key'  => 'GA_SERVICE_ACCOUNT_KEY',
-        'gsc_site_url'            => 'GSC_SITE_URL',
-        'pagespeed_api_key'       => 'PAGESPEED_API_KEY',
-        'cf_api_token'            => 'CF_API_TOKEN',
-        'cf_zone_id'              => 'CF_ZONE_ID',
-        'repostra_webhook_secret' => 'REPOSTRA_WEBHOOK_SECRET',
-        'google_places_api_key'   => 'GOOGLE_PLACES_API_KEY',
-        'google_place_id'         => 'GOOGLE_PLACE_ID',
+        'ga_measurement_id'           => 'GA_MEASUREMENT_ID',
+        'ga_property_id'              => 'GA_PROPERTY_ID',
+        'ga_service_account_key'      => 'GA_SERVICE_ACCOUNT_KEY',
+        'gsc_site_url'                => 'GSC_SITE_URL',
+        'pagespeed_api_key'           => 'PAGESPEED_API_KEY',
+        'cf_api_token'                => 'CF_API_TOKEN',
+        'cf_zone_id'                  => 'CF_ZONE_ID',
+        'repostra_webhook_secret'     => 'REPOSTRA_WEBHOOK_SECRET',
+        'google_places_api_key'       => 'GOOGLE_PLACES_API_KEY',
+        'google_place_id'             => 'GOOGLE_PLACE_ID',
+
+        // Tracking & conversion pixels. IDs themselves are public (appear in
+        // page source) so they're not encrypted — the CAPI access token IS.
+        'gtm_container_id'            => 'GTM_CONTAINER_ID',
+        'meta_pixel_id'               => 'META_PIXEL_ID',
+        'meta_capi_access_token'      => 'META_CAPI_ACCESS_TOKEN',
+        'meta_capi_test_event_code'   => 'META_CAPI_TEST_EVENT_CODE',
+        'google_ads_id'               => 'GOOGLE_ADS_ID',
+        'google_ads_purchase_label'   => 'GOOGLE_ADS_PURCHASE_LABEL',
+        // GA4 Measurement Protocol — for server-to-server events like refund
+        // where the customer isn't in a browser session. Paired with
+        // ga_measurement_id above.
+        'ga4_api_secret'              => 'GA4_API_SECRET',
     ];
 
     private const ENCRYPTED_KEYS = [
@@ -28,6 +41,8 @@ class ToolSettingsService
         'cf_api_token',
         'repostra_webhook_secret',
         'google_places_api_key',
+        'meta_capi_access_token',
+        'ga4_api_secret',
     ];
 
     /**

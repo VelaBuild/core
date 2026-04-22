@@ -266,6 +266,43 @@ class ChatToolRegistry
             'write' => false,
             'gate' => null,
         ],
+        // ── Design system — browse on demand so the AI doesn't receive
+        //    the whole thing on every request. List first, then read files
+        //    that matter for the current task.
+        [
+            'name' => 'design_system_list',
+            'description' => 'List all files in the project design system (/designsystem folder). Returns names, sizes, and types — no content. Call this first when you need to reference brand docs, component patterns, or any design asset. Use design_system_read_file to fetch a specific file afterwards.',
+            'parameters' => ['type' => 'object', 'properties' => []],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'design_system_read_file',
+            'description' => 'Read one file from the project design system. Text files (md/html/txt/json/css/svg) return inline contents; binary files (images, fonts, pdf) return metadata + URL. Use design_system_list first to find available files.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'name' => ['type' => 'string', 'description' => 'Exact filename as shown by design_system_list'],
+                ],
+                'required' => ['name'],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'design_system_palette',
+            'description' => 'Return the project colour palette (named entries with hex values). Use this when writing CSS, generating design suggestions, or picking colours — prefer the palette over arbitrary hex values.',
+            'parameters' => ['type' => 'object', 'properties' => []],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'design_system_fonts',
+            'description' => 'Return the project fonts (families, source URLs, weights, fallbacks). Use this when generating CSS @import lines or font-family declarations so you match what the site actually loads.',
+            'parameters' => ['type' => 'object', 'properties' => []],
+            'write' => false,
+            'gate' => null,
+        ],
     ];
 
     /**

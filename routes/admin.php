@@ -81,6 +81,24 @@ Route::get('settings/appearance/preview/{template}', [Admin\ConfigController::cl
 Route::post('settings/appearance/install-homepage', [Admin\ConfigController::class, 'installHomepage'])->name('settings.appearance.installHomepage');
 Route::post('settings/gdpr/install-privacy-page', [Admin\ConfigController::class, 'installPrivacyPage'])->name('settings.gdpr.installPrivacyPage');
 
+// Tracking & conversion (GA4, GTM, Meta Pixel + CAPI, Google Ads). Lives
+// outside the settings.group() switch because its storage is ToolSettingsService
+// (encrypted for the Meta CAPI token) not the generic vela_configs KV.
+Route::get('settings/tracking',  [Admin\TrackingController::class, 'index'])->name('settings.tracking.index');
+Route::post('settings/tracking', [Admin\TrackingController::class, 'update'])->name('settings.tracking.update');
+
+// Design System — files / palette / fonts stored as plain files under
+// base_path('designsystem'). Kept out of settings.group() for the same
+// reason: storage model is filesystem, not vela_configs KV.
+Route::get('settings/design-system',              [Admin\DesignSystemController::class, 'index'])->name('settings.design-system.index');
+Route::post('settings/design-system/file',        [Admin\DesignSystemController::class, 'uploadFile'])->name('settings.design-system.upload-file');
+Route::post('settings/design-system/file/delete', [Admin\DesignSystemController::class, 'deleteFile'])->name('settings.design-system.delete-file');
+Route::get('settings/design-system/file/{name}',  [Admin\DesignSystemController::class, 'downloadFile'])->name('settings.design-system.download')->where('name', '[a-zA-Z0-9._\-]+');
+Route::post('settings/design-system/palette',     [Admin\DesignSystemController::class, 'savePalette'])->name('settings.design-system.save-palette');
+Route::post('settings/design-system/fonts',       [Admin\DesignSystemController::class, 'saveFonts'])->name('settings.design-system.save-fonts');
+Route::post('settings/design-system/import-zip',  [Admin\DesignSystemController::class, 'importZip'])->name('settings.design-system.import-zip');
+Route::post('settings/design-system/import-url',  [Admin\DesignSystemController::class, 'importZipFromUrl'])->name('settings.design-system.import-url');
+
 // Backward compat redirect
 Route::get('configs', function () {
     return redirect()->route('vela.admin.settings.index');

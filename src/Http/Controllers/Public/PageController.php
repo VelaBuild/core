@@ -55,6 +55,15 @@ class PageController extends Controller
             abort(404);
         }
 
+        // Cloudflare Cache-Tag: identify this page by id + slug + locale so
+        // mutations elsewhere can purge it with surgical accuracy. The
+        // EmitCacheTags middleware joins these into a single header.
+        cache_tag([
+            'page:' . $page->id,
+            'page:slug:' . $page->slug,
+            'locale:' . $locale,
+        ]);
+
         return view(vela_template_view('page'), compact('page'));
     }
 

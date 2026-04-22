@@ -109,6 +109,10 @@ class ChatToolExecutor
             'switch_template' => Tools\SwitchTemplateTool::class,
             'list_templates' => Tools\ListTemplatesTool::class,
             'get_template_info' => Tools\GetTemplateInfoTool::class,
+            'design_system_list'      => Tools\DesignSystemListTool::class,
+            'design_system_read_file' => Tools\DesignSystemReadFileTool::class,
+            'design_system_palette'   => Tools\DesignSystemPaletteTool::class,
+            'design_system_fonts'     => Tools\DesignSystemFontsTool::class,
         ];
 
         $class = $map[$toolName] ?? null;

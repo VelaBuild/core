@@ -26,6 +26,7 @@ Vela Core provides a full-featured content management system, page builder, and 
 - **PWA Support** — Icon generation and progressive web app configuration
 - **Figma Export** — Design-to-code pipeline with Figma integration
 - **Queue-Ready** — 14 async jobs for AI generation, content processing, translations, and more
+- **Design System** — Project-level `/designsystem/` folder (git-tracked) holding brand docs, colour palette, and font choices. The admin block editor uses the palette/fonts as presets; the AI chatbot browses it on demand via `design_system_*` tools instead of getting the whole thing dumped into every prompt. Manage under Settings → Design System; also supports ZIP upload or URL import (e.g. from a Claude-generated design).
 
 ## Requirements
 

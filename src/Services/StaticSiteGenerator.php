@@ -34,6 +34,15 @@ class StaticSiteGenerator
 
         try {
             view()->share('canonicalUrl', url($page->slug === 'home' ? '/' : '/' . $page->slug));
+            // Register the same Cache-Tag set PageController would — so the
+            // static HTML carries tags identical to a live-rendered response.
+            // atomicWrite() flushes these into the `.tags` sidecar.
+            cache_tag([
+                'site',
+                'page:' . $page->id,
+                'page:slug:' . $page->slug,
+                'locale:' . $page->locale,
+            ]);
             $html = view(vela_template_view('page'), compact('page'))->render();
             $this->atomicWrite($this->basePath . '/pages/' . $page->slug . '/index.html', $html);
         } catch (\Throwable $e) {
@@ -396,5 +405,20 @@ class StaticSiteGenerator
         file_put_contents($tmp, $content);
         @chmod($tmp, 0664);
         rename($tmp, $path);
+
+        // Sidecar `.tags` — same base name, comma-separated Cache-Tag
+        // values. The static front-controller reads this before readfile()
+        // and emits a `Cache-Tag` header so Cloudflare records the tag ↔ URL
+        // mapping for purge-by-tag on lower-tier origins too.
+        if (str_ends_with($path, '.html')) {
+            $tagger = app(\VelaBuild\Core\Services\CacheTagger::class);
+            $tags = $tagger->all();
+            $tagger->clear();
+            if (!empty($tags)) {
+                $sidecar = preg_replace('/\.html$/', '.tags', $path);
+                file_put_contents($sidecar . '.tmp', implode(',', $tags));
+                rename($sidecar . '.tmp', $sidecar);
+            }
+        }
     }
 }

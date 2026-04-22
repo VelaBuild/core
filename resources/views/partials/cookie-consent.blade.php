@@ -66,6 +66,19 @@
                     </div>
                 </div>
 
+                <div class="vc-category">
+                    <div class="vc-category-header">
+                        <label class="vc-switch">
+                            <input type="checkbox" id="vc-cat-marketing">
+                            <span class="vc-slider"></span>
+                        </label>
+                        <div>
+                            <strong>{{ __('vela::gdpr.cat_marketing') }}</strong>
+                            <p>{{ __('vela::gdpr.cat_marketing_desc') }}</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="vc-category-actions">
                     <button type="button" class="vc-btn vc-btn-accept" id="vc-save-prefs">{{ __('vela::gdpr.save') }}</button>
                 </div>
@@ -103,8 +116,9 @@
 
     /* ── Dispatch events so other scripts can react ── */
     function fireEvents(consent) {
-        if (consent.analytics) document.dispatchEvent(new CustomEvent('vela:consent:analytics'));
+        if (consent.analytics)  document.dispatchEvent(new CustomEvent('vela:consent:analytics'));
         if (consent.functional) document.dispatchEvent(new CustomEvent('vela:consent:functional'));
+        if (consent.marketing)  document.dispatchEvent(new CustomEvent('vela:consent:marketing'));
     }
 
     /* ── Check existing consent ── */
@@ -126,11 +140,11 @@
     }
 
     document.getElementById('vc-accept-all').addEventListener('click', function() {
-        save({ necessary: true, functional: true, analytics: true });
+        save({ necessary: true, functional: true, analytics: true, marketing: true });
     });
 
     document.getElementById('vc-necessary-only').addEventListener('click', function() {
-        save({ necessary: true, functional: false, analytics: false });
+        save({ necessary: true, functional: false, analytics: false, marketing: false });
     });
 
     var categoriesEl = document.getElementById('vc-categories');
@@ -142,7 +156,8 @@
         save({
             necessary:  true,
             functional: document.getElementById('vc-cat-functional').checked,
-            analytics:  document.getElementById('vc-cat-analytics').checked
+            analytics:  document.getElementById('vc-cat-analytics').checked,
+            marketing:  document.getElementById('vc-cat-marketing').checked,
         });
     });
 })();
