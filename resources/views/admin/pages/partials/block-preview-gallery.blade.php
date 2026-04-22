@@ -8,7 +8,7 @@
     <div style="display:grid; grid-template-columns:repeat({{ min($columns, 4) }}, 1fr); gap:6px;">
         @foreach(array_slice($images, 0, 8) as $img)
             @if(!empty($img['url']))
-                <img src="{{ e($img['url']) }}" alt="{{ e($img['alt'] ?? '') }}" style="width:100%; height:60px; object-fit:cover; border-radius:3px;">
+                <img src="{{ $img['url'] }}" alt="{{ $img['alt'] ?? '' }}" style="width:100%; height:60px; object-fit:cover; border-radius:3px;">
             @endif
         @endforeach
     </div>

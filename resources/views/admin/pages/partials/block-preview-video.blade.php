@@ -13,7 +13,7 @@
         <iframe src="{{ $embedUrl }}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allowfullscreen></iframe>
     </div>
 @elseif($url)
-    <small class="text-muted">{{ trans('vela::global.video_url_label') }} {{ e($url) }}</small>
+    <small class="text-muted">{{ trans('vela::global.video_url_label') }} {{ $url }}</small>
 @else
     <em class="text-muted">{{ trans('vela::global.no_video_url') }}</em>
 @endif

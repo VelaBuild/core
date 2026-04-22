@@ -9,14 +9,14 @@
     $imgSizes = $settings['sizes'] ?? [640, 960, 1280, 1920];
     $mode = $settings['mode'] ?? 'fit';
 @endphp
-<div class="block-image" style="max-width: {{ e($maxWidth) }};">
+<div class="block-image" style="max-width: {{ $maxWidth }};">
 @if($link)
-    <a href="{{ e($link) }}" target="_blank" rel="noopener">
+    <a href="{{ $link }}" target="_blank" rel="noopener">
 @endif
     <figure>
         {!! $url ? vela_image($url, $alt, $imgSizes, $mode, ['class' => 'block-image-img']) : '' !!}
 @if($caption)
-        <figcaption>{{ e($caption) }}</figcaption>
+        <figcaption>{{ $caption }}</figcaption>
 @endif
     </figure>
 @if($link)

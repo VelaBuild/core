@@ -84,12 +84,17 @@ class CreateContent extends Command
             return 1;
         }
 
+        // Models often echo the title back as a leading H1/H2 even though it's
+        // stored separately — strip it so the body doesn't render a duplicate
+        // heading right below the article title.
+        $contentText = preg_replace('/^\s*#{1,6}\s+.+?(\r\n|\n|\r)+/', '', $contentText, 1);
+
         // 5. Create Content record
         $slug = \Str::slug($title);
         $article = Content::create([
             'title' => $title,
             'slug' => $slug,
-            'description' => \Str::limit($contentText, 160),
+            'description' => $this->buildExcerpt($contentText, 160),
             'content' => $this->convertToEditorJs($contentText),
             'author_id' => 1,
             'status' => $status,
@@ -112,6 +117,16 @@ class CreateContent extends Command
         $this->line(json_encode(['id' => $article->id, 'title' => $article->title, 'slug' => $article->slug]));
 
         return 0;
+    }
+
+    private function buildExcerpt(string $contentText, int $limit): string
+    {
+        $text = preg_replace('/\[IMAGE[^\]]*\]/i', '', $contentText);
+        $text = preg_replace('/^#{1,6}\s+.*$/m', '', $text);
+        $text = preg_replace('/[*_`>]+/', '', $text);
+        $text = preg_replace('/^\s*[-+]\s+/m', '', $text);
+        $text = trim(preg_replace('/\s+/', ' ', $text));
+        return \Str::limit($text, $limit);
     }
 
     private function convertToEditorJs(string $contentText): string

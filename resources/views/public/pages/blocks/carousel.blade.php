@@ -22,7 +22,7 @@
 @foreach($slides as $i => $slide)
         <div class="carousel-slide" x-show="current === {{ $i }}" style="transition: opacity 0.4s;">
 @if(!empty($slide['link']))
-            <a href="{{ e($slide['link']) }}">
+            <a href="{{ $slide['link'] }}">
 @endif
 @if(!empty($slide['image_url']))
             {!! vela_image($slide['image_url'], $slide['caption'] ?? '', [640, 960, 1280, 1920], 'fit', ['style' => 'width:100%;display:block;']) !!}
@@ -31,7 +31,7 @@
             </a>
 @endif
 @if(!empty($slide['caption']))
-            <div class="carousel-caption">{{ e($slide['caption']) }}</div>
+            <div class="carousel-caption">{{ $slide['caption'] }}</div>
 @endif
         </div>
 @endforeach

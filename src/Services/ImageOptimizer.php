@@ -124,8 +124,10 @@ class ImageOptimizer
             $webp = false;
         }
 
-        // Compute cache key
-        $cacheKey = md5(json_encode($config) . ($webp ? 'webp' : 'orig'));
+        // Compute cache key — include source mtime so a changed source file
+        // invalidates the cache instead of serving a stale optimized copy.
+        $sourceMtime = @filemtime($realSource) ?: 0;
+        $cacheKey = md5(json_encode($config) . ($webp ? 'webp' : 'orig') . $sourceMtime);
         $cachFile = $this->cachePath . '/' . $cacheKey . '.' . $ext;
 
         // Return cached file if it exists

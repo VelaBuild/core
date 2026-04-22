@@ -9,11 +9,11 @@
     $showCopy = $settings['show_copy'] ?? true;
 @endphp
 @if($code !== '')
-    <figure class="block-code block-code--{{ e($theme) }}">
+    <figure class="block-code block-code--{{ $theme }}">
 @if($filename !== '' || $showCopy)
         <div class="block-code-head">
 @if($filename !== '')
-            <span class="block-code-filename">{{ e($filename) }}</span>
+            <span class="block-code-filename">{{ $filename }}</span>
 @endif
 @if($showCopy)
             <button type="button" class="block-code-copy" data-code-copy aria-label="Copy code">
@@ -22,9 +22,9 @@
 @endif
         </div>
 @endif
-        <pre class="block-code-pre"><code class="block-code-body language-{{ e($language) }}">{{ $code }}</code></pre>
+        <pre class="block-code-pre"><code class="block-code-body language-{{ $language }}">{{ $code }}</code></pre>
 @if($caption !== '')
-        <figcaption class="block-code-caption">{{ e($caption) }}</figcaption>
+        <figcaption class="block-code-caption">{{ $caption }}</figcaption>
 @endif
     </figure>
 @endif

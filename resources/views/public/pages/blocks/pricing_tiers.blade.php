@@ -23,32 +23,32 @@
 @endphp
         <div class="block-pricing-tier{{ $featured ? ' is-featured' : '' }}">
 @if($featured)
-            <span class="block-pricing-tier-badge">{{ e($badge) }}</span>
+            <span class="block-pricing-tier-badge">{{ $badge }}</span>
 @endif
 @if($name !== '')
-            <div class="block-pricing-tier-label">{{ e($name) }}</div>
+            <div class="block-pricing-tier-label">{{ $name }}</div>
 @endif
 @if($subtitle !== '')
-            <h3 class="block-pricing-tier-headline">{{ e($subtitle) }}</h3>
+            <h3 class="block-pricing-tier-headline">{{ $subtitle }}</h3>
 @endif
 @if($description !== '')
-            <p class="block-pricing-tier-desc">{{ e($description) }}</p>
+            <p class="block-pricing-tier-desc">{{ $description }}</p>
 @endif
 @if($price !== '')
             <div class="block-pricing-tier-price">
-                <span class="block-pricing-tier-price-cur">{{ e($priceCurrency) }}</span>
-                <span class="block-pricing-tier-price-num">{{ e($price) }}</span>
+                <span class="block-pricing-tier-price-cur">{{ $priceCurrency }}</span>
+                <span class="block-pricing-tier-price-num">{{ $price }}</span>
 @if($period !== '')
-                <span class="block-pricing-tier-price-period">{{ e($period) }}</span>
+                <span class="block-pricing-tier-price-period">{{ $period }}</span>
 @endif
             </div>
 @endif
 @if($priceNote !== '')
-            <div class="block-pricing-tier-price-note">{{ e($priceNote) }}</div>
+            <div class="block-pricing-tier-price-note">{{ $priceNote }}</div>
 @endif
-            <a href="{{ e($ctaUrl) }}" class="block-pricing-tier-cta">{{ e($ctaText) }}</a>
+            <a href="{{ $ctaUrl }}" class="block-pricing-tier-cta">{{ $ctaText }}</a>
 @if($featuresCap !== '')
-            <div class="block-pricing-tier-features-cap">{{ e($featuresCap) }}</div>
+            <div class="block-pricing-tier-features-cap">{{ $featuresCap }}</div>
 @endif
 @if(count($features) > 0)
             <ul class="block-pricing-tier-features">

@@ -16,5 +16,5 @@
             </div>
         @endif
     @endforeach
-    <button class="btn btn-sm btn-primary mt-1" disabled>{{ e($submitLabel) }}</button>
+    <button class="btn btn-sm btn-primary mt-1" disabled>{{ $submitLabel }}</button>
 </div>

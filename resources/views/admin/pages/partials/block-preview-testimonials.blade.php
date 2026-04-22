@@ -6,11 +6,11 @@
         @if(!empty($t['quote']) || !empty($t['name']))
         <div style="border-left:3px solid #dee2e6; padding:6px 12px; margin-bottom:6px;">
             @if(!empty($t['quote']))
-                <p style="margin:0 0 4px; font-style:italic; color:#495057;">&ldquo;{{ \Illuminate\Support\Str::limit(e($t['quote']), 150) }}&rdquo;</p>
+                <p style="margin:0 0 4px; font-style:italic; color:#495057;">&ldquo;{{ \Illuminate\Support\Str::limit($t['quote'], 150) }}&rdquo;</p>
             @endif
             <small class="text-muted">
-                @if(!empty($t['name']))&mdash; {{ e($t['name']) }}@endif
-                @if(!empty($t['title'])), {{ e($t['title']) }}@endif
+                @if(!empty($t['name']))&mdash; {{ $t['name'] }}@endif
+                @if(!empty($t['title'])), {{ $t['title'] }}@endif
             </small>
         </div>
         @endif

@@ -10,21 +10,21 @@
     $alignment = $settings['text_alignment'] ?? 'center';
 @endphp
 @if($heading || $description || $primaryText || $secondaryText)
-    <div style="background:#f0f4ff; border-radius:4px; padding:16px; text-align:{{ e($alignment) }};">
+    <div style="background:#f0f4ff; border-radius:4px; padding:16px; text-align:{{ $alignment }};">
         @if($heading)
-            <h5 style="margin:0 0 4px;">{{ e($heading) }}</h5>
+            <h5 style="margin:0 0 4px;">{{ $heading }}</h5>
         @endif
         @if($description)
-            <p style="margin:0 0 8px; color:#6c757d;">{{ e($description) }}</p>
+            <p style="margin:0 0 8px; color:#6c757d;">{{ $description }}</p>
         @endif
         @if($primaryText || $secondaryText)
             <div>
                 @if($primaryText)
-                    <span class="badge badge-primary">{{ e($primaryText) }}</span>
-                    @if($primaryUrl) <small class="text-muted ml-1">{{ e($primaryUrl) }}</small> @endif
+                    <span class="badge badge-primary">{{ $primaryText }}</span>
+                    @if($primaryUrl) <small class="text-muted ml-1">{{ $primaryUrl }}</small> @endif
                 @endif
                 @if($secondaryText)
-                    <span class="badge badge-secondary ml-1">{{ e($secondaryText) }}</span>
+                    <span class="badge badge-secondary ml-1">{{ $secondaryText }}</span>
                 @endif
             </div>
         @endif

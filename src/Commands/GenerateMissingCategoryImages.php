@@ -86,7 +86,10 @@ class GenerateMissingCategoryImages extends Command
             try {
                 $prompt = $this->generateCategoryPrompt($category->name, $category->icon ?? '');
 
-                $imageData = $this->openAiService->generateImage($prompt, $size, $quality);
+                $imageData = $this->openAiService->generateImage($prompt, [
+                    'size' => $size,
+                    'quality' => $quality,
+                ]);
 
                 if (!$imageData || !isset($imageData['data'][0]['b64_json'])) {
                     $this->error("  Failed to generate image for: {$category->name}");

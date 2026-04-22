@@ -7,12 +7,12 @@
         @foreach($items as $item)
             @if(!empty($item['icon']) || !empty($item['title']))
             <div style="text-align:center; padding:8px;">
-                <div><i class="{{ e($item['icon'] ?? 'fas fa-star') }}"></i></div>
+                <div><i class="{{ $item['icon'] ?? 'fas fa-star' }}"></i></div>
                 @if(!empty($item['title']))
-                    <small class="font-weight-bold">{{ e($item['title']) }}</small>
+                    <small class="font-weight-bold">{{ $item['title'] }}</small>
                 @endif
                 @if(!empty($item['description']))
-                    <br><small class="text-muted">{{ \Illuminate\Support\Str::limit(e($item['description']), 60) }}</small>
+                    <br><small class="text-muted">{{ \Illuminate\Support\Str::limit($item['description'], 60) }}</small>
                 @endif
             </div>
             @endif

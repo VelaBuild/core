@@ -29,7 +29,7 @@
                 {!! vela_image($img['url'], $img['alt'] ?? '', [320, 640, 960, 1280], 'fit', ['style' => 'width:100%;display:block;']) !!}
 @endif
 @if(!empty($img['caption']))
-                <div class="gallery-caption">{{ e($img['caption']) }}</div>
+                <div class="gallery-caption">{{ $img['caption'] }}</div>
 @endif
             </div>
 @endif

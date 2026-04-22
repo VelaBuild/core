@@ -11,26 +11,26 @@
     $minHeight = $settings['min_height'] ?? '80vh';
 @endphp
 @if($title || $subtitle || $primaryText || $secondaryText)
-    <div style="background:#1a1a2e; color:#fff; border-radius:4px; padding:20px; text-align:{{ e($alignment) }};">
+    <div style="background:#1a1a2e; color:#fff; border-radius:4px; padding:20px; text-align:{{ $alignment }};">
         @if($title)
-            <h4 style="margin:0 0 4px;">{{ e($title) }}</h4>
+            <h4 style="margin:0 0 4px;">{{ $title }}</h4>
         @endif
         @if($subtitle)
-            <p style="margin:0 0 8px; opacity:0.8;">{{ e($subtitle) }}</p>
+            <p style="margin:0 0 8px; opacity:0.8;">{{ $subtitle }}</p>
         @endif
         @if($primaryText || $secondaryText)
             <div>
                 @if($primaryText)
-                    <span class="badge badge-primary">{{ e($primaryText) }}</span>
-                    @if($primaryUrl) <small class="text-muted" style="color:#aaa !important;">{{ e($primaryUrl) }}</small> @endif
+                    <span class="badge badge-primary">{{ $primaryText }}</span>
+                    @if($primaryUrl) <small class="text-muted" style="color:#aaa !important;">{{ $primaryUrl }}</small> @endif
                 @endif
                 @if($secondaryText)
-                    <span class="badge badge-secondary ml-1">{{ e($secondaryText) }}</span>
-                    @if($secondaryUrl) <small class="text-muted" style="color:#aaa !important;">{{ e($secondaryUrl) }}</small> @endif
+                    <span class="badge badge-secondary ml-1">{{ $secondaryText }}</span>
+                    @if($secondaryUrl) <small class="text-muted" style="color:#aaa !important;">{{ $secondaryUrl }}</small> @endif
                 @endif
             </div>
         @endif
-        <small style="opacity:0.5;">min-height: {{ e($minHeight) }}</small>
+        <small style="opacity:0.5;">min-height: {{ $minHeight }}</small>
     </div>
 @else
     <em class="text-muted">{{ trans('vela::global.empty_block') }}</em>

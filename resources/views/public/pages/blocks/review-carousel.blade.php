@@ -14,7 +14,7 @@
 @foreach($reviews as $review)
         <div class="review-card" style="min-width:300px;max-width:350px;white-space:normal;border:1px solid #e5e7eb;border-radius:8px;padding:20px;">
             <div class="review-card-header" style="margin-bottom:10px;">
-                <strong>{{ e($review->author) }}</strong>
+                <strong>{{ $review->author }}</strong>
                 <div>
 @for($i = 1; $i <= 5; $i++)
                     <i class="fas fa-star {{ $i <= $review->rating ? 'text-warning' : 'text-muted' }}" style="font-size:0.85em;"></i>
@@ -22,7 +22,7 @@
                 </div>
             </div>
 @if($review->text)
-            <p class="review-card-text" style="color:#4b5563;">{{ e($review->text) }}</p>
+            <p class="review-card-text" style="color:#4b5563;">{{ $review->text }}</p>
 @endif
 @if($review->review_date)
             <small class="text-muted">{{ $review->review_date->format('M j, Y') }}</small>
