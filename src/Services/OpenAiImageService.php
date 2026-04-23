@@ -19,23 +19,26 @@ class OpenAiImageService implements AiImageProvider
     }
 
     /**
-     * Generate an image using OpenAI's gpt-image-1 model
+     * Generate an image via OpenAI's /v1/images/generations endpoint.
      *
-     * @param string $prompt The text prompt for image generation
-     * @param string $size The size of the image (1024x1024, 1024x1792, or 1792x1024)
-     * @param string $quality The quality of the image (standard or hd)
-     * @param int $n Number of images to generate (1-10)
-     * @return array|null Returns the generated image data or null on failure
+     * Supported options:
+     *   model   — 'gpt-image-1.5' (default) or 'gpt-image-2'. Pass-through, so
+     *             snapshot pins like 'gpt-image-2-2026-04-21' also work.
+     *   size    — '1024x1024' (default). gpt-image-2 also accepts any 16-pixel
+     *             multiple up to 3840px with aspect ratio ≤3:1, or 'auto'.
+     *   quality — 'low' | 'medium' | 'high' (default) | 'auto'.
+     *   n       — number of images, 1–10.
      */
     public function generateImage(string $prompt, array $options = []): ?array
     {
+        $model = $options['model'] ?? 'gpt-image-1.5';
         $size = $options['size'] ?? '1024x1024';
         $quality = $options['quality'] ?? 'high';
         $n = $options['n'] ?? 1;
-        return $this->generateImageRaw($prompt, $size, $quality, $n);
+        return $this->generateImageRaw($prompt, $size, $quality, $n, $model);
     }
 
-    public function generateImageRaw(string $prompt, string $size = '1024x1024', string $quality = 'high', int $n = 1): ?array
+    public function generateImageRaw(string $prompt, string $size = '1024x1024', string $quality = 'high', int $n = 1, string $model = 'gpt-image-1.5'): ?array
     {
         if (!$this->apiKey) {
             Log::warning('Vela: OpenAI API key not configured');
@@ -48,7 +51,7 @@ class OpenAiImageService implements AiImageProvider
                     'Authorization' => 'Bearer ' . $this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->baseUrl, [
-                    'model' => 'gpt-image-1',
+                    'model' => $model,
                     'prompt' => $prompt,
                     'n' => $n,
                     'size' => $size,
@@ -59,7 +62,7 @@ class OpenAiImageService implements AiImageProvider
                 $data = $response->json();
                 Log::info('OpenAI image generation successful', [
                     'prompt' => $prompt,
-                    'model' => 'gpt-image-1',
+                    'model' => $model,
                     'size' => $size,
                     'quality' => $quality
                 ]);
@@ -69,7 +72,7 @@ class OpenAiImageService implements AiImageProvider
                     'status' => $response->status(),
                     'response' => $response->body(),
                     'prompt' => $prompt,
-                    'model' => 'gpt-image-1',
+                    'model' => $model,
                     'size' => $size,
                     'quality' => $quality
                 ]);
@@ -79,7 +82,7 @@ class OpenAiImageService implements AiImageProvider
             Log::error('OpenAI image generation exception', [
                 'message' => $e->getMessage(),
                 'prompt' => $prompt,
-                'model' => 'gpt-image-1',
+                'model' => $model,
                 'size' => $size,
                 'quality' => $quality,
                 'exception_type' => get_class($e)
