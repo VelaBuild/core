@@ -14,7 +14,7 @@
 @if(session('success'))
         <div class="form-success">{{ session('success') }}</div>
 @endif
-@if($errors->any())
+@if(isset($errors) && $errors->any())
         <div class="form-error">
             <ul style="margin:0;padding-left:1.2em;">
 @foreach($errors->all() as $error)
