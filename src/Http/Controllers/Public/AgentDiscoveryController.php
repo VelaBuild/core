@@ -81,6 +81,20 @@ class AgentDiscoveryController extends Controller
                     'url' => url('/api/mcp'),
                     'sha256' => '',
                 ],
+                [
+                    'name' => 'web-perf',
+                    'type' => 'api',
+                    'description' => 'Cloudflare web performance controls: Early Hints, Polish image optimization, Mirage lazy loading',
+                    'url' => url('/api/mcp/settings/cloudflare'),
+                    'sha256' => '',
+                ],
+                [
+                    'name' => 'browser-rendering',
+                    'type' => 'api',
+                    'description' => 'Screenshot and PDF generation via Cloudflare Browser Rendering',
+                    'url' => url('/api/content/render'),
+                    'sha256' => '',
+                ],
             ],
         ]);
     }

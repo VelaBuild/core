@@ -10,6 +10,7 @@ use VelaBuild\Core\Models\Category;
 use VelaBuild\Core\Models\Content;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Models\VelaConfig;
+use VelaBuild\Core\Services\BrowserRenderingService;
 
 class ContentApiController extends Controller
 {
@@ -187,6 +188,57 @@ class ContentApiController extends Controller
      * VELA_PUBLIC_API environment variable. Throws a 403 abort if disabled
      * or if the database is unreachable.
      */
+    /**
+     * Render a page as screenshot or PDF via Cloudflare Browser Rendering.
+     */
+    public function render(Request $request): JsonResponse
+    {
+        $this->checkEnabled();
+
+        $renderer = app(BrowserRenderingService::class);
+        if (!$renderer->isConfigured()) {
+            return response()->json([
+                'error' => 'Not configured',
+                'message' => 'Browser rendering is not available',
+            ], 503);
+        }
+
+        $request->validate([
+            'url' => 'required|url',
+            'format' => 'nullable|in:screenshot,pdf',
+            'width' => 'nullable|integer|min:320|max:3840',
+            'height' => 'nullable|integer|min:200|max:2160',
+            'full_page' => 'nullable|boolean',
+        ]);
+
+        $targetUrl = $request->input('url');
+        $format = $request->input('format', 'screenshot');
+        $options = [
+            'width' => $request->integer('width', 1280),
+            'height' => $request->integer('height', 800),
+            'full_page' => $request->boolean('full_page', false),
+        ];
+
+        if ($format === 'pdf') {
+            $data = $renderer->pdf($targetUrl, $options);
+            $mime = 'application/pdf';
+        } else {
+            $data = $renderer->screenshot($targetUrl, $options);
+            $mime = 'image/png';
+        }
+
+        if ($data === null) {
+            return response()->json(['error' => 'Rendering failed'], 502);
+        }
+
+        return response()->json([
+            'data' => $data,
+            'format' => $format,
+            'mime' => $mime,
+            'encoding' => 'base64',
+        ]);
+    }
+
     private function checkEnabled(): void
     {
         try {

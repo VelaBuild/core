@@ -302,6 +302,21 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Browser Rendering (Cloudflare Workers)
+    |--------------------------------------------------------------------------
+    |
+    | Cloudflare Browser Rendering for screenshots, PDFs, and server-side
+    | rendering. Used by AI coding tools for image-to-site workflows and
+    | by the Content API /render endpoint.
+    |
+    */
+
+    'browser_rendering' => [
+        'url' => env('CLOUDFLARE_BROWSER_RENDERING_URL'),
+    ],
+
     'marketplace' => [
         'url' => env('VELA_MARKETPLACE_URL', 'https://marketplace.vela.build'),
         'cache_ttl' => env('VELA_MARKETPLACE_CACHE_TTL', 3600),

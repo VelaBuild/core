@@ -4,13 +4,23 @@ if (!function_exists('vela_image')) {
     /**
      * Generate an optimized responsive <img> tag with WebP + srcset.
      *
-     * @param string $src  Image URL, absolute path, or relative path from base_path()
-     * @param string $alt  Alt text
-     * @param array  $sizes Responsive widths
-     * @param string $mode 'fit' or 'crop'
-     * @param array  $attrs Extra HTML attributes (e.g. ['class' => 'my-class'])
+     * Loading behaviour (6th parameter):
+     *   'lazy'    — (default) loading="lazy" + sizes="auto". Best for below-fold.
+     *   'eager'   — No loading attribute, no sizes="auto". For images that must
+     *               render immediately but don't need preload priority.
+     *   'preload' — loading="eager" + fetchpriority="high". For the LCP / hero
+     *               image. The caller should also emit a <link rel="preload">
+     *               in <head> via vela_image_preload() for best results.
+     *   false     — Skip loading attr entirely (legacy compat, same as 'eager').
+     *
+     * @param string $src      Image URL, absolute path, or relative path
+     * @param string $alt      Alt text
+     * @param array  $sizes    Responsive widths (px)
+     * @param string $mode     'fit' or 'crop'
+     * @param array  $attrs    Extra HTML attributes (e.g. ['class' => '...'])
+     * @param string|false $loading  'lazy' (default), 'eager', 'preload', or false
      */
-    function vela_image(string $src, string $alt = '', array $sizes = [400, 800, 1200], string $mode = 'fit', array $attrs = []): string
+    function vela_image(string $src, string $alt = '', array $sizes = [400, 800, 1200], string $mode = 'fit', array $attrs = [], string|false $loading = 'lazy'): string
     {
         $relativePath = vela_image_relative_path($src);
 
@@ -19,7 +29,13 @@ if (!function_exists('vela_image')) {
             foreach ($attrs as $k => $v) {
                 $extraAttrs .= ' ' . e($k) . '="' . e($v) . '"';
             }
-            return '<img src="' . e($src) . '" alt="' . e($alt) . '" loading="lazy"' . $extraAttrs . '>';
+            $loadAttr = match ($loading) {
+                'lazy' => ' loading="lazy"',
+                'preload' => ' loading="eager" fetchpriority="high"',
+                'eager', false => '',
+                default => ' loading="lazy"',
+            };
+            return '<img src="' . e($src) . '" alt="' . e($alt) . '"' . $loadAttr . $extraAttrs . '>';
         }
 
         $optimizer = app(\VelaBuild\Core\Services\ImageOptimizer::class);
@@ -44,9 +60,55 @@ if (!function_exists('vela_image')) {
             $extraAttrs .= ' ' . e($k) . '="' . e($v) . '"';
         }
 
-        $sizesAttr = $hasSizes ? '' : ' sizes="auto"';
+        $sizesAttr = '';
+        $loadAttr = '';
 
-        return '<img src="' . $defaultUrl . '" srcset="' . $srcset . '"' . $sizesAttr . $extraAttrs . ' loading="lazy" alt="' . e($alt) . '">';
+        switch ($loading) {
+            case 'lazy':
+                $loadAttr = ' loading="lazy"';
+                if (!$hasSizes) {
+                    $sizesAttr = ' sizes="auto"';
+                }
+                break;
+            case 'preload':
+                $loadAttr = ' loading="eager" fetchpriority="high"';
+                break;
+            case 'eager':
+            case false:
+                break;
+        }
+
+        return '<img src="' . $defaultUrl . '" srcset="' . $srcset . '"' . $sizesAttr . $extraAttrs . $loadAttr . ' alt="' . e($alt) . '">';
+    }
+}
+
+if (!function_exists('vela_image_preload')) {
+    /**
+     * Generate a <link rel="preload"> tag for an above-fold hero/LCP image.
+     *
+     * Place this in the <head> section (via @push('head') or similar) alongside
+     * a vela_image(..., loading: 'preload') call in the body. Together they
+     * give the browser the earliest possible signal to fetch the LCP image.
+     *
+     * @param string $src   Image URL or path
+     * @param array  $sizes Responsive widths (should match the vela_image call)
+     * @param string $mode  'fit' or 'crop'
+     */
+    function vela_image_preload(string $src, array $sizes = [400, 800, 1200], string $mode = 'fit'): string
+    {
+        $relativePath = vela_image_relative_path($src);
+        if (!config('vela.images.enabled', true) || $relativePath === null) {
+            return '<link rel="preload" as="image" href="' . e($src) . '">';
+        }
+
+        $optimizer = app(\VelaBuild\Core\Services\ImageOptimizer::class);
+        $srcsetParts = [];
+        foreach ($sizes as $width) {
+            $url = $optimizer->generateUrl($relativePath, $width, 0, $mode);
+            $srcsetParts[] = $url . ' ' . $width . 'w';
+        }
+
+        return '<link rel="preload" as="image" imagesrcset="' . implode(', ', $srcsetParts) . '" imagesizes="auto">';
     }
 }
 
@@ -77,9 +139,6 @@ if (!function_exists('vela_optimize_imgs')) {
      * the optimiser" rule can't be broken by a copy-paste. Idempotent — images
      * whose src already points at /imgp/ or /imgr/ are left alone, as are
      * data: URLs and cross-origin images (we can't process remote files).
-     *
-     * Runs on the rendered HTML, not per request: in the static-cache deploy
-     * model this fires once per page per regen, cost is a regex + URL build.
      */
     function vela_optimize_imgs(string $html): string
     {
@@ -104,7 +163,6 @@ if (!function_exists('vela_optimize_imgs')) {
                     return $m[0];
                 }
 
-                // Skip cross-origin — we can't resize what we don't host.
                 if (preg_match('#^https?://#', $src)) {
                     $host = parse_url($src, PHP_URL_HOST);
                     $appHost = parse_url((string) config('app.url'), PHP_URL_HOST);
@@ -114,7 +172,7 @@ if (!function_exists('vela_optimize_imgs')) {
                 }
 
                 $alt = $attrs['alt'] ?? '';
-                unset($attrs['src'], $attrs['alt'], $attrs['srcset'], $attrs['loading']);
+                unset($attrs['src'], $attrs['alt'], $attrs['srcset'], $attrs['loading'], $attrs['sizes']);
 
                 return vela_image($src, $alt, [640, 960, 1280, 1920], 'fit', $attrs);
             },
@@ -132,12 +190,10 @@ if (!function_exists('vela_image_relative_path')) {
     {
         $basePath = base_path();
 
-        // Already a relative path (e.g. storage/app/public/1/file.jpg)
         if (!str_starts_with($src, '/') && !str_starts_with($src, 'http')) {
             return is_file($basePath . '/' . $src) ? $src : null;
         }
 
-        // Full URL — extract the URL path
         if (str_starts_with($src, 'http')) {
             $parsed = parse_url($src, PHP_URL_PATH);
             if ($parsed === null || $parsed === false) {
@@ -146,32 +202,25 @@ if (!function_exists('vela_image_relative_path')) {
             $src = $parsed;
         }
 
-        // Strip the app's public base path prefix (handles subdirectory installs)
-        // e.g. /myapp/public/storage/1/file.jpg → /storage/1/file.jpg
         $publicBase = rtrim(parse_url(config('app.url', ''), PHP_URL_PATH) ?? '', '/');
         if ($publicBase === '') {
-            // Fallback: derive from SCRIPT_NAME
             $publicBase = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
         }
         if ($publicBase !== '' && str_starts_with($src, $publicBase)) {
             $src = substr($src, strlen($publicBase));
         }
-        // Normalize double slashes
         $src = preg_replace('#/+#', '/', $src);
 
-        // Path like /storage/1/file.jpg → storage/app/public/1/file.jpg
         if (preg_match('#^/storage/(.+)$#', $src, $m)) {
             $relative = 'storage/app/public/' . $m[1];
             return is_file($basePath . '/' . $relative) ? $relative : null;
         }
 
-        // Path like /images/hero.png → public/images/hero.png
         $publicPath = 'public' . $src;
         if (is_file($basePath . '/' . $publicPath)) {
             return $publicPath;
         }
 
-        // Absolute filesystem path
         if (str_starts_with($src, $basePath)) {
             return ltrim(substr($src, strlen($basePath)), '/');
         }

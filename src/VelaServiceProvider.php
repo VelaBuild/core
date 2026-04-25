@@ -368,6 +368,7 @@ class VelaServiceProvider extends ServiceProvider
             Route::get('/posts/{slug}', [$c, 'post'])->name('post');
             Route::get('/categories', [$c, 'categories'])->name('categories');
             Route::get('/search', [$c, 'search'])->name('search');
+            Route::post('/render', [$c, 'render'])->name('render');
         });
     }
 

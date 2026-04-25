@@ -196,4 +196,147 @@ class CloudflareService
     {
         return $this->settings->hasKey('cf_api_token') && $this->settings->hasKey('cf_zone_id');
     }
+
+    /** Get Early Hints setting. */
+    public function getEarlyHints(): array
+    {
+        $zoneId = $this->settings->get('cf_zone_id');
+        $token = $this->settings->get('cf_api_token');
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->get(self::BASE_URL . "/zones/{$zoneId}/settings/early_hints");
+
+        $result = $response->json();
+        if (!$response->successful()) {
+            Log::error('Cloudflare get early hints failed', ['response' => $result]);
+        }
+
+        return $result;
+    }
+
+    /** Set Early Hints setting. */
+    public function setEarlyHints(bool $enabled): array
+    {
+        $zoneId = $this->settings->get('cf_zone_id');
+        $token = $this->settings->get('cf_api_token');
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->patch(self::BASE_URL . "/zones/{$zoneId}/settings/early_hints", [
+                'value' => $enabled ? 'on' : 'off',
+            ]);
+
+        $result = $response->json();
+        if (!$response->successful()) {
+            Log::error('Cloudflare set early hints failed', ['response' => $result]);
+        }
+
+        return $result;
+    }
+
+    /** Get Polish setting. */
+    public function getPolish(): array
+    {
+        $zoneId = $this->settings->get('cf_zone_id');
+        $token = $this->settings->get('cf_api_token');
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->get(self::BASE_URL . "/zones/{$zoneId}/settings/polish");
+
+        $result = $response->json();
+        if (!$response->successful()) {
+            Log::error('Cloudflare get polish failed', ['response' => $result]);
+        }
+
+        return $result;
+    }
+
+    /** Set Polish mode. */
+    public function setPolish(string $mode): array
+    {
+        $zoneId = $this->settings->get('cf_zone_id');
+        $token = $this->settings->get('cf_api_token');
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->patch(self::BASE_URL . "/zones/{$zoneId}/settings/polish", [
+                'value' => $mode,
+            ]);
+
+        $result = $response->json();
+        if (!$response->successful()) {
+            Log::error('Cloudflare set polish failed', ['response' => $result, 'mode' => $mode]);
+        }
+
+        return $result;
+    }
+
+    /** Get Mirage setting. */
+    public function getMirage(): array
+    {
+        $zoneId = $this->settings->get('cf_zone_id');
+        $token = $this->settings->get('cf_api_token');
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->get(self::BASE_URL . "/zones/{$zoneId}/settings/mirage");
+
+        $result = $response->json();
+        if (!$response->successful()) {
+            Log::error('Cloudflare get mirage failed', ['response' => $result]);
+        }
+
+        return $result;
+    }
+
+    /** Set Mirage setting. */
+    public function setMirage(bool $enabled): array
+    {
+        $zoneId = $this->settings->get('cf_zone_id');
+        $token = $this->settings->get('cf_api_token');
+
+        $response = Http::timeout(30)
+            ->withToken($token)
+            ->patch(self::BASE_URL . "/zones/{$zoneId}/settings/mirage", [
+                'value' => $enabled ? 'on' : 'off',
+            ]);
+
+        $result = $response->json();
+        if (!$response->successful()) {
+            Log::error('Cloudflare set mirage failed', ['response' => $result]);
+        }
+
+        return $result;
+    }
+
+    /** Get combined speed settings (Early Hints, Polish, Mirage). */
+    public function getSpeedSettings(): array
+    {
+        $settings = [];
+
+        try {
+            $settings['early_hints'] = $this->getEarlyHints();
+        } catch (\Throwable $e) {
+            Log::error('Cloudflare get early hints exception', ['message' => $e->getMessage()]);
+            $settings['early_hints'] = ['success' => false, 'error' => $e->getMessage()];
+        }
+
+        try {
+            $settings['polish'] = $this->getPolish();
+        } catch (\Throwable $e) {
+            Log::error('Cloudflare get polish exception', ['message' => $e->getMessage()]);
+            $settings['polish'] = ['success' => false, 'error' => $e->getMessage()];
+        }
+
+        try {
+            $settings['mirage'] = $this->getMirage();
+        } catch (\Throwable $e) {
+            Log::error('Cloudflare get mirage exception', ['message' => $e->getMessage()]);
+            $settings['mirage'] = ['success' => false, 'error' => $e->getMessage()];
+        }
+
+        return $settings;
+    }
 }
