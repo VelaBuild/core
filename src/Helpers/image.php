@@ -31,17 +31,22 @@ if (!function_exists('vela_image')) {
             $srcsetParts[] = $url . ' ' . $width . 'w';
             $urls[] = $url;
         }
-        // Use middle size as default src (reasonable fallback for old browsers)
         $defaultUrl = $urls[(int) floor(count($urls) / 2)] ?? $urls[0];
 
         $srcset = implode(', ', $srcsetParts);
 
         $extraAttrs = '';
+        $hasSizes = false;
         foreach ($attrs as $k => $v) {
+            if (strtolower($k) === 'sizes') {
+                $hasSizes = true;
+            }
             $extraAttrs .= ' ' . e($k) . '="' . e($v) . '"';
         }
 
-        return '<img src="' . $defaultUrl . '" srcset="' . $srcset . '"' . $extraAttrs . ' loading="lazy" alt="' . e($alt) . '">';
+        $sizesAttr = $hasSizes ? '' : ' sizes="auto"';
+
+        return '<img src="' . $defaultUrl . '" srcset="' . $srcset . '"' . $sizesAttr . $extraAttrs . ' loading="lazy" alt="' . e($alt) . '">';
     }
 }
 
