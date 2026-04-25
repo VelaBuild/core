@@ -200,7 +200,7 @@
             @php
                 $csAiTrain = old('content_signal_ai_train', $settings['content_signal_ai_train'] ?? 'no');
                 $csSearch = old('content_signal_search', $settings['content_signal_search'] ?? 'yes');
-                $csAiInput = old('content_signal_ai_input', $settings['content_signal_ai_input'] ?? 'no');
+                $csAiInput = old('content_signal_ai_input', $settings['content_signal_ai_input'] ?? 'yes');
             @endphp
 
             <div class="form-group">
@@ -232,8 +232,8 @@
                         <div class="form-group">
                             <label for="content_signal_ai_input">{{ __('vela::visibility.cs_ai_input') }}</label>
                             <select class="form-control" name="content_signal_ai_input" id="content_signal_ai_input">
-                                <option value="no" {{ $csAiInput === 'no' ? 'selected' : '' }}>{{ __('vela::visibility.cs_no') }}</option>
                                 <option value="yes" {{ $csAiInput === 'yes' ? 'selected' : '' }}>{{ __('vela::visibility.cs_yes') }}</option>
+                                <option value="no" {{ $csAiInput === 'no' ? 'selected' : '' }}>{{ __('vela::visibility.cs_no') }}</option>
                             </select>
                             <small class="form-text text-muted">{{ __('vela::visibility.cs_ai_input_help') }}</small>
                         </div>

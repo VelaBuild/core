@@ -703,7 +703,7 @@ class ConfigController extends Controller
 
         $aiTrain = $settings['content_signal_ai_train'] ?? 'no';
         $search = $settings['content_signal_search'] ?? 'yes';
-        $aiInput = $settings['content_signal_ai_input'] ?? 'no';
+        $aiInput = $settings['content_signal_ai_input'] ?? 'yes';
 
         $lines[] = '';
         $lines[] = '# Content Signals (draft-romm-aipref-contentsignals)';
