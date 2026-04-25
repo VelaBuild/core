@@ -23,7 +23,8 @@ class ConfigController extends Controller
         'app' => ['app_ios_url', 'app_android_url', 'app_name', 'app_custom_scheme'],
         'gdpr' => ['gdpr_enabled', 'gdpr_privacy_url'],
         'visibility' => ['visibility_mode', 'visibility_noindex', 'visibility_block_ai', 'visibility_holding_page', 'visibility_holding_page_id',
-            'x402_enabled', 'x402_mode', 'x402_pay_to', 'x402_price_usd', 'x402_network', 'x402_description'],
+            'x402_enabled', 'x402_mode', 'x402_pay_to', 'x402_price_usd', 'x402_network', 'x402_description',
+            'content_signal_ai_train', 'content_signal_search', 'content_signal_ai_input'],
     ];
 
     public function index(Request $request)
@@ -205,7 +206,16 @@ class ConfigController extends Controller
             VelaConfig::updateOrCreate(['key' => 'x402_network'], ['value' => $request->input('x402_network', 'base')]);
             VelaConfig::updateOrCreate(['key' => 'x402_description'], ['value' => $request->input('x402_description', '')]);
 
+            // Content Signals (robots.txt directives)
+            $signals = ['ai_train', 'search', 'ai_input'];
+            foreach ($signals as $key) {
+                $dbKey = 'content_signal_' . $key;
+                $default = $key === 'search' ? 'yes' : 'no';
+                VelaConfig::updateOrCreate(['key' => $dbKey], ['value' => $request->input($dbKey, $default)]);
+            }
+
             $this->writeSiteConfig();
+            $this->writeRobotsTxt();
 
             // Clear static HTML cache — meta tags and holding page behaviour
             // are baked into cached files, so they must be regenerated
@@ -652,6 +662,55 @@ class ConfigController extends Controller
         });
 
         return redirect()->back()->with('success', __('vela::gdpr.privacy_page_created'));
+    }
+
+    private function writeRobotsTxt(): void
+    {
+        $settings = VelaConfig::whereIn('key', [
+            'visibility_mode', 'visibility_noindex', 'visibility_block_ai',
+            'content_signal_ai_train', 'content_signal_search', 'content_signal_ai_input',
+        ])->pluck('value', 'key')->toArray();
+
+        $mode = $settings['visibility_mode'] ?? 'public';
+        $noindex = ($settings['visibility_noindex'] ?? '0') === '1';
+        $blockAi = ($settings['visibility_block_ai'] ?? '0') === '1';
+
+        $lines = [];
+
+        if ($mode === 'restricted' && $noindex) {
+            $lines[] = 'User-agent: *';
+            $lines[] = 'Disallow: /';
+            $lines[] = '';
+        }
+
+        if ($mode === 'restricted' && $blockAi) {
+            $bots = ['GPTBot','ChatGPT-User','Google-Extended','CCBot','anthropic-ai',
+                'ClaudeBot','Claude-Web','Bytespider','Diffbot','FacebookBot',
+                'Applebot-Extended','PerplexityBot','Amazonbot','Cohere-ai','AI2Bot','Scrapy','img2dataset'];
+            foreach ($bots as $bot) {
+                $lines[] = "User-agent: {$bot}";
+                $lines[] = 'Disallow: /';
+                $lines[] = '';
+            }
+        }
+
+        if (empty($lines)) {
+            $lines[] = 'User-agent: *';
+            $lines[] = 'Allow: /';
+            $lines[] = '';
+            $lines[] = 'Sitemap: ' . url('/sitemap.xml');
+        }
+
+        $aiTrain = $settings['content_signal_ai_train'] ?? 'no';
+        $search = $settings['content_signal_search'] ?? 'yes';
+        $aiInput = $settings['content_signal_ai_input'] ?? 'no';
+
+        $lines[] = '';
+        $lines[] = '# Content Signals (draft-romm-aipref-contentsignals)';
+        $lines[] = "Content-Signal: ai-train={$aiTrain}, search={$search}, ai-input={$aiInput}";
+
+        $path = public_path('robots.txt');
+        file_put_contents($path, implode("\n", $lines));
     }
 
     private function deleteStaticDirectory(string $dir): void

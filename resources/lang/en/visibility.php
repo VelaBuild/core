@@ -45,4 +45,17 @@ return [
     'x402_page_enable'     => 'Require AI payment for this page',
     'x402_page_price'      => 'Price (USD)',
     'x402_page_price_help' => 'Leave empty to use the default price from settings.',
+
+    // Content Signals
+    'content_signals_title'   => 'Content Signals',
+    'content_signals_desc'    => 'Declare your AI content usage preferences in robots.txt. These signals tell AI providers what they may and may not do with your content.',
+    'content_signals_preview' => 'preview',
+    'cs_ai_train'             => 'AI Training',
+    'cs_ai_train_help'        => 'Allow AI models to train on your content.',
+    'cs_search'               => 'Search Indexing',
+    'cs_search_help'          => 'Allow use in search engine results.',
+    'cs_ai_input'             => 'AI Input / Chat',
+    'cs_ai_input_help'        => 'Allow AI to use content as input for chat responses.',
+    'cs_yes'                  => 'Yes — Allow',
+    'cs_no'                   => 'No — Disallow',
 ];

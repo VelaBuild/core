@@ -194,6 +194,58 @@
                 </div>
             </div>
 
+            <hr class="my-4">
+
+            {{-- Content Signals --}}
+            @php
+                $csAiTrain = old('content_signal_ai_train', $settings['content_signal_ai_train'] ?? 'no');
+                $csSearch = old('content_signal_search', $settings['content_signal_search'] ?? 'yes');
+                $csAiInput = old('content_signal_ai_input', $settings['content_signal_ai_input'] ?? 'no');
+            @endphp
+
+            <div class="form-group">
+                <label class="d-block mb-2"><strong>{{ __('vela::visibility.content_signals_title') }}</strong></label>
+                <small class="form-text text-muted mb-3 d-block">{{ __('vela::visibility.content_signals_desc') }}</small>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="content_signal_ai_train">{{ __('vela::visibility.cs_ai_train') }}</label>
+                            <select class="form-control" name="content_signal_ai_train" id="content_signal_ai_train">
+                                <option value="no" {{ $csAiTrain === 'no' ? 'selected' : '' }}>{{ __('vela::visibility.cs_no') }}</option>
+                                <option value="yes" {{ $csAiTrain === 'yes' ? 'selected' : '' }}>{{ __('vela::visibility.cs_yes') }}</option>
+                            </select>
+                            <small class="form-text text-muted">{{ __('vela::visibility.cs_ai_train_help') }}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="content_signal_search">{{ __('vela::visibility.cs_search') }}</label>
+                            <select class="form-control" name="content_signal_search" id="content_signal_search">
+                                <option value="yes" {{ $csSearch === 'yes' ? 'selected' : '' }}>{{ __('vela::visibility.cs_yes') }}</option>
+                                <option value="no" {{ $csSearch === 'no' ? 'selected' : '' }}>{{ __('vela::visibility.cs_no') }}</option>
+                            </select>
+                            <small class="form-text text-muted">{{ __('vela::visibility.cs_search_help') }}</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="content_signal_ai_input">{{ __('vela::visibility.cs_ai_input') }}</label>
+                            <select class="form-control" name="content_signal_ai_input" id="content_signal_ai_input">
+                                <option value="no" {{ $csAiInput === 'no' ? 'selected' : '' }}>{{ __('vela::visibility.cs_no') }}</option>
+                                <option value="yes" {{ $csAiInput === 'yes' ? 'selected' : '' }}>{{ __('vela::visibility.cs_yes') }}</option>
+                            </select>
+                            <small class="form-text text-muted">{{ __('vela::visibility.cs_ai_input_help') }}</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-light border mt-2">
+                    <small class="text-muted"><strong>robots.txt</strong> {{ __('vela::visibility.content_signals_preview') }}:</small><br>
+                    <code>Content-Signal: ai-train=<span id="cs-preview-train">{{ $csAiTrain }}</span>, search=<span id="cs-preview-search">{{ $csSearch }}</span>, ai-input=<span id="cs-preview-input">{{ $csAiInput }}</span></code>
+                </div>
+            </div>
+
             @can('config_edit')
                 <hr class="my-4">
                 <button type="submit" class="btn btn-primary">{{ __('vela::pwa.save') }}</button>
@@ -228,6 +280,15 @@
     var x402Options = document.getElementById('x402-options');
     x402Toggle.addEventListener('change', function() {
         x402Options.style.display = this.checked ? '' : 'none';
+    });
+
+    // Content Signals live preview
+    ['ai_train', 'search', 'ai_input'].forEach(function(key) {
+        var sel = document.getElementById('content_signal_' + key);
+        var preview = document.getElementById('cs-preview-' + key.replace('ai_', ''));
+        if (sel && preview) {
+            sel.addEventListener('change', function() { preview.textContent = this.value; });
+        }
     });
 })();
 </script>
