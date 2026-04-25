@@ -45,6 +45,12 @@ class McpSettingsController extends Controller
             }
         }
 
+        // Public Content API toggle
+        \VelaBuild\Core\Models\VelaConfig::updateOrCreate(
+            ['key' => 'public_api_enabled'],
+            ['value' => $request->boolean('public_api_enabled') ? '1' : '0']
+        );
+
         return redirect()->back()->with('success', __('vela::mcp.settings_saved'));
     }
 

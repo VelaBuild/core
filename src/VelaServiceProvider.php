@@ -182,6 +182,8 @@ class VelaServiceProvider extends ServiceProvider
         $this->registerHomeRedirect();
         $this->registerAdminRoutes();
         $this->registerMcpRoutes();
+        $this->registerContentApiRoutes();
+        $this->registerAgentDiscoveryRoutes();
         $this->registerWebhookRoutes();
         $this->registerAuthRoutes();
         // Image optimization routes (outside locale group)
@@ -225,6 +227,8 @@ class VelaServiceProvider extends ServiceProvider
         $router->aliasMiddleware('vela.x402', \VelaBuild\Core\Http\Middleware\VelaX402Payment::class);
         $router->aliasMiddleware('vela.mcp', \VelaBuild\Core\Http\Middleware\VelaMcpAuth::class);
         $router->aliasMiddleware('vela.show-to-edit', \VelaBuild\Core\Http\Middleware\VelaRedirectShowToEdit::class);
+
+        $router->pushMiddlewareToGroup('web', \VelaBuild\Core\Http\Middleware\AgentDiscovery::class);
 
         // Cloudflare Cache-Tag emission for every public (web) response.
         // Pushed onto the `web` group so host apps don't need to register
@@ -347,6 +351,33 @@ class VelaServiceProvider extends ServiceProvider
             'middleware' => ['vela.mcp'],
         ], function () {
             $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+        });
+    }
+
+    protected function registerContentApiRoutes(): void
+    {
+        Route::group([
+            'prefix' => 'api/content',
+            'as' => 'vela.api.content.',
+        ], function () {
+            $c = \VelaBuild\Core\Http\Controllers\Api\ContentApiController::class;
+            Route::get('/', [$c, 'posts'])->name('posts');
+            Route::get('/pages', [$c, 'pages'])->name('pages');
+            Route::get('/pages/{slug}', [$c, 'page'])->name('page');
+            Route::get('/posts', [$c, 'posts'])->name('posts.list');
+            Route::get('/posts/{slug}', [$c, 'post'])->name('post');
+            Route::get('/categories', [$c, 'categories'])->name('categories');
+            Route::get('/search', [$c, 'search'])->name('search');
+        });
+    }
+
+    protected function registerAgentDiscoveryRoutes(): void
+    {
+        Route::middleware('web')->group(function () {
+            $c = \VelaBuild\Core\Http\Controllers\Public\AgentDiscoveryController::class;
+            Route::get('/.well-known/api-catalog', [$c, 'apiCatalog'])->name('vela.well-known.api-catalog');
+            Route::get('/.well-known/mcp/server-card.json', [$c, 'mcpServerCard'])->name('vela.well-known.mcp-server-card');
+            Route::get('/.well-known/agent-skills/index.json', [$c, 'agentSkillsIndex'])->name('vela.well-known.agent-skills');
         });
     }
 

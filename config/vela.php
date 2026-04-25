@@ -25,6 +25,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public Content API
+    |--------------------------------------------------------------------------
+    |
+    | Read-only JSON API for searching, listing, and fetching published content.
+    | Can also be toggled from admin Settings. Default: enabled.
+    |
+    */
+
+    'public_api_enabled' => env('VELA_PUBLIC_API', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Middleware
     |--------------------------------------------------------------------------
     */

@@ -29,4 +29,11 @@ return [
     'env_desc'          => 'You can also configure MCP via .env instead of this settings page. When set in .env, those fields are locked here.',
 
     'cache_types'       => 'Cache types: all, home, pages, articles, images, pwa',
+
+    // Public Content API
+    'public_api_title'      => 'Public Content API',
+    'public_api_desc'       => 'Read-only JSON API for searching, listing, and fetching published site content. No authentication required. Agents, search engines, and third-party tools can use this to discover your content.',
+    'public_api_enable'     => 'Enable public content API',
+    'public_api_endpoints'  => 'Public API Endpoints (no auth)',
+    'public_api_readonly'   => 'All endpoints are read-only. Only published content is exposed.',
 ];

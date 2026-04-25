@@ -99,6 +99,39 @@
                 @endif
             </div>
 
+            <hr class="my-4">
+
+            <div class="form-group">
+                <label class="d-block mb-2"><strong>{{ __('vela::mcp.public_api_title') }}</strong></label>
+                <small class="form-text text-muted mb-3 d-block">{{ __('vela::mcp.public_api_desc') }}</small>
+
+                @php
+                    $publicApiDb = \VelaBuild\Core\Models\VelaConfig::where('key', 'public_api_enabled')->value('value');
+                    $publicApiEnabled = $publicApiDb !== null ? ($publicApiDb !== '0') : config('vela.public_api_enabled', true);
+                @endphp
+
+                <div class="custom-control custom-switch mb-3">
+                    <input type="hidden" name="public_api_enabled" value="0">
+                    <input type="checkbox" class="custom-control-input" id="public-api-enabled" name="public_api_enabled" value="1"
+                        {{ $publicApiEnabled ? 'checked' : '' }}>
+                    <label class="custom-control-label" for="public-api-enabled">
+                        {{ __('vela::mcp.public_api_enable') }}
+                    </label>
+                </div>
+
+                <div class="alert alert-light border">
+                    <h6 class="mb-2"><i class="fas fa-code mr-1"></i> {{ __('vela::mcp.public_api_endpoints') }}</h6>
+                    <code class="d-block mb-1">GET {{ url('/api/content') }}</code>
+                    <code class="d-block mb-1">GET {{ url('/api/content/pages') }}</code>
+                    <code class="d-block mb-1">GET {{ url('/api/content/pages/{slug}') }}</code>
+                    <code class="d-block mb-1">GET {{ url('/api/content/posts') }}</code>
+                    <code class="d-block mb-1">GET {{ url('/api/content/posts/{slug}') }}</code>
+                    <code class="d-block mb-1">GET {{ url('/api/content/categories') }}</code>
+                    <code class="d-block mb-1">GET {{ url('/api/content/search?q=term') }}</code>
+                    <p class="text-muted small mb-0 mt-2">{{ __('vela::mcp.public_api_readonly') }}</p>
+                </div>
+            </div>
+
             @can('config_edit')
                 <hr class="my-4">
                 <button type="submit" class="btn btn-primary">{{ __('vela::pwa.save') }}</button>

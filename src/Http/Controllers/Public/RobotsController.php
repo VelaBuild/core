@@ -60,6 +60,10 @@ class RobotsController extends Controller
             $lines[] = "Sitemap: {$sitemapUrl}";
         }
 
+        $lines[] = '';
+        $lines[] = '# Content Signals (draft-romm-aipref-contentsignals)';
+        $lines[] = 'Content-Signal: ai-train=no, search=yes, ai-input=no';
+
         return response(implode("\n", $lines), 200)
             ->header('Content-Type', 'text/plain; charset=UTF-8');
     }
