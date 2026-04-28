@@ -12,9 +12,13 @@ class CategoryController extends Controller
 {
     public function index()
     {
-        $categories = Category::orderBy('order_by', 'asc')
-            ->orderBy('name', 'asc')
-            ->get();
+        try {
+            $categories = Category::orderBy('order_by', 'asc')
+                ->orderBy('name', 'asc')
+                ->get();
+        } catch (\Illuminate\Database\QueryException | \PDOException $e) {
+            abort(503, 'Content unavailable');
+        }
 
         $metaTags = MetaTagsHelper::forCategoriesIndex();
 
@@ -23,31 +27,34 @@ class CategoryController extends Controller
 
     public function show($slug)
     {
-        // Get all categories and find the one that matches the slug
-        $categories = Category::all();
-        $category = null;
+        try {
+            $categories = Category::all();
+            $category = null;
 
-        foreach ($categories as $cat) {
-            if (strtolower(\Illuminate\Support\Str::slug($cat->name)) === strtolower($slug)) {
-                $category = $cat;
-                break;
+            foreach ($categories as $cat) {
+                if (strtolower(\Illuminate\Support\Str::slug($cat->name)) === strtolower($slug)) {
+                    $category = $cat;
+                    break;
+                }
             }
+
+            if (!$category) {
+                abort(404);
+            }
+
+            $posts = Content::where('status', 'published')
+                ->whereHas('categories', function ($query) use ($category) {
+                    $query->where('vela_categories.id', $category->id);
+                })
+                ->orderByRaw('COALESCE(published_at, created_at) DESC')
+                ->paginate(12);
+
+            $categories = Category::orderBy('order_by', 'asc')
+                ->orderBy('name', 'asc')
+                ->get();
+        } catch (\Illuminate\Database\QueryException | \PDOException $e) {
+            abort(503, 'Content unavailable');
         }
-
-        if (!$category) {
-            abort(404);
-        }
-
-        $posts = Content::where('status', 'published')
-            ->whereHas('categories', function ($query) use ($category) {
-                $query->where('vela_categories.id', $category->id);
-            })
-            ->orderByRaw('COALESCE(published_at, created_at) DESC')
-            ->paginate(12);
-
-        $categories = Category::orderBy('order_by', 'asc')
-            ->orderBy('name', 'asc')
-            ->get();
 
         $metaTags = MetaTagsHelper::forCategory($category);
 

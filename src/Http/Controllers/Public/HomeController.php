@@ -13,7 +13,15 @@ class HomeController extends Controller
 {
     public function index()
     {
-        // Check for a PageBuilder homepage
+        try {
+            return $this->renderFromDb();
+        } catch (\Illuminate\Database\QueryException | \PDOException $e) {
+            return $this->renderFallback();
+        }
+    }
+
+    private function renderFromDb()
+    {
         $homePage = Page::where('slug', 'home')
             ->where('status', 'published')
             ->with(['rows.blocks'])
@@ -26,7 +34,6 @@ class HomeController extends Controller
             return $response;
         }
 
-        // Check if a home template exists (host or package)
         $homeView = vela_template_view('home');
         $isWelcomeFallback = ($homeView === 'vela::public.home');
 
@@ -52,7 +59,11 @@ class HomeController extends Controller
             return $response;
         }
 
-        // Fallback: welcome page inside theme layout
+        return $this->renderFallback();
+    }
+
+    private function renderFallback()
+    {
         $response = view('vela::public.welcome');
         $this->writeStaticCacheIfMissing($response->render());
         return $response;

@@ -26,7 +26,11 @@ class VelaSiteVisibility
         }
 
         // Resolve the holding page slug so we don't redirect it to itself
-        $holdingPage = \VelaBuild\Core\Models\Page::find($holdingPageId);
+        try {
+            $holdingPage = \VelaBuild\Core\Models\Page::find($holdingPageId);
+        } catch (\Illuminate\Database\QueryException | \PDOException $e) {
+            return $next($request);
+        }
         if (!$holdingPage) {
             return $next($request);
         }

@@ -12,13 +12,17 @@ class PostController extends Controller
 {
     public function index()
     {
-        $posts = Content::where('status', 'published')
-            ->orderByRaw('COALESCE(published_at, created_at) DESC')
-            ->paginate(12);
+        try {
+            $posts = Content::where('status', 'published')
+                ->orderByRaw('COALESCE(published_at, created_at) DESC')
+                ->paginate(12);
 
-        $categories = Category::orderBy('order_by', 'asc')
-            ->orderBy('name', 'asc')
-            ->get();
+            $categories = Category::orderBy('order_by', 'asc')
+                ->orderBy('name', 'asc')
+                ->get();
+        } catch (\Illuminate\Database\QueryException | \PDOException $e) {
+            abort(503, 'Content unavailable');
+        }
 
         $metaTags = MetaTagsHelper::forArticlesIndex();
 
@@ -27,23 +31,25 @@ class PostController extends Controller
 
     public function show($slug)
     {
-        $post = Content::where('slug', $slug)
-            ->where('status', 'published')
-            ->firstOrFail();
+        try {
+            $post = Content::where('slug', $slug)
+                ->where('status', 'published')
+                ->firstOrFail();
 
-        // Get related posts
-        $relatedPosts = Content::where('status', 'published')
-            ->where('id', '!=', $post->id)
-            ->whereHas('categories', function ($query) use ($post) {
-                $query->whereIn('vela_categories.id', $post->categories->pluck('id'));
-            })
-            ->limit(3)
-            ->get();
+            $relatedPosts = Content::where('status', 'published')
+                ->where('id', '!=', $post->id)
+                ->whereHas('categories', function ($query) use ($post) {
+                    $query->whereIn('vela_categories.id', $post->categories->pluck('id'));
+                })
+                ->limit(3)
+                ->get();
 
-        // Get all categories for navigation
-        $categories = Category::orderBy('order_by', 'asc')
-            ->orderBy('name', 'asc')
-            ->get();
+            $categories = Category::orderBy('order_by', 'asc')
+                ->orderBy('name', 'asc')
+                ->get();
+        } catch (\Illuminate\Database\QueryException | \PDOException $e) {
+            abort(503, 'Content unavailable');
+        }
 
         $metaTags = MetaTagsHelper::forContent($post);
 
