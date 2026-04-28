@@ -6,3 +6,4 @@
     @include('vela::partials.pwa-registration')
 @endif
     @include('vela::partials.cookie-consent')
+    @include('vela::partials.webmcp')
