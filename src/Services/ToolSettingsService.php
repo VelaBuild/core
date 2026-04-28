@@ -59,7 +59,11 @@ class ToolSettingsService
         }
 
         // Fall back to DB
-        $record = VelaConfig::where('key', self::PREFIX . $key)->first();
+        try {
+            $record = VelaConfig::where('key', self::PREFIX . $key)->first();
+        } catch (\Illuminate\Database\QueryException | \PDOException $e) {
+            return $default;
+        }
         if (!$record || $record->value === null || $record->value === '') {
             return $default;
         }
