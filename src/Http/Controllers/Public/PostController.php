@@ -12,6 +12,10 @@ class PostController extends Controller
 {
     public function index()
     {
+        // Pull in any pages/posts that exist as static config.json on disk but
+        // aren't yet in the DB. Idempotent, daily-locked inside the job.
+        \VelaBuild\Core\Jobs\ImportContentFromConfigJob::dispatch();
+
         try {
             $posts = Content::where('status', 'published')
                 ->orderByRaw('COALESCE(published_at, created_at) DESC')

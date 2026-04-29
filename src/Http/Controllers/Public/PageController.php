@@ -15,6 +15,9 @@ class PageController extends Controller
 {
     public function show($slug)
     {
+        // Sync DB with any static config.json files (idempotent, daily-locked).
+        \VelaBuild\Core\Jobs\ImportContentFromConfigJob::dispatch();
+
         $locale = app()->getLocale();
 
         // DB may be unavailable on a fresh deploy (migrations not run) or during

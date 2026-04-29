@@ -55,13 +55,18 @@ class VelaInstall extends Command
         // 5. Create admin user
         $this->createAdminUser();
 
-        // 6. Install default homepage if none exists
+        // 6. Import existing static content (pages/posts with config.json on
+        //    disk) into the DB. Runs before installDefaultHomepage so an
+        //    imported `home` Page short-circuits the default homepage step.
+        $this->importStaticContent();
+
+        // 7. Install default homepage if none exists
         $this->installDefaultHomepage();
 
-        // 7. Static files in git
+        // 8. Static files in git
         $this->configureStaticTracking();
 
-        // 8. Mark as installed
+        // 9. Mark as installed
         $this->markInstalled();
 
         // 9. Done
@@ -210,6 +215,39 @@ class VelaInstall extends Command
         }
 
         file_put_contents($envPath, $contents);
+    }
+
+    protected function importStaticContent(): void
+    {
+        $basePath = config('vela.static.path', resource_path('static'));
+        $pageConfigs = glob($basePath . '/pages/*/config.json') ?: [];
+        $postConfigs = glob($basePath . '/posts/*/config.json') ?: [];
+
+        if (empty($pageConfigs) && empty($postConfigs)) {
+            return;
+        }
+
+        $this->step('Importing existing static content...');
+
+        $pagesBefore = Page::count();
+        $postsBefore = \VelaBuild\Core\Models\Content::where('type', 'post')->count();
+
+        // Clear the daily lock so the import always runs during install,
+        // even if it ran earlier today, then dispatch synchronously so the
+        // installer reports accurate counts and doesn't depend on a worker.
+        \Illuminate\Support\Facades\Cache::forget('import-content-ran:' . now()->toDateString());
+        \VelaBuild\Core\Jobs\ImportContentFromConfigJob::dispatchSync();
+
+        $pagesAdded = Page::count() - $pagesBefore;
+        $postsAdded = \VelaBuild\Core\Models\Content::where('type', 'post')->count() - $postsBefore;
+
+        $summary = trim(sprintf(
+            '%s pages, %s posts',
+            $pagesAdded > 0 ? "<fg=green>+{$pagesAdded}</>" : '0',
+            $postsAdded > 0 ? "<fg=green>+{$postsAdded}</>" : '0'
+        ));
+
+        $this->components->twoColumnDetail('Static content import', $summary);
     }
 
     protected function installDefaultHomepage(): void

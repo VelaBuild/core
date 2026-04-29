@@ -13,6 +13,9 @@ class HomeController extends Controller
 {
     public function index()
     {
+        // Sync DB with any static config.json files (idempotent, daily-locked).
+        \VelaBuild\Core\Jobs\ImportContentFromConfigJob::dispatch();
+
         try {
             return $this->renderFromDb();
         } catch (\Illuminate\Database\QueryException | \PDOException $e) {

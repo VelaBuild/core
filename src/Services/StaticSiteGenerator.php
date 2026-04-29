@@ -171,6 +171,15 @@ class StaticSiteGenerator
             ->with(['rows.blocks'])
             ->first();
 
+        // If there's no DB-backed home page, don't clobber an existing static
+        // home/index.html (the admin never authored one, so anything on disk
+        // was hand-built by the developer and is the source of truth).
+        // Regens triggered by post/category saves shouldn't overwrite it.
+        $homeStaticPath = $this->basePath . '/home/index.html';
+        if (!$homePage && is_file($homeStaticPath)) {
+            return;
+        }
+
         try {
             view()->share('canonicalUrl', url('/'));
             if ($homePage) {
