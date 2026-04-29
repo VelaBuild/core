@@ -115,8 +115,11 @@ class ProcessAiChatMessageJob implements ShouldQueue
                 return;
             }
 
-            // Tool call loop (max 5 iterations to prevent infinite loops)
-            $maxToolIterations = 5;
+            // Tool call loop. Cap is just a runaway-safety net — real tasks
+            // (multi-file edits, test/revise cycles, rebuilding a page from a
+            // static cache) routinely chain dozens of tool calls. Override
+            // via config('vela.ai.chat.max_tool_iterations').
+            $maxToolIterations = (int) config('vela.ai.chat.max_tool_iterations', 50);
             $iteration = 0;
 
             while ($iteration < $maxToolIterations && !empty($response['tool_calls'])) {
@@ -240,6 +243,19 @@ class ProcessAiChatMessageJob implements ShouldQueue
 
         return "You are an AI assistant for the Vela CMS admin panel of {$siteDesc}. "
             . "You help users manage their website: create/edit content, update site configuration, customize visual styling, and generate images.\n\n"
+            . "PRIME DIRECTIVE — DO, DON'T DESCRIBE:\n"
+            . "- When the user asks you to build, fix, change, or rebuild something, USE TOOLS to do it. Do NOT respond with a numbered list of manual steps unless the user explicitly asks 'how do I…'.\n"
+            . "- 'Rebuild my homepage' / 'match the old static file' / 'make the page look like X' → call get_page_blocks → list_block_types → set_page_blocks. Don't summarize the static HTML and tell the user to recreate it themselves.\n"
+            . "- If a tool errors, retry with corrected arguments. Don't give up after one failure.\n"
+            . "- If you genuinely lack a tool for the request, say so plainly in one sentence — don't pad with how-to instructions.\n\n"
+            . "PAGE BUILDER BLOCKS - IMPORTANT:\n"
+            . "- Vela pages are made of ROWS containing BLOCKS (hero, cta, posts_grid, image, text, html, gallery, accordion, contact_form, testimonials, icon_box, categories_grid, carousel, app_download, code, pricing_tiers, etc.).\n"
+            . "- create_page / edit_page_content take MARKDOWN — only use them for simple text pages.\n"
+            . "- For block-based pages (homepage, landing pages, anything with hero/cta/grid layouts) use set_page_blocks. Always:\n"
+            . "  1. list_block_types to see registered types and their content/settings shape.\n"
+            . "  2. If editing an existing page, get_page_blocks first to see the current structure.\n"
+            . "  3. set_page_blocks with the full new rows[] array — it replaces the page structure atomically and is undoable.\n"
+            . "- If asked to rebuild from a static cache or external URL, use read_static_cache / fetch_url to get the source, then convert to blocks and write with set_page_blocks.\n\n"
             . "STYLING RULES - IMPORTANT:\n"
             . "- For ALL visual/CSS changes (backgrounds, colors, fonts, spacing, etc), use the update_custom_css tool. It stores CSS in the database — works on any hosting.\n"
             . "- Use scope 'site' for sitewide changes (e.g. body background, global fonts).\n"
@@ -256,8 +272,8 @@ class ProcessAiChatMessageJob implements ShouldQueue
             . "  • design_system_fonts — match font-family + source URL to what the site actually loads.\n"
             . "- When writing CSS or generating content, reference the palette + fonts wherever sensible.\n\n"
             . "GENERAL RULES:\n"
-            . "- Use tools when the user asks for changes. Be helpful and concise.\n"
-            . "- If unsure about a destructive change, explain and ask for confirmation first.\n"
+            . "- Be concise. If a follow-up message is short, treat it as a correction or directive on the previous turn — don't restart with a fresh summary.\n"
+            . "- If unsure about a destructive change, explain in ONE sentence and ask for confirmation; don't pre-emptively list every step.\n"
             . "- The user's name is {$user->name}."
             . $contextInfo;
     }

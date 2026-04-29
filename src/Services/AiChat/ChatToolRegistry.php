@@ -304,6 +304,47 @@ class ChatToolRegistry
             'gate' => null,
         ],
         [
+            'name' => 'list_block_types',
+            'description' => 'List all registered Page Builder block types (hero, cta, posts_grid, image, text, html, etc.) with their default content/settings shape. ALWAYS call this before set_page_blocks so you use valid `type` values and the right keys inside `content`/`settings`.',
+            'parameters' => ['type' => 'object', 'properties' => []],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'get_page_blocks',
+            'description' => 'Read the full row/block structure of a page (all rows, ordered, each with its ordered blocks: type, content, settings, column layout). Use this to understand the existing layout BEFORE editing with set_page_blocks. Pass page_id or page_slug.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'page_id'   => ['type' => 'integer', 'description' => 'Page id'],
+                    'page_slug' => ['type' => 'string', 'description' => 'Slug, e.g. "home" or "about"'],
+                    'locale'    => ['type' => 'string', 'description' => 'Locale (defaults to site primary)'],
+                ],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'set_page_blocks',
+            'description' => 'REPLACE the entire row+block structure of a page. This is how you actually BUILD a Page Builder page (hero, cta, grids, etc.) — not just markdown. Pass `rows` as an ordered array; each row has optional name/css_class/background_color/background_image/text_color/text_alignment/padding/width ("contained"|"full") and a `blocks` array. Each block needs `type` (from list_block_types), optional column_index/column_width (1-12), and `content` + `settings` shaped per block type. Existing rows/blocks are deleted; the action is undoable. Always call list_block_types first.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'page_id'   => ['type' => 'integer'],
+                    'page_slug' => ['type' => 'string'],
+                    'locale'    => ['type' => 'string'],
+                    'rows'      => [
+                        'type' => 'array',
+                        'description' => 'Ordered rows. Each item: { name?, css_class?, background_color?, background_image?, text_color?, text_alignment?, padding?, width?, order?, blocks: [{type, column_index?, column_width?, order?, content?, settings?}] }',
+                        'items' => ['type' => 'object'],
+                    ],
+                ],
+                'required' => ['rows'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
             'name' => 'read_static_cache',
             'description' => 'Read a file from the static cache directory (resources/static/). Use this to inspect cached HTML or config.json snapshots — for example "home/index.html" to see what the homepage rendered as, or "posts/my-slug/config.json" for a post snapshot. Path is relative to the static cache root; absolute paths and `..` escapes are rejected. Returns up to 512KB of content with a truncation flag.',
             'parameters' => [

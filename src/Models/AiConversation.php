@@ -43,7 +43,13 @@ class AiConversation extends Model
 
     public function messages()
     {
-        return $this->hasMany(AiMessage::class, 'conversation_id')->orderBy('created_at');
+        // Tie-break by id: tool-call loops insert several messages in the same
+        // second, so ordering by created_at alone returns them in undefined
+        // order — which makes the assistant see a jumbled transcript and
+        // sometimes echo earlier turns. id ascending is monotonic per-insert.
+        return $this->hasMany(AiMessage::class, 'conversation_id')
+            ->orderBy('created_at')
+            ->orderBy('id');
     }
 
     public function actionLogs()

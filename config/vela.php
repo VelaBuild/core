@@ -121,6 +121,9 @@ return [
             'max_conversation_messages' => 50,
             'max_undo_depth' => 10,
             'backup_retention' => 5,
+            // Hard cap on the tool-call loop per user message. Real tasks
+            // (multi-file edits, test/revise cycles) can chain dozens of calls.
+            'max_tool_iterations' => env('AI_CHAT_MAX_TOOL_ITERATIONS', 50),
         ],
         'figma' => [
             'access_token' => env('FIGMA_ACCESS_TOKEN'),

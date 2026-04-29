@@ -115,6 +115,9 @@ class ChatToolExecutor
             'design_system_fonts'     => Tools\DesignSystemFontsTool::class,
             'read_static_cache'       => Tools\ReadStaticCacheTool::class,
             'fetch_url'               => Tools\FetchUrlTool::class,
+            'list_block_types'        => Tools\ListBlockTypesTool::class,
+            'get_page_blocks'         => Tools\GetPageBlocksTool::class,
+            'set_page_blocks'         => Tools\SetPageBlocksTool::class,
         ];
 
         $class = $map[$toolName] ?? null;
