@@ -303,6 +303,32 @@ class ChatToolRegistry
             'write' => false,
             'gate' => null,
         ],
+        [
+            'name' => 'read_static_cache',
+            'description' => 'Read a file from the static cache directory (resources/static/). Use this to inspect cached HTML or config.json snapshots — for example "home/index.html" to see what the homepage rendered as, or "posts/my-slug/config.json" for a post snapshot. Path is relative to the static cache root; absolute paths and `..` escapes are rejected. Returns up to 512KB of content with a truncation flag.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'path' => ['type' => 'string', 'description' => 'Path under resources/static/, e.g. "home/index.html" or "posts/my-slug/config.json"'],
+                ],
+                'required' => ['path'],
+            ],
+            'write' => false,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'fetch_url',
+            'description' => 'Fetch the body of an http(s) URL (e.g. an external reference site, the live production page, or a competitor for design inspiration). Returns up to 512KB of the response body with status code and content type. Refuses private/loopback/link-local hosts to prevent SSRF.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'url' => ['type' => 'string', 'description' => 'Absolute http or https URL'],
+                ],
+                'required' => ['url'],
+            ],
+            'write' => false,
+            'gate' => 'config_edit',
+        ],
     ];
 
     /**

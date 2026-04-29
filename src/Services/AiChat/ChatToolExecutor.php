@@ -113,6 +113,8 @@ class ChatToolExecutor
             'design_system_read_file' => Tools\DesignSystemReadFileTool::class,
             'design_system_palette'   => Tools\DesignSystemPaletteTool::class,
             'design_system_fonts'     => Tools\DesignSystemFontsTool::class,
+            'read_static_cache'       => Tools\ReadStaticCacheTool::class,
+            'fetch_url'               => Tools\FetchUrlTool::class,
         ];
 
         $class = $map[$toolName] ?? null;
