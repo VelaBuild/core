@@ -9,6 +9,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use VelaBuild\Core\Models\Category;
 use VelaBuild\Core\Models\Content;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Models\PageBlock;
@@ -32,8 +34,64 @@ class ImportContentFromConfigJob implements ShouldQueue
 
         $basePath = config('vela.static.path', resource_path('static'));
 
+        // Categories imported first so post category relationships resolve.
+        $this->importCategories($basePath . '/categories');
         $this->importPages($basePath . '/pages');
         $this->importPosts($basePath . '/posts');
+    }
+
+    private function importCategories(string $dir): void
+    {
+        if (!is_dir($dir)) return;
+
+        foreach (glob($dir . '/*/config.json') as $configFile) {
+            $config = $this->readConfig($configFile);
+            if (!$config || ($config['type'] ?? '') !== 'category') continue;
+
+            $existing = Category::withTrashed()
+                ->where(DB::raw('LOWER(name)'), strtolower($config['name'] ?? ''))
+                ->first();
+            if ($existing && $existing->trashed()) {
+                $existing->restore();
+            }
+
+            if (!$existing) {
+                $category = Category::create([
+                    'name'     => $config['name'],
+                    'icon'     => $config['icon'] ?? null,
+                    'order_by' => $config['order_by'] ?? 0,
+                ]);
+                $this->attachMediaFromUrl($category, 'image', $config['image_url'] ?? null);
+            } else {
+                $existing->update([
+                    'icon'     => $config['icon'] ?? $existing->icon,
+                    'order_by' => $config['order_by'] ?? $existing->order_by,
+                ]);
+                if (empty($existing->getMedia('image')->count())) {
+                    $this->attachMediaFromUrl($existing, 'image', $config['image_url'] ?? null);
+                }
+            }
+        }
+    }
+
+    // Best-effort media re-attach. Spatie's addMediaFromUrl downloads the
+    // remote file (or local URL) and copies it into the configured disk.
+    // Failures are non-fatal — a missing image shouldn't block content import.
+    private function attachMediaFromUrl($model, string $collection, ?string $url): void
+    {
+        if (!$url || !method_exists($model, 'addMediaFromUrl')) {
+            return;
+        }
+        try {
+            $model->addMediaFromUrl($url)->toMediaCollection($collection);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('ImportContentFromConfigJob: media attach failed', [
+                'model'      => get_class($model) . '#' . ($model->id ?? '?'),
+                'collection' => $collection,
+                'url'        => $url,
+                'error'      => $e->getMessage(),
+            ]);
+        }
     }
 
     // Strip dev-host prefixes (localhost, 127.0.0.1, *.test, *.local) from any
@@ -188,7 +246,7 @@ class ImportContentFromConfigJob implements ShouldQueue
 
                 // Sync categories by slug matching
                 if (!empty($config['categories'])) {
-                    $categoryIds = \VelaBuild\Core\Models\Category::whereIn(
+                    $categoryIds = Category::whereIn(
                         DB::raw('LOWER(name)'),
                         array_map('strtolower', $config['categories'])
                     )->pluck('id')->toArray();
@@ -196,13 +254,22 @@ class ImportContentFromConfigJob implements ShouldQueue
                     // Also try slug matching
                     if (empty($categoryIds)) {
                         foreach ($config['categories'] as $catSlug) {
-                            $cat = \VelaBuild\Core\Models\Category::all()->first(function ($c) use ($catSlug) {
-                                return \Illuminate\Support\Str::slug($c->name) === $catSlug;
+                            $cat = Category::all()->first(function ($c) use ($catSlug) {
+                                return Str::slug($c->name) === $catSlug;
                             });
                             if ($cat) $categoryIds[] = $cat->id;
                         }
                     }
                     $content->categories()->sync($categoryIds);
+                }
+
+                // Re-attach images that the previous DB used to own.
+                $this->attachMediaFromUrl($content, 'main_image', $config['main_image_url'] ?? null);
+                foreach ((array) ($config['gallery_urls'] ?? []) as $url) {
+                    $this->attachMediaFromUrl($content, 'gallery', $url);
+                }
+                foreach ((array) ($config['content_image_urls'] ?? []) as $url) {
+                    $this->attachMediaFromUrl($content, 'content_images', $url);
                 }
             } elseif ($configModified) {
                 $dbModified = $existing->updated_at->toISOString();

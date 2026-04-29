@@ -142,19 +142,29 @@ class StaticSiteGenerator
             return Str::slug($cat->name);
         })->values()->toArray();
 
+        // Capture media URLs so a fresh-DB import can re-attach the same
+        // assets via addMediaFromUrl. Without this, recovery rebuilds posts
+        // with no featured/gallery images.
+        $mainImage = $content->getMedia('main_image')->last();
+        $galleryUrls = $content->getMedia('gallery')->map(fn ($m) => $m->getUrl())->values()->toArray();
+        $contentImageUrls = $content->getMedia('content_images')->map(fn ($m) => $m->getUrl())->values()->toArray();
+
         $config = [
-            'type'          => 'post',
-            'id'            => $content->id,
-            'title'         => $content->title,
-            'slug'          => $content->slug,
-            'description'   => $content->description,
-            'keyword'       => $content->keyword,
-            'content'       => $content->content,
-            'status'        => $content->status,
-            'author_id'     => $content->author_id,
-            'categories'    => $categorySlugs,
-            'published_at'  => $content->published_at ? $content->published_at->toISOString() : null,
-            'last_modified' => $content->updated_at->toISOString(),
+            'type'              => 'post',
+            'id'                => $content->id,
+            'title'             => $content->title,
+            'slug'              => $content->slug,
+            'description'       => $content->description,
+            'keyword'           => $content->keyword,
+            'content'           => $content->content,
+            'status'            => $content->status,
+            'author_id'         => $content->author_id,
+            'categories'        => $categorySlugs,
+            'main_image_url'    => $mainImage ? $mainImage->getUrl() : null,
+            'gallery_urls'      => $galleryUrls,
+            'content_image_urls' => $contentImageUrls,
+            'published_at'      => $content->published_at ? $content->published_at->toISOString() : null,
+            'last_modified'     => $content->updated_at->toISOString(),
         ];
 
         $this->atomicWrite(
@@ -246,8 +256,38 @@ class StaticSiteGenerator
         }
     }
 
+    public function writeCategoryConfigJson(Category $category): void
+    {
+        $imageUrl = null;
+        if (method_exists($category, 'getMedia')) {
+            $media = $category->getMedia('image')->last();
+            if ($media) {
+                $imageUrl = $media->getUrl();
+            }
+        }
+
+        $config = [
+            'type'          => 'category',
+            'id'            => $category->id,
+            'name'          => $category->name,
+            'slug'          => Str::slug($category->name),
+            'icon'          => $category->icon,
+            'order_by'      => $category->order_by,
+            'image_url'     => $imageUrl,
+            'last_modified' => $category->updated_at ? $category->updated_at->toISOString() : null,
+        ];
+
+        $this->atomicWrite(
+            $this->basePath . '/categories/' . Str::slug($category->name) . '/config.json',
+            json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+        );
+    }
+
     public function generateCategoryPage(Category $category): void
     {
+        $this->writeCategoryConfigJson($category);
+
+
         $posts = Content::where('status', 'published')
             ->where('type', 'post')
             ->whereHas('categories', function ($query) use ($category) {

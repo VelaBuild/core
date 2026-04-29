@@ -61,6 +61,14 @@ class SetPageBlocksTool extends BaseTool
         $createdRows = 0;
         $createdBlocks = 0;
 
+        $touchPage = function () use ($page) {
+            // Touch the parent Page so PageObserver::saved fires and the
+            // static cache regeneration job runs — otherwise rebuilds via
+            // this tool leave home/index.html and config.json out of sync
+            // with the new block structure.
+            $page->touch();
+        };
+
         DB::transaction(function () use ($page, $rows, $registered, &$createdRows, &$createdBlocks, &$unknownTypes) {
             // Wipe current rows + blocks. cascade via row->blocks cleanup.
             foreach ($page->rows as $row) {
@@ -103,6 +111,8 @@ class SetPageBlocksTool extends BaseTool
                 }
             }
         });
+
+        $touchPage();
 
         return [
             'success'        => true,
