@@ -48,16 +48,22 @@ class Content extends Model implements HasMedia
         'published' => 'Published',
     ];
 
-    // Strip invalid JSON escape sequences from EditorJS content on write.
-    // Historically content has been written with backslashes before regular
-    // characters (e.g. `\d`, `\.`) — those are NOT valid JSON escapes, so
-    // JSON.parse on the editor side silently fails and the article looks
-    // blank. Drop the spurious backslash before any character that isn't a
-    // legitimate JSON escape (" \ / b f n r t u).
+    // Sanitize EditorJS content on write:
+    //   1. Strip invalid JSON escape sequences (e.g. \d, \.) — historically
+    //      some writers produced them and JSON.parse rejects them, so the
+    //      editor silently shows an empty article.
+    //   2. Repair scheme URLs with a single slash (https:/foo -> https://foo)
+    //      caused by the same kind of malformed-escape regression — without
+    //      this, browsers resolve image URLs as relative paths, doubling the
+    //      host (https://site/site//storage/...).
     public function setContentAttribute($value): void
     {
         if (is_string($value) && $value !== '') {
             $value = preg_replace('/\\\\([^"\\\\\/bfnrtu])/', '$1', $value);
+            // In escaped JSON form: https:\/foo -> https:\/\/foo
+            $value = preg_replace('#(https?:)\\\\/(?!\\\\/)#', '$1\\/\\/', $value);
+            // Fallback for already-decoded URLs sitting in stringified content.
+            $value = preg_replace('#(https?:)/(?!/)#', '$1//', $value);
         }
         $this->attributes['content'] = $value;
     }

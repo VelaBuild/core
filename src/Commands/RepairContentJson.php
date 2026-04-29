@@ -28,6 +28,9 @@ class RepairContentJson extends Command
                 }
 
                 $fixed = preg_replace('/\\\\([^"\\\\\/bfnrtu])/', '$1', $raw);
+                // Repair scheme URLs that lost a slash (https:/foo -> https://foo)
+                $fixed = preg_replace('#(https?:)\\\\/(?!\\\\/)#', '$1\\/\\/', $fixed);
+                $fixed = preg_replace('#(https?:)/(?!/)#', '$1//', $fixed);
                 if (json_decode($fixed) !== null && json_last_error() === JSON_ERROR_NONE) {
                     if (!$dry) {
                         // Bypass the mutator (already sanitized) and skip

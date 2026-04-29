@@ -294,13 +294,20 @@
         var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         // Strip invalid JSON escape sequences (e.g. \d, \.) that some content
-        // writers historically produced. JSON.parse is strict — without this
-        // the editor silently falls back to empty blocks and the article looks
-        // blank even though the DB has content.
+        // writers historically produced, and repair scheme URLs with a missing
+        // slash (https:/foo -> https://foo). JSON.parse is strict — without
+        // this the editor silently falls back to empty blocks and the article
+        // looks blank, or images resolve as relative paths against the host.
         function parseEditorJson(raw) {
             if (!raw) return null;
             try { return JSON.parse(raw); } catch(e) {}
-            try { return JSON.parse(raw.replace(/\\([^"\\\/bfnrtu])/g, '$1')); } catch(e) {}
+            try {
+                var fixed = raw
+                    .replace(/\\([^"\\\/bfnrtu])/g, '$1')
+                    .replace(/(https?:)\\\/(?!\\\/)/g, '$1\\/\\/')
+                    .replace(/(https?:)\/(?!\/)/g, '$1//');
+                return JSON.parse(fixed);
+            } catch(e) {}
             return null;
         }
 
