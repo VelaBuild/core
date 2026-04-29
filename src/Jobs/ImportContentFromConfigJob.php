@@ -23,26 +23,39 @@ class ImportContentFromConfigJob implements ShouldQueue
     public $timeout = 300;
     public $tries = 1;
 
+    public array $report = [
+        'categories' => ['scanned' => 0, 'created' => 0, 'restored' => 0, 'updated' => 0, 'skipped' => []],
+        'pages'      => ['scanned' => 0, 'created' => 0, 'restored' => 0, 'updated' => 0],
+        'posts'      => ['scanned' => 0, 'created' => 0, 'restored' => 0, 'updated' => 0],
+    ];
+
     public function handle(): void
     {
         // Only run once per day
         $cacheKey = 'import-content-ran:' . now()->toDateString();
         if (Cache::has($cacheKey)) {
+            \Illuminate\Support\Facades\Log::info('ImportContentFromConfigJob: skipped (daily lock active)');
             return;
         }
         Cache::put($cacheKey, true, now()->endOfDay());
 
         $basePath = config('vela.static.path', resource_path('static'));
+        \Illuminate\Support\Facades\Log::info('ImportContentFromConfigJob: starting', ['base_path' => $basePath]);
 
         // Categories imported first so post category relationships resolve.
         $this->importCategories($basePath . '/categories');
         $this->importPages($basePath . '/pages');
         $this->importPosts($basePath . '/posts');
+
+        \Illuminate\Support\Facades\Log::info('ImportContentFromConfigJob: complete', $this->report);
     }
 
     private function importCategories(string $dir): void
     {
-        if (!is_dir($dir)) return;
+        if (!is_dir($dir)) {
+            \Illuminate\Support\Facades\Log::info('ImportContentFromConfigJob: categories dir missing', ['dir' => $dir]);
+            return;
+        }
 
         // Two-pass: first any folders that DO have a config.json (preferred —
         // keeps icon/order/image), then folders without a config.json where we
@@ -50,20 +63,30 @@ class ImportContentFromConfigJob implements ShouldQueue
         // recovers categories from a static cache that pre-dates the
         // writeCategoryConfigJson change.
         foreach (glob($dir . '/*/config.json') as $configFile) {
+            $this->report['categories']['scanned']++;
             $config = $this->readConfig($configFile);
-            if (!$config || ($config['type'] ?? '') !== 'category') continue;
+            if (!$config || ($config['type'] ?? '') !== 'category') {
+                $this->report['categories']['skipped'][] = $configFile . ' (invalid type)';
+                continue;
+            }
             $this->upsertCategory($config['name'] ?? null, $config);
         }
 
         foreach (glob($dir . '/*', GLOB_ONLYDIR) as $folder) {
             $slug = basename($folder);
-            // Skip the categories listing itself if it lives at the root.
-            if ($slug === '' || $slug === 'translations') continue;
-            // Skip if a config.json existed and was already handled above.
-            if (is_file($folder . '/config.json')) continue;
-            // Skip if there's no index.html either — empty dir, nothing to recover.
-            if (!is_file($folder . '/index.html')) continue;
+            if ($slug === '' || $slug === 'translations') {
+                $this->report['categories']['skipped'][] = $folder . ' (translations dir)';
+                continue;
+            }
+            if (is_file($folder . '/config.json')) {
+                continue; // already handled above
+            }
+            if (!is_file($folder . '/index.html')) {
+                $this->report['categories']['skipped'][] = $folder . ' (no index.html)';
+                continue;
+            }
 
+            $this->report['categories']['scanned']++;
             $name = Str::title(str_replace('-', ' ', $slug));
             $this->upsertCategory($name, []);
         }
@@ -76,8 +99,10 @@ class ImportContentFromConfigJob implements ShouldQueue
         $existing = Category::withTrashed()
             ->where(DB::raw('LOWER(name)'), strtolower($name))
             ->first();
+
         if ($existing && $existing->trashed()) {
             $existing->restore();
+            $this->report['categories']['restored']++;
         }
 
         if (!$existing) {
@@ -87,6 +112,7 @@ class ImportContentFromConfigJob implements ShouldQueue
                 'order_by' => $config['order_by'] ?? 0,
             ]);
             $this->attachMediaFromUrl($category, 'image', $config['image_url'] ?? null);
+            $this->report['categories']['created']++;
             return;
         }
 
@@ -97,6 +123,7 @@ class ImportContentFromConfigJob implements ShouldQueue
         if ($existing->getMedia('image')->count() === 0) {
             $this->attachMediaFromUrl($existing, 'image', $config['image_url'] ?? null);
         }
+        $this->report['categories']['updated']++;
     }
 
     // Best-effort media re-attach. Spatie's addMediaFromUrl downloads the
