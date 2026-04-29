@@ -107,11 +107,21 @@ class AiChatController extends Controller
             ->whereNull('undone_at')
             ->get();
 
+        // "Completed" means the assistant produced a FINAL reply — content
+        // present and no further tool_calls pending. Intermediate messages
+        // (assistant with tool_calls, tool results) keep status=processing so
+        // the frontend keeps polling instead of giving up + showing an error.
+        $last = $messages->last();
+        $isFinal = $last
+            && $last->role === 'assistant'
+            && !empty($last->content)
+            && empty($last->tool_calls);
+
         return response()->json([
             'success' => true,
             'messages' => $messages,
             'action_logs' => $actionLogs,
-            'status' => $messages->isEmpty() ? 'processing' : 'completed',
+            'status' => $isFinal ? 'completed' : 'processing',
         ]);
     }
 

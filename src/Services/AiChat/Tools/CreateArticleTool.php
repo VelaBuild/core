@@ -20,9 +20,24 @@ class CreateArticleTool extends BaseTool
             return ['error' => 'Title parameter is required'];
         }
 
-        $slug = Str::slug($title);
+        // Refuse to create a duplicate when a non-trashed article with the same
+        // title already exists. The AI should call list_articles + edit_article_content
+        // to update an existing entry instead of stacking copies. The error
+        // returns the existing id so the model can pivot to edit_article_content
+        // without another round trip.
+        $existing = Content::where('type', 'post')
+            ->whereRaw('LOWER(title) = ?', [strtolower(trim($title))])
+            ->first();
+        if ($existing) {
+            return [
+                'error'           => "An article titled '{$existing->title}' already exists (id={$existing->id}). Use edit_article_content to update it instead of creating a duplicate.",
+                'existing_id'     => $existing->id,
+                'existing_title'  => $existing->title,
+                'existing_status' => $existing->status,
+            ];
+        }
 
-        // Ensure slug uniqueness
+        $slug = Str::slug($title);
         $original = $slug;
         $i = 1;
         while (Content::where('slug', $slug)->exists()) {
@@ -34,7 +49,7 @@ class CreateArticleTool extends BaseTool
             'slug'       => $slug,
             'type'       => 'post',
             'description' => Str::limit($content, 160),
-            'content'    => $this->convertToEditorJs($content),
+            'content'    => MarkdownToEditorJs::convert($content),
             'author_id'  => 1,
             'status'     => $status,
             'written_at' => now(),
@@ -70,109 +85,5 @@ class CreateArticleTool extends BaseTool
         }
 
         Content::find($state['created_id'])?->delete();
-    }
-
-    private function convertToEditorJs(string $contentText): string
-    {
-        $lines = explode("\n", $contentText);
-        $blocks = [];
-        $blockId = 1;
-        $currentList = null;
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line)) {
-                if ($currentList) {
-                    $blocks[] = $currentList;
-                    $currentList = null;
-                }
-                continue;
-            }
-
-            // Handle image tags
-            if (preg_match('/\[IMAGE\s+topic="([^"]+)"\s+alt="([^"]+)"\]/i', $line, $matches)) {
-                if ($currentList) {
-                    $blocks[] = $currentList;
-                    $currentList = null;
-                }
-                $blocks[] = [
-                    'id'   => 'paragraph-' . $blockId++,
-                    'type' => 'paragraph',
-                    'data' => ['text' => $line],
-                ];
-            }
-            // Handle headings
-            elseif (preg_match('/^(#{1,6})\s+(.+)$/', $line, $matches)) {
-                if ($currentList) {
-                    $blocks[] = $currentList;
-                    $currentList = null;
-                }
-                $level = strlen($matches[1]);
-                $blocks[] = [
-                    'id'   => 'heading-' . $blockId++,
-                    'type' => 'header',
-                    'data' => [
-                        'text'  => $matches[2],
-                        'level' => min($level, 6),
-                    ],
-                ];
-            }
-            // Handle unordered lists
-            elseif (preg_match('/^-\s+(.+)$/', $line, $matches)) {
-                if (!$currentList || $currentList['type'] !== 'list') {
-                    if ($currentList) {
-                        $blocks[] = $currentList;
-                    }
-                    $currentList = [
-                        'id'   => 'list-' . $blockId++,
-                        'type' => 'list',
-                        'data' => ['style' => 'unordered', 'items' => []],
-                    ];
-                }
-                $currentList['data']['items'][] = $this->processInlineFormatting($matches[1]);
-            }
-            // Handle ordered lists
-            elseif (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
-                if (!$currentList || $currentList['type'] !== 'list' || $currentList['data']['style'] !== 'ordered') {
-                    if ($currentList) {
-                        $blocks[] = $currentList;
-                    }
-                    $currentList = [
-                        'id'   => 'list-' . $blockId++,
-                        'type' => 'list',
-                        'data' => ['style' => 'ordered', 'items' => []],
-                    ];
-                }
-                $currentList['data']['items'][] = $this->processInlineFormatting($matches[1]);
-            }
-            // Handle regular paragraphs
-            else {
-                if ($currentList) {
-                    $blocks[] = $currentList;
-                    $currentList = null;
-                }
-                $blocks[] = [
-                    'id'   => 'paragraph-' . $blockId++,
-                    'type' => 'paragraph',
-                    'data' => ['text' => $this->processInlineFormatting($line)],
-                ];
-            }
-        }
-
-        if ($currentList) {
-            $blocks[] = $currentList;
-        }
-
-        return json_encode([
-            'time'   => time() * 1000,
-            'blocks' => $blocks,
-        ]);
-    }
-
-    private function processInlineFormatting(string $text): string
-    {
-        $text = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $text);
-        $text = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $text);
-        return $text;
     }
 }

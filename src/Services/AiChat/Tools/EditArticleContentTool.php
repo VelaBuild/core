@@ -36,7 +36,7 @@ class EditArticleContentTool extends BaseTool
         }
 
         $article->update([
-            'content'     => $this->convertToEditorJs($content),
+            'content'     => MarkdownToEditorJs::convert($content),
             'description' => Str::limit($content, 160),
         ]);
 
@@ -63,109 +63,5 @@ class EditArticleContentTool extends BaseTool
             'content'     => $state['content'],
             'description' => $state['description'],
         ]);
-    }
-
-    private function convertToEditorJs(string $contentText): string
-    {
-        $lines = explode("\n", $contentText);
-        $blocks = [];
-        $blockId = 1;
-        $currentList = null;
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line)) {
-                if ($currentList) {
-                    $blocks[] = $currentList;
-                    $currentList = null;
-                }
-                continue;
-            }
-
-            // Handle image tags
-            if (preg_match('/\[IMAGE\s+topic="([^"]+)"\s+alt="([^"]+)"\]/i', $line, $matches)) {
-                if ($currentList) {
-                    $blocks[] = $currentList;
-                    $currentList = null;
-                }
-                $blocks[] = [
-                    'id'   => 'paragraph-' . $blockId++,
-                    'type' => 'paragraph',
-                    'data' => ['text' => $line],
-                ];
-            }
-            // Handle headings
-            elseif (preg_match('/^(#{1,6})\s+(.+)$/', $line, $matches)) {
-                if ($currentList) {
-                    $blocks[] = $currentList;
-                    $currentList = null;
-                }
-                $level = strlen($matches[1]);
-                $blocks[] = [
-                    'id'   => 'heading-' . $blockId++,
-                    'type' => 'header',
-                    'data' => [
-                        'text'  => $matches[2],
-                        'level' => min($level, 6),
-                    ],
-                ];
-            }
-            // Handle unordered lists
-            elseif (preg_match('/^-\s+(.+)$/', $line, $matches)) {
-                if (!$currentList || $currentList['type'] !== 'list') {
-                    if ($currentList) {
-                        $blocks[] = $currentList;
-                    }
-                    $currentList = [
-                        'id'   => 'list-' . $blockId++,
-                        'type' => 'list',
-                        'data' => ['style' => 'unordered', 'items' => []],
-                    ];
-                }
-                $currentList['data']['items'][] = $this->processInlineFormatting($matches[1]);
-            }
-            // Handle ordered lists
-            elseif (preg_match('/^\d+\.\s+(.+)$/', $line, $matches)) {
-                if (!$currentList || $currentList['type'] !== 'list' || $currentList['data']['style'] !== 'ordered') {
-                    if ($currentList) {
-                        $blocks[] = $currentList;
-                    }
-                    $currentList = [
-                        'id'   => 'list-' . $blockId++,
-                        'type' => 'list',
-                        'data' => ['style' => 'ordered', 'items' => []],
-                    ];
-                }
-                $currentList['data']['items'][] = $this->processInlineFormatting($matches[1]);
-            }
-            // Handle regular paragraphs
-            else {
-                if ($currentList) {
-                    $blocks[] = $currentList;
-                    $currentList = null;
-                }
-                $blocks[] = [
-                    'id'   => 'paragraph-' . $blockId++,
-                    'type' => 'paragraph',
-                    'data' => ['text' => $this->processInlineFormatting($line)],
-                ];
-            }
-        }
-
-        if ($currentList) {
-            $blocks[] = $currentList;
-        }
-
-        return json_encode([
-            'time'   => time() * 1000,
-            'blocks' => $blocks,
-        ]);
-    }
-
-    private function processInlineFormatting(string $text): string
-    {
-        $text = preg_replace('/\*\*(.+?)\*\*/', '<strong>$1</strong>', $text);
-        $text = preg_replace('/\*(.+?)\*/', '<em>$1</em>', $text);
-        return $text;
     }
 }

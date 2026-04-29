@@ -146,31 +146,32 @@
             })
             .then(function(res) { return res.json(); })
             .then(function(data) {
-                if (data.success && data.status === 'completed') {
+                if (!data.success || !data.messages) return;
+
+                // Always advance lastMessageId so we don't re-fetch the same
+                // intermediate tool-call messages on every poll.
+                data.messages.forEach(function(msg) {
+                    if (msg.id > lastMessageId) lastMessageId = msg.id;
+                });
+
+                if (data.status === 'completed') {
                     stopPolling();
                     hideLoading();
 
-                    var hasContent = false;
-                    if (data.messages) {
-                        data.messages.forEach(function(msg) {
-                            if (msg.id > lastMessageId) {
-                                lastMessageId = msg.id;
-                            }
-                            if (msg.role === 'assistant' && msg.content) {
-                                appendMessage('assistant', msg.content, msg.tool_calls);
-                                hasContent = true;
-                            }
-                        });
-                    }
-                    if (!hasContent) {
-                        appendMessage('assistant', 'Sorry, I encountered an error processing your request. Please try again.');
-                    }
+                    // Render only the final assistant content. Intermediate
+                    // tool-call messages are noise in the chat panel.
+                    data.messages.forEach(function(msg) {
+                        if (msg.role === 'assistant' && msg.content && (!msg.tool_calls || msg.tool_calls.length === 0)) {
+                            appendMessage('assistant', msg.content, null);
+                        }
+                    });
 
                     if (data.action_logs && data.action_logs.length > 0) {
                         var lastLog = data.action_logs[data.action_logs.length - 1];
                         showUndoBar(lastLog.id, lastLog.tool_name);
                     }
                 }
+                // status === 'processing' → keep polling; loading spinner stays.
             })
             .catch(function() {
                 // Silently continue polling on network errors

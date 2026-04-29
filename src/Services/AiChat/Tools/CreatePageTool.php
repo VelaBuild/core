@@ -20,9 +20,19 @@ class CreatePageTool extends BaseTool
             return ['error' => 'Title parameter is required'];
         }
 
-        $slug = Str::slug($title);
+        // Refuse to create a duplicate. AI should call list_pages first,
+        // then edit_page_content / set_page_blocks on the existing record
+        // instead of stacking copies.
+        $existing = Page::whereRaw('LOWER(title) = ?', [strtolower(trim($title))])->first();
+        if ($existing) {
+            return [
+                'error'         => "A page titled '{$existing->title}' already exists (id={$existing->id}, slug={$existing->slug}). Use edit_page_content or set_page_blocks to update it.",
+                'existing_id'   => $existing->id,
+                'existing_slug' => $existing->slug,
+            ];
+        }
 
-        // Ensure slug uniqueness
+        $slug = Str::slug($title);
         $original = $slug;
         $i = 1;
         while (Page::where('slug', $slug)->exists()) {
