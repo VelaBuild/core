@@ -5,16 +5,27 @@ namespace VelaBuild\Core\Http\Controllers\Auth;
 use VelaBuild\Core\Http\Controllers\Controller;
 use VelaBuild\Core\Notifications\TwoFactorCodeNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 class LoginController extends Controller
 {
     public function showLoginForm()
     {
+        if (!$this->databaseAvailable()) {
+            return response()->view('vela::auth.unavailable', ['disabled' => false], 503);
+        }
+
         return view('vela::auth.login');
     }
 
     public function login(Request $request)
     {
+        if (!$this->databaseAvailable()) {
+            return response()->view('vela::auth.unavailable', ['disabled' => true], 503);
+        }
+
         $request->validate([
             'email'    => ['required', 'email'],
             'password' => ['required'],
@@ -59,5 +70,18 @@ class LoginController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('vela.auth.login');
+    }
+
+    // True when we can talk to the DB and the users table exists. Returning
+    // false short-circuits the login routes so a fresh install (no DB, or
+    // migrations not yet run) shows a friendly page instead of a 500.
+    protected function databaseAvailable(): bool
+    {
+        try {
+            DB::connection()->getPdo();
+            return Schema::hasTable('vela_users');
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 }
