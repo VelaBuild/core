@@ -359,7 +359,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'web_search',
-            'description' => 'Search the web for recent / factual information. Use this BEFORE writing comparison articles, reviews, or any content where accuracy matters — never invent product names, statistics, or quotes. Pair with fetch_url to read the most useful results in full. Returns title/url/description for each hit. Configure BRAVE_SEARCH_API_KEY, TAVILY_API_KEY, or SERPER_API_KEY in .env.',
+            'description' => 'Search the web for recent / factual information. Routes to whichever AI provider key is configured: Gemini (google_search grounding) or Anthropic (web_search_20250305) — no extra keys required. Use this BEFORE writing comparison articles, reviews, or any content where accuracy matters — never invent product names, statistics, or quotes. Pair with fetch_url to read the most useful results in full. Returns {summary?, results: [{title, url, description?}]}.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [

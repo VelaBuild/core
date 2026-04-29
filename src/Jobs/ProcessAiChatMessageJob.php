@@ -306,7 +306,7 @@ class ProcessAiChatMessageJob implements ShouldQueue
             . "- If you genuinely lack a tool for the request, say so plainly in one sentence — don't pad with how-to instructions.\n\n"
             . "RESEARCH BEFORE WRITING — IMPORTANT:\n"
             . "- For comparison articles, reviews, lists of products/companies/services, or anything making factual claims, run web_search FIRST and fetch_url on the top results. Never invent product names, prices, statistics, or quotes.\n"
-            . "- If web_search returns 'No web search provider configured', tell the user that explicitly and ask whether to proceed with general knowledge (which may be out of date) or to add a search key.\n"
+            . "- web_search uses the AI provider's native search (Gemini google_search or Anthropic web_search) — it works whenever you have a Gemini or Anthropic key configured. Don't tell the user to set extra search keys; just call the tool.\n"
             . "- Cite the URLs you used at the end of long-form articles so the user can verify.\n\n"
             . "PAGE BUILDER BLOCKS - IMPORTANT:\n"
             . "- Vela pages are made of ROWS containing BLOCKS (hero, cta, posts_grid, image, text, html, gallery, accordion, contact_form, testimonials, icon_box, categories_grid, carousel, app_download, code, pricing_tiers, etc.).\n"
