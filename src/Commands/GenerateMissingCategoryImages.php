@@ -2,8 +2,9 @@
 
 namespace VelaBuild\Core\Commands;
 
+use VelaBuild\Core\Contracts\AiImageProvider;
 use VelaBuild\Core\Models\Category;
-use VelaBuild\Core\Services\OpenAiImageService;
+use VelaBuild\Core\Services\AiProviderManager;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
@@ -17,22 +18,20 @@ class GenerateMissingCategoryImages extends Command
 
     protected $description = 'Generate missing category images using OpenAI DALL-E API';
 
-    private OpenAiImageService $openAiService;
-
-    public function __construct(OpenAiImageService $openAiService)
-    {
-        parent::__construct();
-        $this->openAiService = $openAiService;
-    }
+    private ?AiImageProvider $openAiService = null;
 
     public function handle()
     {
         $this->info('Starting category image generation...');
 
-        if (!config('vela.ai.openai.api_key')) {
-            $this->error('OpenAI API key is not configured. Please set OPENAI_API_KEY in your .env file.');
+        // Keys may come from .env OR the admin AI Settings (DB). availableProviders()
+        // checks both via AiSettingsService::hasApiKey().
+        $aiManager = app(AiProviderManager::class);
+        if (!in_array('openai', $aiManager->availableProviders('image'), true)) {
+            $this->error('OpenAI API key is not configured. Set OPENAI_API_KEY in .env or add it under admin → Settings → AI.');
             return 1;
         }
+        $this->openAiService = $aiManager->resolveImageProvider('openai');
 
         $force = $this->option('force');
         $size = $this->option('size');

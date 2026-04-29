@@ -292,8 +292,19 @@
 <script>
     (function(){
         var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        var baseData = null;
-        try { baseData = JSON.parse(document.getElementById('content_json').value || 'null'); } catch(e) { baseData = null; }
+
+        // Strip invalid JSON escape sequences (e.g. \d, \.) that some content
+        // writers historically produced. JSON.parse is strict — without this
+        // the editor silently falls back to empty blocks and the article looks
+        // blank even though the DB has content.
+        function parseEditorJson(raw) {
+            if (!raw) return null;
+            try { return JSON.parse(raw); } catch(e) {}
+            try { return JSON.parse(raw.replace(/\\([^"\\\/bfnrtu])/g, '$1')); } catch(e) {}
+            return null;
+        }
+
+        var baseData = parseEditorJson(document.getElementById('content_json').value);
 
         var editorTools = {
             header: Header, list: List, quote: Quote, table: Table, embed: Embed,
@@ -332,8 +343,7 @@
             if (!container || !hidden) return;
             if (container.offsetParent === null) { setTimeout(function(){ initTransEditor(lang); }, 200); return; }
 
-            var initData = null;
-            try { initData = JSON.parse(hidden.value || 'null'); } catch(e) { initData = null; }
+            var initData = parseEditorJson(hidden.value);
 
             var ed = new EditorJS({
                 holder: container,

@@ -265,6 +265,7 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\PackageUpdateCommand::class,
                 \VelaBuild\Core\Commands\PackageListCommand::class,
                 \VelaBuild\Core\Commands\SafeModeCommand::class,
+                \VelaBuild\Core\Commands\RepairContentJson::class,
             ]);
         }
 

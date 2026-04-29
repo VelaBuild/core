@@ -56,7 +56,7 @@ class DesignToSite extends Command
 
             // Step 2: Prerequisite validation
             if (!$this->aiManager->hasTextProvider()) {
-                $this->error('No AI text provider configured. Set OPENAI_API_KEY, ANTHROPIC_API_KEY, or GEMINI_API_KEY in .env');
+                $this->error('No AI text provider configured. Set OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY in .env, or add a key under admin → Settings → AI.');
                 return 1;
             }
 

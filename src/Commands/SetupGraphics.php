@@ -25,7 +25,7 @@ class SetupGraphics extends Command
     public function handle(): int
     {
         if (!$this->aiManager->hasImageProvider()) {
-            $this->error('No AI image provider configured. Please set GEMINI_API_KEY or OPENAI_API_KEY in your .env file.');
+            $this->error('No AI image provider configured. Set GEMINI_API_KEY or OPENAI_API_KEY in .env, or add a key under admin → Settings → AI.');
             return 1;
         }
 
