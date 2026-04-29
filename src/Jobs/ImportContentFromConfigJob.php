@@ -44,33 +44,58 @@ class ImportContentFromConfigJob implements ShouldQueue
     {
         if (!is_dir($dir)) return;
 
+        // Two-pass: first any folders that DO have a config.json (preferred —
+        // keeps icon/order/image), then folders without a config.json where we
+        // synthesize a Category from the folder name. The second pass is what
+        // recovers categories from a static cache that pre-dates the
+        // writeCategoryConfigJson change.
         foreach (glob($dir . '/*/config.json') as $configFile) {
             $config = $this->readConfig($configFile);
             if (!$config || ($config['type'] ?? '') !== 'category') continue;
+            $this->upsertCategory($config['name'] ?? null, $config);
+        }
 
-            $existing = Category::withTrashed()
-                ->where(DB::raw('LOWER(name)'), strtolower($config['name'] ?? ''))
-                ->first();
-            if ($existing && $existing->trashed()) {
-                $existing->restore();
-            }
+        foreach (glob($dir . '/*', GLOB_ONLYDIR) as $folder) {
+            $slug = basename($folder);
+            // Skip the categories listing itself if it lives at the root.
+            if ($slug === '' || $slug === 'translations') continue;
+            // Skip if a config.json existed and was already handled above.
+            if (is_file($folder . '/config.json')) continue;
+            // Skip if there's no index.html either — empty dir, nothing to recover.
+            if (!is_file($folder . '/index.html')) continue;
 
-            if (!$existing) {
-                $category = Category::create([
-                    'name'     => $config['name'],
-                    'icon'     => $config['icon'] ?? null,
-                    'order_by' => $config['order_by'] ?? 0,
-                ]);
-                $this->attachMediaFromUrl($category, 'image', $config['image_url'] ?? null);
-            } else {
-                $existing->update([
-                    'icon'     => $config['icon'] ?? $existing->icon,
-                    'order_by' => $config['order_by'] ?? $existing->order_by,
-                ]);
-                if (empty($existing->getMedia('image')->count())) {
-                    $this->attachMediaFromUrl($existing, 'image', $config['image_url'] ?? null);
-                }
-            }
+            $name = Str::title(str_replace('-', ' ', $slug));
+            $this->upsertCategory($name, []);
+        }
+    }
+
+    private function upsertCategory(?string $name, array $config): void
+    {
+        if (!$name) return;
+
+        $existing = Category::withTrashed()
+            ->where(DB::raw('LOWER(name)'), strtolower($name))
+            ->first();
+        if ($existing && $existing->trashed()) {
+            $existing->restore();
+        }
+
+        if (!$existing) {
+            $category = Category::create([
+                'name'     => $name,
+                'icon'     => $config['icon'] ?? null,
+                'order_by' => $config['order_by'] ?? 0,
+            ]);
+            $this->attachMediaFromUrl($category, 'image', $config['image_url'] ?? null);
+            return;
+        }
+
+        $existing->update([
+            'icon'     => $config['icon'] ?? $existing->icon,
+            'order_by' => $config['order_by'] ?? $existing->order_by,
+        ]);
+        if ($existing->getMedia('image')->count() === 0) {
+            $this->attachMediaFromUrl($existing, 'image', $config['image_url'] ?? null);
         }
     }
 
