@@ -5,6 +5,7 @@ namespace VelaBuild\Core\Commands;
 use VelaBuild\Core\Contracts\AiImageProvider;
 use VelaBuild\Core\Models\Category;
 use VelaBuild\Core\Services\AiProviderManager;
+use VelaBuild\Core\Services\SiteContext;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
 
@@ -83,7 +84,7 @@ class GenerateMissingCategoryImages extends Command
             $this->line('  Generating image...');
 
             try {
-                $prompt = $this->generateCategoryPrompt($category->name, $category->icon ?? '');
+                $prompt = $this->generateCategoryPrompt($category->name, $category->icon ?? '', app(SiteContext::class));
 
                 $imageData = $this->openAiService->generateImage($prompt, [
                     'size' => $size,
@@ -134,7 +135,7 @@ class GenerateMissingCategoryImages extends Command
         return 0;
     }
 
-    private function generateCategoryPrompt(string $categoryName, string $icon = ''): string
+    private function generateCategoryPrompt(string $categoryName, string $icon, SiteContext $siteContext): string
     {
         $iconDescriptions = [
             'fas fa-map-marker-alt' => 'location, landmark, place of interest',
@@ -148,9 +149,24 @@ class GenerateMissingCategoryImages extends Command
         ];
 
         $iconDescription = $iconDescriptions[$icon] ?? '';
+        $niche = trim($siteContext->getNiche());
+        $siteDescription = trim($siteContext->getSiteDescription());
 
-        return "A professional, modern photorealistic image representing {$categoryName}. " .
-               ($iconDescription ? "Focus on {$iconDescription} themes. " : '') .
-               'High quality, clean modern feel, commercial use style.';
+        $parts = [];
+        $parts[] = "A professional, modern photorealistic image representing the \"{$categoryName}\" category";
+        if ($niche !== '' && stripos($niche, 'general') === false) {
+            // Anchor the visual to the site's niche — without this, "Conservation"
+            // on a dive site looks the same as "Conservation" on a forestry site.
+            $parts[] = "for a {$niche} website";
+        }
+        if ($siteDescription !== '') {
+            $parts[] = "Site context: {$siteDescription}";
+        }
+        if ($iconDescription !== '') {
+            $parts[] = "Lean into the visual themes of {$iconDescription}";
+        }
+        $parts[] = 'High quality, clean modern feel, commercial use style. No text, no logos.';
+
+        return implode('. ', $parts) . '.';
     }
 }
