@@ -8,7 +8,7 @@
             @if($aiConfigured)
                 <div class="vela-ai-chat-status">{{ trans('vela::ai.ready') }}</div>
             @else
-                <div style="font-size: 11px; color: var(--v-fg-subtle);">{{ trans('vela::ai.not_configured') }}</div>
+                <div style="font-size: 11px; color: var(--fg-subtle);">{{ trans('vela::ai.not_configured') }}</div>
             @endif
         </div>
         <div style="display:flex; gap:4px;">
@@ -31,7 +31,7 @@
             <div class="suggestion">{{ trans('vela::ai.can_create_pages') }}</div>
             <div class="suggestion">{{ trans('vela::ai.can_update_config') }}</div>
             <div class="suggestion">{{ trans('vela::ai.can_generate_images') }}</div>
-            <div style="font-size: 11px; color: var(--v-fg-muted); margin-top: 8px;">{{ trans('vela::ai.just_describe') }}</div>
+            <div style="font-size: 11px; color: var(--fg-muted); margin-top: 8px;">{{ trans('vela::ai.just_describe') }}</div>
         </div>
         @else
         <div class="vela-msg-ai">
@@ -47,16 +47,16 @@
                 <i class="fas fa-cog mr-1"></i> {{ trans('vela::ai.configure_settings') }}
             </a>
             @else
-            <small style="color: var(--v-fg-subtle);">{{ trans('vela::ai.ask_admin_configure') }}</small>
+            <small style="color: var(--fg-subtle);">{{ trans('vela::ai.ask_admin_configure') }}</small>
             @endcan
         </div>
         @endif
     </div>
 
     {{-- Undo bar --}}
-    <div class="ai-chatbot-undo" id="ai-chat-undo" style="display:none; padding: 8px 12px; background: var(--vela-warn-bg); border-top: 1px solid var(--v-border); display: flex; align-items: center; justify-content: space-between;">
-        <span id="ai-chat-undo-text" style="font-size: var(--v-text-sm);"></span>
-        <button class="vela-btn vela-btn-sm" id="ai-chat-undo-btn" style="background: var(--vela-warn); color: #fff;">
+    <div class="ai-chatbot-undo" id="ai-chat-undo" style="display:none; padding: 8px 12px; background: var(--warn-bg); border-top: 1px solid var(--border); align-items: center; justify-content: space-between;">
+        <span id="ai-chat-undo-text" style="font-size: var(--text-sm);"></span>
+        <button class="vela-btn vela-btn-sm" id="ai-chat-undo-btn" style="background: var(--warn); color: #fff;">
             <i class="fas fa-undo mr-1"></i> {{ trans('vela::ai.undo') }}
         </button>
     </div>
