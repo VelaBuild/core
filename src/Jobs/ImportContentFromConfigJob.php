@@ -36,15 +36,42 @@ class ImportContentFromConfigJob implements ShouldQueue
         $this->importPosts($basePath . '/posts');
     }
 
+    // Strip dev-host prefixes (localhost, 127.0.0.1, *.test, *.local) from any
+    // absolute URLs baked into a config.json so imported content references
+    // images/links by relative path on whatever host runs the import.
+    private function normalizeUrls(string $jsonStr): string
+    {
+        $patterns = [
+            '#https?://localhost(:\d+)?#i',
+            '#https?://127\.0\.0\.1(:\d+)?#i',
+            '#https?://[a-z0-9\-]+\.(test|local|localhost)(:\d+)?#i',
+        ];
+        return preg_replace($patterns, '', $jsonStr);
+    }
+
+    private function readConfig(string $configFile): ?array
+    {
+        $raw = file_get_contents($configFile);
+        if ($raw === false) return null;
+        $config = json_decode($this->normalizeUrls($raw), true);
+        return is_array($config) ? $config : null;
+    }
+
     private function importPages(string $dir): void
     {
         if (!is_dir($dir)) return;
 
         foreach (glob($dir . '/*/config.json') as $configFile) {
-            $config = json_decode(file_get_contents($configFile), true);
+            $config = $this->readConfig($configFile);
             if (!$config || ($config['type'] ?? '') !== 'page') continue;
 
-            $existing = Page::where('slug', $config['slug'])->first();
+            // withTrashed: a soft-deleted row still holds the unique
+            // (locale, slug) index, so a fresh Page::create would collide.
+            // Restore + overwrite instead.
+            $existing = Page::withTrashed()->where('slug', $config['slug'])->first();
+            if ($existing && $existing->trashed()) {
+                $existing->restore();
+            }
             $configModified = $config['last_modified'] ?? null;
 
             if (!$existing) {
@@ -135,10 +162,13 @@ class ImportContentFromConfigJob implements ShouldQueue
         if (!is_dir($dir)) return;
 
         foreach (glob($dir . '/*/config.json') as $configFile) {
-            $config = json_decode(file_get_contents($configFile), true);
+            $config = $this->readConfig($configFile);
             if (!$config || ($config['type'] ?? '') !== 'post') continue;
 
-            $existing = Content::where('slug', $config['slug'])->first();
+            $existing = Content::withTrashed()->where('slug', $config['slug'])->first();
+            if ($existing && $existing->trashed()) {
+                $existing->restore();
+            }
             $configModified = $config['last_modified'] ?? null;
 
             if (!$existing) {
