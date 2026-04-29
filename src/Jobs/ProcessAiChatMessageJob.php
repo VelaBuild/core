@@ -121,7 +121,23 @@ class ProcessAiChatMessageJob implements ShouldQueue
             // long-form writes (comparison articles, page rebuilds) don't get
             // chopped off mid-sentence and trigger the "empty response" path.
             $maxTokens = (int) config('vela.ai.chat.max_output_tokens', 16384);
-            $response = $textProvider->chat($messages, $formattedTools, $maxTokens);
+            $callChat = function () use ($textProvider, &$messages, $formattedTools, $maxTokens) {
+                // Retry up to 2x on Gemini's MALFORMED_FUNCTION_CALL — those
+                // are non-deterministic and usually self-resolve on retry.
+                // Other null responses propagate immediately.
+                for ($attempt = 0; $attempt < 3; $attempt++) {
+                    $r = $textProvider->chat($messages, $formattedTools, $maxTokens);
+                    if (!$r) return null;
+                    if (($r['finish_reason'] ?? null) === 'MALFORMED_FUNCTION_CALL') {
+                        Log::info('Retrying after MALFORMED_FUNCTION_CALL', ['attempt' => $attempt + 1]);
+                        continue;
+                    }
+                    return $r;
+                }
+                return $r;
+            };
+
+            $response = $callChat();
 
             if (!$response) {
                 Log::error('AI provider returned null response', [
@@ -198,8 +214,8 @@ class ProcessAiChatMessageJob implements ShouldQueue
                     ];
                 }
 
-                // Call AI again with tool results
-                $response = $textProvider->chat($messages, $formattedTools, $maxTokens);
+                // Call AI again with tool results (with the same retry logic)
+                $response = $callChat();
                 if (!$response) {
                     break;
                 }

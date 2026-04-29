@@ -204,6 +204,7 @@ class GeminiTextService implements AiTextProvider
                         'SAFETY'      => '(Gemini blocked the response on safety grounds. Rephrase the request.)',
                         'RECITATION'  => '(Gemini blocked the response as potential recitation of training data. Rephrase the request.)',
                         'PROHIBITED_CONTENT' => '(Gemini blocked the response as prohibited content. Rephrase the request.)',
+                        'MALFORMED_FUNCTION_CALL' => '(Gemini malformed a function call. Auto-retry pending.)',
                         default       => "(Gemini returned no content. finishReason={$finishReason}.)",
                     };
                 }
@@ -218,12 +219,19 @@ class GeminiTextService implements AiTextProvider
                 if ($content === null && empty($toolCalls)) {
                     Log::warning('Gemini chat returned empty', ['raw' => $data]);
                 }
+                if ($finishReason === 'MALFORMED_FUNCTION_CALL') {
+                    // Always log the raw payload — args are truncated/escaped
+                    // in google_genai responses but knowing which tool failed
+                    // is enough to diagnose schema issues.
+                    Log::warning('Gemini malformed function call', ['raw' => $data]);
+                }
 
                 $usageMetadata = $data['usageMetadata'] ?? [];
 
                 return [
                     'content' => $content,
                     'tool_calls' => $toolCalls,
+                    'finish_reason' => $finishReason,
                     'usage' => [
                         'input' => $usageMetadata['promptTokenCount'] ?? 0,
                         'output' => $usageMetadata['candidatesTokenCount'] ?? 0,
