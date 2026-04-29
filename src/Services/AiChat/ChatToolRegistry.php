@@ -122,6 +122,29 @@ class ChatToolRegistry
             'gate' => 'article_edit',
         ],
         [
+            'name' => 'update_article',
+            'description' => 'Update metadata on an existing article (type=post): title, slug, status (planned/draft/scheduled/published), description, keyword, categories. Pass only the fields you want to change. Categories is a full sync — passing it replaces the current categories with the listed names. To rewrite the article body use edit_article_content (separate tool, takes markdown). Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'article_id'  => ['type' => 'integer'],
+                    'title'       => ['type' => 'string'],
+                    'slug'        => ['type' => 'string', 'description' => 'Will be slugified server-side; collisions rejected.'],
+                    'status'      => ['type' => 'string', 'enum' => ['planned', 'draft', 'scheduled', 'published']],
+                    'description' => ['type' => 'string', 'description' => 'Short summary / SEO description.'],
+                    'keyword'     => ['type' => 'string'],
+                    'categories'  => [
+                        'type' => 'array',
+                        'description' => 'Category names. Replaces current categories. Names that don\'t exist are reported back (call create_category first to add them).',
+                        'items' => ['type' => 'string'],
+                    ],
+                ],
+                'required' => ['article_id'],
+            ],
+            'write' => true,
+            'gate' => 'article_edit',
+        ],
+        [
             'name' => 'create_category',
             'description' => 'Create a new content category',
             'parameters' => [
@@ -194,6 +217,19 @@ class ChatToolRegistry
             'parameters' => ['type' => 'object', 'properties' => [], 'required' => []],
             'write' => false,
             'gate' => 'page_access',
+        ],
+        [
+            'name' => 'get_article',
+            'description' => 'Read a single article (type=post) including its full EditorJS content JSON, title, slug, status, categories. Use this BEFORE edit_article_content when the user references an existing article ("update article 7", "fix the table", etc.) so you know what\'s currently there. Pass article_id or slug.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'article_id' => ['type' => 'integer'],
+                    'slug'       => ['type' => 'string'],
+                ],
+            ],
+            'write' => false,
+            'gate' => null,
         ],
         [
             'name' => 'list_articles',
