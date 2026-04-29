@@ -93,12 +93,12 @@ class ChatToolRegistry
         ],
         [
             'name' => 'create_article',
-            'description' => 'Create a new blog article',
+            'description' => 'Create a new blog article (type=post). Refuses if the title already exists — call list_articles + edit_article_content instead. Content is MARKDOWN: headings (#), lists (- or *), pipe tables (| col | col |), code, images, links auto-convert to EditorJS blocks. Do NOT use Page Builder block syntax here — articles are not page-builder pages.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'title' => ['type' => 'string'],
-                    'content' => ['type' => 'string', 'description' => 'Article content in markdown'],
+                    'content' => ['type' => 'string', 'description' => 'Article content in markdown. Tables: use pipe syntax `| h1 | h2 |` followed by alignment row `| --- | --- |`.'],
                     'category' => ['type' => 'string', 'description' => 'Category name'],
                     'status' => ['type' => 'string', 'enum' => ['draft', 'published']],
                 ],
@@ -109,12 +109,12 @@ class ChatToolRegistry
         ],
         [
             'name' => 'edit_article_content',
-            'description' => 'Edit the content of an existing article',
+            'description' => 'Replace the content of an existing article (type=post). Use this for ANY article rewrite — comparison articles, reviews, guides, etc. Content is plain MARKDOWN; the server converts it to EditorJS blocks (paragraphs, headings, lists, pipe tables, code, links). Articles are NOT page-builder pages — never call set_page_blocks for an article.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'article_id' => ['type' => 'integer'],
-                    'content' => ['type' => 'string', 'description' => 'New article content in markdown'],
+                    'content' => ['type' => 'string', 'description' => 'New article content in markdown. Tables: pipe syntax `| h1 | h2 |` then `| --- | --- |` then data rows.'],
                 ],
                 'required' => ['article_id', 'content'],
             ],
@@ -305,7 +305,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'list_block_types',
-            'description' => 'List all registered Page Builder block types (hero, cta, posts_grid, image, text, html, etc.) with their default content/settings shape. ALWAYS call this before set_page_blocks so you use valid `type` values and the right keys inside `content`/`settings`.',
+            'description' => 'List registered PAGE BUILDER block types (hero, cta, posts_grid, image, text, html, etc.) used by set_page_blocks for type=page records. NOT relevant to articles — articles take markdown via edit_article_content; their internal blocks (paragraph, header, list, table) are derived automatically from that markdown and aren\'t configured here.',
             'parameters' => ['type' => 'object', 'properties' => []],
             'write' => false,
             'gate' => null,
@@ -326,7 +326,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'set_page_blocks',
-            'description' => 'REPLACE the entire row+block structure of a page. This is how you actually BUILD a Page Builder page (hero, cta, grids, etc.) — not just markdown. Pass `rows` as an ordered array; each row has optional name/css_class/background_color/background_image/text_color/text_alignment/padding/width ("contained"|"full") and a `blocks` array. Each block needs `type` (from list_block_types), optional column_index/column_width (1-12), and `content` + `settings` shaped per block type. Existing rows/blocks are deleted; the action is undoable. Always call list_block_types first.',
+            'description' => 'REPLACE the row+block structure of a PAGE (type=page). For BLOG ARTICLES use edit_article_content with markdown instead — articles do not have page-builder rows. Pass page_id or page_slug, plus `rows[]`. Each row has optional name/css_class/background_color/background_image/text_color/text_alignment/padding/width ("contained"|"full") and a `blocks[]` array. Each block needs `type` (from list_block_types), optional column_index/column_width (1-12), and `content` + `settings` shaped per block type. Existing rows/blocks are deleted; the action is undoable. Always call list_block_types first.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
