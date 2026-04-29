@@ -16,7 +16,8 @@ class VelaInstall extends Command
                             {--admin-name=Admin : Admin user name}
                             {--admin-email= : Admin email}
                             {--admin-password= : Admin password}
-                            {--queue= : Queue driver: sync, database, or redis}';
+                            {--queue= : Queue driver: sync, database, or redis}
+                            {--force : Overwrite existing config, published assets, and replace the homepage}';
 
     protected $description = 'Install and configure the Vela CMS package';
 
@@ -27,15 +28,18 @@ class VelaInstall extends Command
         $this->newLine();
 
         // 1. Publish config & assets
+        // --force overwrites; without it, existing customized config/published
+        // assets are preserved so re-running on a live site is safe.
         $this->step('Publishing configuration and assets...');
-        $this->callSilently('vendor:publish', ['--tag' => 'vela-config', '--force' => true]);
-        $this->callSilently('vendor:publish', ['--tag' => 'vela-assets', '--force' => true]);
+        $force = (bool) $this->option('force');
+        $this->callSilently('vendor:publish', ['--tag' => 'vela-config', '--force' => $force]);
+        $this->callSilently('vendor:publish', ['--tag' => 'vela-assets', '--force' => $force]);
         // Error pages go into resources/views/errors/ (Laravel's lookup path),
         // NOT vendor/vela/, so they work out of the box. Host apps that already
         // have their own error views are unaffected because this is first-run only:
         // the installer is idempotent but we don't overwrite existing files.
         $this->callSilently('vendor:publish', ['--tag' => 'vela-errors']);
-        $this->components->twoColumnDetail('Config & assets', '<fg=green>published</>');
+        $this->components->twoColumnDetail('Config & assets', $force ? '<fg=green>published (forced)</>' : '<fg=green>published (existing files preserved)</>');
 
         // 2. Queue setup
         $this->configureQueue();
@@ -213,6 +217,17 @@ class VelaInstall extends Command
         // Only install if no home page exists yet
         if (Page::where('slug', 'home')->exists()) {
             return;
+        }
+
+        // Don't clobber a pre-existing static homepage (sites built statically
+        // and later attached to a DB shouldn't get a competing DB Page row).
+        // --force opts back in.
+        if (!$this->option('force')) {
+            $staticHome = config('vela.static.path', resource_path('static')) . '/home/index.html';
+            if (file_exists($staticHome)) {
+                $this->components->twoColumnDetail('Homepage', '<fg=yellow>skipped (static home exists)</>');
+                return;
+            }
         }
 
         $activeTemplate = config('vela.template.active', 'default');
