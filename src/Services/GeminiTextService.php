@@ -148,9 +148,14 @@ class GeminiTextService implements AiTextProvider
             }
 
             // Native Google Search grounding. Gemini 2.x exposes it as
-            // `google_search`. Toggle lives in admin AI Settings (DB) with the
-            // static config as fallback default.
-            if (app(AiSettingsService::class)->getStatus()['native_search']) {
+            // `google_search`, BUT it can't be combined with function calling
+            // in the same request — Gemini rejects with INVALID_ARGUMENT
+            // ("Built-in tools and Function Calling cannot be combined").
+            // So only inject when no function tools were provided. With
+            // function tools, the custom web_search tool (Brave/Tavily/Serper)
+            // covers the gap.
+            $hasFunctionTools = !empty($tools);
+            if (!$hasFunctionTools && app(AiSettingsService::class)->getStatus()['native_search']) {
                 $body['tools'] = $body['tools'] ?? [];
                 $body['tools'][] = ['google_search' => (object) []];
             }
