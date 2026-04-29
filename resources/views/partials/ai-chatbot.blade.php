@@ -2,7 +2,9 @@
 @php $aiConfigured = app(\VelaBuild\Core\Services\AiProviderManager::class)->hasTextProvider(); @endphp
 <div id="ai-chatbot-sidebar" class="ai-chatbot-sidebar vela-ai-chat" style="display:none; position:fixed; right:16px; top:80px; bottom:16px; width:380px; z-index:1060;">
     <div class="vela-ai-chat-head">
-        <div class="vela-ai-avatar">V</div>
+        <div class="vela-ai-avatar">
+            <img src="{{ asset('vendor/vela/images/vela-icon.png') }}" alt="">
+        </div>
         <div style="flex: 1;">
             <div class="vela-ai-chat-title">{{ trans('vela::ai.helper_title') }}</div>
             @if($aiConfigured)

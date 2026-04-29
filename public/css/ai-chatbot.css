@@ -1,196 +1,24 @@
-/* AI Chatbot Sidebar */
+/* AI Chatbot sidebar — Vela Design System.
+   Loaded after vela-admin.css; selectors prefixed with body.vela-admin so
+   specificity matches the admin DS rules. */
+
+/* ── Structural shell (positioning + open/close animation) ─────────────── */
 
 .ai-chatbot-sidebar {
     position: fixed;
-    top: 0;
-    right: 0;
-    width: 380px;
-    height: 100vh;
-    z-index: 1050;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
-    transform: translateX(100%);
-    transition: transform 0.3s ease;
+    z-index: 1060;
+    transform: translateX(120%);
+    transition: transform 0.25s ease;
+    pointer-events: none;
 }
 
 .ai-chatbot-sidebar[style*="display: flex"],
 .ai-chatbot-sidebar[style*="display:flex"] {
     transform: translateX(0);
+    pointer-events: auto;
 }
 
-.ai-chatbot-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #321fdb;
-    color: #fff;
-    padding: 12px 16px;
-    flex-shrink: 0;
-}
-
-.ai-chatbot-header h6 {
-    color: #fff;
-    font-size: 0.95rem;
-}
-
-.ai-chatbot-header .btn-link {
-    color: rgba(255, 255, 255, 0.85);
-    padding: 2px 6px;
-    text-decoration: none;
-}
-
-.ai-chatbot-header .btn-link:hover {
-    color: #fff;
-}
-
-.ai-chatbot-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.ai-chat-message {
-    display: flex;
-    margin-bottom: 4px;
-}
-
-.ai-chat-user {
-    justify-content: flex-end;
-}
-
-.ai-chat-assistant {
-    justify-content: flex-start;
-}
-
-.ai-chat-bubble {
-    max-width: 85%;
-    padding: 10px 14px;
-    border-radius: 12px;
-    font-size: 0.875rem;
-    line-height: 1.5;
-    word-wrap: break-word;
-}
-
-.ai-chat-user .ai-chat-bubble {
-    background: #e3f2fd;
-    color: #1a237e;
-    border-bottom-right-radius: 4px;
-}
-
-.ai-chat-assistant .ai-chat-bubble {
-    background: #f5f5f5;
-    color: #212121;
-    border-bottom-left-radius: 4px;
-}
-
-.ai-chat-bubble ul {
-    font-size: 0.85rem;
-}
-
-.ai-chatbot-undo {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #fff3cd;
-    border-top: 1px solid #ffc107;
-    padding: 8px 12px;
-    flex-shrink: 0;
-    font-size: 0.85rem;
-    color: #856404;
-}
-
-#ai-chat-undo-text {
-    flex: 1;
-    margin-right: 8px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.ai-chatbot-input {
-    padding: 12px;
-    background: #fff;
-    border-top: 1px solid #dee2e6;
-    flex-shrink: 0;
-}
-
-.ai-chatbot-input .input-group {
-    width: 100%;
-}
-
-.ai-chatbot-input .form-control {
-    border-radius: 20px 0 0 20px;
-    font-size: 0.875rem;
-}
-
-.ai-chatbot-input .btn-primary {
-    border-radius: 0 20px 20px 0;
-}
-
-/* Loading spinner */
-.ai-chat-loading .ai-chat-bubble {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #6c757d;
-}
-
-.ai-chat-spinner {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid #dee2e6;
-    border-top-color: #321fdb;
-    border-radius: 50%;
-    animation: ai-chat-spin 0.8s linear infinite;
-    flex-shrink: 0;
-}
-
-@keyframes ai-chat-spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Scrollbar styling */
-.ai-chatbot-messages::-webkit-scrollbar {
-    width: 4px;
-}
-
-.ai-chatbot-messages::-webkit-scrollbar-track {
-    background: #f1f1f1;
-}
-
-.ai-chatbot-messages::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 2px;
-}
-
-.ai-chatbot-messages::-webkit-scrollbar-thumb:hover {
-    background: #aaa;
-}
-
-/* Tool call indicator */
-.ai-chat-tool-indicator {
-    font-size: 0.75rem;
-    color: #6c757d;
-    font-style: italic;
-    margin-top: 4px;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .ai-chatbot-sidebar {
-        width: 100%;
-    }
-}
-
-/* Vela Design System sidebar shell. body.vela-admin prefix matches the
-   specificity used elsewhere in vela-admin.css so admin base styles don't
-   override these. */
+/* ── Vela DS visual shell ──────────────────────────────────────────────── */
 
 body.vela-admin .vela-ai-chat {
     display: flex;
@@ -203,6 +31,8 @@ body.vela-admin .vela-ai-chat {
     font-family: var(--font-sans, system-ui, sans-serif);
     color: var(--fg, #1e293b);
 }
+
+/* Header */
 
 body.vela-admin .vela-ai-chat-head {
     display: flex;
@@ -227,14 +57,19 @@ body.vela-admin .vela-ai-avatar {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    color: #fff;
+    background: rgba(255, 255, 255, 0.95);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    font-size: 14px;
     flex-shrink: 0;
+    overflow: hidden;
+}
+
+body.vela-admin .vela-ai-avatar img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    display: block;
 }
 
 body.vela-admin .vela-ai-chat-title {
@@ -249,10 +84,13 @@ body.vela-admin .vela-ai-chat-status {
     margin-top: 2px;
 }
 
-/* Messages list */
+/* Messages area */
 
 body.vela-admin .vela-ai-messages {
-    flex: 1;
+    flex: 1 1 0;
+    /* min-height: 0 lets the flex item shrink past its content size so the
+       compose row stays pinned to the bottom even with long chat history. */
+    min-height: 0;
     overflow-y: auto;
     padding: 14px;
     display: flex;
@@ -261,22 +99,30 @@ body.vela-admin .vela-ai-messages {
     background: var(--bg-muted, #F6F7F9);
 }
 
-body.vela-admin .vela-msg-ai,
-body.vela-admin .vela-msg-user {
+body.vela-admin .vela-ai-messages::-webkit-scrollbar { width: 4px; }
+body.vela-admin .vela-ai-messages::-webkit-scrollbar-track { background: transparent; }
+body.vela-admin .vela-ai-messages::-webkit-scrollbar-thumb {
+    background: var(--border, #DCE0E9);
+    border-radius: 2px;
+}
+body.vela-admin .vela-ai-messages::-webkit-scrollbar-thumb:hover {
+    background: var(--fg-muted, #aaa);
+}
+
+/* Static intro message (rendered server-side) */
+
+body.vela-admin .vela-msg-ai {
     padding: 10px 12px;
     border-radius: 12px;
     font-size: 13px;
     line-height: 1.5;
-    max-width: 92%;
-    word-wrap: break-word;
-}
-
-body.vela-admin .vela-msg-ai {
     background: var(--surface, #fff);
     color: var(--fg, #1e293b);
     border: 1px solid var(--border-subtle, #EDEFF3);
-    align-self: flex-start;
     border-bottom-left-radius: 4px;
+    align-self: flex-start;
+    max-width: 92%;
+    word-wrap: break-word;
 }
 
 body.vela-admin .vela-msg-ai .suggestion {
@@ -295,11 +141,69 @@ body.vela-admin .vela-msg-ai .suggestion:hover {
     color: #fff;
 }
 
-body.vela-admin .vela-msg-user {
+/* Dynamic messages (added by ai-chatbot.js as
+   <div class="ai-chat-message ai-chat-{role}"><div class="ai-chat-bubble">…) */
+
+body.vela-admin .ai-chat-message {
+    display: flex;
+}
+
+body.vela-admin .ai-chat-user { justify-content: flex-end; }
+body.vela-admin .ai-chat-assistant { justify-content: flex-start; }
+
+body.vela-admin .ai-chat-bubble {
+    max-width: 92%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+
+body.vela-admin .ai-chat-user .ai-chat-bubble {
     background: var(--accent, #22A2AB);
     color: #fff;
-    align-self: flex-end;
     border-bottom-right-radius: 4px;
+}
+
+body.vela-admin .ai-chat-assistant .ai-chat-bubble {
+    background: var(--surface, #fff);
+    color: var(--fg, #1e293b);
+    border: 1px solid var(--border-subtle, #EDEFF3);
+    border-bottom-left-radius: 4px;
+}
+
+body.vela-admin .ai-chat-bubble ul { font-size: 0.85rem; }
+
+body.vela-admin .ai-chat-tool-calls {
+    font-size: 0.75rem;
+    color: var(--fg-muted, #6c757d);
+    font-style: italic;
+    margin-top: 4px;
+}
+
+/* Loading state */
+
+body.vela-admin .ai-chat-loading .ai-chat-bubble {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--fg-muted, #6c757d);
+}
+
+body.vela-admin .ai-chat-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border, #DCE0E9);
+    border-top-color: var(--accent, #22A2AB);
+    border-radius: 50%;
+    animation: ai-chat-spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes ai-chat-spin {
+    to { transform: rotate(360deg); }
 }
 
 /* Compose row */
@@ -338,16 +242,44 @@ body.vela-admin .vela-ai-compose input[type="text"]:disabled {
     cursor: not-allowed;
 }
 
-/* Undo bar (override the generic .ai-chatbot-undo earlier in the file) */
+/* Undo bar */
 
 body.vela-admin .ai-chatbot-undo {
     background: var(--warn-bg, #FDF2DE);
     border-top: 1px solid var(--warn-border, #FFD37A);
     color: var(--vela-warn-700, #9E6810);
+    flex-shrink: 0;
 }
 
-body.vela-admin #ai-chatbot-sidebar .ai-chatbot-undo button {
+body.vela-admin .ai-chatbot-undo #ai-chat-undo-text {
+    flex: 1;
+    margin-right: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-sm, 0.875rem);
+}
+
+body.vela-admin .ai-chatbot-undo button {
     background: var(--warn, #E8A53A);
     color: #fff;
     border: none;
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+    .ai-chatbot-sidebar {
+        left: 0 !important;
+        right: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: auto !important;
+    }
+
+    body.vela-admin .vela-ai-chat {
+        border-radius: 0;
+        border: none;
+        height: 100%;
+    }
 }
