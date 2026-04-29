@@ -117,8 +117,11 @@ class ProcessAiChatMessageJob implements ShouldQueue
                 $formattedTools = $toolRegistry->toOpenAiFormat($availableTools);
             }
 
-            // Call AI with tools
-            $response = $textProvider->chat($messages, $formattedTools);
+            // Call AI with tools. Bump output cap above the 4096 default so
+            // long-form writes (comparison articles, page rebuilds) don't get
+            // chopped off mid-sentence and trigger the "empty response" path.
+            $maxTokens = (int) config('vela.ai.chat.max_output_tokens', 16384);
+            $response = $textProvider->chat($messages, $formattedTools, $maxTokens);
 
             if (!$response) {
                 Log::error('AI provider returned null response', [
@@ -196,7 +199,7 @@ class ProcessAiChatMessageJob implements ShouldQueue
                 }
 
                 // Call AI again with tool results
-                $response = $textProvider->chat($messages, $formattedTools);
+                $response = $textProvider->chat($messages, $formattedTools, $maxTokens);
                 if (!$response) {
                     break;
                 }

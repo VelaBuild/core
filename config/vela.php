@@ -124,6 +124,9 @@ return [
             // Hard cap on the tool-call loop per user message. Real tasks
             // (multi-file edits, test/revise cycles) can chain dozens of calls.
             'max_tool_iterations' => env('AI_CHAT_MAX_TOOL_ITERATIONS', 50),
+            // Output token cap per AI call. 4096 (provider default) cuts off
+            // long-form writes mid-sentence and triggers MAX_TOKENS bail outs.
+            'max_output_tokens' => env('AI_CHAT_MAX_OUTPUT_TOKENS', 16384),
             // Inject the provider's native web-search tool (Gemini google_search,
             // Claude web_search_20250305) so the model can ground responses in
             // fresh web results without a custom backend. Falls back to the

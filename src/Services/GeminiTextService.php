@@ -167,17 +167,23 @@ class GeminiTextService implements AiTextProvider
 
             if ($response->successful()) {
                 $data = $response->json();
-                Log::info('Gemini chat successful');
 
-                // Normalize response
-                $content = null;
+                // Normalize response. Gemini can return:
+                //   • multiple text parts in one message — concatenate them
+                //   • text + functionCall in the same message
+                //   • zero parts with a finishReason like SAFETY / MAX_TOKENS /
+                //     RECITATION — surface as content so the user sees the
+                //     reason instead of "empty response"
+                $contentParts = [];
                 $toolCalls = null;
 
                 $candidate = $data['candidates'][0] ?? null;
+                $finishReason = $candidate['finishReason'] ?? null;
+
                 if ($candidate) {
                     foreach ($candidate['content']['parts'] ?? [] as $part) {
-                        if (isset($part['text'])) {
-                            $content = $part['text'];
+                        if (isset($part['text']) && $part['text'] !== '') {
+                            $contentParts[] = $part['text'];
                         } elseif (isset($part['functionCall'])) {
                             $toolCalls[] = [
                                 'id' => $part['functionCall']['name'] . '_' . uniqid(),
@@ -186,6 +192,31 @@ class GeminiTextService implements AiTextProvider
                             ];
                         }
                     }
+                }
+
+                $content = empty($contentParts) ? null : implode('', $contentParts);
+
+                // Surface terminal finish reasons as content. STOP is normal,
+                // anything else with empty parts means the model bailed.
+                if ($content === null && empty($toolCalls) && $finishReason && $finishReason !== 'STOP') {
+                    $content = match ($finishReason) {
+                        'MAX_TOKENS'  => '(Gemini hit the response length limit. Increase max_tokens or ask me to continue.)',
+                        'SAFETY'      => '(Gemini blocked the response on safety grounds. Rephrase the request.)',
+                        'RECITATION'  => '(Gemini blocked the response as potential recitation of training data. Rephrase the request.)',
+                        'PROHIBITED_CONTENT' => '(Gemini blocked the response as prohibited content. Rephrase the request.)',
+                        default       => "(Gemini returned no content. finishReason={$finishReason}.)",
+                    };
+                }
+
+                Log::info('Gemini chat successful', [
+                    'finish_reason' => $finishReason,
+                    'has_text'      => $content !== null,
+                    'tool_calls'    => $toolCalls ? count($toolCalls) : 0,
+                    'parts_count'   => count($candidate['content']['parts'] ?? []),
+                ]);
+
+                if ($content === null && empty($toolCalls)) {
+                    Log::warning('Gemini chat returned empty', ['raw' => $data]);
                 }
 
                 $usageMetadata = $data['usageMetadata'] ?? [];
