@@ -66,6 +66,16 @@
             route: window.location.pathname
         };
 
+        // Abort the POST after 25s — under Cloudflare's 30s cap. The job
+        // keeps running server-side via dispatchAfterResponse; we fall
+        // through to polling on the conversation's last user message id.
+        var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+        var postTimedOut = false;
+        var timeoutId = setTimeout(function() {
+            postTimedOut = true;
+            if (ctrl) ctrl.abort();
+        }, 25000);
+
         fetch(config.routes.message, {
             method: 'POST',
             headers: {
@@ -76,40 +86,32 @@
                 message: message,
                 conversation_id: conversationId,
                 page_context: pageContext
-            })
+            }),
+            signal: ctrl ? ctrl.signal : undefined
         })
-        .then(function(res) { return res.json(); })
+        .then(function(res) { clearTimeout(timeoutId); return res.json(); })
         .then(function(data) {
             if (data.success) {
                 conversationId = data.conversation_id;
                 localStorage.setItem('ai-chat-conversation-id', conversationId);
-
-                if (data.status === 'completed' && data.messages) {
-                    hideLoading();
-                    var hasContent = false;
-                    data.messages.forEach(function(msg) {
-                        if (msg.role === 'assistant' && msg.content) {
-                            appendMessage('assistant', msg.content, msg.tool_calls);
-                            hasContent = true;
-                        }
-                    });
-                    if (!hasContent) {
-                        appendMessage('assistant', 'Sorry, I encountered an error processing your request. Please try again.');
-                    }
-                    if (data.action_logs && data.action_logs.length > 0) {
-                        var lastLog = data.action_logs[data.action_logs.length - 1];
-                        showUndoBar(lastLog.id, lastLog.tool_name);
-                    }
-                } else {
-                    lastMessageId = data.message_id || 0;
-                    startPolling();
-                }
+                lastMessageId = data.message_id || 0;
+                // Server now always returns status:'processing' — poll for the
+                // assistant's reply (and any tool_call rounds along the way).
+                startPolling();
             } else {
                 hideLoading();
                 appendMessage('assistant', 'Error: ' + (data.message || 'Unknown error'));
             }
         })
-        .catch(function() {
+        .catch(function(err) {
+            clearTimeout(timeoutId);
+            // POST aborted (CF cap) or network error. The job is likely still
+            // running — start polling against the conversation we have. Best-
+            // effort: if we never had a conversationId, surface the error.
+            if (postTimedOut && conversationId) {
+                startPolling();
+                return;
+            }
             hideLoading();
             appendMessage('assistant', 'Connection error. Please try again.');
         });
@@ -123,7 +125,9 @@
         stopPolling();
 
         var elapsed = 0;
-        var maxWait = 60000;
+        // Long tool chains (research → set_page_blocks → update_custom_css …)
+        // can run for several minutes. Keep polling up to 5 min.
+        var maxWait = 300000;
         var interval = 1500;
 
         pollInterval = setInterval(function() {

@@ -202,7 +202,8 @@ class ProcessAiChatMessageJob implements ShouldQueue
                 }
             }
 
-            // Save final assistant response
+            // Save final assistant response. Multi-tool runs can fall through
+            // here in 4 states; pick the most informative message for each.
             if ($response && ($response['content'] ?? null)) {
                 AiMessage::create([
                     'conversation_id' => $conversation->id,
@@ -210,18 +211,35 @@ class ProcessAiChatMessageJob implements ShouldQueue
                     'content' => $response['content'],
                     'tokens_used' => ($response['usage']['input'] ?? 0) + ($response['usage']['output'] ?? 0),
                 ]);
-            } elseif (!$response || !($response['content'] ?? null)) {
-                // No final response from AI — save a fallback so the user isn't left hanging
+            } elseif (!$response) {
+                // Provider call failed mid-loop (logged separately).
                 AiMessage::create([
                     'conversation_id' => $conversation->id,
                     'role' => 'assistant',
-                    'content' => 'I tried to process your request but ran into an issue. Could you rephrase or provide more details?',
+                    'content' => 'The AI provider returned an error mid-request after ' . $iteration . ' tool call(s). Check storage/logs/laravel.log for the provider response and try again.',
+                ]);
+            } elseif (!empty($response['tool_calls'])) {
+                // Hit max iterations while still wanting to call tools.
+                AiMessage::create([
+                    'conversation_id' => $conversation->id,
+                    'role' => 'assistant',
+                    'content' => 'I reached the tool call limit (' . $maxToolIterations . ') while working on this. The tool runs were saved — ask me to continue or summarize what was done so far.',
+                ]);
+            } else {
+                // Response existed but had no content and no tool_calls.
+                AiMessage::create([
+                    'conversation_id' => $conversation->id,
+                    'role' => 'assistant',
+                    'content' => 'The AI returned an empty response. Could you rephrase or provide more detail?',
                 ]);
             }
 
             Log::info('AI chat message processed successfully', [
                 'conversation_id' => $conversation->id,
                 'tool_iterations' => $iteration,
+                'final_state' => $response
+                    ? (!empty($response['tool_calls']) ? 'max_iterations' : (($response['content'] ?? null) ? 'content' : 'empty'))
+                    : 'provider_error',
             ]);
 
         } catch (\Exception $e) {
@@ -304,10 +322,12 @@ class ProcessAiChatMessageJob implements ShouldQueue
             . "- 'Rebuild my homepage' / 'match the old static file' / 'make the page look like X' → call get_page_blocks → list_block_types → set_page_blocks. Don't summarize the static HTML and tell the user to recreate it themselves.\n"
             . "- If a tool errors, retry with corrected arguments. Don't give up after one failure.\n"
             . "- If you genuinely lack a tool for the request, say so plainly in one sentence — don't pad with how-to instructions.\n\n"
-            . "RESEARCH BEFORE WRITING — IMPORTANT:\n"
-            . "- For comparison articles, reviews, lists of products/companies/services, or anything making factual claims, run web_search FIRST and fetch_url on the top results. Never invent product names, prices, statistics, or quotes.\n"
-            . "- web_search uses the AI provider's native search (Gemini google_search or Anthropic web_search) — it works whenever you have a Gemini or Anthropic key configured. Don't tell the user to set extra search keys; just call the tool.\n"
-            . "- Cite the URLs you used at the end of long-form articles so the user can verify.\n\n"
+            . "RESEARCH BEFORE WRITING — STRICT:\n"
+            . "- If the user request mentions specific real-world products, companies, services, prices, statistics, dates, or asks for a 'comparison', 'review', 'list', 'best of', 'top N', or anything ranking real entities, you MUST call web_search BEFORE drafting any content. Multiple searches are encouraged.\n"
+            . "- After web_search, call fetch_url on at least the top 2-3 result URLs to read primary sources before writing.\n"
+            . "- Treat the search/fetch results as authoritative. Do NOT add products, brands, statistics, or quotes that are absent from those results — that includes 'plausible' competitors you can't verify. If you can't find enough real results, say so plainly to the user instead of padding with fabricated entries.\n"
+            . "- web_search routes to the configured AI provider's native search (Gemini google_search / Anthropic web_search) — no extra keys required. Just call it. If it errors, retry once; don't fall back to making things up.\n"
+            . "- Cite source URLs at the end of any long-form article or comparison.\n\n"
             . "PAGE BUILDER BLOCKS - IMPORTANT:\n"
             . "- Vela pages are made of ROWS containing BLOCKS (hero, cta, posts_grid, image, text, html, gallery, accordion, contact_form, testimonials, icon_box, categories_grid, carousel, app_download, code, pricing_tiers, etc.).\n"
             . "- create_page / edit_page_content take MARKDOWN — only use them for simple text pages.\n"

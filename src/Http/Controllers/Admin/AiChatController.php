@@ -61,29 +61,15 @@ class AiChatController extends Controller
             'content' => $request->message,
         ]);
 
-        // Check if running sync queue
-        $isSync = config('queue.default') === 'sync';
-
-        if ($isSync) {
-            // Run synchronously -- process inline and return response
-            $job = new ProcessAiChatMessageJob($conversation->id, $user->id, $request->page_context ?? []);
-            $job->handle();
-
-            // Fetch the assistant response
-            $newMessages = AiMessage::where('conversation_id', $conversation->id)
-                ->where('id', '>', $userMessage->id)
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'conversation_id' => $conversation->id,
-                'messages' => $newMessages,
-                'status' => 'completed',
-            ]);
-        }
-
-        // Async: dispatch job and return immediately
-        ProcessAiChatMessageJob::dispatch($conversation->id, $user->id, $request->page_context ?? []);
+        // Always return fast so the client (and any CDN proxy with a 30s
+        // hard cap like Cloudflare) doesn't time out on long tool chains.
+        // dispatchAfterResponse runs the job after the HTTP response is
+        // flushed even on a sync queue — frontend then polls for results.
+        ProcessAiChatMessageJob::dispatchAfterResponse(
+            $conversation->id,
+            $user->id,
+            $request->page_context ?? []
+        );
 
         return response()->json([
             'success' => true,
