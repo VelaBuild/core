@@ -96,6 +96,25 @@
                                 </figure>
                             @endif
                             @break
+                        @case('table')
+                            @php
+                                $rows = $block['data']['content'] ?? [];
+                                $withHeadings = !empty($block['data']['withHeadings']);
+                            @endphp
+                            @if(is_array($rows) && count($rows))
+                                <div class="article-table-wrapper" style="overflow-x:auto;margin:1.5rem 0;">
+                                <table style="border-collapse:collapse;width:100%;font-size:0.9rem;">
+                                    @if($withHeadings)
+                                        <thead><tr>@foreach((array) array_shift($rows) as $cell)<th style="border:1px solid #ddd;padding:8px 12px;background:#f9f9f9;text-align:left;">{!! $cell !!}</th>@endforeach</tr></thead>
+                                    @endif
+                                    <tbody>@foreach($rows as $row)<tr>@foreach((array) $row as $cell)<td style="border:1px solid #ddd;padding:8px 12px;vertical-align:top;">{!! $cell !!}</td>@endforeach</tr>@endforeach</tbody>
+                                </table>
+                                </div>
+                            @endif
+                            @break
+                        @case('delimiter')
+                            <hr style="margin:2rem 0;border:none;border-top:1px solid #ddd;">
+                            @break
                         @default
                             @if(isset($block['data']['text']))
                                 <p>{{ $block['data']['text'] }}</p>

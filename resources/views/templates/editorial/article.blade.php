@@ -104,6 +104,25 @@
                                             @endif
                                         </blockquote>
                                         @break
+                                    @case('table')
+                                        @php
+                                            $rows = $block['data']['content'] ?? [];
+                                            $withHeadings = !empty($block['data']['withHeadings']);
+                                        @endphp
+                                        @if(is_array($rows) && count($rows))
+                                            <div class="article-table-wrapper">
+                                            <table>
+                                                @if($withHeadings)
+                                                    <thead><tr>@foreach((array) array_shift($rows) as $cell)<th>{!! $cell !!}</th>@endforeach</tr></thead>
+                                                @endif
+                                                <tbody>@foreach($rows as $row)<tr>@foreach((array) $row as $cell)<td>{!! $cell !!}</td>@endforeach</tr>@endforeach</tbody>
+                                            </table>
+                                            </div>
+                                        @endif
+                                        @break
+                                    @case('delimiter')
+                                        <hr>
+                                        @break
                                     @default
                                         @if(isset($block['data']['text']))
                                             <p>{{ $block['data']['text'] }}</p>

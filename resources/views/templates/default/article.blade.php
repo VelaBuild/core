@@ -107,12 +107,40 @@
                                             @break
                                         @case('list')
                                             @if(isset($block['data']['items']) && is_array($block['data']['items']))
-                                                <ul class="list-disc list-inside mb-4 space-y-2">
+                                                @php $listTag = ($block['data']['style'] ?? 'unordered') === 'ordered' ? 'ol' : 'ul'; @endphp
+                                                <{{ $listTag }} class="@if($listTag === 'ol') list-decimal @else list-disc @endif list-inside mb-4 space-y-2">
                                                     @foreach($block['data']['items'] as $item)
-                                                        <li class="leading-relaxed">{!! renderMarkdown($item) !!}</li>
+                                                        <li class="leading-relaxed">{!! renderMarkdown(is_array($item) ? ($item['content'] ?? '') : $item) !!}</li>
                                                     @endforeach
-                                                </ul>
+                                                </{{ $listTag }}>
                                             @endif
+                                            @break
+                                        @case('table')
+                                            @php
+                                                $rows = $block['data']['content'] ?? [];
+                                                $withHeadings = !empty($block['data']['withHeadings']);
+                                            @endphp
+                                            @if(is_array($rows) && count($rows))
+                                                <div class="my-6 overflow-x-auto">
+                                                    <table class="min-w-full border border-gray-200 text-sm">
+                                                        @if($withHeadings)
+                                                            <thead class="bg-gray-100"><tr>
+                                                                @foreach((array) array_shift($rows) as $cell)
+                                                                    <th class="border border-gray-200 px-3 py-2 text-left font-semibold">{!! $cell !!}</th>
+                                                                @endforeach
+                                                            </tr></thead>
+                                                        @endif
+                                                        <tbody>
+                                                            @foreach($rows as $row)
+                                                                <tr>@foreach((array) $row as $cell)<td class="border border-gray-200 px-3 py-2 align-top">{!! $cell !!}</td>@endforeach</tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            @endif
+                                            @break
+                                        @case('delimiter')
+                                            <hr class="my-8 border-t border-gray-200">
                                             @break
                                         @case('image')
                                             @if(isset($block['data']['file']['url']))

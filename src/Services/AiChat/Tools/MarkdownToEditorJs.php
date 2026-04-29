@@ -49,7 +49,10 @@ class MarkdownToEditorJs
 
             if ($trimmed === '') {
                 $flushList();
-                $flushTable();
+                // DON'T flush a table on blank lines. Some models emit a blank
+                // line between every row which would otherwise turn each row
+                // into a one-row table block. Tables only flush when we hit a
+                // real non-table content line below.
                 continue;
             }
 
@@ -75,6 +78,7 @@ class MarkdownToEditorJs
                 $tableRows[] = $cells;
                 continue;
             } else {
+                // Real content line that isn't a table row → table sequence ends.
                 $flushTable();
             }
 
