@@ -8,17 +8,15 @@ use VelaBuild\Core\Models\AiActionLog;
 use VelaBuild\Core\Services\AiSettingsService;
 
 /**
- * Web search via the configured AI provider's native search capability —
- * no extra API key needed. Picks the first available provider:
+ * Web search via whichever AI provider the site already has a key for.
+ * Tries each configured provider in order. No extra API keys required.
  *
- *   1. Gemini → separate API call with `google_search` enabled (can't be
- *      combined with function calling in the same request, so we run a
- *      dedicated grounding call here).
- *   2. Anthropic → separate API call with `web_search_20250305` server tool.
- *   3. Brave / Tavily / Serper → only if explicitly configured.
+ *   1. Gemini   → separate `generateContent` call with `google_search`.
+ *   2. Anthropic→ separate `messages` call with `web_search_20250305`.
+ *   3. OpenAI   → separate Responses API call with `web_search_preview`.
+ *   4. Brave / Tavily / Serper → only if those keys are set in .env.
  *
- * Returns a normalized {provider, query, results: [{title, url, description}]}
- * shape regardless of which backend ran.
+ * Returns {success, provider, query, summary?, results: [{title, url, description?}]}.
  */
 class WebSearchTool extends BaseTool
 {
@@ -33,31 +31,48 @@ class WebSearchTool extends BaseTool
         $count = max(1, min(10, (int) ($parameters['count'] ?? 5)));
 
         $settings = app(AiSettingsService::class);
+        $errors = [];
 
         try {
             if ($settings->hasApiKey('gemini')) {
-                return $this->searchGemini($query, $count, $settings->getApiKey('gemini'));
+                $r = $this->searchGemini($query, $count, $settings->getApiKey('gemini'));
+                if (empty($r['error'])) return $r;
+                $errors[] = 'gemini: ' . $r['error'];
             }
             if ($settings->hasApiKey('anthropic')) {
-                return $this->searchClaude($query, $count, $settings->getApiKey('anthropic'));
+                $r = $this->searchClaude($query, $count, $settings->getApiKey('anthropic'));
+                if (empty($r['error'])) return $r;
+                $errors[] = 'anthropic: ' . $r['error'];
+            }
+            if ($settings->hasApiKey('openai')) {
+                $r = $this->searchOpenAi($query, $count, $settings->getApiKey('openai'));
+                if (empty($r['error'])) return $r;
+                $errors[] = 'openai: ' . $r['error'];
             }
             if ($key = env('BRAVE_SEARCH_API_KEY')) {
-                return $this->searchBrave($query, $count, $key);
+                $r = $this->searchBrave($query, $count, $key);
+                if (empty($r['error'])) return $r;
+                $errors[] = 'brave: ' . $r['error'];
             }
             if ($key = env('TAVILY_API_KEY')) {
-                return $this->searchTavily($query, $count, $key);
+                $r = $this->searchTavily($query, $count, $key);
+                if (empty($r['error'])) return $r;
+                $errors[] = 'tavily: ' . $r['error'];
             }
             if ($key = env('SERPER_API_KEY')) {
-                return $this->searchSerper($query, $count, $key);
+                $r = $this->searchSerper($query, $count, $key);
+                if (empty($r['error'])) return $r;
+                $errors[] = 'serper: ' . $r['error'];
             }
         } catch (\Throwable $e) {
-            Log::error('WebSearchTool failed', ['error' => $e->getMessage()]);
+            Log::error('WebSearchTool exception', ['error' => $e->getMessage()]);
             return ['error' => 'Web search failed: ' . $e->getMessage()];
         }
 
-        return [
-            'error' => 'No web search provider available. Configure a Gemini or Anthropic key in admin → Settings → AI, or add BRAVE_SEARCH_API_KEY / TAVILY_API_KEY / SERPER_API_KEY in .env.',
-        ];
+        if (!empty($errors)) {
+            return ['error' => 'All web search backends errored: ' . implode(' | ', $errors)];
+        }
+        return ['error' => 'No AI provider key is configured to power web search. Add an OpenAI / Anthropic / Gemini key in admin → Settings → AI.'];
     }
 
     // ── Gemini google_search via grounding ──────────────────────────────────
@@ -159,6 +174,62 @@ class WebSearchTool extends BaseTool
         return [
             'success'  => true,
             'provider' => 'anthropic',
+            'query'    => $query,
+            'summary'  => trim($summary),
+            'results'  => $results,
+        ];
+    }
+
+    // ── OpenAI Responses API web_search_preview ─────────────────────────────
+
+    private function searchOpenAi(string $query, int $count, string $apiKey): array
+    {
+        // Responses API has built-in web_search_preview. Chat Completions
+        // doesn't, which is why we call /v1/responses here instead of going
+        // through OpenAiTextService.
+        $resp = Http::timeout(self::TIMEOUT)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type'  => 'application/json',
+            ])
+            ->post('https://api.openai.com/v1/responses', [
+                'model' => 'gpt-4o',
+                'input' => "Search the web for: {$query}\n\nReturn the {$count} most relevant results with title, URL, and a brief summary of each.",
+                'tools' => [['type' => 'web_search_preview']],
+            ]);
+
+        if (!$resp->successful()) {
+            return ['error' => 'OpenAI web_search_preview HTTP ' . $resp->status() . ': ' . $resp->body()];
+        }
+
+        $data = $resp->json();
+        $summary = '';
+        $results = [];
+
+        foreach (($data['output'] ?? []) as $item) {
+            $type = $item['type'] ?? '';
+            if ($type === 'message') {
+                foreach (($item['content'] ?? []) as $part) {
+                    if (($part['type'] ?? '') === 'output_text') {
+                        $summary .= $part['text'] ?? '';
+                        foreach (($part['annotations'] ?? []) as $ann) {
+                            if (($ann['type'] ?? '') === 'url_citation') {
+                                $results[] = [
+                                    'title'       => $ann['title'] ?? null,
+                                    'url'         => $ann['url'] ?? null,
+                                    'description' => null,
+                                ];
+                                if (count($results) >= $count) break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return [
+            'success'  => true,
+            'provider' => 'openai',
             'query'    => $query,
             'summary'  => trim($summary),
             'results'  => $results,
