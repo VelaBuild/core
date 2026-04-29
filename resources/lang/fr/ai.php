@@ -44,5 +44,5 @@ return [
     'anthropic_claude' => 'Anthropic (Claude)',
     'google_gemini' => 'Google Gemini',
     'image_generation' => 'Génération d\'images',
-    'openai_dalle' => 'OpenAI (DALL-E)',
+    'openai_image' => 'OpenAI',
 ];

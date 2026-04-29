@@ -48,6 +48,12 @@ class AiSettingsController extends Controller
         if (!$settings->isEnvLocked('image_provider') && $request->has('image_provider')) {
             $settings->set('image_provider', $request->input('image_provider'));
         }
+        if (!$settings->isEnvLocked('openai_image_model') && $request->has('openai_image_model')) {
+            $model = $request->input('openai_image_model');
+            if (in_array($model, ['gpt-image-1', 'gpt-image-1.5', 'gpt-image-2'], true)) {
+                $settings->set('openai_image_model', $model);
+            }
+        }
 
         // Native web search toggle. Hidden 0 + checkbox 1 pattern means a
         // valid submit ALWAYS carries native_search. We only write when the

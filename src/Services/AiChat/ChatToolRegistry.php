@@ -455,19 +455,20 @@ class ChatToolRegistry
     }
 
     /**
-     * Convert tool definitions to Gemini function declarations format.
+     * Convert tool definitions to a flat list. GeminiTextService wraps these
+     * in `[{function_declarations: [...]}]` itself before sending — returning
+     * the wrapped form here would double-wrap and crash with "Undefined array
+     * key name" in the service's per-tool loop.
      */
     public function toGeminiFormat(array $tools): array
     {
-        return [[
-            'function_declarations' => array_map(function ($tool) {
-                return [
-                    'name' => $tool['name'],
-                    'description' => $tool['description'],
-                    'parameters' => self::fixParams($tool['parameters']),
-                ];
-            }, $tools),
-        ]];
+        return array_map(function ($tool) {
+            return [
+                'name' => $tool['name'],
+                'description' => $tool['description'],
+                'parameters' => self::fixParams($tool['parameters']),
+            ];
+        }, $tools);
     }
 
     /**

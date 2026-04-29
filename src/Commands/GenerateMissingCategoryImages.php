@@ -17,7 +17,7 @@ class GenerateMissingCategoryImages extends Command
                             {--quality=high : Image quality (high, medium, low)}
                             {--dry-run : Show what would be generated without actually generating}';
 
-    protected $description = 'Generate missing category images using OpenAI DALL-E API';
+    protected $description = 'Generate missing category images using OpenAI gpt-image';
 
     private ?AiImageProvider $openAiService = null;
 

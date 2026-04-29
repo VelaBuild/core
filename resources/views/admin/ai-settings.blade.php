@@ -79,8 +79,24 @@
                         <select name="image_provider" class="form-control">
                             <option value="auto" {{ $status['image_provider'] === 'auto' ? 'selected' : '' }}>{{ trans('vela::ai.auto_first_available') }}</option>
                             <option value="gemini" {{ $status['image_provider'] === 'gemini' ? 'selected' : '' }}>{{ trans('vela::ai.google_gemini') }}</option>
-                            <option value="openai" {{ $status['image_provider'] === 'openai' ? 'selected' : '' }}>{{ trans('vela::ai.openai_dalle') }}</option>
+                            <option value="openai" {{ $status['image_provider'] === 'openai' ? 'selected' : '' }}>{{ trans('vela::ai.openai_image') }}</option>
                         </select>
+                    @endif
+                </div>
+            </div>
+
+            <div class="form-group row">
+                <label class="col-md-3 col-form-label">OpenAI image model</label>
+                <div class="col-md-9">
+                    @if($status['openai_image_model_locked'])
+                        <input type="text" class="form-control" value="{{ $status['openai_image_model'] }} (set via .env)" disabled>
+                    @else
+                        <select name="openai_image_model" class="form-control">
+                            <option value="gpt-image-1"   {{ $status['openai_image_model'] === 'gpt-image-1' ? 'selected' : '' }}>gpt-image-1</option>
+                            <option value="gpt-image-1.5" {{ $status['openai_image_model'] === 'gpt-image-1.5' ? 'selected' : '' }}>gpt-image-1.5 (recommended)</option>
+                            <option value="gpt-image-2"   {{ $status['openai_image_model'] === 'gpt-image-2' ? 'selected' : '' }}>gpt-image-2 (latest)</option>
+                        </select>
+                        <small class="text-muted d-block mt-1">Only used when the image provider above is OpenAI. <code>gpt-image-1.5</code> is the safe default; <code>gpt-image-2</code> supports larger sizes and arbitrary aspect ratios; <code>gpt-image-1</code> is the original release.</small>
                     @endif
                 </div>
             </div>

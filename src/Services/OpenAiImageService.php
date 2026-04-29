@@ -22,8 +22,9 @@ class OpenAiImageService implements AiImageProvider
      * Generate an image via OpenAI's /v1/images/generations endpoint.
      *
      * Supported options:
-     *   model   — 'gpt-image-1.5' (default) or 'gpt-image-2'. Pass-through, so
-     *             snapshot pins like 'gpt-image-2-2026-04-21' also work.
+     *   model   — 'gpt-image-1' | 'gpt-image-1.5' (default) | 'gpt-image-2'.
+     *             Pass-through, so snapshot pins like 'gpt-image-2-2026-04-21'
+     *             also work. Default falls back to admin-configured model.
      *   size    — '1024x1024' (default). gpt-image-2 also accepts any 16-pixel
      *             multiple up to 3840px with aspect ratio ≤3:1, or 'auto'.
      *   quality — 'low' | 'medium' | 'high' (default) | 'auto'.
@@ -31,19 +32,30 @@ class OpenAiImageService implements AiImageProvider
      */
     public function generateImage(string $prompt, array $options = []): ?array
     {
-        $model = $options['model'] ?? 'gpt-image-1.5';
+        $model = $options['model'] ?? $this->defaultModel();
         $size = $options['size'] ?? '1024x1024';
         $quality = $options['quality'] ?? 'high';
         $n = $options['n'] ?? 1;
         return $this->generateImageRaw($prompt, $size, $quality, $n, $model);
     }
 
-    public function generateImageRaw(string $prompt, string $size = '1024x1024', string $quality = 'high', int $n = 1, string $model = 'gpt-image-1.5'): ?array
+    private function defaultModel(): string
+    {
+        $configured = app(AiSettingsService::class)->get('openai_image_model');
+        if ($configured && in_array($configured, ['gpt-image-1', 'gpt-image-1.5', 'gpt-image-2'], true)) {
+            return $configured;
+        }
+        return 'gpt-image-1.5';
+    }
+
+    public function generateImageRaw(string $prompt, string $size = '1024x1024', string $quality = 'high', int $n = 1, ?string $model = null): ?array
     {
         if (!$this->apiKey) {
             Log::warning('Vela: OpenAI API key not configured');
             return null;
         }
+
+        $model = $model ?: $this->defaultModel();
 
         try {
             $response = Http::timeout(120) // 2 minutes timeout

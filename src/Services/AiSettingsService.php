@@ -16,6 +16,7 @@ class AiSettingsService
         'gemini_api_key',
         'chat_provider',
         'image_provider',
+        'openai_image_model',
         'vela_gateway_url',
         'vela_gateway_site',
         'vela_gateway_secret',
@@ -36,6 +37,7 @@ class AiSettingsService
         'gemini_api_key'      => 'GEMINI_API_KEY',
         'chat_provider'       => 'AI_TEXT_PROVIDER',
         'image_provider'      => 'AI_IMAGE_PROVIDER',
+        'openai_image_model'  => 'OPENAI_IMAGE_MODEL',
         'vela_gateway_url'    => 'VELA_GATEWAY_URL',
         'vela_gateway_site'   => 'VELA_GATEWAY_SITE',
         'vela_gateway_secret' => 'VELA_GATEWAY_SECRET',
@@ -181,6 +183,8 @@ class AiSettingsService
         $status['chat_provider_locked'] = $this->isEnvLocked('chat_provider');
         $status['image_provider'] = $this->get('image_provider', 'auto');
         $status['image_provider_locked'] = $this->isEnvLocked('image_provider');
+        $status['openai_image_model'] = $this->get('openai_image_model', 'gpt-image-1.5');
+        $status['openai_image_model_locked'] = $this->isEnvLocked('openai_image_model');
         $status['has_text_provider'] = $this->hasApiKey('openai') || $this->hasApiKey('anthropic') || $this->hasApiKey('gemini');
         $status['has_image_provider'] = $this->hasApiKey('openai') || $this->hasApiKey('gemini');
 
