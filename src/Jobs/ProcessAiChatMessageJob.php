@@ -65,9 +65,16 @@ class ProcessAiChatMessageJob implements ShouldQueue
 
             $messages = [['role' => 'system', 'content' => $systemPrompt]];
             foreach ($dbMessages as $msg) {
-                $messageEntry = ['role' => $msg->role, 'content' => $msg->content ?? ''];
-                if ($msg->tool_calls) {
-                    // Normalize tool_calls for OpenAI compatibility
+                $messageEntry = ['role' => $msg->role];
+
+                if (!empty($msg->tool_calls) && is_array($msg->tool_calls)) {
+                    // Assistant message with tool_calls. OpenAI expects content
+                    // to be null (or omitted), NOT an empty string — empty
+                    // string trips the "messages.[N].role tool must follow
+                    // tool_calls" validator at the proxy. Normalize to null.
+                    $messageEntry['content'] = $msg->content !== '' && $msg->content !== null
+                        ? $msg->content
+                        : null;
                     $messageEntry['tool_calls'] = array_map(function ($tc) {
                         return [
                             'id' => $tc['id'] ?? ('call_' . uniqid()),
@@ -80,12 +87,22 @@ class ProcessAiChatMessageJob implements ShouldQueue
                             ],
                         ];
                     }, $msg->tool_calls);
+                } else {
+                    $messageEntry['content'] = $msg->content ?? '';
                 }
+
                 if ($msg->tool_call_id) {
                     $messageEntry['tool_call_id'] = $msg->tool_call_id;
                 }
                 $messages[] = $messageEntry;
             }
+
+            // Drop orphan tool messages — any role:'tool' that doesn't directly
+            // follow an assistant message carrying its matching tool_call_id.
+            // Without this, a partially-completed earlier turn (interrupted
+            // queue worker, exception mid-loop) leaves orphans in the DB and
+            // every subsequent request 400s on validation.
+            $messages = $this->dropOrphanToolMessages($messages);
 
             // Get tools available to this user
             $availableTools = $toolRegistry->forUser($user);
@@ -232,6 +249,45 @@ class ProcessAiChatMessageJob implements ShouldQueue
         }
     }
 
+    /**
+     * Drop tool messages whose tool_call_id doesn't match any pending tool_call
+     * id from the immediately-preceding assistant message. Iterates in order:
+     * a tool message is valid iff a recent assistant turn declared a matching
+     * tool_call id that hasn't been resolved yet.
+     */
+    private function dropOrphanToolMessages(array $messages): array
+    {
+        $pendingIds = [];
+        $cleaned = [];
+        foreach ($messages as $msg) {
+            if (($msg['role'] ?? '') === 'assistant' && !empty($msg['tool_calls'])) {
+                foreach ($msg['tool_calls'] as $tc) {
+                    if (!empty($tc['id'])) $pendingIds[$tc['id']] = true;
+                }
+                $cleaned[] = $msg;
+                continue;
+            }
+            if (($msg['role'] ?? '') === 'tool') {
+                $id = $msg['tool_call_id'] ?? null;
+                if ($id && isset($pendingIds[$id])) {
+                    unset($pendingIds[$id]);
+                    $cleaned[] = $msg;
+                } else {
+                    Log::warning('Dropping orphan tool message', [
+                        'tool_call_id' => $id,
+                        'pending_ids'  => array_keys($pendingIds),
+                    ]);
+                }
+                continue;
+            }
+            // Any other message resets pending tracking — reaching a user/system/
+            // plain-assistant turn means the previous tool round is closed.
+            $pendingIds = [];
+            $cleaned[] = $msg;
+        }
+        return $cleaned;
+    }
+
     private function buildSystemPrompt(SiteContext $siteContext, array $pageContext, VelaUser $user): string
     {
         $siteDesc = $siteContext->getDescription();
@@ -248,6 +304,10 @@ class ProcessAiChatMessageJob implements ShouldQueue
             . "- 'Rebuild my homepage' / 'match the old static file' / 'make the page look like X' → call get_page_blocks → list_block_types → set_page_blocks. Don't summarize the static HTML and tell the user to recreate it themselves.\n"
             . "- If a tool errors, retry with corrected arguments. Don't give up after one failure.\n"
             . "- If you genuinely lack a tool for the request, say so plainly in one sentence — don't pad with how-to instructions.\n\n"
+            . "RESEARCH BEFORE WRITING — IMPORTANT:\n"
+            . "- For comparison articles, reviews, lists of products/companies/services, or anything making factual claims, run web_search FIRST and fetch_url on the top results. Never invent product names, prices, statistics, or quotes.\n"
+            . "- If web_search returns 'No web search provider configured', tell the user that explicitly and ask whether to proceed with general knowledge (which may be out of date) or to add a search key.\n"
+            . "- Cite the URLs you used at the end of long-form articles so the user can verify.\n\n"
             . "PAGE BUILDER BLOCKS - IMPORTANT:\n"
             . "- Vela pages are made of ROWS containing BLOCKS (hero, cta, posts_grid, image, text, html, gallery, accordion, contact_form, testimonials, icon_box, categories_grid, carousel, app_download, code, pricing_tiers, etc.).\n"
             . "- create_page / edit_page_content take MARKDOWN — only use them for simple text pages.\n"

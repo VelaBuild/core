@@ -147,6 +147,14 @@ class GeminiTextService implements AiTextProvider
                 ];
             }
 
+            // Native Google Search grounding. Gemini 2.x exposes it as
+            // `google_search`. Toggle lives in admin AI Settings (DB) with the
+            // static config as fallback default.
+            if (app(AiSettingsService::class)->getStatus()['native_search']) {
+                $body['tools'] = $body['tools'] ?? [];
+                $body['tools'][] = ['google_search' => (object) []];
+            }
+
             $response = Http::timeout(120)
                 ->withHeaders([
                     'Content-Type' => 'application/json',

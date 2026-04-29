@@ -20,6 +20,7 @@ class AiSettingsService
         'vela_gateway_site',
         'vela_gateway_secret',
         'vela_gateway_model',
+        'native_search',
     ];
 
     private const ENCRYPTED_KEYS = [
@@ -39,6 +40,7 @@ class AiSettingsService
         'vela_gateway_site'   => 'VELA_GATEWAY_SITE',
         'vela_gateway_secret' => 'VELA_GATEWAY_SECRET',
         'vela_gateway_model'  => 'VELA_GATEWAY_MODEL',
+        'native_search'       => 'AI_CHAT_NATIVE_SEARCH',
     ];
 
     /**
@@ -181,6 +183,13 @@ class AiSettingsService
         $status['image_provider_locked'] = $this->isEnvLocked('image_provider');
         $status['has_text_provider'] = $this->hasApiKey('openai') || $this->hasApiKey('anthropic') || $this->hasApiKey('gemini');
         $status['has_image_provider'] = $this->hasApiKey('openai') || $this->hasApiKey('gemini');
+
+        // DB toggle overrides the static config default. Falls back to the
+        // config value when nothing is explicitly stored.
+        $stored = $this->get('native_search', null);
+        $status['native_search'] = $stored === null
+            ? (bool) config('vela.ai.chat.native_search', true)
+            : ($stored === '1' || $stored === 1 || $stored === true);
 
         return $status;
     }

@@ -86,6 +86,26 @@
             </div>
 
             <hr>
+
+            <h5 class="mb-3">Web Search</h5>
+            <p class="text-muted small">Let the AI ground responses in fresh web results before answering. Provider-native search costs are billed by your AI provider.</p>
+
+            <div class="form-group row">
+                <label class="col-md-3 col-form-label">Native search</label>
+                <div class="col-md-9">
+                    <div class="form-check">
+                        <input type="hidden" name="native_search" value="0">
+                        <input class="form-check-input" type="checkbox" id="native_search" name="native_search" value="1"
+                               {{ ($status['native_search'] ?? true) ? 'checked' : '' }}>
+                        <label class="form-check-label" for="native_search">
+                            Enable Gemini <code>google_search</code> + Claude <code>web_search_20250305</code> on chat requests.
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-1">OpenAI Chat Completions has no native equivalent — for OpenAI, the chatbot's <code>web_search</code> tool will use <code>BRAVE_SEARCH_API_KEY</code> / <code>TAVILY_API_KEY</code> / <code>SERPER_API_KEY</code> if set in <code>.env</code>.</small>
+                </div>
+            </div>
+
+            <hr>
             <div class="form-group">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> {{ trans('vela::global.save_settings') }}

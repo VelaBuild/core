@@ -124,6 +124,13 @@ return [
             // Hard cap on the tool-call loop per user message. Real tasks
             // (multi-file edits, test/revise cycles) can chain dozens of calls.
             'max_tool_iterations' => env('AI_CHAT_MAX_TOOL_ITERATIONS', 50),
+            // Inject the provider's native web-search tool (Gemini google_search,
+            // Claude web_search_20250305) so the model can ground responses in
+            // fresh web results without a custom backend. Falls back to the
+            // app-level web_search tool (Brave/Tavily/Serper) when disabled or
+            // when the provider has no native option (OpenAI Chat Completions).
+            'native_search' => env('AI_CHAT_NATIVE_SEARCH', true),
+            'native_search_max_uses' => env('AI_CHAT_NATIVE_SEARCH_MAX_USES', 5),
         ],
         'figma' => [
             'access_token' => env('FIGMA_ACCESS_TOKEN'),

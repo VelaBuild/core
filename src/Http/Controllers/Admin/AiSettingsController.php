@@ -49,6 +49,14 @@ class AiSettingsController extends Controller
             $settings->set('image_provider', $request->input('image_provider'));
         }
 
+        // Native web search toggle. Hidden 0 + checkbox 1 pattern means a
+        // valid submit ALWAYS carries native_search. We only write when the
+        // field is actually present so a partial-form / API update doesn't
+        // silently flip the default-on behaviour to off.
+        if ($request->has('native_search')) {
+            $settings->set('native_search', $request->boolean('native_search') ? '1' : '0');
+        }
+
         return redirect()->back()->with('message', __('vela::global.ai_settings_saved'));
     }
 

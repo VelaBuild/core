@@ -95,6 +95,19 @@ class ClaudeTextService implements AiTextProvider
                 $body['tools'] = $tools;
             }
 
+            // Native Anthropic web search — server-side tool, Claude handles
+            // the search/fetch round-trip itself and inserts citations into
+            // the response. Available on Claude 3.7+ / Claude 4 models. DB
+            // toggle in admin AI Settings overrides the config default.
+            if (app(AiSettingsService::class)->getStatus()['native_search']) {
+                $body['tools'] = $body['tools'] ?? [];
+                $body['tools'][] = [
+                    'type'     => 'web_search_20250305',
+                    'name'     => 'web_search',
+                    'max_uses' => (int) config('vela.ai.chat.native_search_max_uses', 5),
+                ];
+            }
+
             $response = Http::timeout(120)
                 ->withHeaders([
                     'x-api-key' => $this->apiKey,

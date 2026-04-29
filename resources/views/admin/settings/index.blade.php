@@ -167,6 +167,22 @@
                 </div>
             </div>
 
+            {{-- AI Settings --}}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-robot fa-3x mb-3 text-primary"></i>
+                        <h5>{{ __('AI Settings') }}</h5>
+                        <p class="text-muted">{{ __('Provider keys, default models, and chatbot behaviour.') }}</p>
+                        @can('config_edit')
+                            <a href="{{ route('vela.admin.ai-settings.index') }}" class="btn btn-primary btn-sm">
+                                {{ __('vela::pwa.manage') }}
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
+
             {{-- Plugin-contributed cards.
                  Any plugin that wants to expose its settings on this index
                  should provide a `<namespace>::admin.partials.settings-card`

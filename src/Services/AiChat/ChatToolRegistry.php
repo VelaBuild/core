@@ -358,6 +358,20 @@ class ChatToolRegistry
             'gate' => 'config_edit',
         ],
         [
+            'name' => 'web_search',
+            'description' => 'Search the web for recent / factual information. Use this BEFORE writing comparison articles, reviews, or any content where accuracy matters — never invent product names, statistics, or quotes. Pair with fetch_url to read the most useful results in full. Returns title/url/description for each hit. Configure BRAVE_SEARCH_API_KEY, TAVILY_API_KEY, or SERPER_API_KEY in .env.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'query' => ['type' => 'string', 'description' => 'Search query'],
+                    'count' => ['type' => 'integer', 'description' => 'Number of results (1-10, default 5)'],
+                ],
+                'required' => ['query'],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
             'name' => 'fetch_url',
             'description' => 'Fetch the body of an http(s) URL (e.g. an external reference site, the live production page, or a competitor for design inspiration). Returns up to 512KB of the response body with status code and content type. Refuses private/loopback/link-local hosts to prevent SSRF.',
             'parameters' => [
