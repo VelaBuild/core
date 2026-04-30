@@ -186,6 +186,28 @@ class VelaServiceProvider extends ServiceProvider
         $this->registerAgentDiscoveryRoutes();
         $this->registerWebhookRoutes();
         $this->registerAuthRoutes();
+
+        // Laravel's built-in ResetPassword + VerifyEmail notifications call
+        // route('password.reset', …) and route('verification.verify', …),
+        // but our auth routes live under the `vela.auth.*` prefix. Register
+        // URL builders so these notifications point at our prefixed routes
+        // without throwing RouteNotFoundException.
+        \Illuminate\Auth\Notifications\ResetPassword::createUrlUsing(function ($notifiable, string $token) {
+            return route('vela.auth.password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ]);
+        });
+        \Illuminate\Auth\Notifications\VerifyEmail::createUrlUsing(function ($notifiable) {
+            return \Illuminate\Support\Facades\URL::temporarySignedRoute(
+                'vela.auth.verification.verify',
+                now()->addMinutes((int) config('auth.verification.expire', 60)),
+                [
+                    'id'   => $notifiable->getKey(),
+                    'hash' => sha1($notifiable->getEmailForVerification()),
+                ]
+            );
+        });
         // Image optimization routes (outside locale group)
         Route::middleware('web')->group(function () {
             Route::get('/imgp/{config}', [\VelaBuild\Core\Http\Controllers\ImageController::class, 'webp'])

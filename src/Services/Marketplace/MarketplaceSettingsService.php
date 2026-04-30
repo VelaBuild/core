@@ -9,8 +9,13 @@ class MarketplaceSettingsService
 {
     private const PREFIX = 'marketplace_';
 
+    /**
+     * The marketplace URL is hard-coded — sites cannot point at a different
+     * marketplace. Auth token + webhook secret remain per-site.
+     */
+    public const API_URL = 'https://marketplace.vela.build';
+
     private const ENV_MAP = [
-        'api_url'        => 'VELA_MARKETPLACE_URL',
         'auth_token'     => 'VELA_MARKETPLACE_TOKEN',
         'webhook_secret' => 'VELA_MARKETPLACE_WEBHOOK_SECRET',
     ];
@@ -100,11 +105,12 @@ class MarketplaceSettingsService
     }
 
     /**
-     * Get the marketplace API URL.
+     * Get the marketplace API URL. Hard-coded — there is one canonical
+     * marketplace. Sites cannot override.
      */
     public function getApiUrl(): string
     {
-        return $this->get('api_url', 'https://marketplace.vela.build');
+        return self::API_URL;
     }
 
     /**
@@ -124,10 +130,12 @@ class MarketplaceSettingsService
     }
 
     /**
-     * Check if the marketplace is configured (api_url is set).
+     * Marketplace is always reachable — the URL is hard-coded. Returns true
+     * for callers that historically guarded UI on this. (Auth token presence
+     * is a separate question; check hasKey('auth_token') for that.)
      */
     public function isConfigured(): bool
     {
-        return $this->hasKey('api_url');
+        return true;
     }
 }

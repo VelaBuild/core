@@ -331,7 +331,9 @@ return [
     ],
 
     'marketplace' => [
-        'url' => env('VELA_MARKETPLACE_URL', 'https://marketplace.vela.build'),
+        // URL is hard-coded in MarketplaceSettingsService::API_URL — there's
+        // one canonical Vela marketplace. Per-site env values cover only the
+        // auth credentials.
         'cache_ttl' => env('VELA_MARKETPLACE_CACHE_TTL', 3600),
         'webhook_secret' => env('VELA_MARKETPLACE_WEBHOOK_SECRET'),
     ],
