@@ -127,26 +127,26 @@
                     </div>
                 @endif
 
+                @php
+                    $baseCheckoutUrl = $plugin['checkout_url']
+                        ?? rtrim(\VelaBuild\Core\Services\Marketplace\MarketplaceSettingsService::API_URL, '/')
+                            . '/plugins/' . urlencode($plugin['slug'] ?? '');
+                    $separator = str_contains($baseCheckoutUrl, '?') ? '&' : '?';
+                    $checkoutUrl = $baseCheckoutUrl . $separator
+                        . 'domain=' . urlencode(config('app.url'))
+                        . '&return_url=' . urlencode(route('vela.admin.marketplace.purchase.callback'));
+                @endphp
+
                 {{-- Install / Installed button --}}
                 @if($installed)
                     <div class="alert alert-success mb-0">
                         <i class="fas fa-check-circle mr-1"></i> Installed
                     </div>
                 @elseif(($plugin['price_type'] ?? '') === 'free' || ($plugin['price'] ?? 0) == 0)
-                    @php
-                        $checkoutUrl = ($plugin['checkout_url'] ?? '#')
-                            . '?domain=' . urlencode(config('app.url'))
-                            . '&return_url=' . urlencode(route('vela.admin.marketplace.purchase.callback'));
-                    @endphp
                     <a href="{{ $checkoutUrl }}" class="btn btn-success btn-block">
                         <i class="fas fa-download mr-1"></i> Install Free
                     </a>
                 @else
-                    @php
-                        $checkoutUrl = ($plugin['checkout_url'] ?? '#')
-                            . '?domain=' . urlencode(config('app.url'))
-                            . '&return_url=' . urlencode(route('vela.admin.marketplace.purchase.callback'));
-                    @endphp
                     <a href="{{ $checkoutUrl }}" class="btn btn-primary btn-block">
                         <i class="fas fa-shopping-cart mr-1"></i> Purchase &amp; Install
                     </a>
