@@ -24,6 +24,7 @@
         ['key' => 'mcp',           'label' => __('vela::mcp.settings_title'),        'route' => ['vela.admin.settings.group', 'mcp']],
         ['key' => 'tracking',      'label' => __('Tracking'),                        'route' => ['vela.admin.settings.tracking.index']],
         ['key' => 'design-system', 'label' => __('Design System'),                   'route' => ['vela.admin.settings.design-system.index']],
+        ['key' => 'menus',         'label' => __('Menus'),                           'route' => ['vela.admin.settings.menus.index']],
     ];
     if (\Illuminate\Support\Facades\Route::has('vela.admin.store.settings.index')) {
         $__items[] = ['key' => 'store', 'label' => __('Store'), 'route' => ['vela.admin.store.settings.index']];

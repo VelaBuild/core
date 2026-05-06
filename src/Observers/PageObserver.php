@@ -3,11 +3,46 @@
 namespace VelaBuild\Core\Observers;
 
 use VelaBuild\Core\Jobs\GenerateStaticFilesJob;
+use VelaBuild\Core\Models\Menu;
+use VelaBuild\Core\Models\MenuItem;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Models\VelaConfig;
 
 class PageObserver
 {
+    public function created(Page $page): void
+    {
+        // Auto-add to any menu that has the toggle on (defaults: primary).
+        // Top-level pages only — children are surfaced via their parent.
+        if ($page->parent_id) {
+            return;
+        }
+        if ($page->slug === 'home') {
+            return;
+        }
+        try {
+            $menus = Menu::where('auto_add_pages', true)->get();
+            foreach ($menus as $menu) {
+                $exists = $menu->items()
+                    ->where('type', MenuItem::TYPE_PAGE)
+                    ->where('ref_id', $page->id)
+                    ->exists();
+                if ($exists) continue;
+
+                $nextOrder = (int) $menu->items()->max('order_column') + 1;
+                MenuItem::create([
+                    'menu_id'      => $menu->id,
+                    'order_column' => $nextOrder,
+                    'type'         => MenuItem::TYPE_PAGE,
+                    'ref_type'     => Page::class,
+                    'ref_id'       => $page->id,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Menu auto-add failed', ['error' => $e->getMessage()]);
+        }
+    }
+
     public function saved(Page $page): void
     {
         if (! config('vela.static.enabled', true)) {
@@ -56,6 +91,14 @@ class PageObserver
 
     public function deleted(Page $page): void
     {
+        try {
+            MenuItem::where('type', MenuItem::TYPE_PAGE)
+                ->where('ref_id', $page->id)
+                ->delete();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Menu cleanup on page delete failed', ['error' => $e->getMessage()]);
+        }
+
         if (! config('vela.static.enabled', true)) {
             return;
         }

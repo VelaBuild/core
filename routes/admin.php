@@ -99,6 +99,14 @@ Route::post('settings/design-system/fonts',       [Admin\DesignSystemController:
 Route::post('settings/design-system/import-zip',  [Admin\DesignSystemController::class, 'importZip'])->name('settings.design-system.import-zip');
 Route::post('settings/design-system/import-url',  [Admin\DesignSystemController::class, 'importZipFromUrl'])->name('settings.design-system.import-url');
 
+// Menus — slot-based front-end navigation. Stored in vela_menus +
+// vela_menu_items, declared by themes via template.json `menus` key.
+Route::get('settings/menus',                    [Admin\MenusController::class, 'index'])->name('settings.menus.index');
+Route::get('settings/menus/{slot}',             [Admin\MenusController::class, 'edit'])->name('settings.menus.edit')->where('slot', '[a-z0-9_\-]+');
+Route::put('settings/menus/{slot}',             [Admin\MenusController::class, 'update'])->name('settings.menus.update')->where('slot', '[a-z0-9_\-]+');
+Route::delete('settings/menus/{slot}',          [Admin\MenusController::class, 'destroy'])->name('settings.menus.destroy')->where('slot', '[a-z0-9_\-]+');
+Route::post('settings/menus/{slot}/ai-suggest', [Admin\MenusController::class, 'aiSuggest'])->name('settings.menus.ai-suggest')->where('slot', '[a-z0-9_\-]+');
+
 // Backward compat redirect
 Route::get('configs', function () {
     return redirect()->route('vela.admin.settings.index');

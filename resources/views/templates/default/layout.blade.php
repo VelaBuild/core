@@ -35,12 +35,10 @@
                 </div>
 
                 <div class="hidden md:flex items-center space-x-8">
-                    <a href="{{ route('vela.public.home') }}" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-300">{{ __('vela::public.home') }}</a>
-                    @foreach($navPages as $navPage)
-                        <a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-300">{{ $navPage->title }}</a>
-                    @endforeach
-                    <a href="{{ route('vela.public.posts.index') }}" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-300">{{ __('vela::public.articles') }}</a>
-                    <a href="{{ route('vela.public.categories.index') }}" class="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-300">{{ __('vela::public.topics') }}</a>
+                    @velaMenu('primary', null, [
+                        'linkClass'   => 'text-gray-700 hover:text-blue-600 font-medium transition-colors duration-300',
+                        'activeClass' => 'text-blue-600',
+                    ])
 
                     <!-- Language Switcher -->
 @php
@@ -139,12 +137,9 @@
                     <div class="pl-4 ">
                         <h4 class="text-lg font-semibold text-white mb-6">{{ __('vela::public.quick_links') }}</h4>
                         <ul class="space-y-3" style="list-style-type: none;">
-                            <li><a href="{{ route('vela.public.home') }}" class="text-white hover:text-blue-300 transition-colors duration-300">{{ __('vela::public.home') }}</a></li>
-                            @foreach($navPages as $navPage)
-                                <li><a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}" class="text-white hover:text-blue-300 transition-colors duration-300">{{ $navPage->title }}</a></li>
-                            @endforeach
-                            <li><a href="{{ route('vela.public.posts.index') }}" class="text-white hover:text-blue-300 transition-colors duration-300">{{ __('vela::public.all_articles') }}</a></li>
-                            <li><a href="{{ route('vela.public.categories.index') }}" class="text-white hover:text-blue-300 transition-colors duration-300">{{ __('vela::public.topics') }}</a></li>
+                            @velaMenu('footer_quick_links', 'vela::partials.menu-default-list', [
+                                'linkClass' => 'text-white hover:text-blue-300 transition-colors duration-300',
+                            ])
                         </ul>
                     </div>
 

@@ -29,7 +29,9 @@ class VelaServiceProvider extends ServiceProvider
                 new \VelaBuild\Core\Registries\MenuRegistry(),
                 new \VelaBuild\Core\Registries\TemplateRegistry(),
                 new \VelaBuild\Core\Registries\WidgetRegistry(),
-                new \VelaBuild\Core\Registries\ToolRegistry()
+                new \VelaBuild\Core\Registries\ToolRegistry(),
+                new \VelaBuild\Core\Registries\ProfileMenuRegistry(),
+                new \VelaBuild\Core\Registries\FrontMenuRegistry()
             );
         });
 
@@ -38,6 +40,8 @@ class VelaServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(\VelaBuild\Core\Services\AssetBundler::class);
+
+        $this->app->singleton(\VelaBuild\Core\Services\MenuRenderer::class);
 
         $this->app->singleton(\VelaBuild\Core\Services\ToolSettingsService::class, function ($app) {
             return new \VelaBuild\Core\Services\ToolSettingsService();
@@ -301,6 +305,13 @@ class VelaServiceProvider extends ServiceProvider
 
         \Illuminate\Support\Facades\Blade::directive('velaAssets', function ($expression) {
             return "<?php echo app(\\VelaBuild\\Core\\Services\\AssetBundler::class)->tags([{$expression}]); ?>";
+        });
+
+        // @velaMenu('primary')                                — render with default partial
+        // @velaMenu('primary', 'vela::partials.my-menu')      — custom partial
+        // @velaMenu('primary', null, ['linkClass' => '...'])  — pass extra view vars
+        \Illuminate\Support\Facades\Blade::directive('velaMenu', function ($expression) {
+            return "<?php echo app(\\VelaBuild\\Core\\Services\\MenuRenderer::class)->render({$expression}); ?>";
         });
 
         // Publishable assets
@@ -755,6 +766,28 @@ class VelaServiceProvider extends ServiceProvider
 
         $vela->templates()->autoDiscover(__DIR__ . '/../resources/views/templates');
         $vela->templates()->autoDiscover(resource_path('views/templates'));
+
+        // Default slot every theme is expected to provide. Templates can
+        // override or add more via `menus` in their template.json.
+        $vela->registerFrontMenuSlot('primary', [
+            'label'          => __('vela::menus.slot_primary'),
+            'description'    => __('vela::menus.slot_primary_description'),
+            'auto_add_pages' => true,
+        ]);
+        $vela->registerFrontMenuSlot('footer_quick_links', [
+            'label'       => __('vela::menus.slot_footer_quick_links'),
+            'description' => __('vela::menus.slot_footer_quick_links_description'),
+        ]);
+
+        // Pull theme-declared slots from each template.json's `menus` key.
+        foreach ($vela->templates()->all() as $tplName => $tpl) {
+            foreach (($tpl['menus'] ?? []) as $slotKey => $slotConfig) {
+                $vela->registerFrontMenuSlot($slotKey, array_merge(
+                    is_array($slotConfig) ? $slotConfig : ['label' => (string) $slotConfig],
+                    ['template' => $tplName]
+                ));
+            }
+        }
     }
 
     protected function registerDefaultWidgets(): void

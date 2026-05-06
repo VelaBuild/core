@@ -199,12 +199,7 @@
                 </a>
 
                 <nav class="ed-nav-links">
-                    <a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a>
-@foreach($navPages as $navPage)
-                        <a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}">{{ $navPage->title }}</a>
-@endforeach
-                    <a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.articles') }}</a>
-                    <a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a>
+                    @velaMenu('primary')
                 </nav>
 
                 <div class="ed-nav-actions">
@@ -257,12 +252,7 @@
                 </div>
 
                 <nav class="ed-footer-nav">
-                    <a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a>
-@foreach($navPages as $navPage)
-                        <a href="{{ LaravelLocalization::getLocalizedURL(app()->getLocale(), '/' . $navPage->slug) }}">{{ $navPage->title }}</a>
-@endforeach
-                    <a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.articles') }}</a>
-                    <a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a>
+                    @velaMenu('footer_quick_links')
                 </nav>
             </div>
 

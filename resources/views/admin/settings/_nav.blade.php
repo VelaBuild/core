@@ -12,6 +12,7 @@
         // Standalone core settings pages — not under settings.group().
         ['key' => 'tracking',      'label' => __('Tracking'),                        'icon' => 'fas fa-bullseye',     'route' => ['vela.admin.settings.tracking.index']],
         ['key' => 'design-system', 'label' => __('Design System'),                   'icon' => 'fas fa-swatchbook',   'route' => ['vela.admin.settings.design-system.index']],
+        ['key' => 'menus',         'label' => __('Menus'),                           'icon' => 'fas fa-bars',         'route' => ['vela.admin.settings.menus.index']],
     ];
 
     // Plugin-provided settings pages (only shown when the plugin is loaded).

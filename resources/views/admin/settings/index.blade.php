@@ -183,6 +183,22 @@
                 </div>
             </div>
 
+            {{-- Menus --}}
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-bars fa-3x mb-3 text-primary"></i>
+                        <h5>{{ __('Menus') }}</h5>
+                        <p class="text-muted">{{ __('Configure header, footer, and other navigation slots declared by your theme.') }}</p>
+                        @can('config_access')
+                            <a href="{{ route('vela.admin.settings.menus.index') }}" class="btn btn-primary btn-sm">
+                                {{ __('vela::pwa.manage') }}
+                            </a>
+                        @endcan
+                    </div>
+                </div>
+            </div>
+
             {{-- Plugin-contributed cards.
                  Any plugin that wants to expose its settings on this index
                  should provide a `<namespace>::admin.partials.settings-card`
