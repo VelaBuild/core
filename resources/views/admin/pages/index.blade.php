@@ -11,8 +11,12 @@
 @endcan
 
 <div class="card">
-    <div class="card-header">
-        {{ trans('vela::cruds.page.title') }} {{ trans('vela::global.list') }}
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>{{ trans('vela::cruds.page.title') }} {{ trans('vela::global.list') }}</span>
+        <span class="small text-muted">
+            {{ __('Showing :loc only — translations appear in the Translations column.', ['loc' => strtoupper($sourceLocale ?? '')]) }}
+            <a href="{{ route('vela.admin.translations.manager') }}" class="ml-1">{{ __('Manage translations') }}</a>
+        </span>
     </div>
 
     <div class="card-body">
@@ -32,7 +36,7 @@
                         {{ trans('vela::cruds.page.fields.slug') }}
                     </th>
                     <th>
-                        {{ trans('vela::cruds.page.fields.locale') }}
+                        {{ __('Translations') }}
                     </th>
                     <th>
                         {{ trans('vela::cruds.page.fields.status') }}
@@ -96,7 +100,7 @@
 { data: 'id', name: 'id' },
 { data: 'title', name: 'title' },
 { data: 'slug', name: 'slug' },
-{ data: 'locale', name: 'locale' },
+{ data: 'translations', name: 'translations', orderable: false, searchable: false },
 { data: 'status', name: 'status' },
 { data: 'actions', name: '{{ trans('vela::global.actions') }}' }
     ],

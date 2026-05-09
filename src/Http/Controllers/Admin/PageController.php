@@ -26,10 +26,31 @@ class PageController extends Controller
     {
         abort_if(Gate::denies('page_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
+        // Primary-locale rows only — translations are surfaced inline via
+        // the `translations` column rather than as separate list rows.
+        // "Primary" = top-level (parent_id IS NULL) in the site's default
+        // locale; translation rows link back via parent_id.
+        $sourceLocale = LaravelLocalization::getDefaultLocale();
+        $targetLocales = array_values(array_diff(
+            array_keys(LaravelLocalization::getSupportedLocales()),
+            [$sourceLocale]
+        ));
+
         if ($request->ajax()) {
-            $query = Page::query()->select(sprintf('%s.*', (new Page)->table));
+            $query = Page::query()
+                ->select(sprintf('%s.*', (new Page)->table))
+                ->whereNull('parent_id')
+                ->where('locale', $sourceLocale);
 
             $table = DataTables::of($query);
+
+            // Pre-load translation children once so the per-row callback
+            // doesn't fire N queries against the locale-children table.
+            $primaryIds = $query->getQuery()->clone()->pluck('id');
+            $childrenByParent = Page::whereIn('parent_id', $primaryIds)
+                ->select('id', 'parent_id', 'locale')
+                ->get()
+                ->groupBy('parent_id');
 
             $table->addColumn('placeholder', '&nbsp;');
             $table->addColumn('actions', '&nbsp;');
@@ -62,8 +83,25 @@ class PageController extends Controller
             $table->editColumn('slug', function ($row) {
                 return $row->slug ? $row->slug : '';
             });
-            $table->editColumn('locale', function ($row) {
-                return $row->locale ? $row->locale : '';
+            $table->addColumn('translations', function ($row) use ($childrenByParent, $targetLocales) {
+                if (empty($targetLocales)) {
+                    return '<span class="text-muted small">—</span>';
+                }
+                // Map locale → translation Page id (or null if missing).
+                $byLocale = ($childrenByParent[$row->id] ?? collect())->keyBy('locale');
+                $out = '';
+                foreach ($targetLocales as $loc) {
+                    $tr = $byLocale->get($loc);
+                    if ($tr) {
+                        $editUrl = route('vela.admin.pages.edit', $tr->id);
+                        $out .= '<a href="' . e($editUrl) . '" class="badge badge-success mr-1" title="' . e(__('Edit :loc translation', ['loc' => $loc])) . '">'
+                              . e(strtoupper($loc)) . '</a>';
+                    } else {
+                        $out .= '<span class="badge badge-light text-muted mr-1" title="' . e(__('Missing :loc translation', ['loc' => $loc])) . '">'
+                              . e(strtoupper($loc)) . '</span>';
+                    }
+                }
+                return $out;
             });
             $table->editColumn('status', function ($row) {
                 $badgeClass = [
@@ -78,12 +116,15 @@ class PageController extends Controller
                 return $row->order_column;
             });
 
-            $table->rawColumns(['actions', 'placeholder', 'status']);
+            $table->rawColumns(['actions', 'placeholder', 'status', 'translations']);
 
             return $table->make(true);
         }
 
-        return view('vela::admin.pages.index');
+        return view('vela::admin.pages.index', [
+            'sourceLocale'  => $sourceLocale,
+            'targetLocales' => $targetLocales,
+        ]);
     }
 
     public function create()
