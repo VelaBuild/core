@@ -31,7 +31,8 @@ class VelaServiceProvider extends ServiceProvider
                 new \VelaBuild\Core\Registries\WidgetRegistry(),
                 new \VelaBuild\Core\Registries\ToolRegistry(),
                 new \VelaBuild\Core\Registries\ProfileMenuRegistry(),
-                new \VelaBuild\Core\Registries\FrontMenuRegistry()
+                new \VelaBuild\Core\Registries\FrontMenuRegistry(),
+                new \VelaBuild\Core\Registries\SettingsNavRegistry()
             );
         });
 
@@ -265,6 +266,7 @@ class VelaServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \VelaBuild\Core\Commands\VelaInstall::class,
+                \VelaBuild\Core\Commands\VelaDoctor::class,
                 \VelaBuild\Core\Commands\QueueWork::class,
                 \VelaBuild\Core\Commands\ProcessContentImages::class,
                 \VelaBuild\Core\Commands\FindMissingTranslations::class,
@@ -319,9 +321,17 @@ class VelaServiceProvider extends ServiceProvider
             __DIR__.'/../config/vela.php' => config_path('vela.php'),
         ], 'vela-config');
 
-        $this->publishes([
-            __DIR__.'/../resources/views' => resource_path('views/vendor/vela'),
-        ], 'vela-views');
+        // NOTE: there is intentionally no `vela-views` publish tag.
+        // Admin views must NEVER be forked into the host app — Laravel's
+        // view loader silently prefers `resources/views/vendor/vela/...`
+        // over the package, so any forked admin view becomes a frozen
+        // shadow that hides future package updates (broken nav entries,
+        // missed security patches, etc.).
+        // Custom public templates live in `resources/views/templates/`
+        // (auto-discovered by core), not in vendor/vela. Plugins extend
+        // the admin via the registries on \VelaBuild\Core\Vela.
+        // `php artisan vela:checks` flags any leftover vendor/vela/admin
+        // forks so they can be removed.
 
         $this->publishes([
             __DIR__.'/../resources/lang' => $this->app->langPath('vendor/vela'),
@@ -343,6 +353,7 @@ class VelaServiceProvider extends ServiceProvider
         // Register defaults
         $this->registerDefaultBlocks();
         $this->registerDefaultMenuItems();
+        $this->registerDefaultSettingsItems();
         $this->registerDefaultTemplates();
         $this->registerDefaultWidgets();
         $this->registerDefaultTools();
@@ -741,6 +752,131 @@ class VelaServiceProvider extends ServiceProvider
             'route' => '#logout',
             'order' => 900,
             'divider_before' => true,
+        ]);
+    }
+
+    /**
+     * Default entries for the Settings dropdown / page-head / index card grid.
+     * Plugins extend by calling Vela::registerSettingsItem() — the admin
+     * Blade files must NEVER be forked.
+     */
+    protected function registerDefaultSettingsItems(): void
+    {
+        $vela = $this->app->make(\VelaBuild\Core\Vela::class);
+
+        $vela->registerSettingsItem('general', [
+            'label'       => __('vela::pwa.settings_general'),
+            'description' => __('vela::pwa.settings_general_desc'),
+            'icon'        => 'fas fa-globe',
+            'route'       => ['vela.admin.settings.group', 'general'],
+            'order'       => 10,
+        ]);
+        $vela->registerSettingsItem('appearance', [
+            'label'       => __('vela::pwa.settings_appearance'),
+            'description' => __('vela::pwa.settings_appearance_desc'),
+            'icon'        => 'fas fa-palette',
+            'route'       => ['vela.admin.settings.group', 'appearance'],
+            'order'       => 20,
+        ]);
+        $vela->registerSettingsItem('customcss', [
+            'label'       => trans('vela::global.custom_css_js'),
+            'description' => trans('vela::global.custom_css_js_desc'),
+            'icon'        => 'fas fa-code',
+            'route'       => ['vela.admin.settings.group', 'customcss'],
+            'order'       => 30,
+        ]);
+        $vela->registerSettingsItem('pwa', [
+            'label'       => __('vela::pwa.settings_pwa'),
+            'description' => __('vela::pwa.settings_pwa_desc'),
+            'icon'        => 'fas fa-mobile-alt',
+            'route'       => ['vela.admin.settings.group', 'pwa'],
+            'order'       => 40,
+        ]);
+        $vela->registerSettingsItem('app', [
+            'label'       => __('vela::pwa.settings_app'),
+            'description' => __('vela::pwa.settings_app_desc'),
+            'icon'        => 'fas fa-tablet-alt',
+            'route'       => ['vela.admin.settings.group', 'app'],
+            'order'       => 50,
+        ]);
+        $vela->registerSettingsItem('visibility', [
+            'label'       => __('vela::visibility.settings_title'),
+            'description' => __('vela::visibility.settings_desc'),
+            'icon'        => 'fas fa-eye',
+            'route'       => ['vela.admin.settings.group', 'visibility'],
+            'order'       => 60,
+        ]);
+        $vela->registerSettingsItem('gdpr', [
+            'label'       => __('vela::gdpr.settings_title'),
+            'description' => __('vela::gdpr.settings_desc'),
+            'icon'        => 'fas fa-shield-alt',
+            'route'       => ['vela.admin.settings.group', 'gdpr'],
+            'order'       => 70,
+        ]);
+        $vela->registerSettingsItem('languages', [
+            'label'       => __('vela::global.languages'),
+            'description' => __('vela::global.languages_desc'),
+            'icon'        => 'fas fa-language',
+            'route'       => ['vela.admin.settings.group', 'languages'],
+            'order'       => 80,
+            'hidden'      => true, // shown in dropdown but not on the card grid
+        ]);
+        $vela->registerSettingsItem('mcp', [
+            'label'       => __('vela::mcp.settings_title'),
+            'description' => __('vela::mcp.settings_desc'),
+            'icon'        => 'fas fa-plug',
+            'route'       => ['vela.admin.settings.group', 'mcp'],
+            'order'       => 90,
+        ]);
+        $vela->registerSettingsItem('tracking', [
+            'label'       => __('Tracking'),
+            'description' => __('GA4, GTM, Meta Pixel + Conversions API, Google Ads.'),
+            'icon'        => 'fas fa-bullseye',
+            'route'       => 'vela.admin.settings.tracking.index',
+            'order'       => 100,
+        ]);
+        $vela->registerSettingsItem('design-system', [
+            'label'       => __('Design System'),
+            'description' => __('Files, colour palette, fonts — used by the block editor and the AI.'),
+            'icon'        => 'fas fa-swatchbook',
+            'route'       => 'vela.admin.settings.design-system.index',
+            'order'       => 110,
+        ]);
+        $vela->registerSettingsItem('menus', [
+            'label'       => __('Menus'),
+            'description' => __('Configure header, footer, and other navigation slots declared by your theme.'),
+            'icon'        => 'fas fa-bars',
+            'route'       => 'vela.admin.settings.menus.index',
+            'order'       => 120,
+        ]);
+
+        // AI Settings — was added separately by the host app. Now lives in
+        // core registry so it shows everywhere consistently.
+        $vela->registerSettingsItem('ai-settings', [
+            'label'       => __('AI Settings'),
+            'description' => __('Provider keys, default models, and chatbot behaviour.'),
+            'icon'        => 'fas fa-robot',
+            'route'       => 'vela.admin.ai-settings.index',
+            'gate'        => 'config_edit',
+            'order'       => 130,
+        ]);
+
+        // Plugin entries — only show when the plugin is loaded. We register
+        // them here too so the registry is the single source of truth; the
+        // SettingsNavRegistry filters out entries whose routes don't exist.
+        $vela->registerSettingsItem('store', [
+            'label'       => __('Store'),
+            'description' => __('Currency, tax, inventory, and Stripe payments.'),
+            'icon'        => 'fas fa-store',
+            'route'       => 'vela.admin.store.settings.index',
+            'order'       => 200,
+        ]);
+        $vela->registerSettingsItem('marketplace', [
+            'label'       => __('Marketplace'),
+            'description' => __('Marketplace publisher / buyer settings.'),
+            'icon'        => 'fas fa-cube',
+            'route'       => 'vela.admin.marketplace.settings.index',
+            'order'       => 210,
         ]);
     }
 

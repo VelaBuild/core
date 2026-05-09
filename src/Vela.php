@@ -6,6 +6,7 @@ use VelaBuild\Core\Registries\BlockRegistry;
 use VelaBuild\Core\Registries\FrontMenuRegistry;
 use VelaBuild\Core\Registries\MenuRegistry;
 use VelaBuild\Core\Registries\ProfileMenuRegistry;
+use VelaBuild\Core\Registries\SettingsNavRegistry;
 use VelaBuild\Core\Registries\TemplateRegistry;
 use VelaBuild\Core\Registries\ToolRegistry;
 use VelaBuild\Core\Registries\WidgetRegistry;
@@ -20,6 +21,7 @@ class Vela
         protected ToolRegistry $toolRegistry = new ToolRegistry(),
         protected ProfileMenuRegistry $profileMenuRegistry = new ProfileMenuRegistry(),
         protected FrontMenuRegistry $frontMenuRegistry = new FrontMenuRegistry(),
+        protected SettingsNavRegistry $settingsNavRegistry = new SettingsNavRegistry(),
     ) {}
 
     public function blocks(): BlockRegistry
@@ -90,5 +92,15 @@ class Vela
     public function registerFrontMenuSlot(string $key, array $config = []): void
     {
         $this->frontMenuRegistry->registerSlot($key, $config);
+    }
+
+    public function settingsNav(): SettingsNavRegistry
+    {
+        return $this->settingsNavRegistry;
+    }
+
+    public function registerSettingsItem(string $key, array $config): void
+    {
+        $this->settingsNavRegistry->register($key, $config);
     }
 }

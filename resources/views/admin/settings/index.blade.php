@@ -7,207 +7,26 @@
     </div>
     <div class="card-body">
         <div class="row">
-            {{-- General Settings --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-globe fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('vela::pwa.settings_general') }}</h5>
-                        <p class="text-muted">{{ __('vela::pwa.settings_general_desc') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.group', 'general') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
+            {{-- All cards come from SettingsNavRegistry. To add one,
+                 call Vela::registerSettingsItem(...) from a service
+                 provider. Do not hardcode cards in this file. --}}
+            @foreach(app(\VelaBuild\Core\Vela::class)->settingsNav()->all(includeHidden: false) as $item)
+                @php $url = app(\VelaBuild\Core\Vela::class)->settingsNav()->url($item); @endphp
+                @if($url)
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="{{ $item['icon'] }} fa-3x mb-3 text-primary"></i>
+                                <h5>{{ $item['label'] }}</h5>
+                                @if(!empty($item['description']))
+                                    <p class="text-muted">{{ $item['description'] }}</p>
+                                @endif
+                                <a href="{{ $url }}" class="btn btn-primary btn-sm">
+                                    {{ __('vela::pwa.manage') }}
+                                </a>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            {{-- Appearance Settings --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-palette fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('vela::pwa.settings_appearance') }}</h5>
-                        <p class="text-muted">{{ __('vela::pwa.settings_appearance_desc') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.group', 'appearance') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- Custom CSS & JS --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-code fa-3x mb-3 text-primary"></i>
-                        <h5>{{ trans('vela::global.custom_css_js') }}</h5>
-                        <p class="text-muted">{{ trans('vela::global.custom_css_js_desc') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.group', 'customcss') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- PWA Settings --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-mobile-alt fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('vela::pwa.settings_pwa') }}</h5>
-                        <p class="text-muted">{{ __('vela::pwa.settings_pwa_desc') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.group', 'pwa') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- App Settings --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-tablet-alt fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('vela::pwa.settings_app') }}</h5>
-                        <p class="text-muted">{{ __('vela::pwa.settings_app_desc') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.group', 'app') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- Site Visibility --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-eye fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('vela::visibility.settings_title') }}</h5>
-                        <p class="text-muted">{{ __('vela::visibility.settings_desc') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.group', 'visibility') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- GDPR / Cookie Consent --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-shield-alt fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('vela::gdpr.settings_title') }}</h5>
-                        <p class="text-muted">{{ __('vela::gdpr.settings_desc') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.group', 'gdpr') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- MCP Server --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-plug fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('vela::mcp.settings_title') }}</h5>
-                        <p class="text-muted">{{ __('vela::mcp.settings_desc') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.group', 'mcp') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- Tracking & conversion --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-bullseye fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('Tracking') }}</h5>
-                        <p class="text-muted">{{ __('GA4, GTM, Meta Pixel + Conversions API, Google Ads.') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.tracking.index') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- Design System --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-swatchbook fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('Design System') }}</h5>
-                        <p class="text-muted">{{ __('Files, colour palette, fonts — used by the block editor and the AI.') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.design-system.index') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- AI Settings --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-robot fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('AI Settings') }}</h5>
-                        <p class="text-muted">{{ __('Provider keys, default models, and chatbot behaviour.') }}</p>
-                        @can('config_edit')
-                            <a href="{{ route('vela.admin.ai-settings.index') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- Menus --}}
-            <div class="col-md-4 mb-4">
-                <div class="card h-100">
-                    <div class="card-body text-center">
-                        <i class="fas fa-bars fa-3x mb-3 text-primary"></i>
-                        <h5>{{ __('Menus') }}</h5>
-                        <p class="text-muted">{{ __('Configure header, footer, and other navigation slots declared by your theme.') }}</p>
-                        @can('config_access')
-                            <a href="{{ route('vela.admin.settings.menus.index') }}" class="btn btn-primary btn-sm">
-                                {{ __('vela::pwa.manage') }}
-                            </a>
-                        @endcan
-                    </div>
-                </div>
-            </div>
-
-            {{-- Plugin-contributed cards.
-                 Any plugin that wants to expose its settings on this index
-                 should provide a `<namespace>::admin.partials.settings-card`
-                 view. Core includes each when present — no direct coupling
-                 to specific plugins. Add new plugins to this list as they
-                 grow; a proper registry is future work. --}}
-            @foreach(['vela-store', 'vela-marketplace'] as $__pluginNs)
-                @if(view()->exists($__pluginNs . '::admin.partials.settings-card'))
-                    @include($__pluginNs . '::admin.partials.settings-card')
                 @endif
             @endforeach
         </div>
