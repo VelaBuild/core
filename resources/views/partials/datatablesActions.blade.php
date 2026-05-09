@@ -1,8 +1,16 @@
-{{-- Single action per row: edit. There is no separate "view" path.
-     Show routes 302 to edit via VelaRedirectShowToEdit middleware; if
-     a user lacks edit permission they see no row-level action at all
-     (they shouldn't be on the list page in the first place if they
-     can't act on it). --}}
+{{-- Row actions: optional "view on site" link, edit, delete.
+     Controllers wire the view button by passing $viewUrl (and optionally
+     $viewNewTab) into the compact() — see PageController for an example.
+     Show routes 302 to edit via VelaRedirectShowToEdit middleware. --}}
+@isset($viewUrl)
+    @if($viewUrl)
+        <a class="btn btn-xs btn-secondary" href="{{ $viewUrl }}"
+           @if(!empty($viewNewTab)) target="_blank" rel="noopener" @endif
+           title="{{ trans('vela::global.view') }}">
+            <i class="fas fa-eye"></i>
+        </a>
+    @endif
+@endisset
 @can($editGate)
     <a class="btn btn-xs btn-info" href="{{ route('vela.admin.' . $crudRoutePart . '.edit', $row->id) }}">
         {{ trans('vela::global.edit') }}
