@@ -100,6 +100,7 @@ class ChatToolExecutor
             'generate_image' => Tools\GenerateImageTool::class,
             'edit_template_file' => Tools\EditTemplateFileTool::class,
             'get_page_info' => Tools\GetPageInfoTool::class,
+            'get_site_info' => Tools\GetSiteInfoTool::class,
             'get_site_config' => Tools\GetSiteConfigTool::class,
             'list_pages' => Tools\ListPagesTool::class,
             'list_articles' => Tools\ListArticlesTool::class,

@@ -199,6 +199,13 @@ class ChatToolRegistry
             'gate' => 'page_access',
         ],
         [
+            'name' => 'get_site_info',
+            'description' => 'Get the site\'s identity: name, niche, tagline, description, URL, default + supported locales, and active public template. Call this whenever the user asks "what is this site?", "what\'s the site name?", "what locale are we in?", "what theme is this?" — far cheaper and more reliable than scanning the system prompt. No parameters.',
+            'parameters' => ['type' => 'object', 'properties' => [], 'required' => []],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
             'name' => 'get_site_config',
             'description' => 'Get current site configuration values',
             'parameters' => [
