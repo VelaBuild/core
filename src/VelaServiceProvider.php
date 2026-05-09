@@ -270,6 +270,7 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\QueueWork::class,
                 \VelaBuild\Core\Commands\ProcessContentImages::class,
                 \VelaBuild\Core\Commands\FindMissingTranslations::class,
+                \VelaBuild\Core\Commands\Translate::class,
                 \VelaBuild\Core\Commands\GenerateMissingCategoryImages::class,
                 \VelaBuild\Core\Commands\SetupGraphics::class,
                 \VelaBuild\Core\Commands\ResetContent::class,
@@ -848,6 +849,15 @@ class VelaServiceProvider extends ServiceProvider
             'icon'        => 'fas fa-bars',
             'route'       => 'vela.admin.settings.menus.index',
             'order'       => 120,
+        ]);
+
+        $vela->registerSettingsItem('translations', [
+            'label'       => __('Translations'),
+            'description' => __('Per-locale completeness across pages, articles, categories, and lang files. AI-translate any missing item with one click.'),
+            'icon'        => 'fas fa-language',
+            'route'       => 'vela.admin.translations.manager',
+            'gate'        => 'translation_access',
+            'order'       => 125,
         ]);
 
         // AI Settings — was added separately by the host app. Now lives in

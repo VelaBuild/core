@@ -99,6 +99,14 @@ Route::post('settings/design-system/fonts',       [Admin\DesignSystemController:
 Route::post('settings/design-system/import-zip',  [Admin\DesignSystemController::class, 'importZip'])->name('settings.design-system.import-zip');
 Route::post('settings/design-system/import-url',  [Admin\DesignSystemController::class, 'importZipFromUrl'])->name('settings.design-system.import-url');
 
+// Translation manager — dashboard at /admin/translations showing
+// per-locale completeness across pages, articles, categories, and lang
+// files, with one-click AI translate buttons.
+Route::get('translations',                          [Admin\TranslationManagerController::class, 'index'])->name('translations.manager');
+Route::get('translations/{surface}/{locale}',       [Admin\TranslationManagerController::class, 'drill'])->name('translations.drill')->where(['surface' => '[a-z_]+', 'locale' => '[a-zA-Z\-]+']);
+Route::post('translations/translate',               [Admin\TranslationManagerController::class, 'translate'])->name('translations.translate');
+Route::post('translations/translate-bulk',          [Admin\TranslationManagerController::class, 'translateBulk'])->name('translations.translate.bulk');
+
 // Menus — slot-based front-end navigation. Stored in vela_menus +
 // vela_menu_items, declared by themes via template.json `menus` key.
 Route::get('settings/menus',                    [Admin\MenusController::class, 'index'])->name('settings.menus.index');
