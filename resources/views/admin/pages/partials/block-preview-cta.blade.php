@@ -9,10 +9,15 @@
     $secondaryUrl = $content['secondary_button_url'] ?? '';
     $alignment = $settings['text_alignment'] ?? 'center';
 @endphp
+@php
+    // Match the public renderer's heading whitelist so inline emphasis tags
+    // render formatted instead of leaking as literal text in the preview.
+    $safeHeading = strip_tags($heading, '<em><strong><i><b>');
+@endphp
 @if($heading || $description || $primaryText || $secondaryText)
     <div style="background:#f0f4ff; border-radius:4px; padding:16px; text-align:{{ $alignment }};">
         @if($heading)
-            <h5 style="margin:0 0 4px;">{{ $heading }}</h5>
+            <h5 style="margin:0 0 4px;">{!! $safeHeading !!}</h5>
         @endif
         @if($description)
             <p style="margin:0 0 8px; color:#6c757d;">{{ $description }}</p>
