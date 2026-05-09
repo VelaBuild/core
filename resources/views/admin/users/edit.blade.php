@@ -36,9 +36,19 @@
             <div class="form-row">
                 <div class="form-group col-md-5">
                     <label for="password">{{ trans('vela::cruds.user.fields.password') }}</label>
-                    <input class="form-control {{ $errors->has('password') ? 'is-invalid' : '' }}" type="password" name="password" id="password" placeholder="Leave blank to keep current">
+                    <div class="input-group">
+                        <input class="form-control {{ $errors->has('password') ? 'is-invalid' : '' }}" type="password" name="password" id="password" placeholder="Leave blank to keep current" autocomplete="new-password" data-pw-input>
+                        <div class="input-group-append">
+                            <button class="btn btn-outline-secondary" type="button" data-pw-toggle title="{{ __('Show / hide password') }}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-secondary" type="button" data-pw-generate title="{{ __('Generate a secure password') }}">
+                                <i class="fas fa-key"></i> {{ __('Generate') }}
+                            </button>
+                        </div>
+                    </div>
                     @if($errors->has('password'))<div class="invalid-feedback">{{ $errors->first('password') }}</div>@endif
-                    <small class="form-text text-muted">{{ trans('vela::cruds.user.fields.password_helper') }}</small>
+                    <small class="form-text text-muted" data-pw-hint>{{ trans('vela::cruds.user.fields.password_helper') }}</small>
                 </div>
                 <div class="form-group col-md-7">
                     <label class="required" for="roles">{{ trans('vela::cruds.user.fields.roles') }}</label>
@@ -158,6 +168,42 @@ document.addEventListener('click', function(e) {
 
 @section('scripts')
 <script>
+// Password helpers — toggle visibility + generate a strong random one.
+(function () {
+    var input = document.querySelector('[data-pw-input]');
+    if (!input) return;
+    var toggle = document.querySelector('[data-pw-toggle]');
+    var gen = document.querySelector('[data-pw-generate]');
+    var hint = document.querySelector('[data-pw-hint]');
+
+    if (toggle) {
+        toggle.addEventListener('click', function () {
+            var isPw = input.type === 'password';
+            input.type = isPw ? 'text' : 'password';
+            toggle.querySelector('i').className = isPw ? 'fas fa-eye-slash' : 'fas fa-eye';
+        });
+    }
+
+    if (gen) {
+        var alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*';
+        gen.addEventListener('click', function () {
+            var out = '';
+            var arr = new Uint32Array(20);
+            (window.crypto || window.msCrypto).getRandomValues(arr);
+            for (var i = 0; i < 20; i++) out += alphabet.charAt(arr[i] % alphabet.length);
+            input.value = out;
+            input.type = 'text';
+            if (toggle) toggle.querySelector('i').className = 'fas fa-eye-slash';
+            if (hint) hint.innerHTML = '<i class="fas fa-info-circle"></i> {{ __('Generated — copy or note it before saving; it won’t be shown again.') }}';
+            input.focus();
+            input.select();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(out).catch(function () {});
+            }
+        });
+    }
+})();
+
 Dropzone.options.profilePicDropzone = {
     url: '{{ route('vela.admin.users.storeMedia') }}',
     maxFilesize: 10,
