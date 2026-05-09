@@ -102,7 +102,9 @@ class UsersController extends Controller
 
     public function store(StoreUserRequest $request)
     {
-        $user = VelaUser::create($request->all());
+        // Drop audit fields if a curl caller posts them — see store() above
+        // for the matching guard on update().
+        $user = VelaUser::create($request->except(['last_login_at', 'last_ip', 'useragent']));
         $user->roles()->sync($request->input('roles', []));
         if ($request->input('profile_pic', false)) {
             $user->addMedia(storage_path('tmp/uploads/' . basename($request->input('profile_pic'))))->toMediaCollection('profile_pic');

@@ -14,6 +14,9 @@ class StoreUserRequest extends FormRequest
 
     public function rules()
     {
+        // last_login_at / last_ip / useragent are audit fields — set
+        // automatically on login, never accepted from the admin form.
+        // Same belt-and-braces guard exists in UsersController::store().
         return [
             'name' => [
                 'string',
@@ -32,18 +35,6 @@ class StoreUserRequest extends FormRequest
             'roles' => [
                 'required',
                 'array',
-            ],
-            'last_login_at' => [
-                'date_format:' . config('vela.date_format'),
-                'nullable',
-            ],
-            'last_ip' => [
-                'string',
-                'nullable',
-            ],
-            'useragent' => [
-                'string',
-                'nullable',
             ],
         ];
     }
