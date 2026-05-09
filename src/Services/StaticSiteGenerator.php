@@ -33,7 +33,21 @@ class StaticSiteGenerator
         }
 
         try {
-            view()->share('canonicalUrl', url($page->slug === 'home' ? '/' : '/' . $page->slug));
+            $primary = config('vela.primary_language', 'en');
+            // Non-primary-locale rows are translation snapshots — they share
+            // a slug with the primary row but must NOT overwrite its
+            // index.html (which the front-controller serves to the canonical
+            // URL). Route them to pages/{slug}/translations/{locale}.html so
+            // a future locale-aware front-controller can serve them and the
+            // canonical URL keeps the primary content.
+            if ($page->locale === $primary) {
+                $path        = $this->basePath . '/pages/' . $page->slug . '/index.html';
+                $canonicalUrl = url($page->slug === 'home' ? '/' : '/' . $page->slug);
+            } else {
+                $path        = $this->basePath . '/pages/' . $page->slug . '/translations/' . $page->locale . '.html';
+                $canonicalUrl = url('/' . $page->locale . ($page->slug === 'home' ? '' : '/' . $page->slug));
+            }
+            view()->share('canonicalUrl', $canonicalUrl);
             // Register the same Cache-Tag set PageController would — so the
             // static HTML carries tags identical to a live-rendered response.
             // atomicWrite() flushes these into the `.tags` sidecar.
@@ -44,7 +58,7 @@ class StaticSiteGenerator
                 'locale:' . $page->locale,
             ]);
             $html = view(vela_template_view('page'), compact('page'))->render();
-            $this->atomicWrite($this->basePath . '/pages/' . $page->slug . '/index.html', $html);
+            $this->atomicWrite($path, $html);
         } catch (\Throwable $e) {
             Log::error('StaticSiteGenerator: failed to render page ' . $page->slug . ': ' . $e->getMessage());
         }
