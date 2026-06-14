@@ -653,6 +653,85 @@ class ChatToolRegistry
             'write' => false,
             'gate' => 'config_edit',
         ],
+        [
+            'name' => 'pagespeed',
+            'description' => 'Run Google PageSpeed Insights audit on a URL. Returns performance, accessibility, best practices, and SEO scores plus top improvement opportunities. Works with or without a PageSpeed API key.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'url' => ['type' => 'string', 'description' => 'URL to audit'],
+                    'strategy' => ['type' => 'string', 'enum' => ['mobile', 'desktop'], 'description' => 'Test as mobile or desktop (default: mobile)'],
+                ],
+                'required' => ['url'],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'diff',
+            'description' => 'Show file diffs, git status, or compare strings. Actions: "file" (git diff for a file), "git" (scope: status/staged/unstaged/all/log), "strings" (diff two text blocks).',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string', 'enum' => ['file', 'git', 'strings'], 'description' => 'Diff type'],
+                    'path' => ['type' => 'string', 'description' => 'File path (for file action)'],
+                    'scope' => ['type' => 'string', 'enum' => ['status', 'staged', 'unstaged', 'all', 'log'], 'description' => 'Git scope (for git action)'],
+                    'original' => ['type' => 'string', 'description' => 'Original text (for strings action)'],
+                    'modified' => ['type' => 'string', 'description' => 'Modified text (for strings action)'],
+                ],
+                'required' => ['action'],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'git',
+            'description' => 'Run git commands. Safe commands (status, log, diff, branch, show) run immediately. Write commands (add, commit, push, pull, checkout, merge, stash) require confirm:true. Blocked: reset --hard, push --force, clean -fd.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'subcommand' => ['type' => 'string', 'description' => 'Git subcommand and arguments (e.g. "status", "add .", "commit -m message", "push origin main")'],
+                    'confirm' => ['type' => 'boolean', 'description' => 'Required for write operations'],
+                ],
+                'required' => ['subcommand'],
+            ],
+            'write' => true,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'scheduler',
+            'description' => 'Manage Laravel scheduled tasks. Actions: "list" (show schedule), "run" (execute due tasks, needs confirm), "test" (run a specific artisan command, needs confirm).',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string', 'enum' => ['list', 'run', 'test'], 'description' => 'What to do'],
+                    'command' => ['type' => 'string', 'description' => 'Artisan command name (for test action)'],
+                    'confirm' => ['type' => 'boolean', 'description' => 'Required for run and test actions'],
+                ],
+                'required' => ['action'],
+            ],
+            'write' => true,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'email_preview',
+            'description' => 'List email templates, preview rendered HTML, or send a test email. Actions: "list" (find mailable classes and email views), "preview" (render a view to HTML), "test_send" (send a test email, needs confirm).',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string', 'enum' => ['list', 'preview', 'test_send'], 'description' => 'What to do'],
+                    'view' => ['type' => 'string', 'description' => 'Blade view name for preview (e.g. emails.welcome)'],
+                    'data' => ['type' => 'object', 'description' => 'Data to pass to the email view for preview'],
+                    'to' => ['type' => 'string', 'description' => 'Email address for test_send'],
+                    'subject' => ['type' => 'string', 'description' => 'Email subject for test_send'],
+                    'body' => ['type' => 'string', 'description' => 'Email body for test_send'],
+                    'confirm' => ['type' => 'boolean', 'description' => 'Required for test_send'],
+                ],
+                'required' => ['action'],
+            ],
+            'write' => false,
+            'gate' => 'config_edit',
+        ],
     ];
 
     /**

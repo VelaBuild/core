@@ -137,6 +137,11 @@ class ChatToolExecutor
             'screenshot_url'          => Tools\ScreenshotUrlTool::class,
             'fetch_page_resources'    => Tools\FetchPageResourcesTool::class,
             'browse_url'              => Tools\BrowseUrlTool::class,
+            'pagespeed'               => Tools\PageSpeedTool::class,
+            'diff'                    => Tools\DiffFileTool::class,
+            'git'                     => Tools\GitTool::class,
+            'scheduler'               => Tools\SchedulerTool::class,
+            'email_preview'           => Tools\EmailPreviewTool::class,
         ];
 
         $class = $map[$toolName] ?? null;
