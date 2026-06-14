@@ -122,6 +122,13 @@ class ChatToolExecutor
             'list_block_types'        => Tools\ListBlockTypesTool::class,
             'get_page_blocks'         => Tools\GetPageBlocksTool::class,
             'set_page_blocks'         => Tools\SetPageBlocksTool::class,
+            'read_file'               => Tools\ReadFileTool::class,
+            'write_file'              => Tools\WriteFileTool::class,
+            'edit_file'               => Tools\EditFileTool::class,
+            'search_files'            => Tools\SearchFilesTool::class,
+            'run_command'             => Tools\RunCommandTool::class,
+            'list_routes'             => Tools\ListRoutesTool::class,
+            'database_query'          => Tools\DatabaseQueryTool::class,
         ];
 
         $class = $map[$toolName] ?? null;

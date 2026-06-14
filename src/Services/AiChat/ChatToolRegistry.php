@@ -427,6 +427,108 @@ class ChatToolRegistry
             'write' => false,
             'gate' => 'config_edit',
         ],
+        [
+            'name' => 'read_file',
+            'description' => 'Read the contents of a file in the project. Use this to inspect Blade templates, controllers, routes, configs, CSS, JS files. Blocked: .env, vendor/, node_modules/, .git/, storage/logs/.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'path' => ['type' => 'string', 'description' => 'Relative path from project root (e.g. resources/views/layouts/public.blade.php)'],
+                    'offset' => ['type' => 'integer', 'description' => 'Start reading from this line number (for large files)'],
+                    'limit' => ['type' => 'integer', 'description' => 'Max lines to return (for large files, default all)'],
+                ],
+                'required' => ['path'],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'write_file',
+            'description' => 'Create or overwrite a file. Allowed directories: resources/views/, resources/lang/, resources/css/, resources/js/, public/css/, public/js/, routes/, app/, config/, database/, tests/. Blocked: .env, vendor/, node_modules/, composer.lock.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'path' => ['type' => 'string', 'description' => 'Relative path from project root'],
+                    'content' => ['type' => 'string', 'description' => 'Full file content to write'],
+                ],
+                'required' => ['path', 'content'],
+            ],
+            'write' => true,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'edit_file',
+            'description' => 'Make a targeted edit to a file by replacing a search string. More precise than write_file — use this when changing part of a file. Read the file first to get the exact text to search for.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'path' => ['type' => 'string', 'description' => 'Relative path from project root'],
+                    'search' => ['type' => 'string', 'description' => 'Exact text to find and replace (must be unique in the file)'],
+                    'replace' => ['type' => 'string', 'description' => 'Replacement text'],
+                    'replace_all' => ['type' => 'boolean', 'description' => 'Replace all occurrences (default: false, requires unique match)'],
+                ],
+                'required' => ['path', 'search', 'replace'],
+            ],
+            'write' => true,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'search_files',
+            'description' => 'Search for text patterns across project files using grep or find files by name using glob. Excludes vendor/, node_modules/, .git/.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'pattern' => ['type' => 'string', 'description' => 'Search pattern (regex for grep, glob for glob type)'],
+                    'path' => ['type' => 'string', 'description' => 'Directory to search in (default: project root)'],
+                    'type' => ['type' => 'string', 'enum' => ['grep', 'glob'], 'description' => 'Search type: grep (content search) or glob (filename search)'],
+                    'file_pattern' => ['type' => 'string', 'description' => 'Filter by filename pattern (e.g. *.blade.php) — grep only'],
+                    'case_insensitive' => ['type' => 'boolean', 'description' => 'Case-insensitive grep search'],
+                    'max_results' => ['type' => 'integer', 'description' => 'Max results to return (default: 50, max: 100)'],
+                ],
+                'required' => ['pattern'],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'run_command',
+            'description' => 'Run a shell command. Allowed: php artisan, composer require/remove/update, npm install/run, npx. Use for migrations, cache clearing, testing, package installs. Blocked: rm -rf, sudo, destructive DB ops.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'command' => ['type' => 'string', 'description' => 'Shell command to execute (must start with an allowed prefix)'],
+                ],
+                'required' => ['command'],
+            ],
+            'write' => true,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'list_routes',
+            'description' => 'List registered Laravel routes. Optionally filter by URI, name, or HTTP method.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'filter' => ['type' => 'string', 'description' => 'Filter routes by URI, name, or method (optional)'],
+                ],
+                'required' => [],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'database_query',
+            'description' => 'Run a read-only SQL SELECT query against the database. Only SELECT is allowed — no INSERT, UPDATE, DELETE, DROP, or other write operations. Returns up to 100 rows.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'query' => ['type' => 'string', 'description' => 'SQL SELECT query to execute'],
+                ],
+                'required' => ['query'],
+            ],
+            'write' => false,
+            'gate' => 'config_edit',
+        ],
     ];
 
     /**
