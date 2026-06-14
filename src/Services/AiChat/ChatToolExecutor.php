@@ -133,6 +133,8 @@ class ChatToolExecutor
             'get_error_log'           => Tools\GetErrorLogTool::class,
             'manage_media'            => Tools\ManageMediaTool::class,
             'manage_users'            => Tools\ManageUsersTool::class,
+            'download_image'          => Tools\DownloadImageTool::class,
+            'screenshot_url'          => Tools\ScreenshotUrlTool::class,
         ];
 
         $class = $map[$toolName] ?? null;

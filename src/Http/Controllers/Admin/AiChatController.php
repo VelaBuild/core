@@ -27,6 +27,7 @@ class AiChatController extends Controller
             'message' => 'required|string|max:5000',
             'conversation_id' => 'nullable|integer|exists:vela_ai_conversations,id',
             'page_context' => 'nullable|array',
+            'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:5120',
         ]);
 
         $user = auth('vela')->user();
@@ -54,11 +55,23 @@ class AiChatController extends Controller
                 'context' => $request->page_context,
             ]);
 
+        // Handle image upload for vision
+        $imageData = null;
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            $imageData = [
+                'base64' => base64_encode(file_get_contents($file->getPathname())),
+                'media_type' => $file->getMimeType(),
+                'filename' => $file->getClientOriginalName(),
+            ];
+        }
+
         // Save user message
         $userMessage = AiMessage::create([
             'conversation_id' => $conversation->id,
             'role' => 'user',
             'content' => $request->message,
+            'metadata' => $imageData ? ['image' => $imageData] : null,
         ]);
 
         // Always return fast so the client (and any CDN proxy with a 30s

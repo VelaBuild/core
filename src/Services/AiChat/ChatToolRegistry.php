@@ -592,6 +592,36 @@ class ChatToolRegistry
             'write' => false,
             'gate' => 'user_access',
         ],
+        [
+            'name' => 'download_image',
+            'description' => 'Download an image from a URL and save it to the media storage. Use this when a user shares a URL and you need to save images from it (e.g. competitor site images, reference designs).',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'url' => ['type' => 'string', 'description' => 'Image URL to download'],
+                    'filename' => ['type' => 'string', 'description' => 'Optional filename (auto-detected from URL if omitted)'],
+                ],
+                'required' => ['url'],
+            ],
+            'write' => true,
+            'gate' => 'article_create',
+        ],
+        [
+            'name' => 'screenshot_url',
+            'description' => 'Take a screenshot of a URL using Cloudflare Browser Rendering. Saves the screenshot to storage and returns the path. Requires CLOUDFLARE_BROWSER_RENDERING_URL to be configured.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'url' => ['type' => 'string', 'description' => 'URL to screenshot'],
+                    'width' => ['type' => 'integer', 'description' => 'Viewport width (default: 1280)'],
+                    'height' => ['type' => 'integer', 'description' => 'Viewport height (default: 800)'],
+                    'full_page' => ['type' => 'boolean', 'description' => 'Capture full page scroll (default: false)'],
+                ],
+                'required' => ['url'],
+            ],
+            'write' => true,
+            'gate' => 'config_edit',
+        ],
     ];
 
     /**

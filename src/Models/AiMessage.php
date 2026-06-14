@@ -16,12 +16,14 @@ class AiMessage extends Model
         'tool_calls',
         'tool_call_id',
         'tokens_used',
+        'metadata',
         'created_at',
         'updated_at',
     ];
 
     protected $casts = [
         'tool_calls' => 'array',
+        'metadata' => 'array',
         'tokens_used' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

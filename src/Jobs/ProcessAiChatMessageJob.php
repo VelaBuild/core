@@ -88,7 +88,19 @@ class ProcessAiChatMessageJob implements ShouldQueue
                         ];
                     }, $msg->tool_calls);
                 } else {
-                    $messageEntry['content'] = $msg->content ?? '';
+                    $metadata = is_array($msg->metadata) ? $msg->metadata : (is_string($msg->metadata) ? json_decode($msg->metadata, true) : null);
+                    if ($msg->role === 'user' && !empty($metadata['image'])) {
+                        $messageEntry['content'] = [
+                            ['type' => 'text', 'text' => $msg->content ?? ''],
+                            [
+                                'type' => 'image',
+                                'source' => $metadata['image']['base64'],
+                                'media_type' => $metadata['image']['media_type'] ?? 'image/png',
+                            ],
+                        ];
+                    } else {
+                        $messageEntry['content'] = $msg->content ?? '';
+                    }
                 }
 
                 if ($msg->tool_call_id) {
