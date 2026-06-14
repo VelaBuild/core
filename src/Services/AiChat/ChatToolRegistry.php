@@ -429,7 +429,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'read_file',
-            'description' => 'Read the contents of a file in the project. Use this to inspect Blade templates, controllers, routes, configs, CSS, JS files. Blocked: .env, vendor/, node_modules/, .git/, storage/logs/.',
+            'description' => 'Read the contents of a file in the project. Use this to inspect Blade templates, controllers, routes, configs, CSS, JS, and even vendor/ packages (read-only). Blocked: .env, node_modules/, .git/.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -474,7 +474,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'search_files',
-            'description' => 'Search for text patterns across project files using grep or find files by name using glob. Excludes vendor/, node_modules/, .git/.',
+            'description' => 'Search for text patterns across project files using grep or find files by name using glob. By default excludes vendor/ (set include_vendor:true to search vendor too). Always excludes node_modules/ and .git/.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -483,7 +483,9 @@ class ChatToolRegistry
                     'type' => ['type' => 'string', 'enum' => ['grep', 'glob'], 'description' => 'Search type: grep (content search) or glob (filename search)'],
                     'file_pattern' => ['type' => 'string', 'description' => 'Filter by filename pattern (e.g. *.blade.php) — grep only'],
                     'case_insensitive' => ['type' => 'boolean', 'description' => 'Case-insensitive grep search'],
-                    'max_results' => ['type' => 'integer', 'description' => 'Max results to return (default: 50, max: 100)'],
+                    'include_vendor' => ['type' => 'boolean', 'description' => 'Include vendor/ directory in search (default: false)'],
+                    'context_lines' => ['type' => 'integer', 'description' => 'Show N lines of context around each grep match (max: 5)'],
+                    'max_results' => ['type' => 'integer', 'description' => 'Max results to return (default: 50, max: 200)'],
                 ],
                 'required' => ['pattern'],
             ],
@@ -492,11 +494,12 @@ class ChatToolRegistry
         ],
         [
             'name' => 'run_command',
-            'description' => 'Run a shell command. Allowed: php artisan, composer require/remove/update, npm install/run, npx. Use for migrations, cache clearing, testing, package installs. Blocked: rm -rf, sudo, destructive DB ops.',
+            'description' => 'Run a shell command. Allowed: php artisan (all subcommands), composer require/remove/update/show, npm install/run, grep, find, ls, cat, head, tail, wc, diff. Safe artisan commands auto-run. Dangerous commands (migrate:fresh, db:wipe, migrate:rollback) require confirm:true. Blocked: rm -rf, sudo.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
-                    'command' => ['type' => 'string', 'description' => 'Shell command to execute (must start with an allowed prefix)'],
+                    'command' => ['type' => 'string', 'description' => 'Shell command to execute'],
+                    'confirm' => ['type' => 'boolean', 'description' => 'Set to true to confirm dangerous commands (migrate:fresh, db:wipe, etc.)'],
                 ],
                 'required' => ['command'],
             ],
@@ -528,6 +531,66 @@ class ChatToolRegistry
             ],
             'write' => false,
             'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'list_directory',
+            'description' => 'List files and directories at a given path. Can list recursively and filter by pattern. Use this to explore project structure.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'path' => ['type' => 'string', 'description' => 'Directory path relative to project root (default: root)'],
+                    'recursive' => ['type' => 'boolean', 'description' => 'List files recursively (max depth 4)'],
+                    'pattern' => ['type' => 'string', 'description' => 'Filter by filename pattern (e.g. *.blade.php)'],
+                ],
+                'required' => [],
+            ],
+            'write' => false,
+            'gate' => null,
+        ],
+        [
+            'name' => 'get_error_log',
+            'description' => 'Read recent entries from the Laravel error log (storage/logs/laravel.log). Useful for debugging errors after running commands or making changes.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'lines' => ['type' => 'integer', 'description' => 'Number of recent lines to read (default: 50, max: 200)'],
+                    'filter' => ['type' => 'string', 'description' => 'Grep filter to narrow results (e.g. "Error", "SQL", a class name)'],
+                ],
+                'required' => [],
+            ],
+            'write' => false,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'manage_media',
+            'description' => 'List, search, or get info about media files in the media library.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string', 'enum' => ['list', 'info', 'search'], 'description' => 'Action to perform'],
+                    'id' => ['type' => 'integer', 'description' => 'Media ID (for info action)'],
+                    'query' => ['type' => 'string', 'description' => 'Search query (for search action)'],
+                    'collection' => ['type' => 'string', 'description' => 'Filter by collection name (for list action)'],
+                    'limit' => ['type' => 'integer', 'description' => 'Max items to return (for list, default: 20)'],
+                ],
+                'required' => ['action'],
+            ],
+            'write' => false,
+            'gate' => 'media_access',
+        ],
+        [
+            'name' => 'manage_users',
+            'description' => 'List users or get user info (read-only). Cannot create, edit, or delete users.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string', 'enum' => ['list', 'info'], 'description' => 'Action to perform'],
+                    'id' => ['type' => 'integer', 'description' => 'User ID (for info action)'],
+                ],
+                'required' => ['action'],
+            ],
+            'write' => false,
+            'gate' => 'user_access',
         ],
     ];
 

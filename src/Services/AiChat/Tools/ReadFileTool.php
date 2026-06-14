@@ -9,11 +9,9 @@ class ReadFileTool extends BaseTool
     private const MAX_SIZE = 100_000;
 
     private const BLOCKED_PATTERNS = [
-        '/\.env/',
-        '/vendor\//',
+        '/^\.env/',
         '/node_modules\//',
         '/\.git\//',
-        '/storage\/logs\//',
         '/storage\/framework\/sessions\//',
     ];
 

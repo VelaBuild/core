@@ -129,6 +129,10 @@ class ChatToolExecutor
             'run_command'             => Tools\RunCommandTool::class,
             'list_routes'             => Tools\ListRoutesTool::class,
             'database_query'          => Tools\DatabaseQueryTool::class,
+            'list_directory'          => Tools\ListDirectoryTool::class,
+            'get_error_log'           => Tools\GetErrorLogTool::class,
+            'manage_media'            => Tools\ManageMediaTool::class,
+            'manage_users'            => Tools\ManageUsersTool::class,
         ];
 
         $class = $map[$toolName] ?? null;
