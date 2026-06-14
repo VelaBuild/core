@@ -135,6 +135,8 @@ class ChatToolExecutor
             'manage_users'            => Tools\ManageUsersTool::class,
             'download_image'          => Tools\DownloadImageTool::class,
             'screenshot_url'          => Tools\ScreenshotUrlTool::class,
+            'fetch_page_resources'    => Tools\FetchPageResourcesTool::class,
+            'browse_url'              => Tools\BrowseUrlTool::class,
         ];
 
         $class = $map[$toolName] ?? null;

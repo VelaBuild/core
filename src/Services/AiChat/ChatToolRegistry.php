@@ -622,6 +622,37 @@ class ChatToolRegistry
             'write' => true,
             'gate' => 'config_edit',
         ],
+        [
+            'name' => 'fetch_page_resources',
+            'description' => 'Fetch a web page and extract its resources: CSS (inline + linked, with actual content), JS URLs, images, meta tags, colors, fonts, and text content. Use this to understand how a remote page is built — its design, colors, fonts, layout patterns.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'url' => ['type' => 'string', 'description' => 'URL to analyze'],
+                    'resource' => ['type' => 'string', 'enum' => ['all', 'css', 'js', 'images', 'meta', 'colors', 'fonts', 'text'], 'description' => 'What to extract (default: all)'],
+                ],
+                'required' => ['url'],
+            ],
+            'write' => false,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'browse_url',
+            'description' => 'Open a URL in a headless browser for full rendering. Actions: "extract" (structured data: headings, links, images, computed colors, fonts), "screenshot" (save screenshot), "html" (get fully-rendered HTML including JS), "evaluate" (run custom JavaScript), "pdf" (generate PDF). Falls back to HTTP fetch if browser rendering is not configured. Use this for: checking your own site after changes, analyzing competitor layouts, validating that changes look correct.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'url' => ['type' => 'string', 'description' => 'URL to browse'],
+                    'action' => ['type' => 'string', 'enum' => ['extract', 'screenshot', 'html', 'evaluate', 'pdf'], 'description' => 'What to do (default: extract)'],
+                    'script' => ['type' => 'string', 'description' => 'JavaScript to evaluate in the page (for evaluate action)'],
+                    'width' => ['type' => 'integer', 'description' => 'Viewport width for screenshot (default: 1280)'],
+                    'full_page' => ['type' => 'boolean', 'description' => 'Capture full scrollable page (for screenshot)'],
+                ],
+                'required' => ['url'],
+            ],
+            'write' => false,
+            'gate' => 'config_edit',
+        ],
     ];
 
     /**
