@@ -101,11 +101,40 @@ class ClaudeTextService implements AiTextProvider
             // toggle in admin AI Settings overrides the config default.
             if (app(AiSettingsService::class)->getStatus()['native_search']) {
                 $body['tools'] = $body['tools'] ?? [];
+                // The unified custom `web_search` tool (from ChatToolRegistry)
+                // and the native server-side tool below share the name
+                // "web_search" — sending both trips Anthropic's "Tool names
+                // must be unique" 400. With native search on, Claude runs the
+                // search server-side, so drop the custom one in its favour.
+                $body['tools'] = array_values(array_filter($body['tools'], function ($t) {
+                    return ($t['name'] ?? null) !== 'web_search';
+                }));
                 $body['tools'][] = [
                     'type'     => 'web_search_20250305',
                     'name'     => 'web_search',
                     'max_uses' => (int) config('vela.ai.chat.native_search_max_uses', 5),
                 ];
+            }
+
+            // Backstop: Anthropic rejects the whole request with a 400
+            // ("tools: Tool names must be unique") if any two tools share a
+            // name. As the toolset grows (registry tools + native injections),
+            // a stray duplicate must never take the entire chat down — drop
+            // any later tool whose name was already seen, keeping the first.
+            if (!empty($body['tools'])) {
+                $seen = [];
+                $body['tools'] = array_values(array_filter($body['tools'], function ($t) use (&$seen) {
+                    $name = $t['name'] ?? null;
+                    if ($name === null) {
+                        return true;
+                    }
+                    if (isset($seen[$name])) {
+                        Log::warning('Vela: dropped duplicate Claude tool name', ['name' => $name]);
+                        return false;
+                    }
+                    $seen[$name] = true;
+                    return true;
+                }));
             }
 
             $response = Http::timeout(120)
