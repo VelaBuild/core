@@ -4,8 +4,6 @@ namespace VelaBuild\Core\Services\AiChat\Tools;
 
 use VelaBuild\Core\Models\AiActionLog;
 use VelaBuild\Core\Models\Page;
-use VelaBuild\Core\Models\PageRow;
-use VelaBuild\Core\Models\PageBlock;
 use Illuminate\Support\Str;
 
 class CreatePageTool extends BaseTool
@@ -13,7 +11,6 @@ class CreatePageTool extends BaseTool
     public function execute(array $parameters, ?AiActionLog $actionLog = null): array
     {
         $title = $parameters['title'] ?? null;
-        $content = $parameters['content'] ?? '';
         $status = $parameters['status'] ?? 'draft';
 
         if (!$title) {
@@ -32,36 +29,25 @@ class CreatePageTool extends BaseTool
             ];
         }
 
-        $slug = Str::slug($title);
+        // Honour an explicit slug when given (so the AI controls the URL),
+        // otherwise derive one from the title. De-dupe either way.
+        $slug = Str::slug(!empty($parameters['slug']) ? $parameters['slug'] : $title);
         $original = $slug;
         $i = 1;
         while (Page::where('slug', $slug)->exists()) {
             $slug = $original . '-' . $i++;
         }
 
+        // Create the page SHELL only. Building the layout is the AI's job:
+        // it follows up with set_page_blocks (hero / cta / text / ...), which
+        // is how the page builder is meant to be used. Auto-stuffing a single
+        // text block produced flat, hard-to-edit pages.
         $page = Page::create([
             'title'  => $title,
             'slug'   => $slug,
             'status' => $status,
             'locale' => config('app.locale', 'en'),
         ]);
-
-        // Create a single text row + block with the provided content
-        if ($content) {
-            $row = PageRow::create([
-                'page_id'      => $page->id,
-                'order_column' => 1,
-            ]);
-
-            PageBlock::create([
-                'page_row_id'   => $row->id,
-                'column_index'  => 0,
-                'column_width'  => 12,
-                'order_column'  => 1,
-                'type'          => 'text',
-                'content'       => ['body' => $content],
-            ]);
-        }
 
         if ($actionLog) {
             $actionLog->update([
@@ -75,7 +61,9 @@ class CreatePageTool extends BaseTool
                 'id'    => $page->id,
                 'title' => $page->title,
                 'slug'  => $page->slug,
+                'url'   => url('/' . $page->slug),
             ],
+            'next_step' => 'Page created empty. Use set_page_blocks to build its layout (rows + blocks), or edit_page_content for a simple markdown body.',
         ];
     }
 

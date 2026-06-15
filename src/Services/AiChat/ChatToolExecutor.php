@@ -93,6 +93,8 @@ class ChatToolExecutor
             'update_template_colors' => Tools\UpdateTemplateColorsTool::class,
             'create_page' => Tools\CreatePageTool::class,
             'edit_page_content' => Tools\EditPageContentTool::class,
+            'update_page' => Tools\UpdatePageTool::class,
+            'delete_page' => Tools\DeletePageTool::class,
             'create_article' => Tools\CreateArticleTool::class,
             'edit_article_content' => Tools\EditArticleContentTool::class,
             'update_article' => Tools\UpdateArticleTool::class,

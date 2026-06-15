@@ -64,13 +64,17 @@ class EditPageContentTool extends BaseTool
             'order_column' => 1,
         ]);
 
+        // The text block renders from an EditorJS document ($content['blocks']);
+        // a raw markdown string under 'body' renders blank. Convert it.
+        $editorJs = json_decode(MarkdownToEditorJs::convert($content), true);
+
         PageBlock::create([
             'page_row_id'  => $row->id,
             'column_index' => 0,
             'column_width' => 12,
             'order_column' => 1,
             'type'         => 'text',
-            'content'      => ['body' => $content],
+            'content'      => is_array($editorJs) ? $editorJs : ['blocks' => []],
         ]);
 
         return [

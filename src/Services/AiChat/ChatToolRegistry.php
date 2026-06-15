@@ -64,22 +64,22 @@ class ChatToolRegistry
         ],
         [
             'name' => 'create_page',
-            'description' => 'Create a new page on the site',
+            'description' => 'Create a new PAGE (type=page) as an empty shell — title, slug, status only. It does NOT add any content. After creating, design the layout by calling set_page_blocks with the rows/blocks you choose (hero / cta / text / image / gallery / ...). For a quick plain-text body instead, call edit_page_content with markdown. Refuses if the title already exists (call list_pages, then update_page / set_page_blocks).',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'title' => ['type' => 'string'],
-                    'content' => ['type' => 'string', 'description' => 'Page content in markdown'],
+                    'slug' => ['type' => 'string', 'description' => 'URL slug (e.g. "terms" → /terms). Defaults to a slug derived from the title. Slugified server-side; collisions get a numeric suffix.'],
                     'status' => ['type' => 'string', 'enum' => ['draft', 'published']],
                 ],
-                'required' => ['title', 'content'],
+                'required' => ['title'],
             ],
             'write' => true,
             'gate' => 'page_create',
         ],
         [
             'name' => 'edit_page_content',
-            'description' => 'Edit the content of an existing page',
+            'description' => 'Replace a page\'s body with a SINGLE text block rendered from markdown. Use this only for simple text pages; for real layouts use set_page_blocks instead. Existing rows/blocks are replaced.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -90,6 +90,35 @@ class ChatToolRegistry
             ],
             'write' => true,
             'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'update_page',
+            'description' => 'Update a page\'s metadata: title, slug (rename its URL), and/or status (draft/published/unlisted). Use this to RENAME a page instead of creating a duplicate. Pass page_id or page_slug plus the fields to change. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'page_id'   => ['type' => 'integer'],
+                    'page_slug' => ['type' => 'string', 'description' => 'Identify the page by current slug (alternative to page_id)'],
+                    'title'     => ['type' => 'string'],
+                    'slug'      => ['type' => 'string', 'description' => 'New slug; slugified server-side, collisions rejected.'],
+                    'status'    => ['type' => 'string', 'enum' => ['draft', 'published', 'unlisted']],
+                ],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'delete_page',
+            'description' => 'Delete a page and all its rows/blocks. Use this to remove duplicate or unwanted pages. Pass page_id or page_slug (call list_pages first to confirm which). Refuses the home page. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'page_id'   => ['type' => 'integer'],
+                    'page_slug' => ['type' => 'string', 'description' => 'Identify the page by slug (alternative to page_id)'],
+                ],
+            ],
+            'write' => true,
+            'gate' => 'page_delete',
         ],
         [
             'name' => 'create_article',
