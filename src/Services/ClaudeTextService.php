@@ -175,6 +175,45 @@ class ClaudeTextService implements AiTextProvider
                 $body['max_tokens'] = max(1024, $fit);
             }
 
+            // Prompt caching — the single biggest cost lever. The system prompt
+            // (~3k tok) and ~60 tool schemas (~20k tok) are identical on every
+            // call, and the conversation prefix is identical across a tool loop
+            // (re-sent within seconds). cache_control bills repeat reads at ~10%
+            // of full price instead of 100%. Anthropic caches in tools → system
+            // → messages order; a breakpoint caches everything up to it. Too-
+            // small trailing segments are simply not cached (no error).
+            if (config('vela.ai.chat.prompt_caching', true)) {
+                // Mark the last *custom* tool (skip the native search server
+                // tool, which has no input_schema and may reject cache_control).
+                for ($i = count($body['tools'] ?? []) - 1; $i >= 0; $i--) {
+                    if (isset($body['tools'][$i]['input_schema'])) {
+                        $body['tools'][$i]['cache_control'] = ['type' => 'ephemeral'];
+                        break;
+                    }
+                }
+                if (!empty($body['system']) && is_string($body['system'])) {
+                    $body['system'] = [[
+                        'type'          => 'text',
+                        'text'          => $body['system'],
+                        'cache_control' => ['type' => 'ephemeral'],
+                    ]];
+                }
+                if (!empty($body['messages'])) {
+                    $li = array_key_last($body['messages']);
+                    $content = $body['messages'][$li]['content'] ?? null;
+                    if (is_string($content) && $content !== '') {
+                        $body['messages'][$li]['content'] = [[
+                            'type'          => 'text',
+                            'text'          => $content,
+                            'cache_control' => ['type' => 'ephemeral'],
+                        ]];
+                    } elseif (is_array($content) && !empty($content)) {
+                        $bi = array_key_last($content);
+                        $body['messages'][$li]['content'][$bi]['cache_control'] = ['type' => 'ephemeral'];
+                    }
+                }
+            }
+
             $response = Http::timeout(120)
                 ->withHeaders([
                     'x-api-key' => $this->apiKey,

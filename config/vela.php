@@ -138,6 +138,10 @@ return [
             // page, a file dump, a base64 screenshot — can blow the context
             // window on its own; the model keeps the head + a truncation note.
             'max_tool_result_chars' => env('AI_CHAT_MAX_TOOL_RESULT_CHARS', 24000),
+            // Anthropic prompt caching: caches the system prompt + tool schemas
+            // + conversation prefix (re-sent on every tool-loop call) so repeat
+            // reads bill at ~10% instead of full price. Biggest cost lever.
+            'prompt_caching' => env('AI_CHAT_PROMPT_CACHING', true),
             // Inject the provider's native web-search tool (Gemini google_search,
             // Claude web_search_20250305) so the model can ground responses in
             // fresh web results without a custom backend. Falls back to the
