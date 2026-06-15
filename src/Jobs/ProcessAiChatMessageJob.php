@@ -215,11 +215,16 @@ class ProcessAiChatMessageJob implements ShouldQueue
                         $user
                     );
 
+                    // Cap the result so a single oversized payload (fetched
+                    // page, file dump, screenshot) can't blow the context
+                    // window on its own — store + send the same capped string.
+                    $encoded = $this->capToolResult(json_encode($result));
+
                     // Save tool result as a message
                     AiMessage::create([
                         'conversation_id' => $conversation->id,
                         'role' => 'tool',
-                        'content' => json_encode($result),
+                        'content' => $encoded,
                         'tool_call_id' => $toolCall['id'],
                     ]);
 
@@ -227,7 +232,7 @@ class ProcessAiChatMessageJob implements ShouldQueue
                     $messages[] = [
                         'role' => 'tool',
                         'tool_call_id' => $toolCall['id'],
-                        'content' => json_encode($result),
+                        'content' => $encoded,
                     ];
                 }
 
@@ -318,6 +323,24 @@ class ProcessAiChatMessageJob implements ShouldQueue
      * Any tool turn split by the trim is repaired downstream
      * (dropOrphanToolMessages here + the pairing pass in ClaudeTextService).
      */
+    /**
+     * Cap a single tool result. One oversized payload (a fetched page, a file
+     * dump, a base64 screenshot) can exceed the context window by itself —
+     * which trimToTokenBudget can't fix, since it only drops whole messages
+     * and always keeps the latest. The model still gets the head of the output
+     * plus a marker telling it the rest was dropped.
+     */
+    private function capToolResult(string $json): string
+    {
+        $max = (int) config('vela.ai.chat.max_tool_result_chars', 24000);
+        if (mb_strlen($json) <= $max) {
+            return $json;
+        }
+        $dropped = mb_strlen($json) - $max;
+        return mb_substr($json, 0, $max)
+            . "\n\n[...truncated {$dropped} characters. The full tool output was too large to keep in context — request a narrower slice (fewer rows, a specific section, or a smaller file range) if you need more.]";
+    }
+
     private function trimToTokenBudget(array $messages): array
     {
         if (empty($messages)) {
