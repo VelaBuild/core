@@ -102,6 +102,12 @@ class ClaudeTextService implements AiTextProvider
                 return false;
             }));
 
+            // Callers keep one OpenAI-shaped history across providers
+            // (assistant turns carry `tool_calls`, results come back as
+            // role:tool messages). Anthropic only accepts user/assistant
+            // roles with tool_use / tool_result *content blocks*, so translate
+            // before sending — otherwise it 400s on `role "tool"`.
+            $messages = $this->toAnthropicMessages($messages);
             $messages = $this->normalizeVisionMessages($messages);
             $body = [
                 'model' => $this->model,
@@ -218,6 +224,78 @@ class ClaudeTextService implements AiTextProvider
      * Normalize vision messages to Anthropic format.
      * Converts unified image blocks to Anthropic's image source format.
      */
+    /**
+     * Translate the shared OpenAI-shaped message history into Anthropic's
+     * format: assistant `tool_calls` become `tool_use` content blocks, and
+     * role:tool results become `tool_result` blocks folded into a single
+     * user turn (Anthropic requires all results for one assistant turn in one
+     * user message). Plain text user/assistant messages pass through.
+     */
+    private function toAnthropicMessages(array $messages): array
+    {
+        $out = [];
+
+        foreach ($messages as $m) {
+            $role = $m['role'] ?? 'user';
+
+            if ($role === 'tool') {
+                $content = $m['content'] ?? '';
+                $block = [
+                    'type'        => 'tool_result',
+                    'tool_use_id' => $m['tool_call_id'] ?? ($m['tool_use_id'] ?? null),
+                    'content'     => is_string($content) ? $content : json_encode($content),
+                ];
+
+                // Fold consecutive tool results into the preceding user turn.
+                $lastIdx = count($out) - 1;
+                if ($lastIdx >= 0
+                    && ($out[$lastIdx]['role'] ?? null) === 'user'
+                    && is_array($out[$lastIdx]['content'] ?? null)
+                    && (($out[$lastIdx]['content'][0]['type'] ?? null) === 'tool_result')
+                ) {
+                    $out[$lastIdx]['content'][] = $block;
+                } else {
+                    $out[] = ['role' => 'user', 'content' => [$block]];
+                }
+                continue;
+            }
+
+            if ($role === 'assistant' && !empty($m['tool_calls'])) {
+                $content = [];
+                if (!empty($m['content'])) {
+                    $content[] = [
+                        'type' => 'text',
+                        'text' => is_string($m['content']) ? $m['content'] : json_encode($m['content']),
+                    ];
+                }
+                foreach ($m['tool_calls'] as $tc) {
+                    // Accept either OpenAI shape ({id, function:{name, arguments}})
+                    // or our internal shape ({id, name, arguments}).
+                    $name = $tc['function']['name'] ?? $tc['name'] ?? '';
+                    $args = $tc['function']['arguments'] ?? $tc['arguments'] ?? [];
+                    if (is_string($args)) {
+                        $decoded = json_decode($args, true);
+                        $args = is_array($decoded) ? $decoded : [];
+                    }
+                    $content[] = [
+                        'type'  => 'tool_use',
+                        'id'    => $tc['id'] ?? null,
+                        'name'  => $name,
+                        'input' => empty($args) ? new \stdClass : $args,
+                    ];
+                }
+                $out[] = ['role' => 'assistant', 'content' => $content];
+                continue;
+            }
+
+            // Plain user/assistant message — keep content as-is (string, or an
+            // array of vision blocks handled by normalizeVisionMessages).
+            $out[] = ['role' => $role, 'content' => $m['content'] ?? ''];
+        }
+
+        return $out;
+    }
+
     private function normalizeVisionMessages(array $messages): array
     {
         return array_map(function ($message) {
