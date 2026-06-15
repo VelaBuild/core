@@ -14,6 +14,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class ProcessAiChatMessageJob implements ShouldQueue
@@ -26,16 +27,37 @@ class ProcessAiChatMessageJob implements ShouldQueue
     protected int $conversationId;
     protected int $userId;
     protected array $pageContext;
+    protected ?int $triggerMessageId;
 
-    public function __construct(int $conversationId, int $userId, array $pageContext = [])
+    public function __construct(int $conversationId, int $userId, array $pageContext = [], ?int $triggerMessageId = null)
     {
         $this->conversationId = $conversationId;
         $this->userId = $userId;
         $this->pageContext = $pageContext;
+        // The user message this job was dispatched for. Lets the job bow out if
+        // a newer message has since arrived (coalesce to the latest turn).
+        $this->triggerMessageId = $triggerMessageId;
     }
 
     public function handle(): void
     {
+        // Serialize processing per conversation. Each turn runs in its own web
+        // process (dispatchAfterResponse), so without this two turns overlap:
+        // the earlier turn keeps appending assistant/tool messages while a new
+        // user message lands mid-stream — burying it so the context ends on the
+        // PREVIOUS task's output and the model answers the older message. One
+        // turn at a time, then anchor to the latest user message, fixes it.
+        $lock = Cache::lock('ai-chat-conv:' . $this->conversationId, 200);
+        try {
+            // Wait for any in-flight turn to finish (throws on timeout).
+            $lock->block(90);
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+            Log::warning('AI chat: conversation busy, skipping overlapping run', [
+                'conversation_id' => $this->conversationId,
+            ]);
+            return;
+        }
+
         try {
             $conversation = AiConversation::findOrFail($this->conversationId);
             $user = VelaUser::findOrFail($this->userId);
@@ -59,6 +81,38 @@ class ProcessAiChatMessageJob implements ShouldQueue
                 ->get()
                 ->reverse()
                 ->values();
+
+            // Anchor to the LATEST user message. Drop any trailing assistant/
+            // tool messages (left by an overlapping or prior turn) so the model
+            // always replies to the user's most recent input, never the tail of
+            // an earlier task. This is the core fix for "it answers my previous
+            // message".
+            $lastUserPos = null;
+            foreach ($dbMessages as $i => $m) {
+                if ($m->role === 'user') {
+                    $lastUserPos = $i;
+                }
+            }
+            if ($lastUserPos === null) {
+                return; // nothing from the user to answer
+            }
+
+            // Coalesce rapid-fire turns: if a newer user message has arrived
+            // since this job was queued, let that newer message's job answer and
+            // bow out here. Guarantees we reply to the user's MOST RECENT message
+            // exactly once — never an older one, never twice. (Compared by the
+            // trigger id, not position, because ids interleave under overlap.)
+            $latestUserId = $dbMessages[$lastUserPos]->id;
+            if ($this->triggerMessageId !== null && $latestUserId !== $this->triggerMessageId) {
+                Log::info('AI chat: superseded by a newer message, skipping', [
+                    'conversation_id' => $this->conversationId,
+                    'trigger'         => $this->triggerMessageId,
+                    'latest'          => $latestUserId,
+                ]);
+                return;
+            }
+
+            $dbMessages = $dbMessages->slice(0, $lastUserPos + 1)->values();
 
             // Build system prompt
             $systemPrompt = $this->buildSystemPrompt($siteContext, $this->pageContext, $user);
@@ -308,7 +362,12 @@ class ProcessAiChatMessageJob implements ShouldQueue
                 ]);
             }
 
-            throw $e;
+            // Don't re-throw: this runs after the response is sent, so an
+            // escaping exception fatals in the terminate phase ("headers
+            // already sent"). tries=1, so there's no retry to gain. The user
+            // already has the error message above.
+        } finally {
+            $lock->release();
         }
     }
 

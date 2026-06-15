@@ -81,7 +81,8 @@ class AiChatController extends Controller
         ProcessAiChatMessageJob::dispatchAfterResponse(
             $conversation->id,
             $user->id,
-            $request->page_context ?? []
+            $request->page_context ?? [],
+            $userMessage->id
         );
 
         return response()->json([
