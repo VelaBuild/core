@@ -293,7 +293,102 @@ class ClaudeTextService implements AiTextProvider
             $out[] = ['role' => $role, 'content' => $m['content'] ?? ''];
         }
 
-        return $out;
+        // A half-finished earlier turn (interrupted worker, a dropped orphan
+        // result, history truncation) can leave a tool_use with no result or a
+        // result with no tool_use. Anthropic 400s the whole request on either,
+        // so reconcile before sending — this is the single guarantee that the
+        // payload is structurally valid regardless of what the DB holds.
+        return $this->reconcileToolBlocks($out);
+    }
+
+    /**
+     * Guarantee a valid Anthropic message sequence: every `tool_use` block is
+     * paired with a `tool_result` in the very next user turn and vice-versa,
+     * no message is left with empty content, consecutive same-role messages
+     * are merged, and the sequence starts on a user turn.
+     */
+    private function reconcileToolBlocks(array $msgs): array
+    {
+        // 1. Drop unpaired tool blocks from BOTH sides: a `tool_use` survives
+        //    only if the next user turn carries its `tool_result`, and a
+        //    `tool_result` survives only if the previous assistant turn
+        //    declared its `tool_use`. (Either orphan direction 400s Anthropic.)
+        $blockIds = function ($msg, string $type, string $idKey): array {
+            $ids = [];
+            if ($msg && is_array($msg['content'] ?? null)) {
+                foreach ($msg['content'] as $b) {
+                    if (($b['type'] ?? '') === $type && !empty($b[$idKey])) {
+                        $ids[$b[$idKey]] = true;
+                    }
+                }
+            }
+            return $ids;
+        };
+
+        $n = count($msgs);
+        for ($i = 0; $i < $n; $i++) {
+            $role = $msgs[$i]['role'] ?? null;
+            if (!is_array($msgs[$i]['content'] ?? null)) {
+                continue;
+            }
+            if ($role === 'assistant') {
+                $resIds = ($msgs[$i + 1] ?? null) && (($msgs[$i + 1]['role'] ?? null) === 'user')
+                    ? $blockIds($msgs[$i + 1], 'tool_result', 'tool_use_id')
+                    : [];
+                $msgs[$i]['content'] = array_values(array_filter($msgs[$i]['content'], function ($b) use ($resIds) {
+                    return ($b['type'] ?? '') !== 'tool_use' || isset($resIds[$b['id'] ?? null]);
+                }));
+            } elseif ($role === 'user') {
+                $useIds = ($i > 0 && (($msgs[$i - 1]['role'] ?? null) === 'assistant'))
+                    ? $blockIds($msgs[$i - 1], 'tool_use', 'id')
+                    : [];
+                $msgs[$i]['content'] = array_values(array_filter($msgs[$i]['content'], function ($b) use ($useIds) {
+                    return ($b['type'] ?? '') !== 'tool_result' || isset($useIds[$b['tool_use_id'] ?? null]);
+                }));
+            }
+        }
+
+        // 2. Drop messages whose content was fully emptied by step 1.
+        $msgs = array_values(array_filter($msgs, function ($m) {
+            $c = $m['content'] ?? null;
+            return is_array($c) ? count($c) > 0 : ($c !== null && $c !== '');
+        }));
+
+        // 3. Merge consecutive same-role messages (a dropped turn can leave two
+        //    same-role messages adjacent; a stray tool_use can never become
+        //    adjacent to another because its matched result sits between them).
+        $merged = [];
+        foreach ($msgs as $m) {
+            $last = count($merged) - 1;
+            if ($last >= 0 && ($merged[$last]['role'] ?? null) === ($m['role'] ?? null)) {
+                $merged[$last]['content'] = array_merge(
+                    $this->contentToBlocks($merged[$last]['content']),
+                    $this->contentToBlocks($m['content'])
+                );
+            } else {
+                $merged[] = $m;
+            }
+        }
+
+        // 4. Anthropic requires the first message to be a user turn.
+        while (!empty($merged) && ($merged[0]['role'] ?? null) !== 'user') {
+            array_shift($merged);
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Normalize a message `content` (string or block array) to a block array
+     * so two same-role messages can be concatenated.
+     */
+    private function contentToBlocks($content): array
+    {
+        if (is_array($content)) {
+            return $content;
+        }
+        $content = (string) $content;
+        return $content === '' ? [] : [['type' => 'text', 'text' => $content]];
     }
 
     private function normalizeVisionMessages(array $messages): array
