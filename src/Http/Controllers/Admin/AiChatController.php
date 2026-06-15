@@ -82,7 +82,9 @@ class AiChatController extends Controller
             $conversation->id,
             $user->id,
             $request->page_context ?? [],
-            $userMessage->id
+            $userMessage->id,
+            $request->message,
+            $imageData
         );
 
         return response()->json([

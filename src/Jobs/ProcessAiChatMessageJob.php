@@ -14,7 +14,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class ProcessAiChatMessageJob implements ShouldQueue
@@ -28,36 +27,29 @@ class ProcessAiChatMessageJob implements ShouldQueue
     protected int $userId;
     protected array $pageContext;
     protected ?int $triggerMessageId;
+    protected ?string $messageContent;
+    protected ?array $imageData;
 
-    public function __construct(int $conversationId, int $userId, array $pageContext = [], ?int $triggerMessageId = null)
-    {
+    public function __construct(
+        int $conversationId,
+        int $userId,
+        array $pageContext = [],
+        ?int $triggerMessageId = null,
+        ?string $messageContent = null,
+        ?array $imageData = null
+    ) {
         $this->conversationId = $conversationId;
         $this->userId = $userId;
         $this->pageContext = $pageContext;
-        // The user message this job was dispatched for. Lets the job bow out if
-        // a newer message has since arrived (coalesce to the latest turn).
+        // This turn's user message, passed straight in so the job never has to
+        // re-read it from the DB to know "what the user just asked".
         $this->triggerMessageId = $triggerMessageId;
+        $this->messageContent = $messageContent;
+        $this->imageData = $imageData;
     }
 
     public function handle(): void
     {
-        // Serialize processing per conversation. Each turn runs in its own web
-        // process (dispatchAfterResponse), so without this two turns overlap:
-        // the earlier turn keeps appending assistant/tool messages while a new
-        // user message lands mid-stream — burying it so the context ends on the
-        // PREVIOUS task's output and the model answers the older message. One
-        // turn at a time, then anchor to the latest user message, fixes it.
-        $lock = Cache::lock('ai-chat-conv:' . $this->conversationId, 200);
-        try {
-            // Wait for any in-flight turn to finish (throws on timeout).
-            $lock->block(90);
-        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
-            Log::warning('AI chat: conversation busy, skipping overlapping run', [
-                'conversation_id' => $this->conversationId,
-            ]);
-            return;
-        }
-
         try {
             $conversation = AiConversation::findOrFail($this->conversationId);
             $user = VelaUser::findOrFail($this->userId);
@@ -73,46 +65,22 @@ class ProcessAiChatMessageJob implements ShouldQueue
                 'user_id' => $user->id,
             ]);
 
-            // Build messages array from conversation history
+            // Load PAST messages only — everything before this turn. The current
+            // user message is NOT read back from the DB; it is passed into the
+            // job and appended as the final turn below. That makes the latest
+            // message always present and always last, with zero dependence on DB
+            // read/write timing. Works identically on any single-DB host.
             $maxMessages = config('vela.ai.chat.max_conversation_messages', 50);
-            $dbMessages = $conversation->messages()
+            $pastQuery = $conversation->messages();
+            if ($this->triggerMessageId !== null) {
+                $pastQuery->where('id', '<', $this->triggerMessageId);
+            }
+            $dbMessages = $pastQuery
                 ->orderBy('id', 'desc')
                 ->take($maxMessages)
                 ->get()
                 ->reverse()
                 ->values();
-
-            // Anchor to the LATEST user message. Drop any trailing assistant/
-            // tool messages (left by an overlapping or prior turn) so the model
-            // always replies to the user's most recent input, never the tail of
-            // an earlier task. This is the core fix for "it answers my previous
-            // message".
-            $lastUserPos = null;
-            foreach ($dbMessages as $i => $m) {
-                if ($m->role === 'user') {
-                    $lastUserPos = $i;
-                }
-            }
-            if ($lastUserPos === null) {
-                return; // nothing from the user to answer
-            }
-
-            // Coalesce rapid-fire turns: if a newer user message has arrived
-            // since this job was queued, let that newer message's job answer and
-            // bow out here. Guarantees we reply to the user's MOST RECENT message
-            // exactly once — never an older one, never twice. (Compared by the
-            // trigger id, not position, because ids interleave under overlap.)
-            $latestUserId = $dbMessages[$lastUserPos]->id;
-            if ($this->triggerMessageId !== null && $latestUserId !== $this->triggerMessageId) {
-                Log::info('AI chat: superseded by a newer message, skipping', [
-                    'conversation_id' => $this->conversationId,
-                    'trigger'         => $this->triggerMessageId,
-                    'latest'          => $latestUserId,
-                ]);
-                return;
-            }
-
-            $dbMessages = $dbMessages->slice(0, $lastUserPos + 1)->values();
 
             // Build system prompt
             $systemPrompt = $this->buildSystemPrompt($siteContext, $this->pageContext, $user);
@@ -161,6 +129,25 @@ class ProcessAiChatMessageJob implements ShouldQueue
                     $messageEntry['tool_call_id'] = $msg->tool_call_id;
                 }
                 $messages[] = $messageEntry;
+            }
+
+            // Append THIS turn's user message directly from the dispatch payload
+            // — the single source of truth for what the user just asked. It is
+            // ALWAYS present and ALWAYS last, with no DB read involved, so it can
+            // never be missing, stale, or out of order.
+            if ($this->messageContent !== null || !empty($this->imageData)) {
+                if (!empty($this->imageData)) {
+                    $messages[] = ['role' => 'user', 'content' => [
+                        ['type' => 'text', 'text' => $this->messageContent ?? ''],
+                        [
+                            'type'       => 'image',
+                            'source'     => $this->imageData['base64'],
+                            'media_type' => $this->imageData['media_type'] ?? 'image/png',
+                        ],
+                    ]];
+                } else {
+                    $messages[] = ['role' => 'user', 'content' => $this->messageContent ?? ''];
+                }
             }
 
             // Drop orphan tool messages — any role:'tool' that doesn't directly
@@ -366,8 +353,6 @@ class ProcessAiChatMessageJob implements ShouldQueue
             // escaping exception fatals in the terminate phase ("headers
             // already sent"). tries=1, so there's no retry to gain. The user
             // already has the error message above.
-        } finally {
-            $lock->release();
         }
     }
 
