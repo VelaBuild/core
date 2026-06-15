@@ -11,6 +11,36 @@
     var lastActionLogId = null;
     var isLoading = false;
 
+    // Loading indicator: whimsical rotating words until a tool runs, then the
+    // live tool activity (which the poll already streams back).
+    var WHIMSY = ['Thinking', 'Pondering', 'Noodling', 'Tinkering', 'Cooking',
+        'Finagling', 'Conjuring', 'Crafting', 'Brewing', 'Wrangling', 'Percolating'];
+    var TOOL_LABELS = {
+        create_page: 'Creating page', update_page: 'Updating page', delete_page: 'Deleting page',
+        edit_page_content: 'Writing page content', set_page_blocks: 'Building layout',
+        get_page_blocks: 'Reading layout', list_pages: 'Listing pages', get_page_info: 'Checking page',
+        create_article: 'Writing article', edit_article_content: 'Editing article',
+        update_article: 'Updating article', list_articles: 'Listing articles', get_article: 'Reading article',
+        update_custom_css: 'Applying styles', get_custom_css: 'Reading styles',
+        update_template_colors: 'Updating colours', switch_template: 'Switching theme',
+        generate_image: 'Generating image', download_image: 'Downloading image', screenshot_url: 'Taking screenshot',
+        web_search: 'Searching the web', fetch_url: 'Reading a page', browse_url: 'Browsing the web',
+        fetch_page_resources: 'Inspecting the page', database_query: 'Querying the database',
+        run_command: 'Running a command', read_file: 'Reading a file', write_file: 'Writing a file',
+        edit_file: 'Editing a file', search_files: 'Searching files', list_directory: 'Listing files',
+        get_site_info: 'Checking site info', get_site_config: 'Reading settings', update_site_config: 'Updating settings',
+        design_system_list: 'Reading design system', design_system_read_file: 'Reading design system',
+        design_system_palette: 'Reading palette', design_system_fonts: 'Reading fonts',
+        manage_media: 'Managing media', manage_users: 'Managing users', create_category: 'Creating category'
+    };
+    var whimsyIdx = 0;
+    var spinnerTimer = null;
+    var activeToolLabel = null;
+
+    function friendlyTool(name) {
+        return TOOL_LABELS[name] || (name.charAt(0).toUpperCase() + name.slice(1).replace(/_/g, ' '));
+    }
+
     // -----------------------------------------------------------------------
     // Sidebar toggle
     // -----------------------------------------------------------------------
@@ -170,8 +200,20 @@
                         var lastLog = data.action_logs[data.action_logs.length - 1];
                         showUndoBar(lastLog.id, lastLog.tool_name);
                     }
+                } else {
+                    // status === 'processing' → surface the latest tool the
+                    // model is running so the spinner shows real progress
+                    // instead of a blank wait.
+                    data.messages.forEach(function(msg) {
+                        if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length) {
+                            var tc = msg.tool_calls[msg.tool_calls.length - 1];
+                            if (tc && tc.name) {
+                                activeToolLabel = friendlyTool(tc.name);
+                                setLoadingText(activeToolLabel);
+                            }
+                        }
+                    });
                 }
-                // status === 'processing' → keep polling; loading spinner stays.
             })
             .catch(function() {
                 // Silently continue polling on network errors
@@ -237,8 +279,18 @@
         return escaped;
     }
 
+    function setLoadingText(text) {
+        var bubble = document.querySelector('#ai-chat-loading-msg .ai-chat-bubble');
+        if (bubble) {
+            bubble.innerHTML = '<span class="ai-chat-spinner"></span> ' +
+                text.replace(/</g, '&lt;') + '…';
+        }
+    }
+
     function showLoading() {
         isLoading = true;
+        activeToolLabel = null;
+        whimsyIdx = 0;
         var container = document.getElementById('ai-chat-messages');
 
         var wrapper = document.createElement('div');
@@ -247,15 +299,29 @@
 
         var bubble = document.createElement('div');
         bubble.className = 'ai-chat-bubble';
-        bubble.innerHTML = '<span class="ai-chat-spinner"></span> Thinking...';
-
         wrapper.appendChild(bubble);
         container.appendChild(wrapper);
+
+        setLoadingText(WHIMSY[0]);
+        // Once a tool has run, show its live activity; otherwise cycle the
+        // whimsical words so the user can see it's still working.
+        if (spinnerTimer) clearInterval(spinnerTimer);
+        spinnerTimer = setInterval(function() {
+            if (activeToolLabel) {
+                setLoadingText(activeToolLabel);
+            } else {
+                whimsyIdx = (whimsyIdx + 1) % WHIMSY.length;
+                setLoadingText(WHIMSY[whimsyIdx]);
+            }
+        }, 2200);
+
         scrollToBottom();
     }
 
     function hideLoading() {
         isLoading = false;
+        activeToolLabel = null;
+        if (spinnerTimer) { clearInterval(spinnerTimer); spinnerTimer = null; }
         var loading = document.getElementById('ai-chat-loading-msg');
         if (loading) loading.parentNode.removeChild(loading);
     }

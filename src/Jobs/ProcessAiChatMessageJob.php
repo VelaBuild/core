@@ -283,7 +283,11 @@ class ProcessAiChatMessageJob implements ShouldQueue
                     : 'provider_error',
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // \Throwable, not \Exception: an Error (TypeError, etc.) escaping
+            // here would propagate into the dispatchAfterResponse terminate
+            // phase and fatal with "headers already sent", leaving the UI
+            // spinning with no final message. Always land a final reply.
             Log::error('ProcessAiChatMessageJob failed', [
                 'conversation_id' => $this->conversationId,
                 'error' => $e->getMessage(),
@@ -297,7 +301,7 @@ class ProcessAiChatMessageJob implements ShouldQueue
                     'role' => 'assistant',
                     'content' => 'Sorry, I encountered an error processing your request. Please try again.',
                 ]);
-            } catch (\Exception $saveError) {
+            } catch (\Throwable $saveError) {
                 Log::error('Failed to save error message to conversation', [
                     'conversation_id' => $this->conversationId,
                     'error' => $saveError->getMessage(),

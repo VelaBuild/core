@@ -65,7 +65,11 @@ class ChatToolExecutor
             }
 
             return $result;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            // Catch \Throwable, not just \Exception: a tool that hits a
+            // TypeError/Error (e.g. a bad DB expression) must come back as a
+            // tool result the model can react to — never escape and crash the
+            // whole turn (which leaves the UI spinning forever).
             if ($actionLog) {
                 $actionLog->update(['status' => 'failed', 'result' => ['error' => $e->getMessage()]]);
             }

@@ -38,8 +38,16 @@ class DatabaseQueryTool extends BaseTool
             }
         }
 
+        // Only append our row cap when the query doesn't already set a LIMIT
+        // (a second LIMIT is a SQL error).
+        $sql = preg_match('/\bLIMIT\b/i', $query)
+            ? $query
+            : $query . ' LIMIT ' . self::MAX_ROWS;
+
         try {
-            $results = DB::select(DB::raw($query . ' LIMIT ' . self::MAX_ROWS));
+            // DB::select() takes a raw SQL string — DB::raw() returns an
+            // Expression object, which newer Laravel rejects with a TypeError.
+            $results = DB::select($sql);
             $rows = array_map(fn($row) => (array) $row, $results);
 
             return [
@@ -47,7 +55,7 @@ class DatabaseQueryTool extends BaseTool
                 'count' => count($rows),
                 'truncated' => count($rows) >= self::MAX_ROWS,
             ];
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return ['error' => 'Query failed: ' . $e->getMessage()];
         }
     }
