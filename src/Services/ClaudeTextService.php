@@ -84,12 +84,33 @@ class ClaudeTextService implements AiTextProvider
         }
 
         try {
+            // Anthropic requires the system prompt as a top-level `system`
+            // param — passing it as a role:system entry inside `messages`
+            // 400s with "messages.0: use the top-level 'system' parameter".
+            // Callers share one messages array across providers (OpenAI/Gemini
+            // accept system inline), so lift any system entries out here.
+            $system = null;
+            $messages = array_values(array_filter($messages, function ($m) use (&$system) {
+                if (($m['role'] ?? null) !== 'system') {
+                    return true;
+                }
+                $content = $m['content'] ?? '';
+                $text = is_array($content)
+                    ? implode("\n", array_filter(array_map(fn ($b) => $b['text'] ?? null, $content)))
+                    : (string) $content;
+                $system = $system === null ? $text : $system . "\n" . $text;
+                return false;
+            }));
+
             $messages = $this->normalizeVisionMessages($messages);
             $body = [
                 'model' => $this->model,
                 'max_tokens' => $maxTokens,
                 'messages' => $messages,
             ];
+            if ($system !== null && $system !== '') {
+                $body['system'] = $system;
+            }
 
             if (!empty($tools)) {
                 $body['tools'] = $tools;
