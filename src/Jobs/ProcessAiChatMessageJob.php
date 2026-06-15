@@ -134,6 +134,11 @@ class ProcessAiChatMessageJob implements ShouldQueue
             // chopped off mid-sentence and trigger the "empty response" path.
             $maxTokens = (int) config('vela.ai.chat.max_output_tokens', 16384);
             $callChat = function () use ($textProvider, &$messages, $formattedTools, $maxTokens) {
+                // Keep the request within the model context window. Tool results
+                // (fetched pages, file dumps, screenshots) accumulate across the
+                // tool loop and can blow past the limit mid-run — trim before
+                // every call, not just once.
+                $messages = $this->trimToTokenBudget($messages);
                 // Retry up to 2x on Gemini's MALFORMED_FUNCTION_CALL — those
                 // are non-deterministic and usually self-resolve on retry.
                 // Other null responses propagate immediately.
@@ -304,6 +309,47 @@ class ProcessAiChatMessageJob implements ShouldQueue
      * a tool message is valid iff a recent assistant turn declared a matching
      * tool_call id that hasn't been resolved yet.
      */
+    /**
+     * Keep the system prompt + the most recent messages that fit within the
+     * model input budget, dropping the oldest turns. Chat history — especially
+     * large tool results (fetched pages, file contents, screenshots) — can
+     * exceed the model's context window, which 400s the whole request and
+     * makes every reply collapse to the same "provider error" fallback.
+     * Any tool turn split by the trim is repaired downstream
+     * (dropOrphanToolMessages here + the pairing pass in ClaudeTextService).
+     */
+    private function trimToTokenBudget(array $messages): array
+    {
+        if (empty($messages)) {
+            return $messages;
+        }
+
+        $budget = (int) config('vela.ai.chat.max_input_tokens', 150000);
+        $estimate = function ($m) {
+            $content = $m['content'] ?? '';
+            $text = is_string($content) ? $content : json_encode($content);
+            if (!empty($m['tool_calls'])) {
+                $text .= json_encode($m['tool_calls']);
+            }
+            // ~4 chars per token, plus a little per-message overhead.
+            return (int) ceil(mb_strlen((string) $text) / 4) + 8;
+        };
+
+        // Always preserve the leading system prompt; trim the oldest of the rest.
+        $system = [];
+        $rest = $messages;
+        if (($messages[0]['role'] ?? null) === 'system') {
+            $system = [array_shift($rest)];
+        }
+
+        $total = array_sum(array_map($estimate, $system)) + array_sum(array_map($estimate, $rest));
+        while ($total > $budget && count($rest) > 1) {
+            $total -= $estimate(array_shift($rest));
+        }
+
+        return array_merge($system, $rest);
+    }
+
     private function dropOrphanToolMessages(array $messages): array
     {
         $pendingIds = [];

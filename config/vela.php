@@ -127,6 +127,13 @@ return [
             // Output token cap per AI call. 4096 (provider default) cuts off
             // long-form writes mid-sentence and triggers MAX_TOKENS bail outs.
             'max_output_tokens' => env('AI_CHAT_MAX_OUTPUT_TOKENS', 16384),
+            // Context-window management. Conversation history (esp. large tool
+            // results) is trimmed to max_input_tokens before each call; the
+            // provider also clamps output so input + output never exceeds
+            // context_limit (the model window). Prevents the whole request from
+            // 400ing on length, which otherwise replays the same error reply.
+            'max_input_tokens' => env('AI_CHAT_MAX_INPUT_TOKENS', 150000),
+            'context_limit' => env('AI_CHAT_CONTEXT_LIMIT', 200000),
             // Inject the provider's native web-search tool (Gemini google_search,
             // Claude web_search_20250305) so the model can ground responses in
             // fresh web results without a custom backend. Falls back to the

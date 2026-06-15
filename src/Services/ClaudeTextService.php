@@ -164,6 +164,17 @@ class ClaudeTextService implements AiTextProvider
                 }));
             }
 
+            // Final guard: Anthropic 400s the entire request when
+            // input + max_tokens exceeds the context window. Estimate the
+            // input from the serialized body and shrink max_tokens to fit so a
+            // large conversation degrades (shorter answer) instead of failing.
+            $contextLimit = (int) config('vela.ai.chat.context_limit', 200000);
+            $estInput = (int) ceil(mb_strlen(json_encode($body['messages']) . ($body['system'] ?? '')) / 4);
+            $fit = $contextLimit - $estInput - 1024;
+            if ($fit < $body['max_tokens']) {
+                $body['max_tokens'] = max(1024, $fit);
+            }
+
             $response = Http::timeout(120)
                 ->withHeaders([
                     'x-api-key' => $this->apiKey,
