@@ -12,7 +12,7 @@ class CategoryObserver
     public function created(Category $category): void
     {
         if (config('vela.static.enabled', true)) {
-            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatch('categories_index');
+            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatchFresh('categories_index');
         }
     }
 
@@ -22,8 +22,8 @@ class CategoryObserver
     public function updated(Category $category): void
     {
         if (config('vela.static.enabled', true)) {
-            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatch('category', $category->id);
-            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatch('categories_index');
+            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatchFresh('category', $category->id);
+            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatchFresh('categories_index');
         }
     }
 
@@ -35,7 +35,7 @@ class CategoryObserver
         if (config('vela.static.enabled', true)) {
             $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
             $generator->removeAll('categories', \Illuminate\Support\Str::slug($category->name));
-            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatch('categories_index');
+            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatchFresh('categories_index');
         }
     }
 

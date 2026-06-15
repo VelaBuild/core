@@ -17,7 +17,9 @@ class StaticContentLifecycleTest extends TestCase
     {
         parent::setUp();
         $this->tempPath = sys_get_temp_dir() . '/vela-static-test-' . uniqid();
-        config(['vela.static.path' => $this->tempPath, 'vela.static.enabled' => true]);
+        // Use the queue path so Queue::assertPushed can observe the regen
+        // dispatch (default is dispatchAfterResponse, which bypasses the queue).
+        config(['vela.static.path' => $this->tempPath, 'vela.static.enabled' => true, 'vela.static.regen_queue' => true]);
         $this->generator = app(StaticSiteGenerator::class);
         Queue::fake();
     }

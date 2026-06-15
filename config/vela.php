@@ -149,6 +149,14 @@ return [
     'static' => [
         'enabled' => env('VELA_CACHE', env('VELA_STATIC_ENABLED', true)),
         'path' => resource_path('static'),
+
+        // How automatic regeneration runs after an edit (page/post/category
+        // save, AI CSS change). Default (false): run after the HTTP response
+        // is flushed, in the same PHP process — so the front-end reflects
+        // edits out of the box, with no separate queue worker to manage.
+        // Set true (VELA_STATIC_REGEN_QUEUE=true) only when you run a real
+        // queue worker / Horizon and want the heavy regen off web processes.
+        'regen_queue' => env('VELA_STATIC_REGEN_QUEUE', false),
     ],
 
     /*

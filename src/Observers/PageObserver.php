@@ -60,13 +60,13 @@ class PageObserver
 
         if ($page->status === 'published') {
             // Regenerate ALL pages because navigation is baked in
-            GenerateStaticFilesJob::dispatch('all');
+            GenerateStaticFilesJob::dispatchFresh('all');
         } elseif ($oldStatus === 'published' && $page->status !== 'published') {
             // Was published, now unpublished: remove HTML, keep config
             $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
             $generator->removeHtml('pages', $page->slug);
             // Still regenerate all because nav changed
-            GenerateStaticFilesJob::dispatch('all');
+            GenerateStaticFilesJob::dispatchFresh('all');
         } else {
             // Draft page: still write config JSON
             $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
@@ -105,7 +105,7 @@ class PageObserver
 
         $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
         $generator->removeAll('pages', $page->slug);
-        GenerateStaticFilesJob::dispatch('all');
+        GenerateStaticFilesJob::dispatchFresh('all');
 
         $current = (int) (VelaConfig::where('key', 'sw_version')->value('value') ?? 0);
         VelaConfig::updateOrCreate(['key' => 'sw_version'], ['value' => (string) ($current + 1)]);

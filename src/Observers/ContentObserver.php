@@ -27,17 +27,17 @@ class ContentObserver
         }
 
         if ($content->status === 'published') {
-            GenerateStaticFilesJob::dispatch('content', $content->id);
-            GenerateStaticFilesJob::dispatch('home');
-            GenerateStaticFilesJob::dispatch('posts_index');
+            GenerateStaticFilesJob::dispatchFresh('content', $content->id);
+            GenerateStaticFilesJob::dispatchFresh('home');
+            GenerateStaticFilesJob::dispatchFresh('posts_index');
             foreach ($content->categories as $category) {
-                GenerateStaticFilesJob::dispatch('category', $category->id);
+                GenerateStaticFilesJob::dispatchFresh('category', $category->id);
             }
         } elseif ($oldStatus === 'published' && $content->status !== 'published') {
             $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
             $generator->removeHtml('posts', $content->slug);
-            GenerateStaticFilesJob::dispatch('home');
-            GenerateStaticFilesJob::dispatch('posts_index');
+            GenerateStaticFilesJob::dispatchFresh('home');
+            GenerateStaticFilesJob::dispatchFresh('posts_index');
         } else {
             $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
             $generator->writeContentConfigJson($content);
@@ -71,8 +71,8 @@ class ContentObserver
 
         $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
         $generator->removeAll('posts', $content->slug);
-        GenerateStaticFilesJob::dispatch('home');
-        GenerateStaticFilesJob::dispatch('posts_index');
+        GenerateStaticFilesJob::dispatchFresh('home');
+        GenerateStaticFilesJob::dispatchFresh('posts_index');
 
         // Bump service worker cache version so returning visitors get fresh content
         $current = (int) (VelaConfig::where('key', 'sw_version')->value('value') ?? 0);

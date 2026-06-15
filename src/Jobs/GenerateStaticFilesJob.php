@@ -26,6 +26,25 @@ class GenerateStaticFilesJob implements ShouldQueue
         $this->modelId = $modelId;
     }
 
+    /**
+     * Dispatch a regeneration that actually runs without requiring a
+     * separately-managed queue worker.
+     *
+     * By default this fires AFTER the HTTP response is flushed, in the same
+     * PHP process (dispatchAfterResponse) — so an admin edit refreshes the
+     * static cache out of the box, even when QUEUE_CONNECTION has no worker
+     * draining it. Sites that run a real worker/Horizon can set
+     * static.regen_queue=true to push to the configured queue instead.
+     */
+    public static function dispatchFresh(string $type, ?int $modelId = null): void
+    {
+        if (config('vela.static.regen_queue', false)) {
+            static::dispatch($type, $modelId);
+        } else {
+            static::dispatchAfterResponse($type, $modelId);
+        }
+    }
+
     public function handle(): void
     {
         $generator = app(StaticSiteGenerator::class);
