@@ -11,11 +11,15 @@ class ClaudeTextService implements AiTextProvider
 {
     private ?string $apiKey;
     private string $baseUrl = 'https://api.anthropic.com/v1/messages';
-    private string $model = 'claude-sonnet-4-20250514';
+    private string $model;
 
     public function __construct()
     {
         $this->apiKey = app(AiSettingsService::class)->getApiKey('anthropic');
+        // Config-driven so a model retirement is an env change, not a code edit.
+        // (claude-sonnet-4-20250514 / Sonnet 4.0 was retired and now 404s; the
+        // drop-in replacement is claude-sonnet-4-6.) Use exact ids — no date suffix.
+        $this->model = (string) config('vela.ai.chat.anthropic_model', 'claude-sonnet-4-6');
     }
 
     public function generateText(string $prompt, int $maxTokens = 1000, float $temperature = 0.7): ?string

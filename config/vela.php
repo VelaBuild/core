@@ -138,6 +138,9 @@ return [
             // page, a file dump, a base64 screenshot — can blow the context
             // window on its own; the model keeps the head + a truncation note.
             'max_tool_result_chars' => env('AI_CHAT_MAX_TOOL_RESULT_CHARS', 24000),
+            // Anthropic chat model id. Override via env when Anthropic retires a
+            // model (use the exact id, no date suffix — e.g. claude-sonnet-4-6).
+            'anthropic_model' => env('AI_CHAT_ANTHROPIC_MODEL', 'claude-sonnet-4-6'),
             // Anthropic prompt caching: caches the system prompt + tool schemas
             // + conversation prefix (re-sent on every tool-loop call) so repeat
             // reads bill at ~10% instead of full price. Biggest cost lever.
