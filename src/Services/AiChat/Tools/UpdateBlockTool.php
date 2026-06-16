@@ -29,6 +29,11 @@ class UpdateBlockTool extends BaseTool
                 $updates[$f] = $parameters[$f];
             }
         }
+        // Text blocks are EditorJS-backed — normalize new content to the
+        // canonical {blocks:[...]} shape so it doesn't render/edit as empty.
+        if (array_key_exists('content', $updates) && $block->type === 'text') {
+            $updates['content'] = MarkdownToEditorJs::textBlockContent($updates['content']);
+        }
         if (array_key_exists('order', $parameters)) {
             $updates['order_column'] = $parameters['order'];
         }

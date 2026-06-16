@@ -29,10 +29,17 @@ class AddBlockTool extends BaseTool
             ];
         }
 
+        // The text block is EditorJS-backed: store the canonical {blocks:[...]}
+        // shape so it renders in the page builder, the editor, and the live site.
+        $content = $parameters['content'] ?? null;
+        if ($type === 'text') {
+            $content = MarkdownToEditorJs::textBlockContent($content);
+        }
+
         $block = PageBlock::create([
             'page_row_id'  => $row->id,
             'type'         => $type,
-            'content'      => $parameters['content'] ?? null,
+            'content'      => $content,
             'settings'     => $parameters['settings'] ?? null,
             'column_index' => $parameters['column_index'] ?? 0,
             'column_width' => $parameters['column_width'] ?? 12,

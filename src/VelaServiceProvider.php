@@ -274,6 +274,7 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\GenerateMissingCategoryImages::class,
                 \VelaBuild\Core\Commands\SetupGraphics::class,
                 \VelaBuild\Core\Commands\ResetContent::class,
+                \VelaBuild\Core\Commands\FixTextBlocks::class,
                 \VelaBuild\Core\Commands\VelaPublish::class,
                 \VelaBuild\Core\Commands\GenerateStatic::class,
                 \VelaBuild\Core\Commands\ImportContent::class,
@@ -485,7 +486,7 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-font',
             'view' => 'vela::public.pages.blocks.text',
             'editor' => null,
-            'defaults' => ['content' => ['text' => ''], 'settings' => []],
+            'defaults' => ['content' => ['blocks' => []], 'settings' => []],
         ]);
 
         $vela->registerBlock('image', [

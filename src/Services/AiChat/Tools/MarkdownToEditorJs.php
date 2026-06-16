@@ -18,6 +18,38 @@ namespace VelaBuild\Core\Services\AiChat\Tools;
  */
 class MarkdownToEditorJs
 {
+    /**
+     * Normalize whatever the AI passed for a page-builder TEXT block into the
+     * canonical EditorJS document the editor (page-editor.js), the renderer, and
+     * the admin preview all read: `['blocks' => [...]]`.
+     *
+     * The text block is EditorJS-backed, but the AI commonly passes a plain
+     * string, `{text: "markdown"}`, `{body: ...}`, or `{html: ...}`. Anything
+     * without a proper `blocks` array renders/edits as empty, so convert it.
+     */
+    public static function textBlockContent($content): array
+    {
+        // Already a valid EditorJS document — keep as-is.
+        if (is_array($content) && isset($content['blocks']) && is_array($content['blocks'])) {
+            return $content;
+        }
+
+        $text = '';
+        if (is_string($content)) {
+            $text = $content;
+        } elseif (is_array($content)) {
+            foreach (['text', 'body', 'markdown', 'html', 'content'] as $key) {
+                if (!empty($content[$key]) && is_string($content[$key])) {
+                    $text = $content[$key];
+                    break;
+                }
+            }
+        }
+
+        $decoded = json_decode(self::convert($text), true);
+        return is_array($decoded) ? $decoded : ['blocks' => []];
+    }
+
     public static function convert(string $contentText): string
     {
         $lines = explode("\n", $contentText);

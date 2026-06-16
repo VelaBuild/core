@@ -464,7 +464,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'add_block',
-            'description' => 'Add ONE block to a row (call add_row first if you need a new section). Pass row_id, type (from list_block_types — hero / cta / text / image / gallery / contact_form / testimonials / icon_box / ...), and `content` + optional `settings` shaped for that type (list_block_types shows each type\'s default_content shape). Optional column_index / column_width (1-12, for multi-column rows) and order. A "text" block accepts content {"text": "your markdown/heading"}. Returns the new block_id. Undoable.',
+            'description' => 'Add ONE block to a row (call add_row first if you need a new section). Pass row_id, type (from list_block_types — hero / cta / text / image / gallery / contact_form / testimonials / icon_box / ...), and `content` + optional `settings` shaped for that type (list_block_types shows each type\'s default_content shape). Optional column_index / column_width (1-12, for multi-column rows) and order. For a "text" block, the simplest content is {"text": "your markdown — headings, paragraphs, lists"} — it is converted to the rich-text format automatically; do NOT send an empty {"text": ""}. Returns the new block_id. Undoable.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
