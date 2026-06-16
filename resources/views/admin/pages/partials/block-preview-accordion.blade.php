@@ -4,8 +4,8 @@
 @if(count($items) > 0)
     @foreach($items as $item)
         <div class="preview-accordion-item">
-            <div class="preview-accordion-header">{{ $item['title'] ?? '' }}</div>
-            <div class="preview-accordion-body">{!! nl2br(e($item['body'] ?? '')) !!}</div>
+            <div class="preview-accordion-header">{{ $item['title'] ?? $item['question'] ?? $item['heading'] ?? $item['label'] ?? '' }}</div>
+            <div class="preview-accordion-body">{!! nl2br(e($item['body'] ?? $item['answer'] ?? $item['content'] ?? $item['text'] ?? '')) !!}</div>
         </div>
     @endforeach
 @else
