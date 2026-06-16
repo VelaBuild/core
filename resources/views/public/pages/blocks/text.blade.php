@@ -1,8 +1,15 @@
 @php
-    $content = $block->content;
+    $content = $block->content ?? [];
     $blocks = $content['blocks'] ?? [];
 @endphp
 <div class="block-text">
+@if(empty($blocks) && !empty($content['html']))
+    {!! $content['html'] !!}
+@elseif(empty($blocks) && !empty($content['text']))
+    {{-- Plain/markdown text (e.g. written via add_block/update_block). The block's
+         registered default is ['text' => ''], so tolerate it here too. --}}
+    {!! \Illuminate\Support\Str::markdown((string) $content['text']) !!}
+@else
 @foreach($blocks as $editorBlock)
 @if($editorBlock['type'] === 'paragraph')
     <p>{!! $editorBlock['data']['text'] ?? '' !!}</p>
@@ -51,4 +58,5 @@
             </figure>
 @endif
 @endforeach
+@endif
 </div>

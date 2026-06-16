@@ -18,12 +18,12 @@ class CreatePageTool extends BaseTool
         }
 
         // Refuse to create a duplicate. AI should call list_pages first,
-        // then edit_page_content / set_page_blocks on the existing record
+        // then edit_page_content / add_block on the existing record
         // instead of stacking copies.
         $existing = Page::whereRaw('LOWER(title) = ?', [strtolower(trim($title))])->first();
         if ($existing) {
             return [
-                'error'         => "A page titled '{$existing->title}' already exists (id={$existing->id}, slug={$existing->slug}). Use edit_page_content or set_page_blocks to update it.",
+                'error'         => "A page titled '{$existing->title}' already exists (id={$existing->id}, slug={$existing->slug}). Use edit_page_content or add_block to update it.",
                 'existing_id'   => $existing->id,
                 'existing_slug' => $existing->slug,
             ];
@@ -39,7 +39,7 @@ class CreatePageTool extends BaseTool
         }
 
         // Create the page SHELL only. Building the layout is the AI's job:
-        // it follows up with set_page_blocks (hero / cta / text / ...), which
+        // it follows up with add_row + add_block (hero / cta / text / ...), which
         // is how the page builder is meant to be used. Auto-stuffing a single
         // text block produced flat, hard-to-edit pages.
         $page = Page::create([
@@ -63,7 +63,7 @@ class CreatePageTool extends BaseTool
                 'slug'  => $page->slug,
                 'url'   => url('/' . $page->slug),
             ],
-            'next_step' => 'Page created empty. Use set_page_blocks to build its layout (rows + blocks), or edit_page_content for a simple markdown body.',
+            'next_step' => 'Page created empty. Use add_row + add_block to build its layout, or edit_page_content for a simple markdown body.',
         ];
     }
 

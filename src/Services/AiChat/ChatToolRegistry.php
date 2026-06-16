@@ -64,7 +64,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'create_page',
-            'description' => 'Create a new PAGE (type=page) as an empty shell — title, slug, status only. It does NOT add any content. After creating, design the layout by calling set_page_blocks with the rows/blocks you choose (hero / cta / text / image / gallery / ...). For a quick plain-text body instead, call edit_page_content with markdown. Refuses if the title already exists (call list_pages, then update_page / set_page_blocks).',
+            'description' => 'Create a new PAGE (type=page) as an empty shell — title, slug, status only. It does NOT add any content. After creating, design the layout by calling add_row + add_block (hero / cta / text / image / gallery / ...). For a quick plain-text body instead, call edit_page_content with markdown. Refuses if the title already exists (call list_pages, then update_page / add_block).',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -79,7 +79,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'edit_page_content',
-            'description' => 'Replace a page\'s body with a SINGLE text block rendered from markdown. Use this only for simple text pages; for real layouts use set_page_blocks instead. Existing rows/blocks are replaced.',
+            'description' => 'Replace a page\'s body with a SINGLE text block rendered from markdown. Use this only for simple text pages; for real layouts use add_row / add_block instead. Existing rows/blocks are replaced.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -138,7 +138,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'edit_article_content',
-            'description' => 'Replace the content of an existing article (type=post). Use this for ANY article rewrite — comparison articles, reviews, guides, etc. Content is plain MARKDOWN; the server converts it to EditorJS blocks (paragraphs, headings, lists, pipe tables, code, links). Articles are NOT page-builder pages — never call set_page_blocks for an article.',
+            'description' => 'Replace the content of an existing article (type=post). Use this for ANY article rewrite — comparison articles, reviews, guides, etc. Content is plain MARKDOWN; the server converts it to EditorJS blocks (paragraphs, headings, lists, pipe tables, code, links). Articles are NOT page-builder pages — never use the page-builder block tools for an article.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -377,14 +377,14 @@ class ChatToolRegistry
         ],
         [
             'name' => 'list_block_types',
-            'description' => 'List registered PAGE BUILDER block types (hero, cta, posts_grid, image, text, html, etc.) used by set_page_blocks for type=page records. NOT relevant to articles — articles take markdown via edit_article_content; their internal blocks (paragraph, header, list, table) are derived automatically from that markdown and aren\'t configured here.',
+            'description' => 'List registered PAGE BUILDER block types (hero, cta, posts_grid, image, text, html, etc.) used by add_block / update_block for type=page records. NOT relevant to articles — articles take markdown via edit_article_content; their internal blocks (paragraph, header, list, table) are derived automatically from that markdown and aren\'t configured here.',
             'parameters' => ['type' => 'object', 'properties' => []],
             'write' => false,
             'gate' => null,
         ],
         [
             'name' => 'get_page_blocks',
-            'description' => 'Read the full row/block structure of a page (all rows, ordered, each with its ordered blocks: type, content, settings, column layout). Use this to understand the existing layout BEFORE editing with set_page_blocks. Pass page_id or page_slug.',
+            'description' => 'Read the full row/block structure of a page (all rows, ordered, each with its ordered blocks: type, content, settings, column layout). Returns each row id and block id — pass those to add_block / update_block / delete_block / delete_row. Read this BEFORE editing. Pass page_id or page_slug.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -396,22 +396,119 @@ class ChatToolRegistry
             'write' => false,
             'gate' => null,
         ],
+        // ── Granular page-builder editing. Edit ONE row or block at a time so a
+        //    small change never rewrites (and risks losing) the whole page.
+        //    Always call get_page_blocks first to get the row_id / block_id you
+        //    want to act on, and list_block_types for a block's content shape.
+        //    A row's `name` is an internal label and does NOT render — to show a
+        //    heading to visitors, add a 'text' block with the heading text.
+        //    Articles (type=post) are NOT page-builder pages — use
+        //    edit_article_content with markdown for those.
         [
-            'name' => 'set_page_blocks',
-            'description' => 'REPLACE the row+block structure of a PAGE (type=page). For BLOG ARTICLES use edit_article_content with markdown instead — articles do not have page-builder rows. Pass page_id or page_slug, plus `rows[]`. Each row has optional name/css_class/background_color/background_image/text_color/text_alignment/padding/width ("contained"|"full") and a `blocks[]` array. Each block needs `type` (from list_block_types), optional column_index/column_width (1-12), and `content` + `settings` shaped per block type. Existing rows/blocks are deleted; the action is undoable. Always call list_block_types first.',
+            'name' => 'add_row',
+            'description' => 'Add a new (empty) section/row to a PAGE, then fill it with add_block. Rows stack vertically. Pass page_id or page_slug. Optional row styling: name (internal label only), css_class, background_color, background_image, text_color, text_alignment, padding, width ("contained"|"full"), order (defaults to last). Returns the new row_id. Undoable.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
-                    'page_id'   => ['type' => 'integer'],
-                    'page_slug' => ['type' => 'string'],
-                    'locale'    => ['type' => 'string'],
-                    'rows'      => [
-                        'type' => 'array',
-                        'description' => 'Ordered rows. Each item: { name?, css_class?, background_color?, background_image?, text_color?, text_alignment?, padding?, width?, order?, blocks: [{type, column_index?, column_width?, order?, content?, settings?}] }',
-                        'items' => ['type' => 'object'],
-                    ],
+                    'page_id'          => ['type' => 'integer'],
+                    'page_slug'        => ['type' => 'string'],
+                    'locale'           => ['type' => 'string'],
+                    'name'             => ['type' => 'string', 'description' => 'Internal admin label; NOT shown on the page.'],
+                    'css_class'        => ['type' => 'string'],
+                    'background_color' => ['type' => 'string'],
+                    'background_image' => ['type' => 'string'],
+                    'text_color'       => ['type' => 'string'],
+                    'text_alignment'   => ['type' => 'string'],
+                    'padding'          => ['type' => 'string'],
+                    'width'            => ['type' => 'string', 'enum' => ['contained', 'full']],
+                    'order'            => ['type' => 'integer', 'description' => 'Position among rows (lower = higher up).'],
                 ],
-                'required' => ['rows'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'update_row',
+            'description' => 'Update ONE row\'s settings (styling/position) without touching its blocks. Pass row_id (from get_page_blocks) plus any of: name, css_class, background_color, background_image, text_color, text_alignment, padding, width, order. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'row_id'           => ['type' => 'integer'],
+                    'name'             => ['type' => 'string', 'description' => 'Internal admin label; NOT shown on the page.'],
+                    'css_class'        => ['type' => 'string'],
+                    'background_color' => ['type' => 'string'],
+                    'background_image' => ['type' => 'string'],
+                    'text_color'       => ['type' => 'string'],
+                    'text_alignment'   => ['type' => 'string'],
+                    'padding'          => ['type' => 'string'],
+                    'width'            => ['type' => 'string', 'enum' => ['contained', 'full']],
+                    'order'            => ['type' => 'integer'],
+                ],
+                'required' => ['row_id'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'delete_row',
+            'description' => 'Delete ONE row and all the blocks inside it. Pass row_id (from get_page_blocks). Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'row_id' => ['type' => 'integer'],
+                ],
+                'required' => ['row_id'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'add_block',
+            'description' => 'Add ONE block to a row (call add_row first if you need a new section). Pass row_id, type (from list_block_types — hero / cta / text / image / gallery / contact_form / testimonials / icon_box / ...), and `content` + optional `settings` shaped for that type (list_block_types shows each type\'s default_content shape). Optional column_index / column_width (1-12, for multi-column rows) and order. A "text" block accepts content {"text": "your markdown/heading"}. Returns the new block_id. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'row_id'       => ['type' => 'integer'],
+                    'type'         => ['type' => 'string', 'description' => 'Block type from list_block_types.'],
+                    'content'      => ['type' => 'object', 'description' => 'Content shaped for the block type (see list_block_types).'],
+                    'settings'     => ['type' => 'object'],
+                    'column_index' => ['type' => 'integer'],
+                    'column_width' => ['type' => 'integer', 'description' => '1-12 (Bootstrap-style columns).'],
+                    'order'        => ['type' => 'integer', 'description' => 'Position within the row.'],
+                ],
+                'required' => ['row_id', 'type'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'update_block',
+            'description' => 'Update ONE existing block, or MOVE it. Pass block_id (from get_page_blocks) plus any of: content (replaces the block content), settings, column_index, column_width, order. To MOVE the block into a different row, pass row_id (the target row). Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'block_id'     => ['type' => 'integer'],
+                    'content'      => ['type' => 'object'],
+                    'settings'     => ['type' => 'object'],
+                    'column_index' => ['type' => 'integer'],
+                    'column_width' => ['type' => 'integer'],
+                    'order'        => ['type' => 'integer'],
+                    'row_id'       => ['type' => 'integer', 'description' => 'Move the block into this row.'],
+                ],
+                'required' => ['block_id'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'delete_block',
+            'description' => 'Delete ONE block. Pass block_id (from get_page_blocks). Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'block_id' => ['type' => 'integer'],
+                ],
+                'required' => ['block_id'],
             ],
             'write' => true,
             'gate' => 'page_edit',

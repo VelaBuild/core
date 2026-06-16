@@ -52,6 +52,10 @@ class GetPageBlocksTool extends BaseTool
                 'status' => $page->status,
             ],
             'rows'    => $rows,
+            'note'    => "A row's `name` is an INTERNAL admin label only — it is NOT rendered on the page. "
+                . "To show a visible heading/title to visitors, the row must contain an actual content block "
+                . "(a 'text' block whose content includes the heading, or a hero/cta block with a title field). "
+                . "If a section has a name but no block carrying that text, visitors see no title.",
         ];
     }
 

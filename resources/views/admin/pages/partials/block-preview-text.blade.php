@@ -1,8 +1,12 @@
 @php
-    $content = $block->content;
+    $content = $block->content ?? [];
     $blocks = $content['blocks'] ?? [];
 @endphp
-@if(count($blocks) > 0)
+@if(empty($blocks) && !empty($content['html']))
+    {!! $content['html'] !!}
+@elseif(empty($blocks) && !empty($content['text']))
+    {!! \Illuminate\Support\Str::markdown((string) $content['text']) !!}
+@elseif(count($blocks) > 0)
     @foreach($blocks as $editorBlock)
         @if($editorBlock['type'] === 'paragraph')
             <p>{!! $editorBlock['data']['text'] ?? '' !!}</p>
