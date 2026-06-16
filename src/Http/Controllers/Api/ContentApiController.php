@@ -111,12 +111,20 @@ class ContentApiController extends Controller
     {
         $this->checkEnabled();
 
-        $categories = Category::select('id', 'name', 'slug', 'description')
+        // vela_categories has no slug/description columns — the slug is derived
+        // from the name (same as the public category routes).
+        $categories = Category::select('id', 'name')
             ->withCount(['contents' => function ($q) {
                 $q->where('status', 'published');
             }])
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(fn ($c) => [
+                'id'             => $c->id,
+                'name'           => $c->name,
+                'slug'           => \Illuminate\Support\Str::slug($c->name),
+                'contents_count' => $c->contents_count,
+            ]);
 
         return response()->json(['data' => $categories]);
     }

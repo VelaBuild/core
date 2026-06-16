@@ -79,7 +79,7 @@ class MenusController extends Controller
             'config' => $config,
             'pages'  => Page::orderBy('title')->get(['id', 'title', 'slug']),
             'posts'  => Content::orderBy('title')->limit(500)->get(['id', 'title', 'slug']),
-            'categories' => Category::orderBy('name')->get(['id', 'name', 'slug']),
+            'categories' => Category::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
