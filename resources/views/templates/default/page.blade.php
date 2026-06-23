@@ -7,7 +7,7 @@
 @endif
 
 @section('content')
-<div class="page-content{{ $page->slug === 'home' ? ' page-content--home' : '' }}">
+<div class="page-content page-slug-{{ $page->slug }} page-id-{{ $page->id }}{{ $page->slug === 'home' ? ' page-content--home' : '' }}">
     @include('vela::templates._partials.page-rows', ['page' => $page])
 </div>
 

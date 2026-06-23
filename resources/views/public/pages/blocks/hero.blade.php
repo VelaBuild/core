@@ -23,10 +23,10 @@
 @if($primaryText || $secondaryText)
         <div class="block-hero-actions" style="justify-content:{{ $alignment }};">
 @if($primaryText)
-            <a href="{{ $primaryUrl }}" class="block-hero-btn block-hero-btn-primary">{{ $primaryText }}</a>
+            <a href="{{ $primaryUrl }}" class="block-hero-btn block-hero-btn-primary"{!! vela_external_link_attrs($primaryUrl) !!}>{{ $primaryText }}</a>
 @endif
 @if($secondaryText)
-            <a href="{{ $secondaryUrl }}" class="block-hero-btn block-hero-btn-secondary">{{ $secondaryText }}</a>
+            <a href="{{ $secondaryUrl }}" class="block-hero-btn block-hero-btn-secondary"{!! vela_external_link_attrs($secondaryUrl) !!}>{{ $secondaryText }}</a>
 @endif
         </div>
 @endif

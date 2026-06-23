@@ -496,7 +496,7 @@ class ProcessAiChatMessageJob implements ShouldQueue
             . "STYLING RULES - IMPORTANT:\n"
             . "- For ALL visual/CSS changes (backgrounds, colors, fonts, spacing, etc), use the update_custom_css tool. It stores CSS in the database — works on any hosting.\n"
             . "- Use scope 'site' for sitewide changes (e.g. body background, global fonts).\n"
-            . "- Use scope 'page' with page_id/page_slug for page-specific styles.\n"
+            . "- Use scope 'page' with page_id/page_slug for page-specific styles. That CSS is injected ONLY on that page, so plain selectors are already page-scoped — do NOT invent a '.page-slug-<slug>' selector. To target the page wrapper use '.page-content' (every template has it), or '.page-slug-<slug>' / '.page-id-<id>' which the wrapper now carries.\n"
             . "- Always call get_custom_css first to check existing CSS before updating, so you can merge rather than overwrite.\n"
             . "- Do NOT use edit_template_file for styling — it requires filesystem write access which many hosts don't allow.\n"
             . "- The update_template_colors tool is for CSS custom properties only (--primary-color etc).\n\n"

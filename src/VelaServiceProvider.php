@@ -14,6 +14,7 @@ class VelaServiceProvider extends ServiceProvider
         // `composer dump-autoload` after a core upgrade don't 500 on calls
         // to functions declared in these files. Each file is `function_exists`-guarded internally.
         require_once __DIR__.'/Helpers/cache_tag.php';
+        require_once __DIR__.'/Helpers/links.php';
 
         // Deep-merge: host app's config/vela.php wins on conflict, package fills
         // in everything else. Laravel's default mergeConfigFrom is shallow,

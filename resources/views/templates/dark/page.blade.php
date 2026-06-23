@@ -8,7 +8,7 @@
 
 @section('content')
 @if($page->slug === 'home')
-<div class="page-content page-content--home">
+<div class="page-content page-content--home page-slug-{{ $page->slug }} page-id-{{ $page->id }}">
     @include('vela::templates._partials.page-rows', ['page' => $page])
 </div>
 @else

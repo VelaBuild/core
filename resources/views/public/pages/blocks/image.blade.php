@@ -11,7 +11,7 @@
 @endphp
 <div class="block-image" style="max-width: {{ $maxWidth }};">
 @if($link)
-    <a href="{{ $link }}" target="_blank" rel="noopener">
+    <a href="{{ $link }}"{!! vela_external_link_attrs($link) !!}>
 @endif
     <figure>
         {!! $url ? vela_image($url, $alt, $imgSizes, $mode, ['class' => 'block-image-img']) : '' !!}

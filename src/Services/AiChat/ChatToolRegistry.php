@@ -33,7 +33,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'update_custom_css',
-            'description' => 'Add or replace custom CSS. Use scope "site" for sitewide styles (background, fonts, colors, etc) or scope "page" for a specific page. The CSS is stored in the database and injected into the page head. This is the preferred way to change visual styling.',
+            'description' => 'Add or replace custom CSS. Use scope "site" for sitewide styles (background, fonts, colors, etc) or scope "page" for a specific page. The CSS is stored in the database and injected into the page head. scope "page" CSS is injected ONLY on that page, so plain selectors already only affect that page — do NOT invent a `.page-slug-…` wrapper class (it may not exist). If you want to scope to the page wrapper, use `.page-content` (present in every template) or `.page-slug-{slug}` / `.page-id-{id}` which the page wrapper now carries. This is the preferred way to change visual styling.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [

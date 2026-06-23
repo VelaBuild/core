@@ -25,10 +25,10 @@
 @if($primaryText !== '' || $secondaryText !== '')
         <div class="block-cta-actions" style="justify-content:{{ $alignment }};">
 @if($primaryText !== '')
-            <a href="{{ $primaryUrl }}" class="block-cta-btn block-cta-btn-primary">{{ $primaryText }}</a>
+            <a href="{{ $primaryUrl }}" class="block-cta-btn block-cta-btn-primary"{!! vela_external_link_attrs($primaryUrl) !!}>{{ $primaryText }}</a>
 @endif
 @if($secondaryText !== '')
-            <a href="{{ $secondaryUrl }}" class="block-cta-btn block-cta-btn-secondary">{{ $secondaryText }}</a>
+            <a href="{{ $secondaryUrl }}" class="block-cta-btn block-cta-btn-secondary"{!! vela_external_link_attrs($secondaryUrl) !!}>{{ $secondaryText }}</a>
 @endif
         </div>
 @endif
