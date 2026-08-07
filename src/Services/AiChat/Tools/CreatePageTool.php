@@ -32,6 +32,21 @@ class CreatePageTool extends BaseTool
         // Honour an explicit slug when given (so the AI controls the URL),
         // otherwise derive one from the title. De-dupe either way.
         $slug = Str::slug(!empty($parameters['slug']) ? $parameters['slug'] : $title);
+
+        // Str::slug drops every non-ASCII character, so a title written in Thai,
+        // Chinese, Arabic, … slugifies to an empty string. Creating the page
+        // anyway yields a record with no URL that can never be opened, so ask
+        // for a latin slug instead — matching update_page's behaviour.
+        if ($slug === '') {
+            $source = !empty($parameters['slug']) ? $parameters['slug'] : $title;
+            return [
+                'error' => "Cannot derive a URL from '{$source}' — it contains no latin letters or digits, "
+                    . 'and page URLs must match a-z, 0-9 and hyphens. Call create_page again with an explicit '
+                    . "latin `slug` (e.g. slug='contact-us' for a page titled 'Contact Us'); keep `title` in the "
+                    . "user's own language.",
+            ];
+        }
+
         $original = $slug;
         $i = 1;
         while (Page::where('slug', $slug)->exists()) {

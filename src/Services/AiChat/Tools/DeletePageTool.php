@@ -63,9 +63,14 @@ class DeletePageTool extends BaseTool
             throw new \RuntimeException('No previous state to restore.');
         }
 
-        // Recreate the page preserving its original id so references hold.
-        $page = new Page();
+        // Restore the page preserving its original id so references hold.
+        // Page uses SoftDeletes, so the delete only stamped deleted_at and the
+        // row is still there — inserting a fresh record would collide on the
+        // primary key. Rows and blocks are hard-deleted, so those do get
+        // re-inserted below.
+        $page = Page::withTrashed()->find($state['attributes']['id'] ?? null) ?: new Page();
         $page->forceFill($state['attributes']);
+        $page->deleted_at = null;
         $page->save();
 
         foreach ($state['rows'] ?? [] as $rowData) {

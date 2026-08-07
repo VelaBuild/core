@@ -30,11 +30,23 @@ class UpdateSiteConfigTool extends BaseTool
 
         VelaConfig::updateOrCreate(['key' => $key], ['value' => $value]);
 
-        return [
+        $result = [
             'success' => true,
             'key' => $key,
             'value' => $value,
         ];
+
+        // Writing a key nothing has ever stored usually means the key was
+        // invented: it is saved, but no code reads it, so the site does not
+        // change. Say so rather than let it be reported to the user as done.
+        if ($current === null) {
+            $result['warning'] = "'{$key}' did not exist before this write, so nothing in the site may read it. "
+                . 'Verify the change actually took effect before telling the user it is done — if the setting has a '
+                . 'dedicated mechanism (menus live in the vela_menus table, not in config, for example), use that instead.';
+            $result['existing_keys'] = VelaConfig::orderBy('key')->pluck('key')->all();
+        }
+
+        return $result;
     }
 
     public function undo(AiActionLog $actionLog): void
