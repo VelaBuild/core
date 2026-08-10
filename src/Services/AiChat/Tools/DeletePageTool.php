@@ -69,21 +69,29 @@ class DeletePageTool extends BaseTool
         // primary key. Rows and blocks are hard-deleted, so those do get
         // re-inserted below.
         $page = Page::withTrashed()->find($state['attributes']['id'] ?? null) ?: new Page();
-        $page->forceFill($state['attributes']);
-        $page->deleted_at = null;
-        $page->save();
+        $this->restoreAttributes($page, array_merge($state['attributes'], ['deleted_at' => null]));
 
         foreach ($state['rows'] ?? [] as $rowData) {
-            $row = new PageRow();
-            $row->forceFill($rowData['attributes']);
-            $row->save();
+            $this->restoreAttributes(new PageRow(), $rowData['attributes']);
 
             foreach ($rowData['blocks'] ?? [] as $blockAttrs) {
-                $block = new PageBlock();
-                $block->forceFill($blockAttrs);
-                $block->save();
+                $this->restoreAttributes(new PageBlock(), $blockAttrs);
             }
         }
+    }
+
+    /**
+     * Write a snapshot back exactly as it came out of the database.
+     *
+     * The snapshot holds raw column values (getAttributes()), so `content` and
+     * `settings` are already JSON strings. Assigning them through fill() would
+     * run the array casts again and store JSON inside JSON — the block then
+     * reads back as a string and its view renders nothing.
+     */
+    private function restoreAttributes($model, array $attributes): void
+    {
+        $model->setRawAttributes($attributes);
+        $model->save();
     }
 
     private function resolvePage(array $parameters): ?Page

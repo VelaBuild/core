@@ -605,7 +605,10 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::public.pages.blocks.cta',
             'editor' => null,
             'defaults' => [
-                'content' => ['heading' => '', 'description' => '', 'primary_button_text' => '', 'primary_button_url' => '', 'secondary_button_text' => '', 'secondary_button_url' => ''],
+                // `note` is read by the cta view (small print under the buttons)
+                // and must be declared here — the defaults are what add_block /
+                // update_block validate incoming content against.
+                'content' => ['heading' => '', 'description' => '', 'note' => '', 'primary_button_text' => '', 'primary_button_url' => '', 'secondary_button_text' => '', 'secondary_button_url' => ''],
                 'settings' => ['text_alignment' => 'center'],
             ],
         ]);
