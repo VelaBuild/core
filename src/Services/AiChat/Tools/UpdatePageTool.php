@@ -19,10 +19,12 @@ class UpdatePageTool extends BaseTool
         if ($actionLog) {
             $actionLog->update([
                 'previous_state' => [
-                    'page_id' => $page->id,
-                    'title'   => $page->title,
-                    'slug'    => $page->slug,
-                    'status'  => $page->status,
+                    'page_id'          => $page->id,
+                    'title'            => $page->title,
+                    'slug'             => $page->slug,
+                    'status'           => $page->status,
+                    'meta_title'       => $page->meta_title,
+                    'meta_description' => $page->meta_description,
                 ],
             ]);
         }
@@ -56,8 +58,23 @@ class UpdatePageTool extends BaseTool
             $changed[] = 'status';
         }
 
+        // Search-engine metadata. Without these the AI has no way to act on
+        // "fix my SEO" — the only common request it could otherwise answer
+        // with nothing but advice.
+        foreach (['meta_title' => 60, 'meta_description' => 160] as $field => $limit) {
+            if (!array_key_exists($field, $parameters) || $parameters[$field] === null) {
+                continue;
+            }
+            $value = trim((string) $parameters[$field]);
+            if (mb_strlen($value) > $limit) {
+                return ['error' => "{$field} is " . mb_strlen($value) . " characters; search engines truncate it past {$limit}. Shorten it and resend."];
+            }
+            $updates[$field] = $value !== '' ? $value : null;
+            $changed[] = $field;
+        }
+
         if (empty($changed)) {
-            return ['error' => 'No fields to update. Pass at least one of: title, slug, status.'];
+            return ['error' => 'No fields to update. Pass at least one of: title, slug, status, meta_title, meta_description.'];
         }
 
         $page->update($updates);
@@ -84,9 +101,13 @@ class UpdatePageTool extends BaseTool
         }
 
         $page->update([
-            'title'  => $state['title'],
-            'slug'   => $state['slug'],
-            'status' => $state['status'],
+            'title'            => $state['title'],
+            'slug'             => $state['slug'],
+            'status'           => $state['status'],
+            // Older logs predate these keys — leave the current value alone
+            // rather than blanking the metadata on undo.
+            'meta_title'       => $state['meta_title'] ?? $page->meta_title,
+            'meta_description' => $state['meta_description'] ?? $page->meta_description,
         ]);
     }
 

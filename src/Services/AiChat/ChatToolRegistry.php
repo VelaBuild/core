@@ -93,7 +93,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'update_page',
-            'description' => 'Update a page\'s metadata: title, slug (rename its URL), and/or status (draft/published/unlisted). Use this to RENAME a page instead of creating a duplicate. Pass page_id or page_slug plus the fields to change. Undoable.',
+            'description' => 'Update a page\'s metadata: title, slug (rename its URL), status (draft/published/unlisted), and the search-engine fields meta_title / meta_description. Use this to RENAME a page instead of creating a duplicate, and to act on SEO requests — writing meta_title/meta_description is the concrete fix for "my page does not show up on Google", so do it rather than only advising. Pass page_id or page_slug plus the fields to change. Undoable.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -102,6 +102,8 @@ class ChatToolRegistry
                     'title'     => ['type' => 'string'],
                     'slug'      => ['type' => 'string', 'description' => 'New slug; slugified server-side, collisions rejected.'],
                     'status'    => ['type' => 'string', 'enum' => ['draft', 'published', 'unlisted']],
+                    'meta_title'       => ['type' => 'string', 'description' => 'Search-result title, max 60 characters. Empty string clears it.'],
+                    'meta_description' => ['type' => 'string', 'description' => 'Search-result snippet, max 160 characters. Empty string clears it.'],
                 ],
             ],
             'write' => true,
