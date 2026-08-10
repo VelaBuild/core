@@ -34,6 +34,16 @@ class AddBlockTool extends BaseTool
         $content = $parameters['content'] ?? null;
         if ($type === 'text') {
             $content = MarkdownToEditorJs::textBlockContent($content);
+        } elseif ($error = $this->validateBlockContent($type, $content)) {
+            return $error;
+        }
+
+        if ($error = $this->validateBlockSettings($type, $parameters['settings'] ?? null)) {
+            return $error;
+        }
+
+        if ($type !== 'code' && $type !== 'html') {
+            $content = $this->normalizeBlockUrls($content);
         }
 
         $block = PageBlock::create([
@@ -44,6 +54,13 @@ class AddBlockTool extends BaseTool
             'column_index' => $parameters['column_index'] ?? 0,
             'column_width' => $parameters['column_width'] ?? 12,
             'order_column' => $parameters['order'] ?? ((int) $row->blocks()->max('order_column') + 1),
+            // Presentation columns — a hero/section background image lives here,
+            // not in `settings`.
+            'background_image' => $parameters['background_image'] ?? null,
+            'background_color' => $parameters['background_color'] ?? null,
+            'text_color'       => $parameters['text_color'] ?? null,
+            'text_alignment'   => $parameters['text_alignment'] ?? null,
+            'padding'          => $parameters['padding'] ?? null,
         ]);
         Page::find($row->page_id)?->touch();
 

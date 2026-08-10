@@ -21,6 +21,30 @@ class DeletePageTool extends BaseTool
             return ['error' => 'Refusing to delete the home page.'];
         }
 
+        // Deleting is the one action a user cannot inspect afterwards to see
+        // what they lost, so it is gated here rather than left to prompt
+        // wording alone. The refusal doubles as the text to put in front of
+        // the user: it says exactly what would go.
+        if (empty($parameters['confirm'])) {
+            $rowCount = $page->rows()->count();
+            $blockCount = PageBlock::whereIn('page_row_id', $page->rows()->pluck('id'))->count();
+
+            return [
+                'error' => "Not deleted yet — deleting needs the user's confirmation. This would remove the page "
+                    . "'{$page->title}' (/{$page->slug}) together with {$rowCount} section(s) and {$blockCount} block(s) of content. "
+                    . 'Tell the user exactly that, in their own language, and wait for their answer in a later message. '
+                    . 'Only once they have agreed, call delete_page again with confirm: true. Do not agree on their behalf.',
+                'needs_confirmation' => true,
+                'page' => [
+                    'id'     => $page->id,
+                    'title'  => $page->title,
+                    'slug'   => $page->slug,
+                    'rows'   => $rowCount,
+                    'blocks' => $blockCount,
+                ],
+            ];
+        }
+
         // Snapshot the full page (attributes + rows + blocks) so the delete
         // is undoable.
         if ($actionLog) {
@@ -63,22 +87,35 @@ class DeletePageTool extends BaseTool
             throw new \RuntimeException('No previous state to restore.');
         }
 
-        // Recreate the page preserving its original id so references hold.
-        $page = new Page();
-        $page->forceFill($state['attributes']);
-        $page->save();
+        // Restore the page preserving its original id so references hold.
+        // Page uses SoftDeletes, so the delete only stamped deleted_at and the
+        // row is still there — inserting a fresh record would collide on the
+        // primary key. Rows and blocks are hard-deleted, so those do get
+        // re-inserted below.
+        $page = Page::withTrashed()->find($state['attributes']['id'] ?? null) ?: new Page();
+        $this->restoreAttributes($page, array_merge($state['attributes'], ['deleted_at' => null]));
 
         foreach ($state['rows'] ?? [] as $rowData) {
-            $row = new PageRow();
-            $row->forceFill($rowData['attributes']);
-            $row->save();
+            $this->restoreAttributes(new PageRow(), $rowData['attributes']);
 
             foreach ($rowData['blocks'] ?? [] as $blockAttrs) {
-                $block = new PageBlock();
-                $block->forceFill($blockAttrs);
-                $block->save();
+                $this->restoreAttributes(new PageBlock(), $blockAttrs);
             }
         }
+    }
+
+    /**
+     * Write a snapshot back exactly as it came out of the database.
+     *
+     * The snapshot holds raw column values (getAttributes()), so `content` and
+     * `settings` are already JSON strings. Assigning them through fill() would
+     * run the array casts again and store JSON inside JSON — the block then
+     * reads back as a string and its view renders nothing.
+     */
+    private function restoreAttributes($model, array $attributes): void
+    {
+        $model->setRawAttributes($attributes);
+        $model->save();
     }
 
     private function resolvePage(array $parameters): ?Page

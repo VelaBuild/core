@@ -1,3 +1,16 @@
+{{-- Must be declared BEFORE @section: Blade executes a section's body where it
+     is defined, so a helper declared after @endsection does not exist yet. --}}
+@php
+if (!function_exists('renderDarkMarkdown')) {
+    function renderDarkMarkdown($text) {
+        $text = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $text);
+        $text = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $text);
+        $text = preg_replace('/`(.*?)`/', '<code>$1</code>', $text);
+        return $text;
+    }
+}
+@endphp
+
 @extends(vela_template_layout())
 
 @section('title', $metaTags['title'])
@@ -195,14 +208,3 @@
 </section>
 @endif
 @endsection
-
-@php
-if (!function_exists('renderDarkMarkdown')) {
-    function renderDarkMarkdown($text) {
-        $text = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $text);
-        $text = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $text);
-        $text = preg_replace('/`(.*?)`/', '<code>$1</code>', $text);
-        return $text;
-    }
-}
-@endphp

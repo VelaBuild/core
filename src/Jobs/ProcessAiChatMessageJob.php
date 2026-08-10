@@ -50,6 +50,15 @@ class ProcessAiChatMessageJob implements ShouldQueue
 
     public function handle(): void
     {
+        // dispatchAfterResponse runs this in the WEB process, where PHP's
+        // max_execution_time (30s on a default install) applies and the
+        // $timeout above — a queue-worker setting — does not. A single
+        // generate_image call takes ~40s, so without raising the limit the
+        // process dies with a fatal mid tool loop, losing the turn.
+        if (function_exists('set_time_limit')) {
+            @set_time_limit((int) config('vela.ai.chat.max_execution_seconds', 600));
+        }
+
         try {
             $conversation = AiConversation::findOrFail($this->conversationId);
             $user = VelaUser::findOrFail($this->userId);
@@ -75,8 +84,12 @@ class ProcessAiChatMessageJob implements ShouldQueue
             if ($this->triggerMessageId !== null) {
                 $pastQuery->where('id', '<', $this->triggerMessageId);
             }
+            // reorder() (not orderBy) — the messages() relation already applies
+            // "created_at asc, id asc", and appending "id desc" would be a no-op
+            // third sort clause, so the ->reverse() below would flip the whole
+            // transcript into newest-first order. reorder() clears those first.
             $dbMessages = $pastQuery
-                ->orderBy('id', 'desc')
+                ->reorder('id', 'desc')
                 ->take($maxMessages)
                 ->get()
                 ->reverse()
@@ -423,6 +436,7 @@ class ProcessAiChatMessageJob implements ShouldQueue
 
     private function dropOrphanToolMessages(array $messages): array
     {
+        // Pass 1 — drop tool results whose assistant tool_call never appeared.
         $pendingIds = [];
         $cleaned = [];
         foreach ($messages as $msg) {
@@ -451,7 +465,49 @@ class ProcessAiChatMessageJob implements ShouldQueue
             $pendingIds = [];
             $cleaned[] = $msg;
         }
-        return $cleaned;
+
+        // Pass 2 — the mirror case: tool_calls that never got a result. A job
+        // that dies mid tool loop (crash, timeout, deploy) leaves the assistant
+        // turn dangling in the DB, and the provider then rejects every later
+        // request in that conversation until the dangling call is removed.
+        $final = [];
+        $count = count($cleaned);
+        foreach ($cleaned as $i => $msg) {
+            if (($msg['role'] ?? '') === 'assistant' && !empty($msg['tool_calls'])) {
+                $answered = [];
+                for ($j = $i + 1; $j < $count && ($cleaned[$j]['role'] ?? '') === 'tool'; $j++) {
+                    if (!empty($cleaned[$j]['tool_call_id'])) {
+                        $answered[$cleaned[$j]['tool_call_id']] = true;
+                    }
+                }
+
+                $kept = array_values(array_filter(
+                    $msg['tool_calls'],
+                    fn ($tc) => isset($answered[$tc['id'] ?? ''])
+                ));
+
+                if (count($kept) !== count($msg['tool_calls'])) {
+                    Log::warning('Dropping unanswered tool_calls', [
+                        'kept'      => count($kept),
+                        'discarded' => count($msg['tool_calls']) - count($kept),
+                    ]);
+
+                    if ($kept === []) {
+                        // Nothing left to send: skip the message unless it also
+                        // carried text the model should still see.
+                        if (($msg['content'] ?? '') === '' || $msg['content'] === null) {
+                            continue;
+                        }
+                        unset($msg['tool_calls']);
+                    } else {
+                        $msg['tool_calls'] = $kept;
+                    }
+                }
+            }
+            $final[] = $msg;
+        }
+
+        return $final;
     }
 
     private function buildSystemPrompt(SiteContext $siteContext, array $pageContext, VelaUser $user): string
@@ -523,6 +579,27 @@ class ProcessAiChatMessageJob implements ShouldQueue
             . "- To analyze a remote website: fetch_page_resources gets CSS (actual content, not just URLs), JS, images, colors, fonts, and text. browse_url uses a headless browser for full rendering — use action 'extract' for structured data (computed colors, fonts, layout), 'screenshot' to save a visual, 'html' for JS-rendered markup, 'evaluate' to run custom JS.\n"
             . "- To copy from a remote site: fetch_page_resources (get CSS/design) + download_image (save images) + create_page + add_row/add_block (rebuild locally).\n"
             . "- To verify your own site after changes: browse_url with your site's URL to screenshot or extract and confirm the changes look right.\n\n"
+            . "VERIFY BEFORE CLAIMING SUCCESS — STRICT:\n"
+            . "- A tool returning success:true only means the row was written. It does NOT mean the user can see the change. Before you report a visual/content change as done, read the result back: get_page_blocks after add_block/update_block, get_custom_css after update_custom_css, get_page_info after update_page.\n"
+            . "- If a tool result carries a `warning`, treat the change as NOT done. Say what the warning said and fix the underlying cause instead of reporting success.\n"
+            . "- Describe ONLY what you actually did. Never mention an image, button, section, colour, or font you did not create with a tool call in this turn — an invented detail in the summary is worse than a short summary.\n"
+            . "- When the user says something is missing or broken, INSPECT the thing they named before changing anything: get_page_blocks for a page problem, get_custom_css for a styling problem, get_error_log for an error. Never guess the cause and change something else — editing sitewide CSS to fix one page's block is almost always the wrong move.\n"
+            . "- Fix the broken record itself with update_block / update_row / update_page. Do NOT 'fix' it by adding a second block that duplicates the first — that leaves the original defect on the page and clutters it.\n"
+            . "- Before writing CSS for an element, confirm the real class names with get_page_blocks or read_file on the block's Blade view. Selectors you assumed (e.g. '.hero button') usually match nothing.\n"
+            . "- Target block classes, never bare element selectors. Blocks own their colours through class rules such as .block-hero-title, so a plain 'h1 { color: … }' loses the cascade and changes nothing, while also hitting every other heading on the site. Write '.block-hero-title { color: … }'.\n"
+            . "- To recolour ALL the text in one block, set text_color on that block instead of writing CSS. Use CSS only when a single element inside the block needs to differ — and if a previous turn set text_color, clear it rather than layering rules on top of it.\n\n"
+            . "DO WHAT THE USER ASKED — STRICT:\n"
+            . "- An explicit user instruction beats every default. If the user asks for blue, use blue — do not substitute the design system's existing palette and then describe it as blue. The design system is a fallback for choices the user did NOT make.\n"
+            . "- If you cannot honour the request, say which part you couldn't do and why, in one sentence. Never describe the result as if the request was met.\n"
+            . "- When a URL is blocked or a tool fails, try the alternatives before giving up: fetch_page_resources → browse_url → screenshot_url → fetch_url → web_search. One 403 is not a dead end.\n\n"
+            . "ASK BEFORE DESTRUCTIVE, PUBLIC OR SITEWIDE CHANGES:\n"
+            . "- DELETING CONTENT ALWAYS NEEDS CONFIRMATION FIRST, however plainly the user asked. Name what will go ('That removes 4 pages: About, Services, Contact us, Test Page') and wait for their reply before calling delete_page. delete_page will refuse without confirm:true, and you may only set that after the user has answered in a LATER message — never in the same turn they first asked, and never on their behalf.\n"
+            . "- Publishing a page (status draft → published) puts it on the public internet. Ask first unless the user asked for it in this turn.\n"
+            . "- Sitewide CSS, template switches, and site config affect every page. Ask first, and always get_custom_css and merge — never overwrite a user's CSS with a fresh block.\n"
+            . "- A draft page 404s for visitors. If the user can't see a page, explain that it's still a draft and offer to publish it, rather than publishing silently.\n\n"
+            . "MISTAKES ARE RECOVERABLE — NEVER SAY OTHERWISE:\n"
+            . "- Every tool call you make is recorded with an undo button next to your message in the chat. Deletes keep a full snapshot; pages are soft-deleted.\n"
+            . "- If the user regrets a change, tell them to click undo on that message. NEVER tell them a change cannot be reversed or that no backup exists — that is false and it makes users rebuild work they still have.\n\n"
             . "GENERAL RULES:\n"
             . "- Be concise. If a follow-up message is short, treat it as a correction or directive on the previous turn — don't restart with a fresh summary.\n"
             . "- If unsure about a destructive change, explain in ONE sentence and ask for confirmation; don't pre-emptively list every step.\n"

@@ -6,12 +6,13 @@ class ChatToolRegistry
     private array $tools = [
         [
             'name' => 'update_site_config',
-            'description' => 'Update a site configuration value in the database',
+            'description' => 'Update an EXISTING site configuration value in the database. Only keys the site already stores can be written — call get_site_config with no key to see them. If the user asks for a feature and no matching setting exists, this tool will refuse: say plainly that the site has no such setting and offer to build it, instead of writing a guessed key that nothing reads.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
-                    'key' => ['type' => 'string', 'description' => 'The config key to update'],
+                    'key' => ['type' => 'string', 'description' => 'The config key to update. Must already exist unless create_new is set.'],
                     'value' => ['type' => 'string', 'description' => 'The new value'],
+                    'create_new' => ['type' => 'boolean', 'description' => 'Only set this after confirming, by reading the code, that something reads this exact key. It is not a way to bypass the check.'],
                 ],
                 'required' => ['key', 'value'],
             ],
@@ -93,7 +94,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'update_page',
-            'description' => 'Update a page\'s metadata: title, slug (rename its URL), and/or status (draft/published/unlisted). Use this to RENAME a page instead of creating a duplicate. Pass page_id or page_slug plus the fields to change. Undoable.',
+            'description' => 'Update a page\'s metadata: title, slug (rename its URL), status (draft/published/unlisted), and the search-engine fields meta_title / meta_description. Use this to RENAME a page instead of creating a duplicate, and to act on SEO requests — writing meta_title/meta_description is the concrete fix for "my page does not show up on Google", so do it rather than only advising. Pass page_id or page_slug plus the fields to change. Undoable.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -102,6 +103,8 @@ class ChatToolRegistry
                     'title'     => ['type' => 'string'],
                     'slug'      => ['type' => 'string', 'description' => 'New slug; slugified server-side, collisions rejected.'],
                     'status'    => ['type' => 'string', 'enum' => ['draft', 'published', 'unlisted']],
+                    'meta_title'       => ['type' => 'string', 'description' => 'Search-result title, max 60 characters. Empty string clears it.'],
+                    'meta_description' => ['type' => 'string', 'description' => 'Search-result snippet, max 160 characters. Empty string clears it.'],
                 ],
             ],
             'write' => true,
@@ -109,12 +112,13 @@ class ChatToolRegistry
         ],
         [
             'name' => 'delete_page',
-            'description' => 'Delete a page and all its rows/blocks. Use this to remove duplicate or unwanted pages. Pass page_id or page_slug (call list_pages first to confirm which). Refuses the home page. Undoable.',
+            'description' => 'Delete a page and all its rows/blocks. Pass page_id or page_slug (call list_pages first to confirm which). Refuses the home page. Requires confirm:true, which you may only set after the user has agreed in a later message — the first call reports what would be lost so you can put that in front of them. Undoable.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'page_id'   => ['type' => 'integer'],
                     'page_slug' => ['type' => 'string', 'description' => 'Identify the page by slug (alternative to page_id)'],
+                    'confirm'   => ['type' => 'boolean', 'description' => 'Set only after the user has confirmed this specific deletion in the conversation.'],
                 ],
             ],
             'write' => true,
@@ -475,6 +479,11 @@ class ChatToolRegistry
                     'column_index' => ['type' => 'integer'],
                     'column_width' => ['type' => 'integer', 'description' => '1-12 (Bootstrap-style columns).'],
                     'order'        => ['type' => 'integer', 'description' => 'Position within the row.'],
+                    'background_image' => ['type' => 'string', 'description' => 'Background image URL for this block (e.g. a hero photo). This is its own parameter — it is NOT a settings key.'],
+                    'background_color' => ['type' => 'string'],
+                    'text_color'       => ['type' => 'string'],
+                    'text_alignment'   => ['type' => 'string'],
+                    'padding'          => ['type' => 'string'],
                 ],
                 'required' => ['row_id', 'type'],
             ],
@@ -494,6 +503,11 @@ class ChatToolRegistry
                     'column_width' => ['type' => 'integer'],
                     'order'        => ['type' => 'integer'],
                     'row_id'       => ['type' => 'integer', 'description' => 'Move the block into this row.'],
+                    'background_image' => ['type' => 'string', 'description' => 'Background image URL for this block (e.g. a hero photo). This is its own parameter — it is NOT a settings key.'],
+                    'background_color' => ['type' => 'string'],
+                    'text_color'       => ['type' => 'string'],
+                    'text_alignment'   => ['type' => 'string'],
+                    'padding'          => ['type' => 'string'],
                 ],
                 'required' => ['block_id'],
             ],

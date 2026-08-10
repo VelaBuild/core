@@ -14,7 +14,15 @@ class GetCustomCssTool extends BaseTool
 
         if ($scope === 'site') {
             $css = VelaConfig::where('key', 'custom_css_global')->first()?->value;
-            return ['scope' => 'site', 'css' => $css ?? '', 'has_css' => !empty($css)];
+            return [
+                'scope' => 'site',
+                'css' => $css ?? '',
+                'has_css' => !empty($css),
+                'block_variables' => $this->blockVariables(),
+                'how_to_recolour_blocks' => 'Buttons, icons and accents across every block are driven by these custom '
+                    . 'properties, not by per-element rules. Override them in a :root { } rule to restyle the whole site, '
+                    . 'or inside #row-<id> / #block-<id> to restyle one section.',
+            ];
         }
 
         if ($scope === 'page') {
@@ -35,10 +43,44 @@ class GetCustomCssTool extends BaseTool
                 'page_title' => $page->title,
                 'css' => $page->custom_css ?? '',
                 'has_css' => !empty($page->custom_css),
+                'block_variables' => $this->blockVariables(),
+                'how_to_recolour_blocks' => 'Buttons, icons and accents are driven by these custom properties, not by '
+                    . 'per-element rules. Override them inside #row-<id> or #block-<id> (both ids are rendered on the '
+                    . 'page) to restyle one section, or in :root to restyle everything.',
             ];
         }
 
         return ['error' => "Invalid scope '{$scope}'"];
+    }
+
+    /**
+     * The custom properties the block stylesheet actually reads.
+     *
+     * Without this the model reaches for per-element rules — colouring
+     * `.icon-box-icon` when the glyph takes its colour from --block-accent
+     * through a more specific selector — and the change never lands.
+     *
+     * @return array<string, string>
+     */
+    private function blockVariables(): array
+    {
+        $stylesheet = __DIR__ . '/../../../../public/css/page-blocks.css';
+        if (!is_file($stylesheet)) {
+            return [];
+        }
+
+        if (!preg_match('/:root\s*\{([^}]*)\}/', file_get_contents($stylesheet), $root)) {
+            return [];
+        }
+
+        preg_match_all('/(--[a-z0-9-]+)\s*:\s*([^;]+);/i', $root[1], $declarations, PREG_SET_ORDER);
+
+        $variables = [];
+        foreach ($declarations as $declaration) {
+            $variables[$declaration[1]] = trim($declaration[2]);
+        }
+
+        return $variables;
     }
 
     public function undo(AiActionLog $actionLog): void

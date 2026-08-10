@@ -120,6 +120,10 @@ return [
             'rate_limit' => env('AI_CHAT_RATE_LIMIT', 50),
             'max_conversation_messages' => 50,
             'max_undo_depth' => 10,
+            // The chat job runs after the response inside the web process, so
+            // PHP's max_execution_time still applies to it. One image
+            // generation alone takes ~40s, well past the usual 30s default.
+            'max_execution_seconds' => env('AI_CHAT_MAX_EXECUTION_SECONDS', 600),
             'backup_retention' => 5,
             // Hard cap on the tool-call loop per user message. Real tasks
             // (multi-file edits, test/revise cycles) can chain dozens of calls.

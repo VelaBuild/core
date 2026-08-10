@@ -10,7 +10,13 @@ use VelaBuild\Core\Models\PageRow;
 class UpdateBlockTool extends BaseTool
 {
     /** Block columns the AI may set (besides moving via row_id). */
-    private const FIELDS = ['content', 'settings', 'column_index', 'column_width'];
+    private const FIELDS = [
+        'content', 'settings', 'column_index', 'column_width',
+        // Presentation columns the page-rows partial renders. Without these the
+        // AI cannot set a hero/section background image at all, and quietly
+        // stuffing the URL into `settings` renders nothing.
+        'background_image', 'background_color', 'text_color', 'text_alignment', 'padding',
+    ];
 
     public function execute(array $parameters, ?AiActionLog $actionLog = null): array
     {
@@ -33,6 +39,19 @@ class UpdateBlockTool extends BaseTool
         // canonical {blocks:[...]} shape so it doesn't render/edit as empty.
         if (array_key_exists('content', $updates) && $block->type === 'text') {
             $updates['content'] = MarkdownToEditorJs::textBlockContent($updates['content']);
+        } elseif (array_key_exists('content', $updates)
+            && ($error = $this->validateBlockContent($block->type, $updates['content']))) {
+            return $error;
+        }
+        if (array_key_exists('settings', $updates)
+            && ($error = $this->validateBlockSettings($block->type, $updates['settings']))) {
+            return $error;
+        }
+        if (array_key_exists('content', $updates) && $block->type !== 'code' && $block->type !== 'html') {
+            $updates['content'] = $this->normalizeBlockUrls($updates['content']);
+        }
+        if (array_key_exists('background_image', $updates) && is_string($updates['background_image'])) {
+            $updates['background_image'] = str_replace('\\/', '/', $updates['background_image']);
         }
         if (array_key_exists('order', $parameters)) {
             $updates['order_column'] = $parameters['order'];

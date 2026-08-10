@@ -520,6 +520,10 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::public.pages.blocks.accordion',
             'editor' => null,
             'defaults' => ['content' => ['items' => []], 'settings' => []],
+            // Shown by list_block_types so the AI knows what one item holds —
+            // an empty defaults array tells it nothing, so it guesses a shape
+            // the view never reads and the block renders blank.
+            'content_example' => ['items' => [['title' => 'Question?', 'body' => 'Answer text.']]],
         ]);
 
         $vela->registerBlock('contact_form', [
@@ -536,6 +540,7 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::public.pages.blocks.carousel',
             'editor' => null,
             'defaults' => ['content' => ['slides' => []], 'settings' => []],
+            'content_example' => ['slides' => [['image_url' => 'https://example.com/slide.jpg', 'caption' => 'Caption', 'link' => '/target-page']]],
         ]);
 
         $vela->registerBlock('gallery', [
@@ -544,6 +549,7 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::public.pages.blocks.gallery',
             'editor' => null,
             'defaults' => ['content' => ['images' => []], 'settings' => []],
+            'content_example' => ['images' => [['url' => 'https://example.com/photo.jpg', 'alt' => 'Alt text', 'caption' => 'Caption']]],
         ]);
 
         $vela->registerBlock('testimonials', [
@@ -552,6 +558,7 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::public.pages.blocks.testimonials',
             'editor' => null,
             'defaults' => ['content' => ['items' => []], 'settings' => []],
+            'content_example' => ['items' => [['quote' => 'They fixed it same day.', 'name' => 'Jane Doe', 'title' => 'Homeowner', 'photo_url' => 'https://example.com/jane.jpg']]],
         ]);
 
         $vela->registerBlock('icon_box', [
@@ -560,6 +567,9 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::public.pages.blocks.icon_box',
             'editor' => null,
             'defaults' => ['content' => ['items' => []], 'settings' => []],
+            // One icon_box block holds ALL the boxes — do not add one block per
+            // box in separate columns.
+            'content_example' => ['items' => [['icon' => 'fas fa-wrench', 'title' => 'Emergency Repairs', 'description' => 'Same-day callouts.']]],
         ]);
 
         $vela->registerBlock('categories_grid', [
@@ -595,7 +605,10 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::public.pages.blocks.cta',
             'editor' => null,
             'defaults' => [
-                'content' => ['heading' => '', 'description' => '', 'primary_button_text' => '', 'primary_button_url' => '', 'secondary_button_text' => '', 'secondary_button_url' => ''],
+                // `note` is read by the cta view (small print under the buttons)
+                // and must be declared here — the defaults are what add_block /
+                // update_block validate incoming content against.
+                'content' => ['heading' => '', 'description' => '', 'note' => '', 'primary_button_text' => '', 'primary_button_url' => '', 'secondary_button_text' => '', 'secondary_button_url' => ''],
                 'settings' => ['text_alignment' => 'center'],
             ],
         ]);
@@ -631,6 +644,11 @@ class VelaServiceProvider extends ServiceProvider
                 'content' => ['tiers' => []],
                 'settings' => ['columns' => 3],
             ],
+            'content_example' => ['tiers' => [[
+                'name' => 'Standard', 'price' => '1500', 'price_currency' => 'THB', 'period' => 'per visit',
+                'description' => 'Callout and basic repair.', 'features' => ['Same-day callout', '90-day warranty'],
+                'cta_text' => 'Book now', 'cta_url' => '/contact-us', 'featured' => false,
+            ]]],
         ]);
     }
 

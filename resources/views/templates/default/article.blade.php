@@ -1,3 +1,22 @@
+{{-- Must be declared BEFORE @section: Blade executes a section's body where it
+     is defined, so a helper declared after @endsection does not exist yet. --}}
+@php
+if (!function_exists('renderMarkdown')) {
+    function renderMarkdown($text) {
+        // Convert **bold** to <strong>bold</strong>
+        $text = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $text);
+
+        // Convert *italic* to <em>italic</em>
+        $text = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $text);
+
+        // Convert `code` to <code class="bg-gray-100 px-1 py-0.5 rounded text-sm">code</code>
+        $text = preg_replace('/`(.*?)`/', '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>', $text);
+
+        return $text;
+    }
+}
+@endphp
+
 @extends(vela_template_layout())
 
 @section('title', $metaTags['title'])
@@ -315,20 +334,3 @@
 </section>
 @endif
 @endsection
-
-@php
-if (!function_exists('renderMarkdown')) {
-    function renderMarkdown($text) {
-        // Convert **bold** to <strong>bold</strong>
-        $text = preg_replace('/\*\*(.*?)\*\*/', '<strong>$1</strong>', $text);
-
-        // Convert *italic* to <em>italic</em>
-        $text = preg_replace('/\*(.*?)\*/', '<em>$1</em>', $text);
-
-        // Convert `code` to <code>code</code>
-        $text = preg_replace('/`(.*?)`/', '<code class="bg-gray-100 px-1 py-0.5 rounded text-sm">$1</code>', $text);
-
-        return $text;
-    }
-}
-@endphp
