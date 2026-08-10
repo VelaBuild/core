@@ -61,6 +61,41 @@ abstract class BaseTool
     }
 
     /**
+     * Reject markup in text fields.
+     *
+     * Block views escape their text, so a tag written into a title is shown to
+     * visitors verbatim — "<span style='color: yellow'>Welcome</span>" appears
+     * on the page as those characters. Styling belongs in text_color or CSS.
+     * The html and code blocks are exempt: markup is their content.
+     */
+    private function validateNoMarkup(string $type, array $content): ?array
+    {
+        if (in_array($type, ['html', 'code'], true)) {
+            return null;
+        }
+
+        $offender = null;
+        array_walk_recursive($content, function ($value, $key) use (&$offender) {
+            if ($offender === null && is_string($value) && preg_match('/<[a-z][a-z0-9]*(\s[^>]*)?\/?>/i', $value)) {
+                $offender = [$key, $value];
+            }
+        });
+
+        if ($offender === null) {
+            return null;
+        }
+
+        [$key, $value] = $offender;
+
+        return [
+            'error' => "'{$key}' contains HTML, which this block escapes — visitors would see the tags as text on the page. "
+                . 'Send plain wording only. To colour or style it, set text_color on the block or add a rule with '
+                . 'update_custom_css targeting the block class (for example .block-hero-title).',
+            'offending_value' => mb_substr($value, 0, 120),
+        ];
+    }
+
+    /**
      * Check the entries inside a list-style block (icon_box items, gallery
      * images, pricing tiers, …).
      *
@@ -131,9 +166,12 @@ abstract class BaseTool
 
         $unknown = array_values(array_diff(array_keys($content), array_keys($known)));
         if ($unknown === []) {
-            return $section === 'content'
-                ? $this->validateListEntries($type, $content, $definition)
-                : null;
+            if ($section !== 'content') {
+                return null;
+            }
+
+            return $this->validateNoMarkup($type, $content)
+                ?? $this->validateListEntries($type, $content, $definition);
         }
 
         return [

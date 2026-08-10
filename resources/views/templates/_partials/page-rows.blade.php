@@ -14,7 +14,7 @@ $widthClass = ($row->width ?? 'contained') === 'full' ? 'row-full' : 'row-contai
 $columns    = $row->blocks->groupBy('column_index');
 $gridFr     = implode(' ', $columns->map(fn($blocks) => $blocks->first()->column_width . 'fr')->toArray());
 @endphp
-<div class="page-row-public {{ $widthClass }} {{ $row->css_class }}"@if($rowStyle) style="{{ $rowStyle }}"@endif>
+<div id="row-{{ $row->id }}" class="page-row-public {{ $widthClass }} {{ $row->css_class }}"@if($rowStyle) style="{{ $rowStyle }}"@endif>
 <div class="page-row-columns" style="grid-template-columns: {{ $gridFr }};">
 @foreach($columns as $colIndex => $blocks)
 <div class="page-column-public">
@@ -27,7 +27,7 @@ if ($block->text_color)       $blockStyle .= 'color:' . e($block->text_color) . 
 if ($block->text_alignment)   $blockStyle .= 'text-align:' . e($block->text_alignment) . ';';
 if ($block->padding)          $blockStyle .= 'padding:' . e($block->padding) . ';';
 @endphp
-<div class="page-block-public"@if($blockStyle) style="{{ $blockStyle }}"@endif>
+<div id="block-{{ $block->id }}" class="page-block-public"@if($blockStyle) style="{{ $blockStyle }}"@endif>
 @if(view()->exists('vela::public.pages.blocks.' . $block->type))
 @include('vela::public.pages.blocks.' . $block->type, ['block' => $block])
 @elseif(app(\VelaBuild\Core\Vela::class)->blocks()->has($block->type))

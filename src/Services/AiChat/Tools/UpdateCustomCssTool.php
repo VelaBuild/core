@@ -105,13 +105,41 @@ class UpdateCustomCssTool extends BaseTool
      */
     private function unknownBlockClasses(string $css): array
     {
-        $stylesheet = __DIR__ . '/../../../../public/css/page-blocks.css';
-        if (!is_file($stylesheet)) {
-            return [];
+        $known = [];
+
+        // Every class the shipped stylesheets style, plus every class the block
+        // views render — between them, anything a page can actually contain.
+        $sources = array_merge(
+            glob(__DIR__ . '/../../../../public/css/*.css') ?: [],
+            glob(__DIR__ . '/../../../../public/css/*/*.css') ?: [],
+            glob(__DIR__ . '/../../../../resources/views/public/pages/blocks/*.blade.php') ?: [],
+            // Templates carry their own classes in the layout's inline <style>
+            // and markup, not in a stylesheet of their own.
+            glob(__DIR__ . '/../../../../resources/views/templates/*/*.blade.php') ?: [],
+            glob(__DIR__ . '/../../../../resources/views/templates/_partials/*.blade.php') ?: [],
+            glob(base_path('resources/views/templates/*/*.blade.php')) ?: []
+        );
+
+        foreach ($sources as $source) {
+            $body = file_get_contents($source);
+            preg_match_all('/\.([a-zA-Z][a-zA-Z0-9_-]*)/', $body, $fromCss);
+            preg_match_all('/class="([a-z0-9 _-]+)"/i', $body, $fromMarkup);
+
+            foreach ($fromCss[1] as $class) {
+                $known[$class] = true;
+            }
+            foreach ($fromMarkup[1] as $attribute) {
+                foreach (preg_split('/\s+/', trim($attribute)) as $class) {
+                    if ($class !== '') {
+                        $known[$class] = true;
+                    }
+                }
+            }
         }
 
-        preg_match_all('/\.([a-zA-Z][a-zA-Z0-9_-]*)/', file_get_contents($stylesheet), $matches);
-        $known = array_flip($matches[1]);
+        if ($known === []) {
+            return [];
+        }
 
         preg_match_all('/\.([a-zA-Z][a-zA-Z0-9_-]*)/', preg_replace('!/\*.*?\*/!s', '', $css), $used);
         $used = array_unique($used[1]);
@@ -127,10 +155,8 @@ class UpdateCustomCssTool extends BaseTool
             $unknown[$class] = isset($known['block-' . $class]) ? 'block-' . $class : null;
         }
 
-        // Every class was unrecognised, but they may all be theme classes the
-        // block stylesheet never mentions. Only flag it when at least one looks
-        // like a mis-spelled block class.
-        return array_filter($unknown) ? $unknown : [];
+        // Nothing in the rule matches any class this site can render.
+        return $unknown;
     }
 
     /**
