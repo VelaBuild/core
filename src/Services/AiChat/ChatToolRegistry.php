@@ -112,12 +112,13 @@ class ChatToolRegistry
         ],
         [
             'name' => 'delete_page',
-            'description' => 'Delete a page and all its rows/blocks. Use this to remove duplicate or unwanted pages. Pass page_id or page_slug (call list_pages first to confirm which). Refuses the home page. Undoable.',
+            'description' => 'Delete a page and all its rows/blocks. Pass page_id or page_slug (call list_pages first to confirm which). Refuses the home page. Requires confirm:true, which you may only set after the user has agreed in a later message — the first call reports what would be lost so you can put that in front of them. Undoable.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'page_id'   => ['type' => 'integer'],
                     'page_slug' => ['type' => 'string', 'description' => 'Identify the page by slug (alternative to page_id)'],
+                    'confirm'   => ['type' => 'boolean', 'description' => 'Set only after the user has confirmed this specific deletion in the conversation.'],
                 ],
             ],
             'write' => true,

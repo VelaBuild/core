@@ -21,6 +21,30 @@ class DeletePageTool extends BaseTool
             return ['error' => 'Refusing to delete the home page.'];
         }
 
+        // Deleting is the one action a user cannot inspect afterwards to see
+        // what they lost, so it is gated here rather than left to prompt
+        // wording alone. The refusal doubles as the text to put in front of
+        // the user: it says exactly what would go.
+        if (empty($parameters['confirm'])) {
+            $rowCount = $page->rows()->count();
+            $blockCount = PageBlock::whereIn('page_row_id', $page->rows()->pluck('id'))->count();
+
+            return [
+                'error' => "Not deleted yet — deleting needs the user's confirmation. This would remove the page "
+                    . "'{$page->title}' (/{$page->slug}) together with {$rowCount} section(s) and {$blockCount} block(s) of content. "
+                    . 'Tell the user exactly that, in their own language, and wait for their answer in a later message. '
+                    . 'Only once they have agreed, call delete_page again with confirm: true. Do not agree on their behalf.',
+                'needs_confirmation' => true,
+                'page' => [
+                    'id'     => $page->id,
+                    'title'  => $page->title,
+                    'slug'   => $page->slug,
+                    'rows'   => $rowCount,
+                    'blocks' => $blockCount,
+                ],
+            ];
+        }
+
         // Snapshot the full page (attributes + rows + blocks) so the delete
         // is undoable.
         if ($actionLog) {

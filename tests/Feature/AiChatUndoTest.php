@@ -50,7 +50,7 @@ class AiChatUndoTest extends PackageTestCase
         $log  = $this->actionLog('delete_page');
         $tool = new DeletePageTool();
 
-        $this->assertTrue($tool->execute(['page_id' => $page->id], $log)['success']);
+        $this->assertTrue($tool->execute(['page_id' => $page->id, 'confirm' => true], $log)['success']);
         $this->assertNull(Page::find($page->id));
 
         // Page uses SoftDeletes, so the row is still present — undo must restore
@@ -62,6 +62,26 @@ class AiChatUndoTest extends PackageTestCase
         $this->assertSame('undo-about', $restored->slug);
         $this->assertSame(1, $restored->rows()->count());
         $this->assertSame('Call us', $restored->rows()->first()->blocks()->first()->content['heading']);
+    }
+
+    public function test_a_page_is_not_deleted_until_the_deletion_is_confirmed(): void
+    {
+        // "delete all the pages on my website" once went straight through. The
+        // refusal is also the text to show the user, so it names what is lost.
+        $page = Page::create(['title' => 'Keep me', 'slug' => 'keep-me', 'status' => 'published', 'locale' => 'en']);
+        $row = PageRow::create(['page_id' => $page->id, 'order_column' => 0]);
+        PageBlock::create(['page_row_id' => $row->id, 'type' => 'cta', 'content' => ['heading' => 'Hi']]);
+
+        $tool = new DeletePageTool();
+
+        $refused = $tool->execute(['page_id' => $page->id]);
+        $this->assertTrue($refused['needs_confirmation']);
+        $this->assertSame(1, $refused['page']['rows']);
+        $this->assertSame(1, $refused['page']['blocks']);
+        $this->assertNotNull(Page::find($page->id), 'the page was deleted without confirmation');
+
+        $this->assertTrue($tool->execute(['page_id' => $page->id, 'confirm' => true])['success']);
+        $this->assertNull(Page::find($page->id));
     }
 
     public function test_undoing_a_page_update_restores_search_metadata(): void
