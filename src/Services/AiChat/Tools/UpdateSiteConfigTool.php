@@ -18,6 +18,21 @@ class UpdateSiteConfigTool extends BaseTool
 
         $current = VelaConfig::where('key', $key)->first();
 
+        // A key nothing has ever stored is almost always invented: the user
+        // asked for a feature, the model guessed a plausible name, and the row
+        // it writes is read by nothing. Refuse by default so the answer becomes
+        // "this site has no such setting" instead of a write plus a caveat the
+        // user is asked to go and verify.
+        if ($current === null && empty($parameters['create_new'])) {
+            return [
+                'error' => "There is no site setting called '{$key}' — writing it would store a value nothing reads, "
+                    . 'so the site would not change. Check whether the feature exists (search_files / list_routes / '
+                    . 'get_site_config with no key) and tell the user plainly if it does not. Only if you have '
+                    . 'confirmed that some code reads this exact key, resend with create_new: true.',
+                'existing_keys' => VelaConfig::orderBy('key')->pluck('key')->all(),
+            ];
+        }
+
         if ($actionLog) {
             $actionLog->update([
                 'previous_state' => [
@@ -36,14 +51,11 @@ class UpdateSiteConfigTool extends BaseTool
             'value' => $value,
         ];
 
-        // Writing a key nothing has ever stored usually means the key was
-        // invented: it is saved, but no code reads it, so the site does not
-        // change. Say so rather than let it be reported to the user as done.
+        // Reached only with create_new, i.e. the caller says it checked. Keep
+        // the caveat so it still cannot be summarised as a visible change.
         if ($current === null) {
-            $result['warning'] = "'{$key}' did not exist before this write, so nothing in the site may read it. "
-                . 'Verify the change actually took effect before telling the user it is done — if the setting has a '
-                . 'dedicated mechanism (menus live in the vela_menus table, not in config, for example), use that instead.';
-            $result['existing_keys'] = VelaConfig::orderBy('key')->pluck('key')->all();
+            $result['warning'] = "'{$key}' did not exist before this write. Confirm the change is actually visible "
+                . 'before telling the user it is done.';
         }
 
         return $result;

@@ -87,20 +87,32 @@ class AiChatUndoTest extends PackageTestCase
         $this->assertSame('Original description', $page->fresh()->meta_description);
     }
 
-    public function test_writing_a_config_key_that_never_existed_is_reported_as_a_warning(): void
+    public function test_a_config_key_that_never_existed_is_refused_rather_than_written(): void
     {
-        // The chatbot invents plausible-looking keys ("menu_structure"). The
-        // write succeeds but nothing reads it, so it must not be summarised to
-        // the user as a change that took effect.
+        // Asked to "turn on the newsletter popup", the chatbot invents a
+        // plausible key. Storing it changes nothing on the site, leaves a row
+        // no code reads, and shifts the job of checking onto the user.
         $result = (new UpdateSiteConfigTool())->execute([
-            'key'   => 'totally_invented_key',
-            'value' => '{}',
+            'key'   => 'newsletter_popup_enabled',
+            'value' => 'true',
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame(0, VelaConfig::where('key', 'newsletter_popup_enabled')->count());
+    }
+
+    public function test_a_new_key_can_still_be_created_deliberately(): void
+    {
+        $result = (new UpdateSiteConfigTool())->execute([
+            'key'        => 'deliberate_new_key',
+            'value'      => 'on',
+            'create_new' => true,
         ]);
 
         $this->assertTrue($result['success']);
-        $this->assertArrayHasKey('warning', $result);
+        $this->assertSame('on', VelaConfig::where('key', 'deliberate_new_key')->value('value'));
 
-        VelaConfig::where('key', 'totally_invented_key')->delete();
+        VelaConfig::where('key', 'deliberate_new_key')->delete();
     }
 
     public function test_updating_an_existing_config_key_carries_no_warning(): void

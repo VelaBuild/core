@@ -6,12 +6,13 @@ class ChatToolRegistry
     private array $tools = [
         [
             'name' => 'update_site_config',
-            'description' => 'Update a site configuration value in the database',
+            'description' => 'Update an EXISTING site configuration value in the database. Only keys the site already stores can be written — call get_site_config with no key to see them. If the user asks for a feature and no matching setting exists, this tool will refuse: say plainly that the site has no such setting and offer to build it, instead of writing a guessed key that nothing reads.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
-                    'key' => ['type' => 'string', 'description' => 'The config key to update'],
+                    'key' => ['type' => 'string', 'description' => 'The config key to update. Must already exist unless create_new is set.'],
                     'value' => ['type' => 'string', 'description' => 'The new value'],
+                    'create_new' => ['type' => 'boolean', 'description' => 'Only set this after confirming, by reading the code, that something reads this exact key. It is not a way to bypass the check.'],
                 ],
                 'required' => ['key', 'value'],
             ],
