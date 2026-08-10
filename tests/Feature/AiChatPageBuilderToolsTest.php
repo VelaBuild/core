@@ -20,16 +20,23 @@ use VelaBuild\Core\Vela;
  */
 class AiChatPageBuilderToolsTest extends PackageTestCase
 {
+    private ?PageRow $row = null;
+
+    /** One row per test — several cases add blocks to it in turn. */
     private function makeRow(): PageRow
     {
-        $page = Page::create([
-            'title'  => 'Block Guard Fixture',
-            'slug'   => 'block-guard-fixture',
-            'status' => 'draft',
-            'locale' => 'en',
-        ]);
+        if ($this->row === null) {
+            $page = Page::create([
+                'title'  => 'Block Guard Fixture',
+                'slug'   => 'block-guard-fixture',
+                'status' => 'draft',
+                'locale' => 'en',
+            ]);
 
-        return PageRow::create(['page_id' => $page->id, 'order_column' => 0]);
+            $this->row = PageRow::create(['page_id' => $page->id, 'order_column' => 0]);
+        }
+
+        return $this->row;
     }
 
     public function test_add_block_rejects_content_keys_the_view_cannot_read(): void
@@ -132,6 +139,48 @@ class AiChatPageBuilderToolsTest extends PackageTestCase
             $entries = reset($definition['content_example']);
             $this->assertNotEmpty($entries[0] ?? null, "{$type}'s example has no entry to copy");
         }
+    }
+
+    public function test_icon_box_entries_must_use_the_keys_the_view_reads(): void
+    {
+        // Top-level validation only sees `items`, so a made-up entry shape used
+        // to pass and render as three empty boxes.
+        $result = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'icon_box',
+            'content' => ['items' => [['label' => 'Fast delivery', 'text' => 'Next day']]],
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertContains('title', $result['valid_entry_keys']);
+    }
+
+    public function test_an_icon_that_is_not_a_font_awesome_class_is_rejected(): void
+    {
+        // "fast-delivery" and emoji both draw nothing: the view renders
+        // <i class="..."></i> and relies on the icon font for the glyph.
+        foreach (['fast-delivery', '🚀'] as $icon) {
+            $result = (new AddBlockTool())->execute([
+                'row_id'  => $this->makeRow()->id,
+                'type'    => 'icon_box',
+                'content' => ['items' => [['icon' => $icon, 'title' => 'Fast delivery']]],
+            ]);
+
+            $this->assertArrayHasKey('error', $result, "icon '{$icon}' should be rejected");
+            $this->assertArrayHasKey('example_entry', $result);
+        }
+
+        $ok = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'icon_box',
+            'content' => ['items' => [[
+                'icon'        => 'fas fa-truck',
+                'title'       => 'Fast delivery',
+                'description' => 'Next-day across Bangkok.',
+            ]]],
+        ]);
+
+        $this->assertTrue($ok['success'], $ok['error'] ?? '');
     }
 
     public function test_update_block_strips_stray_escaping_from_links(): void

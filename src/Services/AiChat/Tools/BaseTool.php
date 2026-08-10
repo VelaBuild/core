@@ -60,6 +60,61 @@ abstract class BaseTool
         return $content;
     }
 
+    /**
+     * Check the entries inside a list-style block (icon_box items, gallery
+     * images, pricing tiers, …).
+     *
+     * The top-level check only sees `items`, so an entry built from invented
+     * keys — or an icon name that is not a Font Awesome class — passes it and
+     * then renders as an empty box.
+     */
+    private function validateListEntries(string $type, array $content, ?array $definition): ?array
+    {
+        $example = $definition['content_example'] ?? null;
+        if (!is_array($example)) {
+            return null;
+        }
+
+        foreach ($example as $listKey => $exampleEntries) {
+            $entries = $content[$listKey] ?? null;
+            if (!is_array($entries) || $entries === [] || !is_array($exampleEntries[0] ?? null)) {
+                continue;
+            }
+
+            $allowed = array_keys($exampleEntries[0]);
+
+            foreach ($entries as $index => $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+
+                $unknown = array_values(array_diff(array_keys($entry), $allowed));
+                if ($unknown !== []) {
+                    return [
+                        'error' => "Entry {$index} of '{$listKey}' uses key(s) the {$type} view ignores: "
+                            . implode(', ', $unknown) . '. Rebuild each entry using only the keys shown in valid_entry_keys.',
+                        'valid_entry_keys' => $allowed,
+                        'example_entry'    => $exampleEntries[0],
+                    ];
+                }
+
+                // An icon is a Font Awesome 6 class, not a description of the
+                // thing. "fast-delivery" renders as blank space.
+                if (isset($entry['icon']) && is_string($entry['icon'])
+                    && !preg_match('/(^|\s)fa-[a-z0-9-]+/i', $entry['icon'])) {
+                    return [
+                        'error' => "Entry {$index} of '{$listKey}' has icon '{$entry['icon']}', which is not a Font Awesome class, so nothing is drawn. "
+                            . 'Use a real Font Awesome 6 free class such as "fas fa-truck", "fas fa-headset", "fas fa-shield-halved". '
+                            . 'Put the wording the visitor reads in `title` and `description`, not in `icon`.',
+                        'example_entry' => $exampleEntries[0],
+                    ];
+                }
+            }
+        }
+
+        return null;
+    }
+
     private function validateBlockShape(string $type, $content, string $section): ?array
     {
         if (!is_array($content) || $content === []) {
@@ -76,7 +131,9 @@ abstract class BaseTool
 
         $unknown = array_values(array_diff(array_keys($content), array_keys($known)));
         if ($unknown === []) {
-            return null;
+            return $section === 'content'
+                ? $this->validateListEntries($type, $content, $definition)
+                : null;
         }
 
         return [
