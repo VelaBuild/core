@@ -151,7 +151,11 @@
 .icon-box-description { font-size: 0.95em; color: var(--block-text-muted); line-height: 1.6; margin: 0; }
 @media (max-width: 768px) { .block-icon-boxes { grid-template-columns: 1fr !important; } }
 /* Hero block */
-.block-hero { position: relative; display: flex; align-items: center; justify-content: center; padding: 60px 20px; color: #fff; overflow: hidden; }
+/* White by default because the hero sits over a darkening overlay, but a
+ * text_color set on the row or block publishes --vela-text-color and takes
+ * over — without the variable this class would outrank the inherited colour
+ * and text_color could never reach hero text. */
+.block-hero { position: relative; display: flex; align-items: center; justify-content: center; padding: 60px 20px; color: var(--vela-text-color, #fff); overflow: hidden; }
 .block-hero-overlay { position: absolute; inset: 0; }
 .block-hero-inner { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; }
 .block-hero-title { font-family: var(--block-heading-font); font-size: 3rem; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 16px; line-height: 1.15; }
@@ -353,3 +357,21 @@
 
 /* CTA note — small fine-print line under the buttons */
 .block-cta-note { margin-top: 14px; font-size: 0.85rem; opacity: 0.65; }
+
+/* Text that must follow the colour of the block it sits in.
+ *
+ * These blocks set their own ground — .block-hero paints white text over a
+ * dark overlay — and a row or block can override it through the text_color
+ * column, which lands as an inline `color` on the wrapper. Inheritance loses
+ * to ANY rule that targets the element itself, so one site-wide
+ * `h1, h2, h3 { color: … }` (hand-written, from a template, or generated)
+ * turns every hero title black on a dark photo and makes text_color do
+ * nothing. A class selector outranks an element selector, so restating
+ * `inherit` here keeps the block's own colour in charge.
+ * .block-cta-heading already carried this for the same reason. */
+.block-hero-title,
+.block-hero-subtitle,
+.block-app-download-heading,
+.block-app-download-description,
+.block-pricing-tier-headline,
+.block-pricing-tier-desc { color: inherit; }
