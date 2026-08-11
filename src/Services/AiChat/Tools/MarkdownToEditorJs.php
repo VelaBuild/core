@@ -50,6 +50,40 @@ class MarkdownToEditorJs
         return is_array($decoded) ? $decoded : ['blocks' => []];
     }
 
+    /**
+     * Derive the article's one-line summary from its markdown.
+     *
+     * The summary is printed verbatim on the article listing and fed to search
+     * engines, so truncating the raw source put "# Introduction" on the page
+     * for every visitor to read. Take the first real paragraph instead — the
+     * opening heading is almost always a restatement of the title.
+     */
+    public static function excerpt(string $contentText, int $limit = 160): string
+    {
+        $document = json_decode(self::convert($contentText), true);
+
+        $text = '';
+        foreach ($document['blocks'] ?? [] as $block) {
+            if (($block['type'] ?? '') !== 'paragraph') {
+                continue;
+            }
+
+            $candidate = trim(html_entity_decode(strip_tags($block['data']['text'] ?? ''), ENT_QUOTES, 'UTF-8'));
+            if ($candidate !== '') {
+                $text = $candidate;
+                break;
+            }
+        }
+
+        // Content with no paragraph at all (a bare list, say) still deserves a
+        // summary, so fall back to the source with its markup taken off.
+        if ($text === '') {
+            $text = trim(preg_replace('/[#*_>`\[\]]|^\s*[-+]\s+/mu', ' ', strip_tags($contentText)));
+        }
+
+        return \Illuminate\Support\Str::limit(preg_replace('/\s+/u', ' ', $text), $limit);
+    }
+
     public static function convert(string $contentText): string
     {
         $lines = explode("\n", $contentText);

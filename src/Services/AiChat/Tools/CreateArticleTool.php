@@ -48,7 +48,7 @@ class CreateArticleTool extends BaseTool
             'title'      => $title,
             'slug'       => $slug,
             'type'       => 'post',
-            'description' => Str::limit($content, 160),
+            'description' => MarkdownToEditorJs::excerpt($content),
             'content'    => MarkdownToEditorJs::convert($content),
             'author_id'  => 1,
             'status'     => $status,

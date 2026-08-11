@@ -4,7 +4,6 @@ namespace VelaBuild\Core\Services\AiChat\Tools;
 
 use VelaBuild\Core\Models\AiActionLog;
 use VelaBuild\Core\Models\Content;
-use Illuminate\Support\Str;
 
 class EditArticleContentTool extends BaseTool
 {
@@ -37,7 +36,7 @@ class EditArticleContentTool extends BaseTool
 
         $article->update([
             'content'     => MarkdownToEditorJs::convert($content),
-            'description' => Str::limit($content, 160),
+            'description' => MarkdownToEditorJs::excerpt($content),
         ]);
 
         return [

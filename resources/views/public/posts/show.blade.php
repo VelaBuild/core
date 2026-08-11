@@ -102,7 +102,7 @@
                                                 $level = $block['data']['level'] ?? 2;
                                                 $tag = 'h' . $level;
                                             @endphp
-                                            <{{ $tag }} class="font-bold text-gray-900 mb-4 mt-6 @if($level == 2) text-2xl @elseif($level == 3) text-xl @else text-lg @endif">{!! renderMarkdown($block['data']['text'] ?? '') !!}</{{ $tag }}>
+                                            <{{ $tag }} class="font-bold text-gray-900 mb-4 mt-6 @if($level == 1) text-3xl @elseif($level == 2) text-2xl @elseif($level == 3) text-xl @else text-lg @endif">{!! renderMarkdown($block['data']['text'] ?? '') !!}</{{ $tag }}>
                                             @break
                                         @case('list')
                                             @if(isset($block['data']['items']) && is_array($block['data']['items']))
