@@ -57,6 +57,49 @@ class AiChatArticleToolsTest extends PackageTestCase
         $this->assertStringNotContainsString('##', $excerpt);
     }
 
+    public function test_a_picture_on_its_own_line_becomes_a_picture(): void
+    {
+        // It used to fall through to the paragraph branch, where the inline
+        // link rule stranded the "!" in front of an anchor — visitors read
+        // "!A diver checking gear" and saw no image at all.
+        $document = json_decode(
+            MarkdownToEditorJs::convert("## Gear\n\n![A diver checking gear](/images/dive.png)\n\nAfter.\n"),
+            true
+        );
+
+        $image = collect($document['blocks'])->firstWhere('type', 'image');
+
+        $this->assertNotNull($image, 'the markdown image must survive as an image block');
+        $this->assertSame('/images/dive.png', $image['data']['file']['url']);
+        $this->assertSame('A diver checking gear', $image['data']['caption']);
+        $this->assertStringNotContainsString('!<a', json_encode($document));
+    }
+
+    public function test_an_invented_image_filename_is_refused(): void
+    {
+        // The model reaches for a name that describes the picture instead of
+        // the url generate_image handed back, and the page renders a gap.
+        $created = (new CreateArticleTool())->execute([
+            'title'   => 'Gear Photos',
+            'content' => "Intro paragraph.\n\n![A diver](/images/a-diver-checking-gear.png)\n",
+        ]);
+
+        $this->assertArrayHasKey('error', $created);
+        $this->assertSame('/images/a-diver-checking-gear.png', $created['missing_image']);
+        $this->assertSame(0, Content::where('title', 'Gear Photos')->count());
+    }
+
+    public function test_a_picture_hosted_elsewhere_is_left_alone(): void
+    {
+        // Only this site's own files are ours to vouch for.
+        $result = (new CreateArticleTool())->execute([
+            'title'   => 'Remote Photos',
+            'content' => "Intro paragraph.\n\n![Reef](https://images.example.com/reef.jpg)\n",
+        ]);
+
+        $this->assertTrue($result['success']);
+    }
+
     public function test_an_article_keeps_the_body_it_was_written_with(): void
     {
         $result = (new CreateArticleTool())->execute([

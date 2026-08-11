@@ -208,7 +208,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'generate_image',
-            'description' => 'Generate an image using AI',
+            'description' => 'Generate an image using AI. Returns the `url` the file was saved at — use that string exactly wherever the picture goes (an article\'s markdown, a block\'s image_url, background_image). Never write a filename you made up to describe the picture: nothing is stored there, so the page renders an empty gap. One call makes one picture; generate again for each additional one.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [

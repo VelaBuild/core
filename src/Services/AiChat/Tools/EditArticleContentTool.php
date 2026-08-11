@@ -24,6 +24,11 @@ class EditArticleContentTool extends BaseTool
             return ['error' => "Article {$articleId} not found"];
         }
 
+        $document = MarkdownToEditorJs::convert($content);
+        if ($error = $this->validateArticleImages($document)) {
+            return $error;
+        }
+
         if ($actionLog) {
             $actionLog->update([
                 'previous_state' => [
@@ -35,7 +40,7 @@ class EditArticleContentTool extends BaseTool
         }
 
         $article->update([
-            'content'     => MarkdownToEditorJs::convert($content),
+            'content'     => $document,
             'description' => MarkdownToEditorJs::excerpt($content),
         ]);
 

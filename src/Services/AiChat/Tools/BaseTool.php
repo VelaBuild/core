@@ -188,6 +188,71 @@ abstract class BaseTool
         return null;
     }
 
+    /**
+     * Reject an article whose pictures point at files that are not there.
+     *
+     * Models reach for a filename that describes the picture — "diver-checking
+     * -gear.png" — instead of the address generate_image handed back, and the
+     * article then renders a blank space while the tool reports success.
+     * Only this site's own files are checked; an external host is not ours to
+     * vouch for.
+     */
+    protected function validateArticleImages(string $editorJson): ?array
+    {
+        $document = json_decode($editorJson, true);
+        if (!is_array($document)) {
+            return null;
+        }
+
+        foreach ($document['blocks'] ?? [] as $block) {
+            $urls = [];
+            if (($block['type'] ?? '') === 'image') {
+                $urls[] = (string) ($block['data']['file']['url'] ?? '');
+            }
+            if (preg_match_all('/<img[^>]+src="([^"]+)"/i', json_encode($block['data'] ?? []), $inline)) {
+                $urls = array_merge($urls, $inline[1]);
+            }
+
+            foreach ($urls as $url) {
+                $path = $this->localImagePath($url);
+                if ($path === null || is_file($path)) {
+                    continue;
+                }
+
+                return [
+                    'error' => "The article points at an image that is not on this site: {$url}. "
+                        . 'A picture only shows up when the address is the exact `url` that generate_image returned — '
+                        . 'a filename invented to describe the picture leaves an empty gap on the page. '
+                        . 'Generate the image (or find an existing one with manage_media) and paste the url it gives back, character for character.',
+                    'missing_image' => $url,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    private function localImagePath(string $url): ?string
+    {
+        $url = str_replace('\\/', '/', trim($url));
+        if ($url === '' || str_starts_with($url, 'data:')) {
+            return null;
+        }
+
+        $path = $url;
+        if (preg_match('#^https?://#i', $url)) {
+            $host = parse_url($url, PHP_URL_HOST);
+            if ($host !== parse_url((string) config('app.url'), PHP_URL_HOST)) {
+                return null;
+            }
+            $path = (string) parse_url($url, PHP_URL_PATH);
+        } elseif (!str_starts_with($path, '/')) {
+            return null;
+        }
+
+        return public_path(ltrim($path, '/'));
+    }
+
     private function validateBlockShape(string $type, $content, string $section): ?array
     {
         if (!is_array($content) || $content === []) {

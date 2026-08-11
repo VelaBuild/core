@@ -148,6 +148,23 @@ class MarkdownToEditorJs
                 $flushTable();
             }
 
+            // A picture on its own line is the shape every model reaches for,
+            // and it used to fall through to the paragraph branch, where the
+            // inline link rule turned it into a literal "!" beside a link —
+            // visitors saw "!A diver checking their gear" and no image.
+            if (preg_match('/^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)$/', $trimmed, $im)) {
+                $flushList();
+                $blocks[] = [
+                    'id'   => 'image-' . $blockId++,
+                    'type' => 'image',
+                    'data' => [
+                        'file'    => ['url' => str_replace('\\/', '/', $im[2])],
+                        'caption' => $im[1],
+                    ],
+                ];
+                continue;
+            }
+
             if (preg_match('/\[IMAGE\s+topic="([^"]+)"\s+alt="([^"]+)"\]/i', $trimmed)) {
                 $flushList();
                 $blocks[] = [
@@ -232,6 +249,9 @@ class MarkdownToEditorJs
         $text = preg_replace('/(?<![\*_])\*(?!\s)(.+?)(?<!\s)\*(?![\*_])/', '<em>$1</em>', $text);
         $text = preg_replace('/(?<![\*_])_(?!\s)(.+?)(?<!\s)_(?![\*_])/', '<em>$1</em>', $text);
         $text = preg_replace('/`([^`]+)`/', '<code>$1</code>', $text);
+        // Images before links: they share the bracket syntax, and the link rule
+        // matching first leaves the "!" stranded in front of an anchor.
+        $text = preg_replace('/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/', '<img src="$2" alt="$1">', $text);
         $text = preg_replace('/\[([^\]]+)\]\(([^)]+)\)/', '<a href="$2">$1</a>', $text);
         return $text;
     }

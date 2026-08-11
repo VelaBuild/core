@@ -37,6 +37,11 @@ class CreateArticleTool extends BaseTool
             ];
         }
 
+        $document = MarkdownToEditorJs::convert($content);
+        if ($error = $this->validateArticleImages($document)) {
+            return $error;
+        }
+
         $slug = Str::slug($title);
         $original = $slug;
         $i = 1;
@@ -49,7 +54,7 @@ class CreateArticleTool extends BaseTool
             'slug'       => $slug,
             'type'       => 'post',
             'description' => MarkdownToEditorJs::excerpt($content),
-            'content'    => MarkdownToEditorJs::convert($content),
+            'content'    => $document,
             'author_id'  => 1,
             'status'     => $status,
             'written_at' => now(),
