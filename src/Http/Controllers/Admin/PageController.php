@@ -60,8 +60,9 @@ class PageController extends Controller
                 $editGate      = 'page_edit';
                 $deleteGate    = 'page_delete';
                 $crudRoutePart = 'pages';
-                $viewUrl       = url($row->slug === 'home' ? '/' : $row->slug);
+                $viewUrl       = self::viewOrPreviewUrl($row);
                 $viewNewTab    = true;
+                $viewIsPreview = !in_array($row->status, ['published', 'unlisted'], true);
 
                 return view('vela::partials.datatablesActions', compact(
                     'viewGate',
@@ -70,7 +71,8 @@ class PageController extends Controller
                     'crudRoutePart',
                     'row',
                     'viewUrl',
-                    'viewNewTab'
+                    'viewNewTab',
+                    'viewIsPreview'
                 ));
             });
 
@@ -330,8 +332,41 @@ class PageController extends Controller
         abort_if(Gate::denies('page_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         // Open the page on the frontend rather than an admin view
-        $slug = $page->slug === 'home' ? '/' : $page->slug;
-        return redirect(url($slug));
+        return redirect(self::viewOrPreviewUrl($page));
+    }
+
+    /**
+     * Public URL for pages a visitor can reach, admin preview URL otherwise.
+     * Drafts (and any future non-public status) 404 on the public route, so
+     * linking there would just hand the editor a dead end.
+     */
+    public static function viewOrPreviewUrl(Page $page): string
+    {
+        if (in_array($page->status, ['published', 'unlisted'], true)) {
+            return url($page->slug === 'home' ? '/' : $page->slug);
+        }
+
+        return route('vela.admin.pages.preview', $page->id);
+    }
+
+    /**
+     * Render a page through the public template regardless of its status.
+     *
+     * Draft pages 404 on the public route by design, so editors had no way to
+     * see their work before publishing. This renders the same template the
+     * visitor would get, but behind the admin gate and marked noindex so it
+     * never leaks into search or a shared cache.
+     */
+    public function preview(Page $page)
+    {
+        abort_if(Gate::denies('page_edit') && Gate::denies('page_show'), Response::HTTP_FORBIDDEN, '403 Forbidden');
+
+        $page->load('rows.blocks');
+
+        return response()
+            ->view(vela_template_view('page'), compact('page'))
+            ->header('X-Robots-Tag', 'noindex, nofollow')
+            ->header('Cache-Control', 'private, no-store, max-age=0');
     }
 
     public function destroy(Page $page)

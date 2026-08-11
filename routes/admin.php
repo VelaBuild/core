@@ -44,6 +44,7 @@ Route::resource('articles', Admin\ArticleController::class, ['names' => 'content
 Route::delete('pages/destroy', [Admin\PageController::class, 'massDestroy'])->name('pages.massDestroy');
 Route::post('pages/media', [Admin\PageController::class, 'storeMedia'])->name('pages.storeMedia');
 Route::post('pages/ckmedia', [Admin\PageController::class, 'storeCKEditorImages'])->name('pages.storeCKEditorImages');
+Route::get('pages/{page}/preview', [Admin\PageController::class, 'preview'])->name('pages.preview');
 Route::resource('pages', Admin\PageController::class);
 
 // Media Library

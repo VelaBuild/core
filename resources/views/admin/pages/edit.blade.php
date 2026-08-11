@@ -21,9 +21,14 @@
                 </span>
             </div>
             <div class="d-flex" style="gap:8px;">
-                @if($page->status === 'published')
-                    <a href="{{ url('/' . $page->slug) }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                @if(in_array($page->status, ['published', 'unlisted']))
+                    <a href="{{ url($page->slug === 'home' ? '/' : $page->slug) }}" target="_blank" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-external-link-alt mr-1"></i> {{ trans('vela::global.view') }}
+                    </a>
+                @else
+                    {{-- Not public yet: the public URL would 404, so preview through the admin route. --}}
+                    <a href="{{ route('vela.admin.pages.preview', $page->id) }}" target="_blank" class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-search mr-1"></i> {{ trans('vela::global.preview') }}
                     </a>
                 @endif
                 <a href="{{ route('vela.admin.pages.index') }}" class="btn btn-outline-secondary btn-sm">

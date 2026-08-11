@@ -4,10 +4,12 @@
      Show routes 302 to edit via VelaRedirectShowToEdit middleware. --}}
 @isset($viewUrl)
     @if($viewUrl)
-        <a class="btn btn-xs btn-secondary" href="{{ $viewUrl }}"
+        {{-- $viewIsPreview marks a not-yet-public row: the link goes to the
+             admin preview instead of the (404-ing) public URL. --}}
+        <a class="btn btn-xs {{ !empty($viewIsPreview) ? 'btn-warning' : 'btn-secondary' }}" href="{{ $viewUrl }}"
            @if(!empty($viewNewTab)) target="_blank" rel="noopener" @endif
-           title="{{ trans('vela::global.view') }}">
-            <i class="fas fa-eye"></i>
+           title="{{ !empty($viewIsPreview) ? trans('vela::global.preview') : trans('vela::global.view') }}">
+            <i class="fas {{ !empty($viewIsPreview) ? 'fa-search' : 'fa-eye' }}"></i>
         </a>
     @endif
 @endisset
