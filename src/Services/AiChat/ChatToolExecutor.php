@@ -103,6 +103,7 @@ class ChatToolExecutor
             'edit_article_content' => Tools\EditArticleContentTool::class,
             'update_article' => Tools\UpdateArticleTool::class,
             'create_category' => Tools\CreateCategoryTool::class,
+            'translate_site' => Tools\TranslateSiteTool::class,
             'generate_image' => Tools\GenerateImageTool::class,
             'edit_template_file' => Tools\EditTemplateFileTool::class,
             'get_page_info' => Tools\GetPageInfoTool::class,

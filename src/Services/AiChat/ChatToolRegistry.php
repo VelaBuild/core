@@ -141,6 +141,22 @@ class ChatToolRegistry
             'gate' => 'article_create',
         ],
         [
+            'name' => 'translate_site',
+            'description' => 'Give the site a version in another language. Pages, articles and categories keep their original wording and gain a translation alongside it — NEVER rewrite a page or article in another language yourself, that replaces the original instead of translating it. Call get_site_info first for the languages this site supports. Translates what is still missing, newest work first, up to `limit` items per call; call it again to continue. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'locale'  => ['type' => 'string', 'description' => 'Language code to translate into, e.g. "th" or "de". Must be one of the site\'s supported locales.'],
+                    'surface' => ['type' => 'string', 'enum' => ['pages', 'articles', 'categories'], 'description' => 'Limit the run to one kind of content. Omit to cover all three.'],
+                    'id'      => ['type' => 'integer', 'description' => 'Translate one specific page/article/category, even if it already has a translation (it is overwritten). Requires surface.'],
+                    'limit'   => ['type' => 'integer', 'description' => 'How many items to translate in this call (default 20, max 100).'],
+                ],
+                'required' => ['locale'],
+            ],
+            'write' => true,
+            'gate' => 'translation_edit',
+        ],
+        [
             'name' => 'edit_article_content',
             'description' => 'Replace the content of an existing article (type=post). Use this for ANY article rewrite — comparison articles, reviews, guides, etc. Content is plain MARKDOWN; the server converts it to EditorJS blocks (paragraphs, headings, lists, pipe tables, code, links). Articles are NOT page-builder pages — never use the page-builder block tools for an article.',
             'parameters' => [

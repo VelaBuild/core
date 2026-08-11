@@ -98,7 +98,7 @@ class TranslationStatusService
     private function pagesCoverage(array $locales, string $source): array
     {
         $out = [];
-        if (! $this->safeHasTable('vela_pages')) {
+        if (! $this->safeHasTable((new Page)->getTable())) {
             foreach ($locales as $l) $out[$l] = ['translated' => 0, 'total' => 0];
             return $out;
         }
@@ -128,7 +128,7 @@ class TranslationStatusService
 
     private function missingPages(string $locale, string $source): array
     {
-        if (! $this->safeHasTable('vela_pages')) return [];
+        if (! $this->safeHasTable((new Page)->getTable())) return [];
         $sourcePages = Page::where('locale', $source)
             ->whereNull('parent_id')
             ->where('slug', '!=', 'home')
@@ -151,7 +151,7 @@ class TranslationStatusService
     private function articlesCoverage(array $locales): array
     {
         $out = [];
-        if (! $this->safeHasTable('vela_contents')) {
+        if (! $this->safeHasTable((new Content)->getTable())) {
             foreach ($locales as $l) $out[$l] = ['translated' => 0, 'total' => 0];
             return $out;
         }
@@ -173,7 +173,7 @@ class TranslationStatusService
 
     private function missingContents(string $locale): array
     {
-        if (! $this->safeHasTable('vela_contents')) return [];
+        if (! $this->safeHasTable((new Content)->getTable())) return [];
         $contents = Content::whereIn('status', ['scheduled', 'published'])->get(['id', 'title']);
         $haveIds = Translation::where('lang_code', $locale)
             ->where('model_type', 'Content')
@@ -197,7 +197,7 @@ class TranslationStatusService
     private function categoriesCoverage(array $locales): array
     {
         $out = [];
-        if (! $this->safeHasTable('vela_categories')) {
+        if (! $this->safeHasTable((new Category)->getTable())) {
             foreach ($locales as $l) $out[$l] = ['translated' => 0, 'total' => 0];
             return $out;
         }
@@ -216,7 +216,7 @@ class TranslationStatusService
 
     private function missingCategories(string $locale): array
     {
-        if (! $this->safeHasTable('vela_categories')) return [];
+        if (! $this->safeHasTable((new Category)->getTable())) return [];
         $cats = Category::get(['id', 'name']);
         $haveIds = Translation::where('lang_code', $locale)
             ->where('model_type', 'Category')
@@ -350,6 +350,12 @@ class TranslationStatusService
         return substr($absSourceFile, 0, $pos) . $sep . $target . $sep . substr($absSourceFile, $pos + strlen($needle));
     }
 
+    /**
+     * Callers pass the model's own table name rather than a literal: this
+     * guard read 'vela_contents' while Content lives in 'vela_articles', so
+     * every article counted as 0-of-0 and the dashboard reported the whole
+     * surface as nothing to translate.
+     */
     private function safeHasTable(string $table): bool
     {
         try {
