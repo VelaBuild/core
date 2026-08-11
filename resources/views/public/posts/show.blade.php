@@ -115,8 +115,9 @@
                                             @break
                                         @case('image')
                                             @if(isset($block['data']['file']['url']))
+                                                @php $imgClass = 'vela-content-img rounded-lg shadow-lg' . (!empty($block['data']['stretched']) ? ' vela-content-img--stretched' : ''); @endphp
                                                 <div class="my-6">
-                                                    <img src="{{ $block['data']['file']['url'] }}" alt="{{ $block['data']['caption'] ?? '' }}" class="w-full rounded-lg shadow-lg">
+                                                    <img src="{{ $block['data']['file']['url'] }}" alt="{{ $block['data']['caption'] ?? '' }}" class="{{ $imgClass }}">
                                                     @if(isset($block['data']['caption']) && $block['data']['caption'])
                                                         <p class="text-sm text-gray-600 mt-2 text-center">{{ $block['data']['caption'] }}</p>
                                                     @endif

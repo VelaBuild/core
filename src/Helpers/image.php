@@ -53,11 +53,31 @@ if (!function_exists('vela_image')) {
 
         $extraAttrs = '';
         $hasSizes = false;
+        $hasDimension = false;
         foreach ($attrs as $k => $v) {
-            if (strtolower($k) === 'sizes') {
+            $lower = strtolower($k);
+            if ($lower === 'sizes') {
                 $hasSizes = true;
             }
+            if ($lower === 'width' || $lower === 'height') {
+                $hasDimension = true;
+            }
             $extraAttrs .= ' ' . e($k) . '="' . e($v) . '"';
+        }
+
+        // Emit intrinsic width/height so the browser knows the aspect ratio
+        // before the file arrives. Without them, `sizes="auto"` in browsers that
+        // don't support it resolves to an invalid source size, the candidate's
+        // density-corrected intrinsic height collapses, and an image styled
+        // `width: 100%` renders as a vertically squashed strip. Also removes CLS.
+        if (!$hasDimension) {
+            [$intrinsicW, $intrinsicH] = vela_image_dimensions($relativePath);
+            if ($intrinsicW > 0 && $intrinsicH > 0) {
+                $defaultWidth = $sizes[(int) floor(count($sizes) / 2)] ?? $sizes[0] ?? $intrinsicW;
+                $renderW = min((int) $defaultWidth, $intrinsicW);
+                $renderH = (int) round($intrinsicH * ($renderW / $intrinsicW));
+                $extraAttrs .= ' width="' . $renderW . '" height="' . $renderH . '"';
+            }
         }
 
         $sizesAttr = '';
@@ -178,6 +198,25 @@ if (!function_exists('vela_optimize_imgs')) {
             },
             $html
         );
+    }
+}
+
+if (!function_exists('vela_image_dimensions')) {
+    /**
+     * Intrinsic [width, height] of an image relative to base_path(), or [0, 0]
+     * when it can't be read. Memoised per request — a page can reference the
+     * same logo or thumbnail dozens of times.
+     */
+    function vela_image_dimensions(string $relativePath): array
+    {
+        static $cache = [];
+
+        if (!array_key_exists($relativePath, $cache)) {
+            $info = @getimagesize(base_path($relativePath));
+            $cache[$relativePath] = $info ? [(int) $info[0], (int) $info[1]] : [0, 0];
+        }
+
+        return $cache[$relativePath];
     }
 }
 

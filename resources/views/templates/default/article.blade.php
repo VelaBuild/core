@@ -163,8 +163,9 @@ if (!function_exists('renderMarkdown')) {
                                             @break
                                         @case('image')
                                             @if(isset($block['data']['file']['url']))
+                                                @php $imgClass = 'vela-content-img rounded-lg shadow-lg' . (!empty($block['data']['stretched']) ? ' vela-content-img--stretched' : ''); @endphp
                                                 <div class="my-6">
-                                                    {!! vela_image($block['data']['file']['url'], $block['data']['caption'] ?? '', [400, 800, 1200], 'fit', ['class' => 'w-full rounded-lg shadow-lg']) !!}
+                                                    {!! vela_image($block['data']['file']['url'], $block['data']['caption'] ?? '', [400, 800, 1200], 'fit', ['class' => $imgClass]) !!}
                                                     @if(isset($block['data']['caption']) && $block['data']['caption'])
                                                         <p class="text-sm text-gray-600 mt-2 text-center">{{ $block['data']['caption'] }}</p>
                                                     @endif

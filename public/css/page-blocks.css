@@ -51,6 +51,11 @@
 /* Image block */
 .block-image img { max-width: 100%; height: auto; border-radius: 8px; }
 .block-image figcaption { text-align: center; color: var(--block-text-muted); font-size: 0.9em; margin-top: 8px; }
+/* Inline images inside article/page copy. Capped and centred by default so a
+   square or portrait photo doesn't tower over the text; the editor's
+   "stretched" tune opts a single image into the full column width. */
+.vela-content-img { display: block; max-width: min(100%, 560px); height: auto; margin-left: auto; margin-right: auto; }
+.vela-content-img--stretched { max-width: 100%; }
 /* Video block */
 .block-video { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px; }
 .block-video iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }

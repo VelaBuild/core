@@ -102,7 +102,7 @@ if (!function_exists('renderMarkdown')) {
                         @case('image')
                             @if(isset($block['data']['file']['url']))
                                 <figure>
-                                    {!! vela_image($block['data']['file']['url'], $block['data']['caption'] ?? '', [400, 800, 1200], 'fit', []) !!}
+                                    {!! vela_image($block['data']['file']['url'], $block['data']['caption'] ?? '', [400, 800, 1200], 'fit', ['class' => 'vela-content-img' . (!empty($block['data']['stretched']) ? ' vela-content-img--stretched' : '')]) !!}
                                     @if(isset($block['data']['caption']) && $block['data']['caption'])
                                         <figcaption style="text-align:center;font-size:0.85rem;color:#888;margin-top:8px;">{{ $block['data']['caption'] }}</figcaption>
                                     @endif
