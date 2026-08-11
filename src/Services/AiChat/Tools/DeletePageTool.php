@@ -13,6 +13,20 @@ class DeletePageTool extends BaseTool
     {
         $page = $this->resolvePage($parameters);
         if (!$page) {
+            // Asked to delete a blog post, the model reaches for this tool,
+            // gets a bare "not found", and guesses its way to something else
+            // while telling the user the post was removed. Name the gap
+            // instead, in words that can be repeated to them as they stand.
+            $slug = $parameters['page_slug'] ?? null;
+            if ($slug && \VelaBuild\Core\Models\Content::where('type', 'post')->where('slug', $slug)->exists()) {
+                return [
+                    'error' => "'{$slug}' is a blog article, not a page, and articles cannot be deleted from this chat. "
+                        . 'Setting its status to draft with update_article takes it off the site and keeps the writing, '
+                        . 'which is what to offer the user — do not tell them it can be deleted permanently here. '
+                        . 'Permanent deletion is done in the admin under Articles.',
+                ];
+            }
+
             return ['error' => 'Page not found. Pass page_id or page_slug (call list_pages to find it).'];
         }
 

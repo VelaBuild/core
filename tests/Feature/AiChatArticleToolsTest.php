@@ -4,6 +4,7 @@ namespace VelaBuild\Core\Tests\Feature;
 
 use VelaBuild\Core\Models\Content;
 use VelaBuild\Core\Services\AiChat\Tools\CreateArticleTool;
+use VelaBuild\Core\Services\AiChat\Tools\DeletePageTool;
 use VelaBuild\Core\Services\AiChat\Tools\EditArticleContentTool;
 use VelaBuild\Core\Services\AiChat\Tools\MarkdownToEditorJs;
 use VelaBuild\Core\Tests\PackageTestCase;
@@ -98,6 +99,33 @@ class AiChatArticleToolsTest extends PackageTestCase
         ]);
 
         $this->assertTrue($result['success']);
+    }
+
+    public function test_asking_to_delete_an_article_says_what_can_be_done_instead(): void
+    {
+        // There is no tool that deletes an article. Given a bare "page not
+        // found", the model guessed its way to update_article and then told
+        // the user it could delete the post permanently on request.
+        (new CreateArticleTool())->execute([
+            'title'   => 'Retired Post',
+            'content' => self::MARKDOWN,
+        ]);
+
+        $result = (new DeletePageTool())->execute([
+            'page_slug' => 'retired-post',
+            'confirm'   => true,
+        ]);
+
+        $this->assertStringContainsString('blog article', $result['error']);
+        $this->assertStringContainsString('draft', $result['error']);
+        $this->assertSame(1, Content::where('slug', 'retired-post')->count());
+    }
+
+    public function test_an_unknown_slug_still_reads_as_a_missing_page(): void
+    {
+        $result = (new DeletePageTool())->execute(['page_slug' => 'no-such-thing', 'confirm' => true]);
+
+        $this->assertStringContainsString('Page not found', $result['error']);
     }
 
     public function test_an_article_keeps_the_body_it_was_written_with(): void
