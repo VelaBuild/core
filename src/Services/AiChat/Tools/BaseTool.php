@@ -150,6 +150,44 @@ abstract class BaseTool
         return null;
     }
 
+    /**
+     * Check the keys inside a settings map whose default spells out its own
+     * entries — a contact form's `fields`, for example.
+     *
+     * The top-level check only sees `fields`, so an invented entry passes it
+     * and the block then behaves worse than if the setting had been dropped:
+     * the controller builds a validation rule from every enabled entry while
+     * the view can only draw the ones it knows, leaving a required field the
+     * visitor has no way to fill and a form nobody can submit.
+     */
+    private function validateSettingsMaps(string $type, array $settings, array $known): ?array
+    {
+        foreach ($known as $key => $default) {
+            if (!is_array($default) || $default === [] || array_keys($default) === range(0, count($default) - 1)) {
+                continue;
+            }
+
+            $given = $settings[$key] ?? null;
+            if (!is_array($given)) {
+                continue;
+            }
+
+            $unknown = array_values(array_diff(array_keys($given), array_keys($default)));
+            if ($unknown !== []) {
+                return [
+                    'error' => "'{$key}' on a {$type} block has no entry named " . implode(', ', $unknown)
+                        . '. The block can only draw the entries it ships with, so an added one is never shown to visitors — '
+                        . 'and if it is marked required, the form rejects every submission for a field nobody can see. '
+                        . "Resend '{$key}' using only the entries in valid_entries; each may be turned off or made optional.",
+                    'valid_entries' => array_keys($default),
+                    'unknown_entries' => $unknown,
+                ];
+            }
+        }
+
+        return null;
+    }
+
     private function validateBlockShape(string $type, $content, string $section): ?array
     {
         if (!is_array($content) || $content === []) {
@@ -167,14 +205,14 @@ abstract class BaseTool
         $unknown = array_values(array_diff(array_keys($content), array_keys($known)));
         if ($unknown === []) {
             if ($section !== 'content') {
-                return null;
+                return $this->validateSettingsMaps($type, $content, $known);
             }
 
             return $this->validateNoMarkup($type, $content)
                 ?? $this->validateListEntries($type, $content, $definition);
         }
 
-        return [
+        $error = [
             'error' => "Block type '{$type}' has no {$section} key(s): " . implode(', ', $unknown)
                 . ". Values under unsupported keys are dropped when the page renders, so the {$section} has no effect. "
                 . "Resend using only the keys in valid_{$section}_keys. "
@@ -182,5 +220,14 @@ abstract class BaseTool
             "valid_{$section}_keys" => array_keys($known),
             'unknown_keys'          => $unknown,
         ];
+
+        // Knowing which keys are valid does not explain why the one the model
+        // reached for is missing. Where the block spells that out, pass it on —
+        // otherwise the same wrong key gets retried in a different shape.
+        if (!empty($definition['shape_note'])) {
+            $error['note'] = $definition['shape_note'];
+        }
+
+        return $error;
     }
 }

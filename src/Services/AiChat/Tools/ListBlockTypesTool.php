@@ -26,6 +26,12 @@ class ListBlockTypesTool extends BaseTool
                 $entry['content_example'] = $def['content_example'];
             }
 
+            // Constraints the key names alone do not convey, e.g. that a
+            // contact form stores submissions rather than emailing them.
+            if (!empty($def['shape_note'])) {
+                $entry['note'] = $def['shape_note'];
+            }
+
             $types[] = $entry;
         }
 

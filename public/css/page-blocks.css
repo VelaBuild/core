@@ -101,6 +101,8 @@
 .block-accordion-item[open] .block-accordion-chevron { transform: rotate(180deg); }
 .block-accordion-body { padding: 15px 20px; }
 /* Contact form */
+.block-contact-form-title { font-family: var(--block-heading-font); font-size: 2rem; font-weight: 700; line-height: 1.2; margin: 0 0 12px; color: inherit; }
+.block-contact-form-intro { font-size: 1.05rem; line-height: 1.6; margin: 0 0 24px; color: inherit; opacity: 0.85; }
 .block-contact-form .form-group { margin-bottom: 15px; }
 .block-contact-form label { display: block; font-weight: 500; margin-bottom: 5px; }
 .block-contact-form input, .block-contact-form textarea, .block-contact-form select { width: 100%; padding: 10px 14px; border: 1px solid var(--block-form-border); border-radius: 6px; font-size: 1em; }

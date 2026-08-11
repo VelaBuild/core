@@ -281,6 +281,83 @@ class AiChatPageBuilderToolsTest extends PackageTestCase
         $this->assertSame('contact-us', $result['page']['slug']);
     }
 
+    public function test_contact_form_rejects_a_button_label_written_under_an_invented_key(): void
+    {
+        $result = (new AddBlockTool())->execute([
+            'row_id'   => $this->makeRow()->id,
+            'type'     => 'contact_form',
+            'content'  => ['title' => 'Get in Touch'],
+            // What a model reaches for; the view reads submit_label.
+            'settings' => ['primary_button_text' => 'Send Message'],
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertContains('primary_button_text', $result['unknown_keys']);
+        $this->assertContains('submit_label', $result['valid_settings_keys']);
+        $this->assertSame(0, PageBlock::count(), 'the rejected block must not reach the database');
+    }
+
+    public function test_contact_form_rejects_a_field_the_form_cannot_draw(): void
+    {
+        // The view draws five fixed inputs while the controller derives its
+        // validation rules from this map, so an extra required entry would
+        // reject every submission over a field nobody is shown.
+        $result = (new AddBlockTool())->execute([
+            'row_id'   => $this->makeRow()->id,
+            'type'     => 'contact_form',
+            'content'  => ['title' => 'Get in Touch'],
+            'settings' => ['fields' => [
+                'name'    => ['enabled' => true, 'required' => true],
+                'company' => ['enabled' => true, 'required' => true],
+            ]],
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertContains('company', $result['unknown_entries']);
+        $this->assertContains('message', $result['valid_entries']);
+        $this->assertSame(0, PageBlock::count());
+    }
+
+    public function test_contact_form_keeps_the_heading_and_labels_it_was_given(): void
+    {
+        $result = (new AddBlockTool())->execute([
+            'row_id'   => $this->makeRow()->id,
+            'type'     => 'contact_form',
+            'content'  => ['title' => 'Get in Touch', 'intro' => 'We reply within a day.'],
+            'settings' => [
+                'submit_label' => 'Send Message',
+                'fields'       => ['phone' => ['enabled' => false, 'required' => false]],
+            ],
+        ]);
+
+        $this->assertTrue($result['success']);
+        $block = PageBlock::find($result['block_id']);
+        $this->assertSame('Get in Touch', $block->content['title']);
+        $this->assertSame('Send Message', $block->settings['submit_label']);
+    }
+
+    public function test_a_block_that_stores_rather_than_sends_says_so(): void
+    {
+        // The old shape advertised a recipient key, so the chatbot filled one
+        // in and told the user their messages would be emailed there. Nothing
+        // sends mail; submissions only land in the admin.
+        $definition = app(Vela::class)->blocks()->all()['contact_form'];
+        $this->assertArrayNotHasKey('email', $definition['defaults']['content']);
+
+        $listed = collect((new ListBlockTypesTool())->execute([])['types'])
+            ->firstWhere('type', 'contact_form');
+        $this->assertNotEmpty($listed['note'] ?? null, 'list_block_types must pass the constraint on');
+
+        $rejected = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'contact_form',
+            'content' => ['title' => 'Contact', 'email' => 'hello@example.com'],
+        ]);
+
+        $this->assertContains('email', $rejected['unknown_keys']);
+        $this->assertNotEmpty($rejected['note'], 'the rejection must explain where submissions go');
+    }
+
     public function test_update_page_writes_search_metadata_within_the_length_search_engines_show(): void
     {
         $page = Page::create(['title' => 'Services', 'slug' => 'seo-fixture', 'status' => 'published', 'locale' => 'en']);

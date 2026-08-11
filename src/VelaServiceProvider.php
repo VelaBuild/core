@@ -531,7 +531,27 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-envelope',
             'view' => 'vela::public.pages.blocks.contact_form',
             'editor' => null,
-            'defaults' => ['content' => ['title' => '', 'email' => ''], 'settings' => []],
+            // The view reads a heading/intro from content and everything else
+            // from settings. Enumerating both is what lets the shape check
+            // reject invented keys — an empty settings array disabled it, so
+            // things like submit_label were guessed and silently dropped.
+            'defaults' => [
+                'content'  => ['title' => '', 'intro' => ''],
+                'settings' => [
+                    'fields' => [
+                        'name'    => ['enabled' => true, 'required' => true],
+                        'email'   => ['enabled' => true, 'required' => true],
+                        'phone'   => ['enabled' => true, 'required' => false],
+                        'subject' => ['enabled' => true, 'required' => false],
+                        'message' => ['enabled' => true, 'required' => true],
+                    ],
+                    'submit_label'    => '',
+                    'success_message' => '',
+                ],
+            ],
+            'shape_note' => 'Submissions are stored in the site admin under Form Submissions. This block never emails them, '
+                . 'so it takes no recipient address — do not tell the user their messages will be sent to an inbox. '
+                . 'The five fields above are the only ones available; each can be switched off or made optional, but no new field can be added.',
         ]);
 
         $vela->registerBlock('carousel', [

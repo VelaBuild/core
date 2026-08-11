@@ -138,6 +138,11 @@ class PageController extends Controller
             'message' => ['enabled' => true, 'required' => true],
         ];
 
+        // The block's view draws these five inputs and no others, so anything
+        // else configured here would add a rule for a field the visitor is
+        // never shown — a required one would reject every submission.
+        $fields = array_intersect_key($fields, array_flip(['name', 'email', 'phone', 'subject', 'message']));
+
         $rules = [];
         $enabledFields = [];
 

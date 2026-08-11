@@ -1,4 +1,5 @@
 @php
+    $content  = $block->content ?? [];
     $settings = $block->settings ?? [];
     $fields   = $settings['fields'] ?? [
         'name'    => ['enabled' => true, 'required' => true],
@@ -11,6 +12,12 @@
     $successMessage = $settings['success_message'] ?? trans('vela::global.thank_you_message');
 @endphp
 <div class="block-contact-form">
+@if(!empty($content['title']))
+        <h2 class="block-contact-form-title">{{ $content['title'] }}</h2>
+@endif
+@if(!empty($content['intro']))
+        <p class="block-contact-form-intro">{{ $content['intro'] }}</p>
+@endif
 @if(session('success'))
         <div class="form-success">{{ session('success') }}</div>
 @endif
