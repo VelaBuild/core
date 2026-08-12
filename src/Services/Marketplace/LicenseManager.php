@@ -112,7 +112,7 @@ class LicenseManager
             if (
                 isset($entry['type']) && $entry['type'] === PackageLicense::TYPE_YEARLY
                 && isset($entry['expires_at']) && $entry['expires_at'] !== null
-                && now()->parse($entry['expires_at'])->isPast()
+                && \Carbon\Carbon::parse($entry['expires_at'])->isPast()
             ) {
                 return 'expired';
             }

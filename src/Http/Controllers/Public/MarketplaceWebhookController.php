@@ -37,6 +37,10 @@ class MarketplaceWebhookController extends Controller
 
         $data = json_decode($payload, true);
 
+        if (!is_array($data)) {
+            return response()->json(['error' => 'Invalid payload'], 400);
+        }
+
         switch ($data['event'] ?? null) {
             case 'version.released':
                 $package = InstalledPackage::where('composer_name', $data['plugin'] ?? '')->first();
