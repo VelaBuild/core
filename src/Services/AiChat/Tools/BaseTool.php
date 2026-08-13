@@ -26,8 +26,23 @@ abstract class BaseTool
     {
         try {
             app(\VelaBuild\Core\Services\SiteConfigWriter::class)->write();
+            // This process booted with the old values, and whatever it renders
+            // from here — including a snapshot an observer rebuilds later in
+            // the same request — would otherwise carry the previous theme.
+            \VelaBuild\Core\Services\SiteConfigWriter::apply();
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Vela: could not rebuild the site config cache: ' . $e->getMessage());
+        }
+
+        // Where static serving is on, a visitor never reaches the framework —
+        // public/index.php hands back a pre-rendered file. A setting that shows
+        // up in the markup of every page has to drop those files too, or the
+        // config is right while the page people are served is still the old
+        // one. Same move vela:theme-reset makes.
+        try {
+            app(\VelaBuild\Core\Services\StaticSiteGenerator::class)->purgeHtml();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Vela: could not clear the static pages: ' . $e->getMessage());
         }
     }
 

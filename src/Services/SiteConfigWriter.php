@@ -13,6 +13,76 @@ class SiteConfigWriter
      * Called after any settings change (admin UI or MCP API) to ensure
      * the cached PHP file reflects the latest DB state.
      */
+    /**
+     * Push the written file's values into the runtime config.
+     *
+     * The provider does this once at boot, which is enough for a normal
+     * request. It is not enough for the process that just changed a setting:
+     * its config still holds what was loaded at boot, so anything rendered
+     * afterwards in that process — a page snapshot an observer rebuilds, most
+     * of all — comes out with the theme that was just replaced, and a visitor
+     * is served it. Both callers share this so the mapping cannot drift.
+     */
+    public static function apply(?array $siteConfig = null): void
+    {
+        if ($siteConfig === null) {
+            $path = storage_path('app/vela-site.php');
+            if (! file_exists($path)) {
+                return;
+            }
+            $siteConfig = include $path;
+        }
+
+        if (! is_array($siteConfig)) {
+            return;
+        }
+
+        if (! empty($siteConfig['site_name'])) {
+            config(['app.name' => $siteConfig['site_name']]);
+        }
+        if (! empty($siteConfig['site_tagline'])) {
+            config(['vela.site.tagline' => $siteConfig['site_tagline']]);
+        }
+        if (! empty($siteConfig['active_template'])) {
+            config(['vela.template.active' => $siteConfig['active_template']]);
+        }
+        // Cleared CSS has to reach the config as an empty string, or the site
+        // keeps serving the stylesheet that was just deleted.
+        if (array_key_exists('custom_css_global', $siteConfig)) {
+            config(['vela.site.custom_css_global' => $siteConfig['custom_css_global']]);
+        }
+        if (! empty($siteConfig['theme']) && is_array($siteConfig['theme'])) {
+            foreach ($siteConfig['theme'] as $key => $value) {
+                config(['vela.theme.' . substr($key, 6) => $value]); // strip the 'theme_' prefix
+            }
+        }
+        if (isset($siteConfig['visibility_mode'])) {
+            config(['vela.visibility.mode' => $siteConfig['visibility_mode']]);
+            config(['vela.visibility.noindex' => ! empty($siteConfig['visibility_noindex'])]);
+            config(['vela.visibility.block_ai' => ! empty($siteConfig['visibility_block_ai'])]);
+            config(['vela.visibility.holding_page' => ! empty($siteConfig['visibility_holding_page'])]);
+            config(['vela.visibility.holding_page_id' => $siteConfig['visibility_holding_page_id'] ?? '']);
+            config(['vela.visibility.holding_page_slug' => $siteConfig['visibility_holding_page_slug'] ?? '']);
+        }
+        if (isset($siteConfig['x402_enabled'])) {
+            config(['vela.x402.enabled' => (bool) $siteConfig['x402_enabled']]);
+        }
+        foreach (['mode', 'pay_to', 'network', 'description'] as $option) {
+            if (! empty($siteConfig['x402_' . $option])) {
+                config(['vela.x402.' . $option => $siteConfig['x402_' . $option]]);
+            }
+        }
+        if (isset($siteConfig['x402_price_usd'])) {
+            config(['vela.x402.price_usd' => $siteConfig['x402_price_usd']]);
+        }
+        if (isset($siteConfig['gdpr_enabled'])) {
+            config(['vela.gdpr.enabled' => (bool) $siteConfig['gdpr_enabled']]);
+        }
+        if (! empty($siteConfig['gdpr_privacy_url'])) {
+            config(['vela.gdpr.privacy_url' => $siteConfig['gdpr_privacy_url']]);
+        }
+    }
+
     public function write(): void
     {
         $config = [

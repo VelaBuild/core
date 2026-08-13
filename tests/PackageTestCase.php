@@ -28,6 +28,18 @@ abstract class PackageTestCase extends TestbenchTestCase
     }
 
     /**
+     * The host app registers this in config/app.php, and the public templates
+     * reach for it by its short name — without it no view that renders the
+     * site chrome can be exercised here at all.
+     */
+    protected function getPackageAliases($app): array
+    {
+        return [
+            'LaravelLocalization' => \Mcamara\LaravelLocalization\Facades\LaravelLocalization::class,
+        ];
+    }
+
+    /**
      * A signed-in user for tools that record an action log against one.
      */
     protected function signIn(): \VelaBuild\Core\Models\VelaUser

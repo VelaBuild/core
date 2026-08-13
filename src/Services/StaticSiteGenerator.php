@@ -308,7 +308,11 @@ class StaticSiteGenerator
                 $query->where('vela_categories.id', $category->id);
             })
             ->orderByRaw('COALESCE(published_at, created_at) DESC')
-            ->get();
+            // Paginated for the same reason the posts index is: the view asks
+            // the result for hasPages(), which a plain collection cannot
+            // answer, so every category threw on render and the site was left
+            // without a single category snapshot.
+            ->paginate(12);
 
         $categories = Category::orderBy('order_by', 'asc')
             ->orderBy('name', 'asc')
@@ -382,6 +386,26 @@ class StaticSiteGenerator
 
         if (is_dir($dir)) {
             $this->deleteDirectory($dir);
+        }
+    }
+
+    /**
+     * Drop every pre-rendered page.
+     *
+     * For a change that touches the markup of the whole site — the theme, the
+     * sitewide stylesheet, the site's name — this is the honest move. Nothing
+     * is stale afterwards: the next visitor to each page is served a freshly
+     * rendered one and the file is written back. Regenerating in place instead
+     * would render with whatever the changing process booted with, which is
+     * the previous theme.
+     */
+    public function purgeHtml(): void
+    {
+        foreach (['home', 'posts', 'categories', 'pages'] as $dir) {
+            $path = $this->basePath . '/' . $dir;
+            if (is_dir($path)) {
+                $this->deleteDirectory($path);
+            }
         }
     }
 

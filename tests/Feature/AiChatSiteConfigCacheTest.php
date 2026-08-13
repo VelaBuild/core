@@ -34,6 +34,19 @@ class AiChatSiteConfigCacheTest extends PackageTestCase
         parent::tearDown();
     }
 
+    public function test_the_changing_process_renders_with_the_new_setting(): void
+    {
+        // The process that changed the theme still held what it booted with,
+        // so anything it rendered afterwards — a page snapshot rebuilt later
+        // in the same request — was written with the theme just replaced, and
+        // a visitor was served it.
+        config(['vela.template.active' => 'modern']);
+
+        (new SwitchTemplateTool())->execute(['template' => 'dark']);
+
+        $this->assertSame('dark', config('vela.template.active'));
+    }
+
     public function test_switching_theme_reaches_the_file_the_site_renders_from(): void
     {
         $result = (new SwitchTemplateTool())->execute(['template' => 'dark']);

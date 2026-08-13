@@ -87,66 +87,10 @@ class VelaServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Load site config from static file (0 DB queries, safe permissions)
-        $siteConfigPath = storage_path('app/vela-site.php');
-        if (file_exists($siteConfigPath)) {
-            $siteConfig = include $siteConfigPath;
-            if (is_array($siteConfig)) {
-                if (! empty($siteConfig['site_name'])) {
-                    config(['app.name' => $siteConfig['site_name']]);
-                }
-                if (! empty($siteConfig['site_tagline'])) {
-                    config(['vela.site.tagline' => $siteConfig['site_tagline']]);
-                }
-                if (! empty($siteConfig['active_template'])) {
-                    config(['vela.template.active' => $siteConfig['active_template']]);
-                }
-                if (! empty($siteConfig['custom_css_global'])) {
-                    config(['vela.site.custom_css_global' => $siteConfig['custom_css_global']]);
-                }
-                if (! empty($siteConfig['theme']) && is_array($siteConfig['theme'])) {
-                    foreach ($siteConfig['theme'] as $key => $value) {
-                        $optionName = substr($key, 6); // strip 'theme_' prefix
-                        config(["vela.theme.{$optionName}" => $value]);
-                    }
-                }
-                // Site visibility settings
-                if (isset($siteConfig['visibility_mode'])) {
-                    config(['vela.visibility.mode' => $siteConfig['visibility_mode']]);
-                    config(['vela.visibility.noindex' => !empty($siteConfig['visibility_noindex'])]);
-                    config(['vela.visibility.block_ai' => !empty($siteConfig['visibility_block_ai'])]);
-                    config(['vela.visibility.holding_page' => !empty($siteConfig['visibility_holding_page'])]);
-                    config(['vela.visibility.holding_page_id' => $siteConfig['visibility_holding_page_id'] ?? '']);
-                    config(['vela.visibility.holding_page_slug' => $siteConfig['visibility_holding_page_slug'] ?? '']);
-                }
-                // x402 AI Payment settings
-                if (isset($siteConfig['x402_enabled'])) {
-                    config(['vela.x402.enabled' => (bool) $siteConfig['x402_enabled']]);
-                }
-                if (!empty($siteConfig['x402_mode'])) {
-                    config(['vela.x402.mode' => $siteConfig['x402_mode']]);
-                }
-                if (!empty($siteConfig['x402_pay_to'])) {
-                    config(['vela.x402.pay_to' => $siteConfig['x402_pay_to']]);
-                }
-                if (isset($siteConfig['x402_price_usd'])) {
-                    config(['vela.x402.price_usd' => $siteConfig['x402_price_usd']]);
-                }
-                if (!empty($siteConfig['x402_network'])) {
-                    config(['vela.x402.network' => $siteConfig['x402_network']]);
-                }
-                if (!empty($siteConfig['x402_description'])) {
-                    config(['vela.x402.description' => $siteConfig['x402_description']]);
-                }
-                // GDPR: DB values override .env defaults when admin has set them
-                if (isset($siteConfig['gdpr_enabled'])) {
-                    config(['vela.gdpr.enabled' => (bool) $siteConfig['gdpr_enabled']]);
-                }
-                if (! empty($siteConfig['gdpr_privacy_url'])) {
-                    config(['vela.gdpr.privacy_url' => $siteConfig['gdpr_privacy_url']]);
-                }
-            }
-        }
+        // Load site config from the static file (0 DB queries, safe
+        // permissions). The mapping lives on the writer so the process that
+        // changes a setting can re-apply it without duplicating this.
+        \VelaBuild\Core\Services\SiteConfigWriter::apply();
 
         // Load marketplace license cache
         $licenseConfigPath = storage_path('app/vela-licenses.php');

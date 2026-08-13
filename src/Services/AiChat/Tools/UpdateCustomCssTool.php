@@ -5,7 +5,6 @@ namespace VelaBuild\Core\Services\AiChat\Tools;
 use VelaBuild\Core\Models\AiActionLog;
 use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Models\Page;
-use VelaBuild\Core\Jobs\GenerateStaticFilesJob;
 
 class UpdateCustomCssTool extends BaseTool
 {
@@ -56,10 +55,9 @@ class UpdateCustomCssTool extends BaseTool
             }
 
             VelaConfig::updateOrCreate(['key' => 'custom_css_global'], ['value' => $css]);
+            // Rewrites the cached config and drops every pre-rendered page,
+            // both of which sitewide CSS depends on.
             $this->refreshSiteConfigCache();
-
-            // Regenerate all static files since sitewide CSS affects every page
-            GenerateStaticFilesJob::dispatch('all');
 
             return ['success' => true, 'scope' => 'site', 'message' => 'Sitewide CSS updated and cache cleared'];
         }
@@ -84,8 +82,10 @@ class UpdateCustomCssTool extends BaseTool
 
             $page->update(['custom_css' => $css]);
 
-            // Regenerate this page's static file
-            GenerateStaticFilesJob::dispatch('page', $page->id);
+            // Drop this page's pre-rendered copy so the next visitor is
+            // served one with the new stylesheet. Queueing the rebuild instead
+            // left it sitting on a queue no worker drains.
+            app(\VelaBuild\Core\Services\StaticSiteGenerator::class)->removeHtml('page', $page->slug);
 
             return ['success' => true, 'scope' => 'page', 'page_id' => $page->id, 'message' => "CSS updated for page '{$page->title}' and cache cleared"];
         }

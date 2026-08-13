@@ -99,14 +99,9 @@ class ThemeReset extends Command
 
     private function clearStaticHtml(): void
     {
-        $staticPath = config('vela.static.path', resource_path('static'));
-
-        foreach (['home', 'posts', 'categories', 'pages'] as $dir) {
-            $path = $staticPath . '/' . $dir;
-            if (is_dir($path)) {
-                $this->deleteDirectory($path);
-            }
-        }
+        // Shared with the chat tools, so the two cannot drift on which
+        // directories count as pre-rendered pages.
+        app(\VelaBuild\Core\Services\StaticSiteGenerator::class)->purgeHtml();
 
         $this->info('  Cleared static HTML cache.');
     }
@@ -122,19 +117,5 @@ class ThemeReset extends Command
         }
 
         $this->info('  Cleared compiled Blade views.');
-    }
-
-    private function deleteDirectory(string $dir): void
-    {
-        $files = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
-        );
-
-        foreach ($files as $file) {
-            $file->isDir() ? @rmdir($file->getRealPath()) : @unlink($file->getRealPath());
-        }
-
-        @rmdir($dir);
     }
 }
