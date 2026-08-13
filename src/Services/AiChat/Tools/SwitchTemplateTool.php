@@ -33,6 +33,7 @@ class SwitchTemplateTool extends BaseTool
         }
 
         VelaConfig::updateOrCreate(['key' => 'active_template'], ['value' => $templateName]);
+        $this->refreshSiteConfigCache();
 
         $templateInfo = $registry->get($templateName);
         return [
@@ -54,5 +55,7 @@ class SwitchTemplateTool extends BaseTool
         } else {
             VelaConfig::where('key', 'active_template')->delete();
         }
+
+        $this->refreshSiteConfigCache();
     }
 }

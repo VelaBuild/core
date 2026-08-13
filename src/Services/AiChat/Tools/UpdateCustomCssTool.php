@@ -56,6 +56,7 @@ class UpdateCustomCssTool extends BaseTool
             }
 
             VelaConfig::updateOrCreate(['key' => 'custom_css_global'], ['value' => $css]);
+            $this->refreshSiteConfigCache();
 
             // Regenerate all static files since sitewide CSS affects every page
             GenerateStaticFilesJob::dispatch('all');
@@ -217,5 +218,7 @@ class UpdateCustomCssTool extends BaseTool
                 $page->update(['custom_css' => $state['value']]);
             }
         }
+
+        $this->refreshSiteConfigCache();
     }
 }

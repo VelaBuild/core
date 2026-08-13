@@ -13,6 +13,25 @@ abstract class BaseTool
     }
 
     /**
+     * Rebuild the static site-config cache the public site actually reads.
+     *
+     * Settings live in vela_configs, but no request reads that table — the
+     * provider boots `vela.*` from storage/app/vela-site.php instead. A tool
+     * that writes the row and stops leaves the site serving the old value
+     * until someone happens to save something in the admin, so switching
+     * theme or setting sitewide CSS reported success and changed nothing a
+     * visitor could see.
+     */
+    protected function refreshSiteConfigCache(): void
+    {
+        try {
+            app(\VelaBuild\Core\Services\SiteConfigWriter::class)->write();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Vela: could not rebuild the site config cache: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Reject block content carrying keys the block's view never reads.
      *
      * A block's registered defaults.content enumerates every key its Blade view

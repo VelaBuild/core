@@ -44,6 +44,7 @@ class UpdateSiteConfigTool extends BaseTool
         }
 
         VelaConfig::updateOrCreate(['key' => $key], ['value' => $value]);
+        $this->refreshSiteConfigCache();
 
         $result = [
             'success' => true,
@@ -75,5 +76,7 @@ class UpdateSiteConfigTool extends BaseTool
         } else {
             VelaConfig::where('key', $key)->delete();
         }
+
+        $this->refreshSiteConfigCache();
     }
 }

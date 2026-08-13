@@ -34,6 +34,7 @@ class UpdateTemplateColorsTool extends BaseTool
             $configKey = "css_{$var}";
             VelaConfig::updateOrCreate(['key' => $configKey], ['value' => $value]);
         }
+        $this->refreshSiteConfigCache();
 
         return [
             'success' => true,
@@ -55,5 +56,7 @@ class UpdateTemplateColorsTool extends BaseTool
                 VelaConfig::where('key', $prev['key'])->delete();
             }
         }
+
+        $this->refreshSiteConfigCache();
     }
 }
