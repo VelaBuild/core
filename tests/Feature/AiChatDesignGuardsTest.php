@@ -3,9 +3,11 @@
 namespace VelaBuild\Core\Tests\Feature;
 
 use VelaBuild\Core\Models\Page;
+use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Models\PageRow;
 use VelaBuild\Core\Services\AiChat\Tools\UpdateCustomCssTool;
 use VelaBuild\Core\Services\AiChat\Tools\UpdateRowTool;
+use VelaBuild\Core\Services\AiChat\Tools\UpdateTemplateColorsTool;
 use VelaBuild\Core\Tests\PackageTestCase;
 
 /**
@@ -75,6 +77,43 @@ class AiChatDesignGuardsTest extends PackageTestCase
         ]);
 
         $this->assertTrue($result['success']);
+    }
+
+    public function test_a_site_colour_is_written_where_the_page_reads_it(): void
+    {
+        // It used to be stored under css_*, a namespace nothing reads: the
+        // value was saved, the tool reported success, and the site was
+        // unchanged. "brand" is what the model calls it; primary is the role.
+        $result = (new UpdateTemplateColorsTool())->execute(['colors' => ['brand' => '#f59e0b']]);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('#f59e0b', VelaConfig::where('key', 'theme_primary_color')->value('value'));
+        $this->assertNull(VelaConfig::where('key', 'css_brand')->value('value'));
+    }
+
+    public function test_a_template_that_ignores_site_colours_says_so(): void
+    {
+        config(['vela.template.active' => 'default']);
+
+        $result = (new UpdateTemplateColorsTool())->execute(['colors' => ['primary' => '#f59e0b']]);
+
+        $this->assertStringContainsString('does not read these colours', $result['warning']);
+    }
+
+    public function test_a_template_that_follows_them_needs_no_warning(): void
+    {
+        config(['vela.template.active' => 'minimal']);
+
+        $result = (new UpdateTemplateColorsTool())->execute(['colors' => ['primary' => '#f59e0b']]);
+
+        $this->assertArrayNotHasKey('warning', $result);
+    }
+
+    public function test_a_colour_this_tool_cannot_set_is_refused(): void
+    {
+        $result = (new UpdateTemplateColorsTool())->execute(['colors' => ['sidebar' => '#123456']]);
+
+        $this->assertSame(['primary', 'secondary', 'background'], $result['valid_colors']);
     }
 
     public function test_css_reading_a_property_this_site_never_sets_is_refused(): void

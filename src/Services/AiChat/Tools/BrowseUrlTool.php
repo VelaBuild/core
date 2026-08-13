@@ -9,7 +9,9 @@ class BrowseUrlTool extends BaseTool
 {
     public function execute(array $parameters, ?AiActionLog $actionLog = null): array
     {
-        $url = $parameters['url'] ?? '';
+        // A path on its own means a page on this site, so the model cannot
+        // reach for a placeholder domain when asked to look at its own work.
+        $url = FetchUrlTool::resolveAgainstThisSite((string) ($parameters['url'] ?? ''));
         $action = $parameters['action'] ?? 'extract';
 
         if (!$url) {

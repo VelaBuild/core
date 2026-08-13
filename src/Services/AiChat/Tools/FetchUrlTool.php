@@ -12,7 +12,7 @@ class FetchUrlTool extends BaseTool
 
     public function execute(array $parameters, ?AiActionLog $actionLog = null): array
     {
-        $url = (string) ($parameters['url'] ?? '');
+        $url = self::resolveAgainstThisSite((string) ($parameters['url'] ?? ''));
         if ($url === '') {
             return ['error' => 'url parameter is required'];
         }
@@ -59,6 +59,27 @@ class FetchUrlTool extends BaseTool
             'truncated'    => $truncated,
             'body'         => $body,
         ];
+    }
+
+    /**
+     * Turn a bare path into an address on this site.
+     *
+     * Told to look at its own site and given no address, the model invents a
+     * domain — a request for the contact page went to yourwebsite.com. A path
+     * is the natural thing to reach for, so let it work.
+     */
+    public static function resolveAgainstThisSite(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '' || preg_match('#^[a-z][a-z0-9+.-]*://#i', $url)) {
+            return $url;
+        }
+
+        if (str_starts_with($url, '/')) {
+            return rtrim((string) config('app.url'), '/') . $url;
+        }
+
+        return $url;
     }
 
     /**

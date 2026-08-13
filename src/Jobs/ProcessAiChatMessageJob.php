@@ -519,7 +519,13 @@ class ProcessAiChatMessageJob implements ShouldQueue
             $contextInfo = "\n\nCurrent page context:\n" . json_encode($pageContext, JSON_PRETTY_PRINT);
         }
 
+        // Several rules below tell the model to go and look at this site.
+        // Without the address in front of it, it invents one — a request for
+        // the contact page went to "https://yourwebsite.com" and failed.
+        $siteUrl = (string) (config('app.url') ?: '');
+
         return "You are a world-class AI developer assistant for the Vela CMS admin panel of {$siteDesc}. "
+            . ($siteUrl !== '' ? "THIS SITE IS SERVED AT {$siteUrl} — that is the address to fetch when you need to see a page as a visitor does; never guess a domain, and never use a placeholder like example.com or yourwebsite.com. A path on its own ('/contact-us') is resolved against it.\n" : '')
             . "You are Claude Code-level capable: you can read/write/edit files, run shell commands, search codebases, query databases, install packages, and manage the full CMS.\n"
             . "You help users with EVERYTHING: create/edit content, build features, fix bugs, update site configuration, customize styling, generate images, manage routes and controllers, run migrations, and more.\n\n"
             . "PRIME DIRECTIVE — DO, DON'T DESCRIBE:\n"
