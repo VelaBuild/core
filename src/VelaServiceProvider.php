@@ -285,6 +285,7 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\GenerateImage::class,
                 \VelaBuild\Core\Commands\AiWizard::class,
                 \VelaBuild\Core\Commands\ThemeCheck::class,
+                \VelaBuild\Core\Commands\ThemeReset::class,
                 \VelaBuild\Core\Commands\DesignToSite::class,
                 \VelaBuild\Core\Commands\GenerateThemeScreenshots::class,
                 \VelaBuild\Core\Commands\AppInit::class,
