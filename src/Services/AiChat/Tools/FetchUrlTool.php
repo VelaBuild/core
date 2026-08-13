@@ -24,9 +24,12 @@ class FetchUrlTool extends BaseTool
         }
 
         // Block fetches against private / loopback / link-local hosts so the
-        // tool can't be used for SSRF against internal services.
+        // tool can't be used for SSRF against internal services. This site
+        // itself is the exception: reading the page a visitor would get is
+        // the one reliable way to check a change actually landed, and on a
+        // local or intranet install that address is private by definition.
         $host = $parts['host'] ?? '';
-        if ($this->isPrivateHost($host)) {
+        if ($this->isPrivateHost($host) && !$this->isThisSite($parts)) {
             return ['error' => 'Refusing to fetch from a private/loopback address'];
         }
 
@@ -56,6 +59,26 @@ class FetchUrlTool extends BaseTool
             'truncated'    => $truncated,
             'body'         => $body,
         ];
+    }
+
+    /**
+     * Is this URL the site the chatbot is running inside?
+     *
+     * Host and port both have to match what the app is configured as, so a
+     * loopback address on some other port — a database admin panel, another
+     * app on the same machine — stays blocked.
+     */
+    private function isThisSite(array $parts): bool
+    {
+        $own = parse_url((string) config('app.url'));
+        if (empty($own['host'])) {
+            return false;
+        }
+
+        $ownPort = $own['port'] ?? (($own['scheme'] ?? 'http') === 'https' ? 443 : 80);
+        $port = $parts['port'] ?? (($parts['scheme'] ?? 'http') === 'https' ? 443 : 80);
+
+        return strcasecmp($parts['host'] ?? '', $own['host']) === 0 && $port === $ownPort;
     }
 
     private function isPrivateHost(string $host): bool
