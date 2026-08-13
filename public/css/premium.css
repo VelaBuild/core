@@ -25,6 +25,17 @@ body {
     background-color: #ffffff;
 }
 
+/* Link reset — every other template declares this in its own critical CSS;
+   `default` styles links through premium.css instead. Underline on hover so
+   in-copy links stay distinguishable from surrounding text. */
+a {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
 /* Pair the serif display font with Inter body across all page-builder blocks. */
 :root {
     --block-heading-font: 'Playfair Display', Georgia, serif;
