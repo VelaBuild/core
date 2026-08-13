@@ -42,6 +42,16 @@ class UpdateRowTool extends BaseTool
             return ['error' => 'No fields to update. Pass at least one row property.'];
         }
 
+        // Against the row as it will be, not as it was: changing only the
+        // background is exactly how a section ends up white on white.
+        if ($error = $this->validateColourContrast(
+            $updates['background_color'] ?? $row->background_color,
+            $updates['text_color'] ?? $row->text_color,
+            $updates['background_image'] ?? $row->background_image,
+        )) {
+            return $error;
+        }
+
         if ($actionLog) {
             $actionLog->update(['previous_state' => [
                 'row_id' => $row->id,

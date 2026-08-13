@@ -33,6 +33,14 @@ class AddRowTool extends BaseTool
         $attributes['order_column'] = $parameters['order']
             ?? ((int) $page->rows()->max('order_column') + 1);
 
+        if ($error = $this->validateColourContrast(
+            $attributes['background_color'] ?? null,
+            $attributes['text_color'] ?? null,
+            $attributes['background_image'] ?? null,
+        )) {
+            return $error;
+        }
+
         $row = PageRow::create($attributes);
         $page->touch(); // fire PageObserver → static cache regen
 

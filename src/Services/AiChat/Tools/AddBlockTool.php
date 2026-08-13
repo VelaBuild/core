@@ -46,6 +46,14 @@ class AddBlockTool extends BaseTool
             $content = $this->normalizeBlockUrls($content);
         }
 
+        if ($error = $this->validateColourContrast(
+            $parameters['background_color'] ?? null,
+            $parameters['text_color'] ?? null,
+            $parameters['background_image'] ?? null,
+        )) {
+            return $error;
+        }
+
         $block = PageBlock::create([
             'page_row_id'  => $row->id,
             'type'         => $type,

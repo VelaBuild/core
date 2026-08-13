@@ -18,7 +18,7 @@ class GetCustomCssTool extends BaseTool
                 'scope' => 'site',
                 'css' => $css ?? '',
                 'has_css' => !empty($css),
-                'block_variables' => $this->blockVariables(),
+                'block_variables' => self::blockVariables(),
                 'how_to_recolour_blocks' => 'Buttons, icons and accents across every block are driven by these custom '
                     . 'properties, not by per-element rules. Override them in a :root { } rule to restyle the whole site, '
                     . 'or inside #row-<id> / #block-<id> to restyle one section.',
@@ -43,7 +43,7 @@ class GetCustomCssTool extends BaseTool
                 'page_title' => $page->title,
                 'css' => $page->custom_css ?? '',
                 'has_css' => !empty($page->custom_css),
-                'block_variables' => $this->blockVariables(),
+                'block_variables' => self::blockVariables(),
                 'how_to_recolour_blocks' => 'Buttons, icons and accents are driven by these custom properties, not by '
                     . 'per-element rules. Override them inside #row-<id> or #block-<id> (both ids are rendered on the '
                     . 'page) to restyle one section, or in :root to restyle everything.',
@@ -62,7 +62,12 @@ class GetCustomCssTool extends BaseTool
      *
      * @return array<string, string>
      */
-    private function blockVariables(): array
+    /**
+     * The custom properties the block stylesheet defines. Shared with
+     * update_custom_css, which refuses rules that read properties this site
+     * never sets.
+     */
+    public static function blockVariables(): array
     {
         $stylesheet = __DIR__ . '/../../../../public/css/page-blocks.css';
         if (!is_file($stylesheet)) {

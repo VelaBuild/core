@@ -46,6 +46,18 @@ class UpdateCustomCssTool extends BaseTool
             ];
         }
 
+        if (!($parameters['force'] ?? false) && $undefined = $this->undefinedVariables($css)) {
+            return [
+                'error' => 'This CSS reads custom properties this site never defines: ' . implode(', ', $undefined)
+                    . '. A var() that resolves to nothing falls back to whatever comes after the comma, so the rule '
+                    . 'quietly does the opposite of what it looks like — copying font-family: var(--font-inter), '
+                    . 'system-ui from another site replaces the real typeface with a generic one. Write the value '
+                    . 'itself, or define the property in this same stylesheet first. get_custom_css lists the '
+                    . 'properties this site does define.',
+                'undefined_variables' => $undefined,
+            ];
+        }
+
         if ($scope === 'site') {
             $current = VelaConfig::where('key', 'custom_css_global')->first();
             $previousState = ['scope' => 'site', 'value' => $current?->value];
@@ -168,6 +180,43 @@ class UpdateCustomCssTool extends BaseTool
      * checked: font and spacing on element selectors are still normal
      * site-wide typography and cascade as expected.
      */
+    /**
+     * Custom properties the stylesheet reads but nothing on this site sets.
+     *
+     * Copying a look from another site brings its variable names along —
+     * var(--font-inter) means something on the site it was lifted from and
+     * nothing here, so the declaration silently resolves to its fallback and
+     * the site ends up worse than before the rule was written.
+     */
+    private function undefinedVariables(string $css): array
+    {
+        preg_match_all('/var\(\s*(--[a-z0-9-]+)/i', $css, $used);
+        if (empty($used[1])) {
+            return [];
+        }
+
+        // Defined right here, or already known to the site: the block palette
+        // and the theme options both land in the rendered stylesheet.
+        preg_match_all('/(--[a-z0-9-]+)\s*:/i', $css, $declared);
+        $known = array_map('strtolower', $declared[1]);
+
+        foreach (array_keys(GetCustomCssTool::blockVariables()) as $name) {
+            $known[] = strtolower($name);
+        }
+        foreach (['--vela-primary', '--vela-secondary', '--vela-background', '--vela-text-color'] as $name) {
+            $known[] = $name;
+        }
+
+        $missing = [];
+        foreach (array_unique($used[1]) as $name) {
+            if (!in_array(strtolower($name), $known, true)) {
+                $missing[] = $name;
+            }
+        }
+
+        return $missing;
+    }
+
     private function colourOnBareElement(string $css): ?string
     {
         $elements = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'a', 'li', 'span'];

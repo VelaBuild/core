@@ -47,6 +47,62 @@ abstract class BaseTool
     }
 
     /**
+     * Refuse a background and text colour nobody could read.
+     *
+     * Changing one of the pair without looking at the other is how a row ends
+     * up white on white: asked to lighten a section, the model sets the
+     * background and leaves the white text that was chosen for the dark one.
+     * A background image can carry its own contrast, so a section that has one
+     * is left alone.
+     */
+    protected function validateColourContrast(?string $background, ?string $text, ?string $backgroundImage = null): ?array
+    {
+        if ($backgroundImage || !$this->isHexColour($background) || !$this->isHexColour($text)) {
+            return null;
+        }
+
+        $ratio = $this->contrastRatio($background, $text);
+        if ($ratio >= 3.0) {
+            return null;
+        }
+
+        return [
+            'error' => "Text at {$text} on a {$background} background comes out at "
+                . number_format($ratio, 2) . ':1, which visitors cannot read '
+                . '(3:1 is the floor for headline-sized text). Both halves of the pair have to be set together: '
+                . 'send text_color along with background_color, or pick a background that keeps the text it already has readable.',
+            'background_color' => $background,
+            'text_color'       => $text,
+            'contrast_ratio'   => round($ratio, 2),
+        ];
+    }
+
+    private function isHexColour(?string $value): bool
+    {
+        return is_string($value) && preg_match('/^#[0-9a-f]{6}$/i', trim($value)) === 1;
+    }
+
+    /** WCAG relative-luminance contrast, 1:1 (identical) to 21:1 (black on white). */
+    private function contrastRatio(string $a, string $b): float
+    {
+        $luminance = function (string $hex): float {
+            $hex = ltrim(trim($hex), '#');
+            $channels = [];
+            foreach ([0, 2, 4] as $offset) {
+                $value = hexdec(substr($hex, $offset, 2)) / 255;
+                $channels[] = $value <= 0.03928 ? $value / 12.92 : (($value + 0.055) / 1.055) ** 2.4;
+            }
+
+            return 0.2126 * $channels[0] + 0.7152 * $channels[1] + 0.0722 * $channels[2];
+        };
+
+        $first = $luminance($a);
+        $second = $luminance($b);
+
+        return (max($first, $second) + 0.05) / (min($first, $second) + 0.05);
+    }
+
+    /**
      * Reject block content carrying keys the block's view never reads.
      *
      * A block's registered defaults.content enumerates every key its Blade view
