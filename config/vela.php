@@ -81,6 +81,11 @@ return [
     |--------------------------------------------------------------------------
     */
 
+    // Public self-registration is disabled by default: this is a CMS, so accounts
+    // should normally be created by an administrator. Only enable it if you really
+    // want anyone on the internet to be able to create a back-office account.
+    'registration_enabled' => env('VELA_REGISTRATION_ENABLED', false),
+
     'registration_default_role' => '2',
 
     /*

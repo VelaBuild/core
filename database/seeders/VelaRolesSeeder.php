@@ -32,6 +32,12 @@ class VelaRolesSeeder extends Seeder
                 'user_create', 'user_edit', 'user_delete',
                 'config_access', 'config_create', 'config_edit', 'config_show', 'config_delete',
                 'ai_chat_template_edit', 'ai_chat_config_manage',
+                // Form submissions hold personal data supplied by site visitors.
+                'form_submission_access', 'form_submission_show', 'form_submission_delete',
+                // Installing/managing marketplace packages means running third-party code.
+                'marketplace_install', 'marketplace_manage',
+                // Admin tools configure credentials (Cloudflare, Search Console, ...).
+                'admin_tools_access',
             ];
 
             $userPermissions = Permission::whereNotIn('title', $userExcluded)->pluck('id')->toArray();
