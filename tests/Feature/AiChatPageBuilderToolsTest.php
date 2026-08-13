@@ -68,6 +68,47 @@ class AiChatPageBuilderToolsTest extends PackageTestCase
         $this->assertContains('background_image_url', $result['unknown_keys']);
     }
 
+    public function test_a_written_block_comes_back_with_what_a_visitor_would_read(): void
+    {
+        // The prompt has told the model to check its work from the start and
+        // it never has — not once in fifty conversations. So the tool looks,
+        // and hands the answer back with the result.
+        $result = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'hero',
+            'content' => ['title' => 'Dive with us', 'subtitle' => 'Bangkok'],
+        ]);
+
+        $this->assertTrue($result['success']);
+        $this->assertStringContainsString('Dive with us', $result['visitor_sees']);
+        $this->assertArrayNotHasKey('warning', $result);
+    }
+
+    public function test_a_block_that_renders_to_nothing_comes_back_as_a_warning(): void
+    {
+        $result = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'accordion',
+            'content' => ['items' => []],
+        ]);
+
+        $this->assertArrayHasKey('warning', $result);
+        $this->assertStringContainsString('blank gap', $result['warning']);
+        $this->assertArrayNotHasKey('visitor_sees', $result);
+    }
+
+    public function test_a_block_made_of_pictures_is_not_mistaken_for_an_empty_one(): void
+    {
+        // Wordless is not the same as broken.
+        $result = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'image',
+            'content' => ['url' => 'https://example.com/reef.jpg', 'alt' => '', 'caption' => ''],
+        ]);
+
+        $this->assertArrayNotHasKey('warning', $result);
+    }
+
     public function test_add_block_stores_a_background_image_on_the_block(): void
     {
         $result = (new AddBlockTool())->execute([

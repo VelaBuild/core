@@ -88,7 +88,10 @@ class UpdateBlockTool extends BaseTool
             Page::find($pageId)?->touch();
         }
 
-        return ['success' => true, 'block_id' => $block->id, 'changed' => array_keys($updates)];
+        return array_merge(
+            ['success' => true, 'block_id' => $block->id, 'changed' => array_keys($updates)],
+            $this->describeRenderedBlock($block->fresh()),
+        );
     }
 
     public function undo(AiActionLog $actionLog): void

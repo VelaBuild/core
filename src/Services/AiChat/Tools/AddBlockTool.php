@@ -76,7 +76,10 @@ class AddBlockTool extends BaseTool
             $actionLog->update(['previous_state' => ['created_block_id' => $block->id]]);
         }
 
-        return ['success' => true, 'block_id' => $block->id, 'row_id' => $row->id];
+        return array_merge(
+            ['success' => true, 'block_id' => $block->id, 'row_id' => $row->id],
+            $this->describeRenderedBlock($block->fresh()),
+        );
     }
 
     public function undo(AiActionLog $actionLog): void

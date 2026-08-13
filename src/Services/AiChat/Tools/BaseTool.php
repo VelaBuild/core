@@ -47,6 +47,49 @@ abstract class BaseTool
     }
 
     /**
+     * Render the block on its own and report what a visitor would read.
+     *
+     * The prompt has told the model to check its work since the beginning and
+     * it never has — not once in fifty conversations. So the tool does the
+     * looking and hands the answer back with the result: a block that renders
+     * to nothing comes back as a warning instead of a bare success, and there
+     * is no longer a version of "done" that the model can report without the
+     * evidence in front of it.
+     */
+    protected function describeRenderedBlock(\VelaBuild\Core\Models\PageBlock $block): array
+    {
+        $definition = app(\VelaBuild\Core\Vela::class)->blocks()->all()[$block->type] ?? null;
+        $view = view()->exists('vela::public.pages.blocks.' . $block->type)
+            ? 'vela::public.pages.blocks.' . $block->type
+            : ($definition['view'] ?? null);
+
+        if (!$view || !view()->exists($view)) {
+            return [];
+        }
+
+        try {
+            $html = view($view, [
+                'block' => $block,
+                'page'  => $block->row?->page,
+            ])->render();
+        } catch (\Throwable $e) {
+            return ['warning' => "This block throws when the page renders, so the page is now broken for visitors: "
+                . $e->getMessage() . '. Undo it or fix the content before telling the user anything was added.'];
+        }
+
+        $text = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($html), ENT_QUOTES, 'UTF-8')));
+
+        // Some blocks are pictures or embeds and carry no words at all.
+        if ($text === '' && !preg_match('/<(img|iframe|svg|input|video)\b/i', $html)) {
+            return ['warning' => 'This block renders completely empty — a visitor sees a blank gap where it sits. '
+                . 'The content was stored but the view read none of it. Check the shape with list_block_types and '
+                . 'send it again; do not report this as added.'];
+        }
+
+        return ['visitor_sees' => \Illuminate\Support\Str::limit($text, 200)];
+    }
+
+    /**
      * Refuse a background and text colour nobody could read.
      *
      * Changing one of the pair without looking at the other is how a row ends
