@@ -1,6 +1,5 @@
 @extends('vela::layouts.admin')
 @section('content')
-
 <div class="card">
     <div class="card-header">
         {{ trans('vela::cruds.formSubmission.title') }} {{ trans('vela::global.list') }}
