@@ -24,7 +24,13 @@ if (!function_exists('vela_image')) {
     {
         $relativePath = vela_image_relative_path($src);
 
-        if (!config('vela.images.enabled', true) || $relativePath === null) {
+        // Vector files have no pixels to resample. Sending one through the
+        // optimizer produces a URL that errors, and the picture renders as a
+        // broken icon — so it goes out untouched, which is also the smallest
+        // and sharpest it can be.
+        $isVector = preg_match('#\.svgz?($|[?\#])#i', $src) === 1;
+
+        if (!config('vela.images.enabled', true) || $relativePath === null || $isVector) {
             $extraAttrs = '';
             foreach ($attrs as $k => $v) {
                 $extraAttrs .= ' ' . e($k) . '="' . e($v) . '"';
@@ -180,6 +186,14 @@ if (!function_exists('vela_optimize_imgs')) {
                     || str_contains($src, '/imgp/')
                     || str_contains($src, '/imgr/')
                     || str_starts_with($src, 'data:')) {
+                    return $m[0];
+                }
+
+                // An SVG has no pixels to resample: the optimizer cannot open
+                // it, so the request 500s and the picture renders as a broken
+                // icon. It is already the smallest and sharpest form it has —
+                // leave it exactly as it is.
+                if (preg_match('#\.svgz?($|[?\#])#i', $src)) {
                     return $m[0];
                 }
 
