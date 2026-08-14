@@ -42,6 +42,7 @@ class UpdatePageTool extends BaseTool
             if ($newSlug === '') {
                 return ['error' => "Slug '{$parameters['slug']}' is empty after slugifying."];
             }
+            Page::releaseSlugFromTrash($newSlug, (string) $page->locale, $page->id);
             if (Page::where('slug', $newSlug)->where('id', '!=', $page->id)->exists()) {
                 return ['error' => "Slug '{$newSlug}' is already used by another page."];
             }

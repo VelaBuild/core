@@ -110,4 +110,42 @@ class Page extends Model implements HasMedia
     {
         return PageFactory::new();
     }
+
+    /**
+     * Hand a slug back after the page holding it was deleted.
+     *
+     * Pages are soft-deleted, and the table's unique index counts the deleted
+     * rows — so a page in the bin went on owning its address forever. Delete
+     * "contact-us", try to rename another page to contact-us, and the admin
+     * answers "The slug has already been taken" about a page that is not
+     * there, with no trash screen anywhere to free it from.
+     *
+     * The deleted rows keep their content and stay restorable; they just give
+     * up the address, which means nothing while they are in the bin.
+     *
+     * @return int how many deleted pages were moved aside
+     */
+    public static function releaseSlugFromTrash(string $slug, string $locale, ?int $exceptId = null): int
+    {
+        $slug = trim($slug);
+        if ($slug === '') {
+            return 0;
+        }
+
+        $query = static::onlyTrashed()->where('slug', $slug)->where('locale', $locale);
+        if ($exceptId !== null) {
+            $query->where('id', '!=', $exceptId);
+        }
+
+        $released = 0;
+        foreach ($query->get() as $page) {
+            // Suffixed with the id, so it stays unique however many deleted
+            // pages once shared the address.
+            $page->slug = mb_substr($slug, 0, 180) . '-deleted-' . $page->id;
+            $page->saveQuietly();
+            $released++;
+        }
+
+        return $released;
+    }
 }

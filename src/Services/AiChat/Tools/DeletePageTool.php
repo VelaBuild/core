@@ -107,7 +107,27 @@ class DeletePageTool extends BaseTool
         // primary key. Rows and blocks are hard-deleted, so those do get
         // re-inserted below.
         $page = Page::withTrashed()->find($state['attributes']['id'] ?? null) ?: new Page();
-        $this->restoreAttributes($page, array_merge($state['attributes'], ['deleted_at' => null]));
+
+        $attributes = array_merge($state['attributes'], ['deleted_at' => null]);
+
+        // Its address may have been taken while it was in the bin — a deleted
+        // page no longer holds one, which is what lets the site be reorganised
+        // after a delete. Bring it back under a free slug rather than failing:
+        // the page and everything on it is what the user asked for back.
+        $slug = (string) ($attributes['slug'] ?? '');
+        $locale = (string) ($attributes['locale'] ?? config('vela.primary_language', 'en'));
+        if ($slug !== '' && Page::where('slug', $slug)->where('locale', $locale)
+                ->where('id', '!=', $page->id ?? 0)->exists()) {
+            $candidate = $slug;
+            $suffix = 2;
+            while (Page::withTrashed()->where('slug', $candidate)->where('locale', $locale)
+                    ->where('id', '!=', $page->id ?? 0)->exists()) {
+                $candidate = $slug . '-' . $suffix++;
+            }
+            $attributes['slug'] = $candidate;
+        }
+
+        $this->restoreAttributes($page, $attributes);
 
         foreach ($state['rows'] ?? [] as $rowData) {
             $this->restoreAttributes(new PageRow(), $rowData['attributes']);

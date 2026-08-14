@@ -141,6 +141,14 @@ class PageController extends Controller
 
     public function store(StorePageRequest $request)
     {
+        // Validation has already accepted this slug, which means no live page
+        // holds it. A deleted one still might, and the table's unique index
+        // counts those — so take the address off it first.
+        Page::releaseSlugFromTrash(
+            (string) $request->input('slug'),
+            (string) $request->input('locale', 'en')
+        );
+
         $data = $request->only([
             'title', 'slug', 'locale', 'status', 'meta_title',
             'meta_description', 'custom_css', 'custom_js', 'order_column', 'parent_id',
@@ -219,6 +227,12 @@ class PageController extends Controller
 
     public function update(UpdatePageRequest $request, Page $page)
     {
+        Page::releaseSlugFromTrash(
+            (string) $request->input('slug'),
+            (string) $request->input('locale', $page->locale),
+            $page->id
+        );
+
         $data = $request->only([
             'title', 'slug', 'locale', 'status', 'meta_title',
             'meta_description', 'custom_css', 'custom_js', 'order_column', 'parent_id',

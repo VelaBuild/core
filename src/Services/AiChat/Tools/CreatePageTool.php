@@ -49,9 +49,12 @@ class CreatePageTool extends BaseTool
 
         $original = $slug;
         $i = 1;
+        // Only a live page owns an address. A deleted one is asked to give it
+        // up below, so it must not push this page onto "contact-us-1".
         while (Page::where('slug', $slug)->exists()) {
             $slug = $original . '-' . $i++;
         }
+        Page::releaseSlugFromTrash($slug, (string) config('vela.primary_language', 'en'));
 
         // Create the page SHELL only. Building the layout is the AI's job:
         // it follows up with add_row + add_block (hero / cta / text / ...), which
