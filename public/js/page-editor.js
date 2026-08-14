@@ -546,24 +546,889 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // --- Imported sections -------------------------------------------------
+    //
+    // A section copied from another site is raw markup: the page builder could
+    // only ever show its owner a textarea full of HTML, so the one thing they
+    // wanted to do — change the wording, swap a picture — was the one thing
+    // they could not. The importer marks each piece of wording, each image and
+    // each link with data-vela-field, and these helpers turn those marks into
+    // an ordinary form, with the section itself rendered beside it under the
+    // page's real stylesheet.
+
+    var _htmlDoc = null;          // parsed copy of the block being edited
+    var _htmlHasFields = false;   // does this block carry importer field marks?
+    var _htmlHidden = [];         // ids of parts the user chose not to show
+    var _htmlPickMode = false;    // clicking the preview hides what you click
+    var _htmlPreviewTimer = null;
+
+    /**
+     * Bring a section imported before these controls existed up to date.
+     *
+     * The marks the form and the design panel read — the block id, the grids,
+     * the fields — are added at import time. Sections copied before that carry
+     * none of them, and their owner would have to re-copy the page to get an
+     * editable one. They are cheap to work out from the markup itself, so an
+     * old section repairs itself the first time it is opened.
+     */
+    function upgradeImportedBlock(doc) {
+        var wrapper = doc.querySelector('[data-vela-block]')
+            || doc.querySelector('[class*="vela-import-"]');
+        if (!wrapper) return doc;
+
+        if (!wrapper.hasAttribute('data-vela-block')) {
+            wrapper.setAttribute('data-vela-block', 'b' + Math.abs(hashString(wrapper.innerHTML)).toString(16).slice(0, 10));
+        }
+
+        if (!doc.querySelector('[data-vela-grid]')) {
+            var gridIndex = 0;
+            Array.prototype.forEach.call(wrapper.querySelectorAll('*'), function(el) {
+                var kids = el.children;
+                if (kids.length < 2) return;
+                var signature = null;
+                for (var i = 0; i < kids.length; i++) {
+                    var current = kids[i].tagName + '|' + Array.prototype.slice.call(kids[i].classList).sort().slice(0, 4).join(' ');
+                    if (signature === null) signature = current;
+                    else if (signature !== current) return;
+                }
+                if (!signature) return;
+                el.setAttribute('data-vela-grid', 'g' + (++gridIndex));
+                el.setAttribute('data-vela-grid-count', String(kids.length));
+            });
+        }
+
+        if (!doc.querySelector('[data-vela-field]')) {
+            var fieldIndex = 0;
+            Array.prototype.forEach.call(wrapper.querySelectorAll('*'), function(el) {
+                var tag = el.tagName.toLowerCase();
+                var kinds = [];
+                if (tag === 'img') kinds.push('image');
+                if (tag === 'a' && el.getAttribute('href')) kinds.push('link');
+                if (['input', 'select', 'textarea'].indexOf(tag) > -1
+                    && ['hidden', 'submit', 'button', 'reset', 'image'].indexOf((el.getAttribute('type') || '').toLowerCase()) === -1) {
+                    kinds.push('control');
+                }
+
+                var childTags = Array.prototype.map.call(el.children, function(c) { return c.tagName.toLowerCase(); });
+                var breaksOnly = childTags.length > 0 && childTags.every(function(t) { return t === 'br'; });
+                var text = (el.textContent || '').trim();
+                if ((childTags.length === 0 || breaksOnly) && text
+                    && ['script', 'style', 'img', 'br', 'input'].indexOf(tag) === -1) {
+                    kinds.push('text');
+                    if (breaksOnly) el.setAttribute('data-vela-field-multiline', '1');
+                }
+
+                if (!kinds.length) return;
+                el.setAttribute('data-vela-field', 'f' + (++fieldIndex));
+                el.setAttribute('data-vela-field-kind', kinds.join(' '));
+            });
+        }
+
+        return doc;
+    }
+
+    function hashString(value) {
+        var hash = 0;
+        for (var i = 0; i < (value || '').length; i++) {
+            hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
+        }
+        return hash;
+    }
+
+    /**
+     * Put the editor's live preview in the left pane.
+     *
+     * Block types render one flat form, so the preview arrives inside it; the
+     * dialog is split in two, and this hands the preview to the pane that
+     * scrolls on its own. Block types without a preview leave the pane empty,
+     * and it hides itself so the form gets the whole width.
+     */
+    /**
+     * Empty the preview pane before a new editor is rendered.
+     *
+     * The pane keeps the iframe that was moved into it, and the next editor
+     * renders a second element with the same id. Document order then made
+     * `#vela-html-preview` resolve to the STALE one: the new preview was
+     * written into the iframe that was about to be thrown away, so opening a
+     * section a second time showed an empty pane.
+     */
+    function clearEditorPreviewPane() {
+        $('#block-edit-preview').empty().attr('hidden', 'hidden');
+    }
+
+    function moveEditorPreviewIntoPane() {
+        var $pane = $('#block-edit-preview');
+        if (!$pane.length) return;
+
+        var $preview = $('#block-edit-content').find('#vela-html-preview');
+        $pane.empty();
+
+        if (!$preview.length) {
+            $pane.attr('hidden', 'hidden');
+            return;
+        }
+
+        // The height belonged to the old single-column dialog; in the pane it
+        // fills whatever room the screen gives it.
+        $preview.css({ height: '100%', marginBottom: 0 }).appendTo($pane);
+        $pane.removeAttr('hidden');
+    }
+
+    function parseBlockHtml(html) {
+        return new DOMParser().parseFromString('<div id="vela-root">' + (html || '') + '</div>', 'text/html');
+    }
+
+    function serializeBlockHtml(doc) {
+        var root = doc.getElementById('vela-root');
+        return root ? root.innerHTML : '';
+    }
+
+    function fieldElements(doc) {
+        return Array.prototype.slice.call(doc.querySelectorAll('[data-vela-field]'));
+    }
+
+    /** The page's own stylesheet, so the preview shows what a visitor sees. */
+    function pageCustomCss() {
+        var $css = $('#custom_css');
+        return $css.length ? ($css.val() || '') : '';
+    }
+
+    /** The wording of one field, with its line breaks as newlines. */
+    function fieldText(el) {
+        if (!el.hasAttribute('data-vela-field-multiline')) {
+            return (el.textContent || '').trim();
+        }
+
+        var holder = document.createElement('div');
+        holder.innerHTML = (el.innerHTML || '').replace(/<br\s*\/?>/gi, '\n');
+        return (holder.textContent || '').replace(/[ \t]+\n/g, '\n').trim();
+    }
+
+    /**
+     * Write wording back into an element.
+     *
+     * textContent, never raw innerHTML: what is typed here is wording, not
+     * markup, and must not be able to put tags into the page. A field that
+     * held line breaks gets them back as <br> after escaping, so the only
+     * markup that can appear is the break itself.
+     */
+    function setFieldText(el, value) {
+        value = value === null || value === undefined ? '' : String(value);
+
+        if (!el.hasAttribute('data-vela-field-multiline')) {
+            el.textContent = value;
+            return;
+        }
+
+        var escaper = document.createElement('div');
+        escaper.textContent = value;
+        el.innerHTML = escaper.innerHTML.replace(/\r?\n/g, '<br>');
+    }
+
+    function fieldLabel(el, kinds) {
+        var tag = el.tagName.toLowerCase();
+        if (kinds.indexOf('control') > -1) {
+            var what = tag === 'textarea' ? 'Message box' : (tag === 'select' ? 'Dropdown' : 'Field');
+            var named = el.getAttribute('name') || el.getAttribute('id') || '';
+            return named ? what + ' — ' + named.replace(/[-_]/g, ' ') : what;
+        }
+        if (kinds.indexOf('image') > -1) return 'Image';
+        if (/^h[1-6]$/.test(tag)) return 'Heading ' + tag.slice(1);
+        if (tag === 'button' || (kinds.indexOf('link') > -1 && kinds.indexOf('text') > -1)) return 'Button / link';
+        if (kinds.indexOf('link') > -1) return 'Link';
+        if (tag === 'li') return 'List item';
+        return 'Text';
+    }
+
+    function renderImportedFields(doc) {
+        var els = fieldElements(doc);
+        if (!els.length) return '';
+
+        var out = '<div id="vela-field-list">';
+        els.forEach(function(el, i) {
+            var id = el.getAttribute('data-vela-field');
+            var kinds = (el.getAttribute('data-vela-field-kind') || '').split(/\s+/);
+            var label = fieldLabel(el, kinds);
+            var isHidden = _htmlHidden.indexOf(id) > -1;
+            out += '<div class="form-group mb-3 pb-2" style="border-bottom:1px solid #f1f3f5;' + (isHidden ? 'opacity:.5;' : '') + '" data-field="' + escHtml(id) + '">' +
+                '<div class="d-flex align-items-center justify-content-between mb-1">' +
+                    '<label class="mb-0" style="font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;color:#6c757d;">' + escHtml(label) + '</label>' +
+                    '<button type="button" class="btn btn-link btn-sm p-0 vela-field-visibility" data-target="' + escHtml(id) + '" ' +
+                        'title="' + (isHidden ? 'Show this again' : 'Do not show this') + '">' +
+                        '<i class="fas ' + (isHidden ? 'fa-eye-slash' : 'fa-eye') + '"></i>' +
+                    '</button>' +
+                '</div>';
+
+            if (kinds.indexOf('image') > -1) {
+                var src = el.getAttribute('src') || '';
+                out += '<div class="d-flex align-items-center" style="gap:10px;">' +
+                    '<img class="vela-field-thumb" src="' + escHtml(src) + '" style="width:64px;height:64px;object-fit:contain;background:#f8f9fa;border:1px solid #e9ecef;border-radius:4px;">' +
+                    '<div class="flex-grow-1">' +
+                        '<input type="text" class="form-control form-control-sm vela-field-src" value="' + escHtml(src) + '">' +
+                        '<input type="text" class="form-control form-control-sm mt-1 vela-field-alt" value="' + escHtml(el.getAttribute('alt') || '') + '" placeholder="Alt text">' +
+                    '</div>' +
+                    '<button type="button" class="btn btn-outline-info btn-sm vela-field-browse" style="white-space:nowrap;"><i class="fas fa-images"></i> Browse</button>' +
+                '</div>';
+            }
+
+            if (kinds.indexOf('control') > -1) {
+                out += '<input type="text" class="form-control form-control-sm vela-field-placeholder" ' +
+                    'value="' + escHtml(el.getAttribute('placeholder') || '') + '" placeholder="Hint shown inside the field">';
+            }
+
+            if (kinds.indexOf('text') > -1) {
+                var multiline = el.hasAttribute('data-vela-field-multiline');
+                var text = fieldText(el);
+                out += (multiline || text.length > 70
+                    ? '<textarea class="form-control form-control-sm vela-field-text" rows="' + (multiline ? 2 : 3) + '">' + escHtml(text) + '</textarea>'
+                    + (multiline ? '<small class="text-muted">Each new line becomes a line break.</small>' : '')
+                    : '<input type="text" class="form-control form-control-sm vela-field-text" value="' + escHtml(text) + '">');
+            }
+
+            if (kinds.indexOf('link') > -1) {
+                out += '<div class="input-group input-group-sm mt-1">' +
+                    '<div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-link"></i></span></div>' +
+                    '<input type="text" class="form-control vela-field-href" value="' + escHtml(el.getAttribute('href') || '') + '" placeholder="/contact-us">' +
+                    '</div>';
+            }
+
+            out += '</div>';
+        });
+
+        return out + '</div>';
+    }
+
+    /** Copy what is in the form back into the parsed markup. */
+    function applyImportedFields(doc) {
+        $('#vela-field-list > [data-field]').each(function() {
+            var $row = $(this);
+            var el = doc.querySelector('[data-vela-field="' + $row.data('field') + '"]');
+            if (!el) return;
+
+            var $src = $row.find('.vela-field-src');
+            if ($src.length) {
+                el.setAttribute('src', $src.val());
+                el.setAttribute('alt', $row.find('.vela-field-alt').val() || '');
+            }
+            var $text = $row.find('.vela-field-text');
+            if ($text.length) setFieldText(el, $text.val());
+
+            var $href = $row.find('.vela-field-href');
+            if ($href.length) el.setAttribute('href', $href.val());
+
+            var $placeholder = $row.find('.vela-field-placeholder');
+            if ($placeholder.length) {
+                if ($placeholder.val()) el.setAttribute('placeholder', $placeholder.val());
+                else el.removeAttribute('placeholder');
+            }
+        });
+
+        return doc;
+    }
+
+    function refreshImportedPreview() {
+        var $frame = $('#vela-html-preview');
+        if (!$frame.length || !_htmlDoc) return;
+
+        var html = serializeBlockHtml(applyDesign(applyImportedFields(_htmlDoc), collectDesign()));
+        $('#html-content').val(html);
+
+        // While picking, the preview reports what was clicked as a path from
+        // the wrapper, and outlines whatever is under the pointer so it is
+        // clear what would go.
+        var picker = _htmlPickMode ? '<style>*{cursor:crosshair!important}' +
+                '[data-vela-block] *:hover{outline:2px solid #f0ad4e!important;outline-offset:-2px!important}</style>' +
+            '<script>document.addEventListener("click",function(e){' +
+                'e.preventDefault();e.stopPropagation();' +
+                'var root=document.querySelector("[data-vela-block]");' +
+                'if(!root)return;' +
+                'var node=e.target,path=[];' +
+                'while(node&&node!==root){' +
+                    'var parent=node.parentElement;if(!parent)return;' +
+                    'path.unshift(Array.prototype.indexOf.call(parent.children,node));node=parent;}' +
+                'if(node!==root)return;' +
+                'parent.postMessage({velaPick:path.join("/")},"*");' +
+            '},true);<\/script>' : '';
+
+        $frame[0].srcdoc = '<!doctype html><html><head><meta charset="utf-8">' +
+            '<style>body{margin:0}' + pageCustomCss() + '</style>' + picker + '</head><body>' + html + '</body></html>';
+    }
+
+    function scheduleImportedPreview() {
+        clearTimeout(_htmlPreviewTimer);
+        _htmlPreviewTimer = setTimeout(refreshImportedPreview, 350);
+    }
+
+    // --- Design controls for an imported section ---------------------------
+    //
+    // The wording could be edited but nothing about how it looked, which is
+    // the next thing anyone reaches for: bigger heading, our colours, four
+    // logos per row instead of six. The source stylesheet stays untouched;
+    // the choices are stored as JSON on the wrapper and re-emitted as one
+    // <style> block inside the section, so they always win over the imported
+    // rules and can be changed or cleared again later.
+
+    var DESIGN_FONTS = [
+        ['', 'Keep the original'],
+        ['inherit', "This site's font"],
+        ['system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', 'System sans'],
+        ['Georgia, "Times New Roman", serif', 'Serif'],
+        ['"Courier New", ui-monospace, monospace', 'Monospace']
+    ];
+
+    /** Only values we generated ourselves are allowed back out into CSS. */
+    function safeCssValue(value, pattern) {
+        value = (value === null || value === undefined) ? '' : String(value).trim();
+        if (value === '') return '';
+        return pattern.test(value) ? value : '';
+    }
+
+    function readDesign(wrapper) {
+        if (!wrapper) return {};
+        try { return JSON.parse(wrapper.getAttribute('data-vela-design') || '{}') || {}; }
+        catch (e) { return {}; }
+    }
+
+    var DESIGN_COLOUR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\)|transparent|[a-z]{3,20})$/i;
+    var DESIGN_LENGTH = /^-?\d{1,4}(px|rem|em|%|vw|vh)?$/i;
+
+    /**
+     * Drop anything that is not one of the values these controls produce.
+     *
+     * Run before the choices are stored, not only before they are written into
+     * CSS: a rejected value kept in the saved attribute is a string from a
+     * form sitting in the page's markup, and there is no reason to carry it.
+     */
+    function sanitizeDesign(design) {
+        design = design || {};
+        var clean = {};
+
+        [['textColor', DESIGN_COLOUR], ['background', DESIGN_COLOUR], ['headingSize', DESIGN_LENGTH],
+         ['bodySize', DESIGN_LENGTH], ['padding', DESIGN_LENGTH], ['maxWidth', DESIGN_LENGTH]].forEach(function(pair) {
+            var value = safeCssValue(design[pair[0]], pair[1]);
+            if (value) clean[pair[0]] = value;
+        });
+
+        var font = (design.font || '').replace(/[<>{};]/g, '').trim();
+        if (font && DESIGN_FONTS.some(function(f) { return f[0] === font; })) clean.font = font;
+
+        if (['left', 'center', 'right'].indexOf(design.align) > -1) clean.align = design.align;
+
+        var grids = {};
+        Object.keys(design.grids || {}).forEach(function(id) {
+            var columns = parseInt(design.grids[id], 10);
+            if (/^g\d+$/.test(id) && columns >= 1 && columns <= 8) grids[id] = columns;
+        });
+        if (Object.keys(grids).length) clean.grids = grids;
+
+        // Parts the user chose not to show. Ids only — anything else here
+        // would end up inside a CSS selector.
+        var hidden = (design.hidden || []).filter(function(id) {
+            return /^[fp]\d+$/.test(id);
+        });
+        if (hidden.length) clean.hidden = hidden.slice(0, 200);
+
+        return clean;
+    }
+
+    function designCss(blockId, design, grids) {
+        var sel = '[data-vela-block="' + blockId + '"]';
+        var css = '';
+
+        var text = design.textColor || '';
+        var background = design.background || '';
+        var heading = design.headingSize || '';
+        var body = design.bodySize || '';
+        var padding = design.padding || '';
+        var maxWidth = design.maxWidth || '';
+        var font = design.font || '';
+        var align = design.align || '';
+
+        // Utility frameworks set colours and sizes on the element itself, so
+        // these have to outrank a class rule of equal specificity.
+        // The wrapper alone is not enough: the section inside paints its own
+        // background over it, so the colour appeared to do nothing. Cards and
+        // panels are divs and keep theirs.
+        if (background) {
+            css += sel + ',' + sel + ' :where(section,header,footer,main,article){background:' + background + ' !important}';
+        }
+        if (text) css += sel + ',' + sel + ' :where(p,span,li,a,h1,h2,h3,h4,h5,h6,div){color:' + text + ' !important}';
+        if (font) css += sel + ',' + sel + ' *{font-family:' + font + ' !important}';
+        if (heading) css += sel + ' :where(h1,h2,h3){font-size:' + heading + ' !important;line-height:1.15}';
+        if (body) css += sel + ' :where(p,li,span):not(:has(*)){font-size:' + body + ' !important}';
+        if (padding) css += sel + '{padding-top:' + padding + ' !important;padding-bottom:' + padding + ' !important}';
+        if (maxWidth) css += sel + '{max-width:' + maxWidth + ';margin-left:auto;margin-right:auto}';
+        if (align) css += sel + ',' + sel + ' :where(p,h1,h2,h3,h4){text-align:' + align + ' !important}';
+
+        (design.hidden || []).forEach(function(id) {
+            var attribute = id.charAt(0) === 'f' ? 'data-vela-field' : 'data-vela-part';
+            css += sel + ' [' + attribute + '="' + id + '"]{display:none !important}';
+        });
+
+        (grids || []).forEach(function(g) {
+            var columns = parseInt((design.grids || {})[g.id], 10);
+            if (!columns || columns < 1 || columns > 8) return;
+            css += sel + ' [data-vela-grid="' + g.id + '"]{display:grid !important;' +
+                'grid-template-columns:repeat(' + columns + ',minmax(0,1fr)) !important}';
+        });
+
+        return css;
+    }
+
+    function applyDesign(doc, design) {
+        var wrapper = doc.querySelector('[data-vela-block]');
+        if (!wrapper) return doc;
+
+        design = sanitizeDesign(design);
+        var blockId = wrapper.getAttribute('data-vela-block');
+
+        // A form control that is merely invisible is still submitted, and an
+        // empty "Country" would arrive with every enquiry. Hidden controls are
+        // switched off in the markup as well; shown ones get switched back on.
+        Array.prototype.forEach.call(doc.querySelectorAll('[data-vela-hidden-control]'), function(el) {
+            el.removeAttribute('disabled');
+            el.removeAttribute('data-vela-hidden-control');
+        });
+        (design.hidden || []).forEach(function(id) {
+            var attribute = id.charAt(0) === 'f' ? 'data-vela-field' : 'data-vela-part';
+            var host = doc.querySelector('[' + attribute + '="' + id + '"]');
+            if (!host) return;
+            var controls = host.matches('input,select,textarea') ? [host] : host.querySelectorAll('input,select,textarea');
+            Array.prototype.forEach.call(controls, function(control) {
+                control.setAttribute('disabled', 'disabled');
+                control.setAttribute('data-vela-hidden-control', '1');
+            });
+        });
+        var grids = gridElements(doc);
+        var css = designCss(blockId, design, grids);
+
+        var hasChoice = Object.keys(design || {}).some(function(k) {
+            return k === 'grids' ? Object.keys(design.grids || {}).length : design[k];
+        });
+        if (hasChoice) {
+            wrapper.setAttribute('data-vela-design', JSON.stringify(design));
+        } else {
+            wrapper.removeAttribute('data-vela-design');
+        }
+
+        var style = wrapper.querySelector('style[data-vela-design-style]');
+        if (!css) {
+            if (style) style.parentNode.removeChild(style);
+            return doc;
+        }
+        if (!style) {
+            style = doc.createElement('style');
+            style.setAttribute('data-vela-design-style', '');
+            wrapper.insertBefore(style, wrapper.firstChild);
+        }
+        style.textContent = css;
+
+        return doc;
+    }
+
+    function gridElements(doc) {
+        return Array.prototype.slice.call(doc.querySelectorAll('[data-vela-grid]')).map(function(el) {
+            return {
+                id: el.getAttribute('data-vela-grid'),
+                count: parseInt(el.getAttribute('data-vela-grid-count'), 10) || 0,
+                label: (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24)
+            };
+        });
+    }
+
+    /** Sizes offered as a list; "Custom…" reveals a box for anything else. */
+    var DESIGN_PRESETS = {
+        headingSize: { label: 'Heading size', values: ['28px', '32px', '40px', '48px', '56px', '64px', '72px'] },
+        bodySize:    { label: 'Body text size', values: ['14px', '15px', '16px', '18px', '20px', '22px'] },
+        padding:     { label: 'Space above &amp; below', values: ['0px', '24px', '40px', '64px', '80px', '120px', '160px'] },
+        maxWidth:    { label: 'Content width', values: ['720px', '960px', '1140px', '1280px', '1440px', '100%'] }
+    };
+
+    function designLabel(text, extra) {
+        return '<label class="mb-1 ' + (extra || '') + '" style="font-size:.75rem;color:#6c757d;">' + text + '</label>';
+    }
+
+    /**
+     * A colour as a swatch and a text box together.
+     *
+     * Typing a hex code is fine for someone who has one; everyone else wants
+     * to pick. Both write the same value, and the × puts it back to whatever
+     * the section came with.
+     */
+    function designColourField(name, label, value, width) {
+        var hex = /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#ffffff';
+
+        return '<div class="form-group ' + (width || 'col-md-6') + ' mb-2">' + designLabel(label) +
+            '<div class="input-group input-group-sm vela-colour-group">' +
+                '<div class="input-group-prepend"><span class="input-group-text p-0" style="overflow:hidden">' +
+                    '<input type="color" class="vela-design-swatch" data-swatch-for="' + name + '" value="' + escHtml(hex) + '" ' +
+                        'style="width:34px;height:29px;border:0;padding:0;background:none;cursor:pointer" ' +
+                        'title="Pick a colour">' +
+                '</span></div>' +
+                '<input type="text" class="form-control vela-design" data-design="' + name + '" ' +
+                    'value="' + escHtml(value || '') + '" placeholder="Keep the original">' +
+                '<div class="input-group-append">' +
+                    '<button class="btn btn-outline-secondary vela-design-clear" type="button" data-clear-for="' + name + '" ' +
+                        'title="Keep the original">&times;</button>' +
+                '</div>' +
+            '</div></div>';
+    }
+
+    function designSizeField(name, value, width) {
+        var preset = DESIGN_PRESETS[name];
+        var known = preset.values.indexOf(value) > -1;
+        var custom = !!value && !known;
+
+        var options = ['<option value="">Keep the original</option>'];
+        preset.values.forEach(function(v) {
+            options.push('<option value="' + v + '"' + (value === v ? ' selected' : '') + '>' + v + '</option>');
+        });
+        options.push('<option value="__custom"' + (custom ? ' selected' : '') + '>Custom…</option>');
+
+        return '<div class="form-group ' + (width || 'col-md-4') + ' mb-2">' + designLabel(preset.label) +
+            '<select class="form-control form-control-sm vela-design" data-design="' + name + '">' + options.join('') + '</select>' +
+            '<input type="text" class="form-control form-control-sm mt-1 vela-design-custom" data-design-custom="' + name + '" ' +
+                'value="' + escHtml(custom ? value : '') + '" placeholder="e.g. 3rem"' + (custom ? '' : ' hidden') + '>' +
+            '</div>';
+    }
+
+    function renderDesignPanel(doc) {
+        var wrapper = doc.querySelector('[data-vela-block]');
+        if (!wrapper) return '';
+
+        var d = readDesign(wrapper);
+        var grids = gridElements(doc);
+
+        var fonts = DESIGN_FONTS.map(function(f) {
+            return '<option value="' + escHtml(f[0]) + '"' + (d.font === f[0] ? ' selected' : '') + '>' + escHtml(f[1]) + '</option>';
+        }).join('');
+
+        // Only the repeated rows a person would recognise. A comparison table
+        // is dozens of "grids" of 18 and 36 cells whose only name would be
+        // g7, g8, g9 — sixteen useless dropdowns burying the three that mean
+        // something.
+        var gridRows = grids.filter(function(g) {
+            return g.count >= 2 && g.count <= 8 && g.label;
+        }).slice(0, 6).map(function(g) {
+            var current = (d.grids || {})[g.id] || '';
+            var options = ['<option value="">Keep the original (' + g.count + ')</option>'];
+            for (var n = 1; n <= 6; n++) {
+                options.push('<option value="' + n + '"' + (String(current) === String(n) ? ' selected' : '') + '>' + n + ' per row</option>');
+            }
+            return '<div class="form-group col-md-6 mb-2">' +
+                '<label class="mb-1 text-truncate d-block" title="' + escHtml(g.label || g.id) + '" ' +
+                'style="font-size:.75rem;color:#6c757d;">Columns — ' + escHtml(g.label || g.id) + '</label>' +
+                '<select class="form-control form-control-sm vela-design" data-design-grid="' + escHtml(g.id) + '">' + options.join('') + '</select></div>';
+        }).join('');
+
+        return '<details class="mb-3" open><summary style="cursor:pointer;font-weight:500;">' +
+                '<i class="fas fa-palette mr-1"></i> Design</summary>' +
+            '<div class="form-row mt-2">' +
+                designColourField('textColor', 'Text colour', d.textColor) +
+                designColourField('background', 'Background', d.background) +
+                '<div class="form-group col-md-6 mb-2">' + designLabel('Font') +
+                    '<select class="form-control form-control-sm vela-design" data-design="font">' + fonts + '</select></div>' +
+                designSizeField('headingSize', d.headingSize, 'col-md-6') +
+                designSizeField('bodySize', d.bodySize, 'col-md-6') +
+                designSizeField('padding', d.padding, 'col-md-6') +
+                designSizeField('maxWidth', d.maxWidth, 'col-md-6') +
+                '<div class="form-group col-md-6 mb-2">' + designLabel('Alignment') +
+                    '<select class="form-control form-control-sm vela-design" data-design="align">' +
+                        ['', 'left', 'center', 'right'].map(function(a) {
+                            return '<option value="' + a + '"' + (d.align === a ? ' selected' : '') + '>' + (a === '' ? 'Keep the original' : a) + '</option>';
+                        }).join('') +
+                    '</select></div>' +
+                gridRows +
+            '</div>' +
+            renderHiddenParts(doc) +
+            '<button type="button" class="btn btn-link btn-sm px-0" id="vela-design-reset">Reset design to the original</button>' +
+            '</details>';
+    }
+
+    /**
+     * The "leave this out" controls.
+     *
+     * Copied sections carry things a site does not want — a field asking for a
+     * company website, a promo strip, a whole column. Removing them from the
+     * markup would be a one-way door, so they are only hidden: the part stays
+     * in the block and comes back the moment it is shown again.
+     */
+    function renderHiddenParts(doc) {
+        var rows = _htmlHidden.map(function(id) {
+            var attribute = id.charAt(0) === 'f' ? 'data-vela-field' : 'data-vela-part';
+            var el = doc.querySelector('[' + attribute + '="' + id + '"]');
+            var label = el ? (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40) : '';
+            if (!label && el) label = '<' + el.tagName.toLowerCase() + '>';
+            return '<li class="d-flex align-items-center justify-content-between py-1" style="border-bottom:1px solid #f1f3f5;">' +
+                '<span class="text-truncate" style="font-size:.8rem;">' + escHtml(label || id) + '</span>' +
+                '<button type="button" class="btn btn-link btn-sm p-0 vela-part-show" data-target="' + escHtml(id) + '">Show again</button>' +
+                '</li>';
+        }).join('');
+
+        return '<div class="mt-2 mb-2">' +
+            '<button type="button" class="btn btn-sm ' + (_htmlPickMode ? 'btn-warning' : 'btn-outline-secondary') + '" id="vela-pick-mode">' +
+                '<i class="fas fa-hand-pointer mr-1"></i>' + (_htmlPickMode ? 'Done choosing' : 'Click the preview to leave parts out') +
+            '</button>' +
+            (rows ? '<ul class="list-unstyled mt-2 mb-0">' + rows + '</ul>' : '') +
+            '</div>';
+    }
+
+    /**
+     * Mark the element a click landed on so it can be referred to later.
+     *
+     * The preview is a copy, so a click there comes back as a position path
+     * ("3/1/0") into the wrapper. The same path is walked in the block's own
+     * document and the element found gets a part id, which is what the hidden
+     * list and the generated CSS use from then on.
+     */
+    function markPartAtPath(doc, path) {
+        var node = doc.querySelector('[data-vela-block]');
+        if (!node) return null;
+
+        var steps = String(path).split('/').filter(function(step) { return step !== ''; });
+        for (var i = 0; i < steps.length; i++) {
+            node = node.children[parseInt(steps[i], 10)];
+            if (!node) return null;
+        }
+
+        // Never the wrapper itself: hiding that hides the whole section, which
+        // is what deleting the block is for.
+        if (!node.parentElement || node.hasAttribute('data-vela-block')) return null;
+
+        var field = node.getAttribute('data-vela-field');
+        if (field) return field;
+
+        var existing = node.getAttribute('data-vela-part');
+        if (existing) return existing;
+
+        var next = 1;
+        Array.prototype.forEach.call(doc.querySelectorAll('[data-vela-part]'), function(el) {
+            var n = parseInt((el.getAttribute('data-vela-part') || '').slice(1), 10);
+            if (n >= next) next = n + 1;
+        });
+        var id = 'p' + next;
+        node.setAttribute('data-vela-part', id);
+
+        return id;
+    }
+
+    function collectDesign() {
+        var design = { grids: {}, hidden: _htmlHidden.slice() };
+        $('.vela-design').each(function() {
+            var $el = $(this);
+            var value = $el.val();
+
+            if ($el.data('design-grid')) {
+                if (value) design.grids[$el.data('design-grid')] = value;
+                return;
+            }
+
+            var name = $el.data('design');
+            // "Custom…" hands over to the box beside it.
+            if (value === '__custom') {
+                value = $('[data-design-custom="' + name + '"]').val();
+            }
+            if (value) design[name] = value;
+        });
+        if (!Object.keys(design.grids).length) delete design.grids;
+        return design;
+    }
+
+    function toggleHiddenPart(id) {
+        if (!id) return;
+        var at = _htmlHidden.indexOf(id);
+        if (at > -1) _htmlHidden.splice(at, 1);
+        else _htmlHidden.push(id);
+        redrawImportedEditor();
+    }
+
+    /**
+     * Redraw the form and the design panel from the current document.
+     *
+     * Hiding a part changes both lists, and rebuilding them by hand from
+     * three places is how they drift apart. The values already typed are
+     * written into the document first so nothing is lost in the redraw.
+     */
+    function redrawImportedEditor() {
+        if (!_htmlDoc) return;
+
+        applyDesign(applyImportedFields(_htmlDoc), collectDesign());
+
+        var $panel = $('#block-edit-content');
+        var scroll = $panel.scrollTop();
+        var design = renderDesignPanel(_htmlDoc);
+        var fields = renderImportedFields(_htmlDoc);
+
+        $panel.find('details').first().replaceWith(design);
+        if (fields) {
+            $panel.find('#vela-field-list').replaceWith(fields);
+        }
+        $panel.scrollTop(scroll);
+
+        refreshImportedPreview();
+    }
+
     PageEditor.registerBlockType('html', {
         icon: 'fa-code',
         label: 'Custom HTML',
         defaults: { content: { html: '' }, settings: {} },
         renderPreview: function(block) {
             var htmlContent = (block.content && block.content.html) ? block.content.html : '';
+
+            // An imported section is styled by the page's own stylesheet, and
+            // dropping it straight into the admin showed it stripped of every
+            // rule — a wall of bullet points nobody could recognise as their
+            // page. Rendered in a frame with that stylesheet, it looks like
+            // what it is.
+            if (htmlContent.indexOf('data-vela-field') > -1 || /class="[^"]*vela-import-/.test(htmlContent)) {
+                var doc = '<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;overflow-x:hidden}' +
+                    pageCustomCss() + '</style></head><body>' + htmlContent + '</body></html>';
+                return '<div style="border:1px solid #e9ecef;border-radius:4px;overflow:hidden;background:#fff;position:relative;">' +
+                    '<iframe class="vela-import-thumb" style="width:100%;height:260px;border:0;display:block;" srcdoc="' + escHtml(doc) + '"></iframe>' +
+                    '<div style="position:absolute;inset:0;"></div>' +
+                    '</div>';
+            }
+
             return '<div style="border:1px solid #e9ecef;border-radius:4px;padding:8px;background:#fafafa;">' + htmlContent + '</div>';
         },
         renderEditor: function(block) {
             var html = block.content && block.content.html ? block.content.html : '';
-            return '<div class="form-group"><label>Custom HTML</label>' +
-                '<div class="alert alert-warning py-1 mb-2"><small><i class="fas fa-exclamation-triangle"></i> This content will be rendered as-is. Use with caution.</small></div>' +
-                '<textarea class="form-control" id="html-content" rows="10" style="font-family:monospace;">' + escHtml(html) + '</textarea></div>';
+            _htmlDoc = upgradeImportedBlock(parseBlockHtml(html));
+            _htmlPickMode = false;
+            _htmlHidden = (readDesign(_htmlDoc.querySelector('[data-vela-block]')).hidden || []).slice();
+            var fields = renderImportedFields(_htmlDoc);
+            var imported = !!_htmlDoc.querySelector('[data-vela-block]');
+            _htmlHasFields = !!fields || imported;
+
+            // A plain hand-written HTML block: the textarea is all there is.
+            if (!fields && !imported) {
+                return '<div class="form-group"><label>Custom HTML</label>' +
+                    '<div class="alert alert-warning py-1 mb-2"><small><i class="fas fa-exclamation-triangle"></i> This content will be rendered as-is. Use with caution.</small></div>' +
+                    '<textarea class="form-control" id="html-content" rows="10" style="font-family:monospace;">' + escHtml(html) + '</textarea></div>';
+            }
+
+            // An imported section always gets the preview and the design
+            // controls, even when nothing in it was recognised as editable
+            // wording — otherwise a section like a bare headline dropped the
+            // user back to a textarea of raw markup with no way to see it.
+            return '<div class="mb-2 text-muted" style="font-size:.85rem;">' +
+                    '<i class="fas fa-wand-magic-sparkles mr-1"></i> Imported section — change its wording, pictures, links and design below. ' +
+                    'Anything left blank keeps how the original looked.' +
+                '</div>' +
+                '<iframe id="vela-html-preview" style="width:100%;height:300px;border:1px solid #e9ecef;border-radius:4px;background:#fff;margin-bottom:12px;"></iframe>' +
+                renderDesignPanel(_htmlDoc) +
+                (fields || '<div id="vela-field-list"></div><div class="alert alert-light border py-2"><small>' +
+                    'No editable wording was found in this section — its text sits inside markup this form cannot take apart. ' +
+                    'Change it under "Edit the HTML directly" below, or restyle it with the design controls above.' +
+                    '</small></div>') +
+                '<details class="mt-3"><summary style="cursor:pointer;font-weight:500;font-size:.9em;">' +
+                    '<i class="fas fa-code mr-1"></i> Edit the HTML directly</summary>' +
+                    '<textarea class="form-control mt-2" id="html-content" rows="10" style="font-family:monospace;font-size:.8rem;">' + escHtml(html) + '</textarea>' +
+                '</details>';
         },
-        initEditor: function(block) {},
+        initEditor: function(block) {
+            if (!$('#vela-html-preview').length) return;
+
+            // Bound fresh each time the dialog opens. Without clearing, the
+            // handlers stack up: the second time a section was opened, one
+            // click on "leave this out" ran the toggle twice and the part
+            // stayed exactly as it was.
+            $('#block-edit-content').off('.velaImported');
+            $('#vela-field-list').off('.velaImported');
+            $(window).off('.velaImported');
+
+            refreshImportedPreview();
+
+            $('#vela-field-list').on('input.velaImported', '.vela-field-text, .vela-field-href, .vela-field-src, .vela-field-alt, .vela-field-placeholder', function() {
+                if ($(this).hasClass('vela-field-src')) {
+                    $(this).closest('[data-field]').find('.vela-field-thumb').attr('src', $(this).val());
+                }
+                scheduleImportedPreview();
+            });
+
+            $('#block-edit-content').on('change.velaImported input.velaImported', '.vela-design, .vela-design-custom', function() {
+                var $el = $(this);
+                var name = $el.data('design');
+
+                // Show the free-text box only while "Custom…" is chosen, and
+                // keep the swatch in step with a hex typed by hand.
+                if ($el.is('select') && name) {
+                    var $custom = $('[data-design-custom="' + name + '"]');
+                    if ($el.val() === '__custom') { $custom.removeAttr('hidden').focus(); }
+                    else { $custom.attr('hidden', 'hidden').val(''); }
+                }
+                if (name && /^#[0-9a-fA-F]{6}$/.test($el.val() || '')) {
+                    $('[data-swatch-for="' + name + '"]').val($el.val());
+                }
+
+                scheduleImportedPreview();
+            });
+
+            $('#block-edit-content').on('input.velaImported change.velaImported', '.vela-design-swatch', function() {
+                $('[data-design="' + $(this).data('swatch-for') + '"]').val($(this).val());
+                scheduleImportedPreview();
+            });
+
+            $('#block-edit-content').on('click.velaImported', '.vela-field-visibility', function() {
+                toggleHiddenPart($(this).data('target'));
+            });
+
+            $('#block-edit-content').on('click.velaImported', '.vela-part-show', function() {
+                toggleHiddenPart($(this).data('target'));
+            });
+
+            $('#block-edit-content').on('click.velaImported', '#vela-pick-mode', function() {
+                _htmlPickMode = !_htmlPickMode;
+                redrawImportedEditor();
+            });
+
+            $(window).on('message.velaImported', function(event) {
+                var data = event.originalEvent && event.originalEvent.data;
+                if (!data || typeof data.velaPick !== 'string' || !_htmlPickMode || !_htmlDoc) return;
+                var id = markPartAtPath(_htmlDoc, data.velaPick);
+                if (id) toggleHiddenPart(id);
+            });
+
+            $('#block-edit-content').on('click.velaImported', '.vela-design-clear', function() {
+                $('[data-design="' + $(this).data('clear-for') + '"]').val('');
+                refreshImportedPreview();
+            });
+
+            $('#block-edit-content').on('click.velaImported', '#vela-design-reset', function() {
+                $('.vela-design').val('');
+                $('.vela-design-custom').val('').attr('hidden', 'hidden');
+                _htmlHidden = [];
+                _htmlPickMode = false;
+                redrawImportedEditor();
+            });
+
+            $('#vela-field-list').on('click.velaImported', '.vela-field-browse', function() {
+                var $row = $(this).closest('[data-field]');
+                openMediaBrowser(function(media) {
+                    $row.find('.vela-field-src').val(media.url);
+                    $row.find('.vela-field-thumb').attr('src', media.url);
+                    if (media.alt && !$row.find('.vela-field-alt').val()) $row.find('.vela-field-alt').val(media.alt);
+                    refreshImportedPreview();
+                });
+            });
+
+            // Editing the markup by hand rebuilds the form from it, so the two
+            // never drift apart.
+            $('#html-content').on('change.velaImported', function() {
+                _htmlDoc = parseBlockHtml($(this).val());
+                $('#vela-field-list').replaceWith(renderImportedFields(_htmlDoc) || '<div id="vela-field-list"></div>');
+                refreshImportedPreview();
+            });
+        },
         collectData: function(block) {
+            // A plain HTML block is still edited in the textarea; only a block
+            // with importer marks is rebuilt from the form.
+            var html = (_htmlHasFields && _htmlDoc)
+                ? serializeBlockHtml(applyDesign(applyImportedFields(_htmlDoc), collectDesign()))
+                : $('#html-content').val();
+
             return {
-                content: { html: $('#html-content').val() },
+                content: { html: html },
                 settings: block.settings
             };
         }
@@ -1466,8 +2331,10 @@ PageEditor.registerBlockType = function(name, config) {
             '</div></details>';
 
         $('.modal-title').text('Edit Block: ' + (config ? config.label : block.type));
+        clearEditorPreviewPane();
         $('#block-edit-content').html(html);
         if (config && config.initEditor) { config.initEditor(block); }
+        moveEditorPreviewIntoPane();
 
         // Block style color sync
         $('#block-bg-color').on('input', function() { $('#block-bg-color-text').val($(this).val()); });
@@ -1605,6 +2472,7 @@ PageEditor.registerBlockType = function(name, config) {
                 '<div class="d-flex flex-wrap" style="gap:8px;">' + buttonsHtml + '</div></div>';
             $('#block-edit-content').html(html);
             $('#block-edit-modal .modal-title').text('Add Block');
+            clearEditorPreviewPane();
             $('#save-block-btn').hide();
             $(document).off('click.blocktype').on('click.blocktype', '.block-type-btn', function() {
                 var type = $(this).data('type');
@@ -1714,6 +2582,7 @@ PageEditor.registerBlockType = function(name, config) {
                 '</div></div></div>';
             $('#block-edit-content').html(html);
             $('#block-edit-modal .modal-title').text('Row Style');
+            clearEditorPreviewPane();
             editingRowId = rowId;
             editingColIndex = null;
             editingBlockIndex = null;
@@ -1850,8 +2719,27 @@ PageEditor.registerBlockType = function(name, config) {
             });
         });
 
+        // Bootstrap marks the dialog aria-hidden as it closes. If focus is
+        // still on something inside it — the close button the user just
+        // clicked — the browser refuses, because hiding a focused element from
+        // assistive technology would strand a screen reader inside a dialog
+        // that is no longer there. Hand focus back to the page first.
+        $('#block-edit-modal').on('hide.bs.modal', function() {
+            var focused = document.activeElement;
+            if (focused && this.contains(focused) && typeof focused.blur === 'function') {
+                focused.blur();
+            }
+        });
+
         $('#block-edit-modal').on('hidden.bs.modal', function() {
             if (editorJsInstance) { try { editorJsInstance.destroy(); } catch(e) {} editorJsInstance = null; }
+            // The iframe would otherwise sit there holding a whole rendered
+            // page until the next block is opened.
+            clearEditorPreviewPane();
+            _htmlDoc = null;
+            _htmlHasFields = false;
+            _htmlHidden = [];
+            _htmlPickMode = false;
             $('#save-block-btn').show();
         });
 

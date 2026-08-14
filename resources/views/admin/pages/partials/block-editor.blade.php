@@ -9,7 +9,12 @@
 
 {{-- Block Edit Modal --}}
 <div class="modal fade" id="block-edit-modal" tabindex="-1" role="dialog">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable" role="document">
+    {{-- Full screen, split in two: what the section looks like on the left,
+         the controls on the right, each scrolling on its own. A copied
+         section is a page-width thing, and judging an edit to it through a
+         narrow modal that scrolls the preview away as you reach the controls
+         is guesswork. --}}
+    <div class="modal-dialog vela-block-modal" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ trans('vela::global.edit_block') }}</h5>
@@ -17,8 +22,15 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body" id="block-edit-content">
-                {{-- Dynamic content loaded by JS based on block type --}}
+            <div class="modal-body vela-block-modal-body">
+                <div class="vela-edit-split">
+                    {{-- The block type's own preview is moved in here when it
+                         has one; the pane hides itself when it does not. --}}
+                    <div class="vela-edit-preview" id="block-edit-preview" hidden></div>
+                    <div class="vela-edit-form" id="block-edit-content">
+                        {{-- Dynamic content loaded by JS based on block type --}}
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ trans('vela::global.cancel') }}</button>
@@ -165,5 +177,8 @@ window.PageEditorConfig = {
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/warning@1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@1"></script>
-<script src="{{ asset('vendor/vela/js/page-editor.js') }}"></script>
+{{-- Versioned by file time: the editor gained the imported-section form and
+     design controls, and a browser holding yesterday's copy shows a textarea
+     of raw HTML instead, which looks like the feature is simply missing. --}}
+<script src="{{ asset('vendor/vela/js/page-editor.js') }}?v={{ is_file(public_path('vendor/vela/js/page-editor.js')) ? filemtime(public_path('vendor/vela/js/page-editor.js')) : config('vela.version', '1') }}"></script>
 @endpush
