@@ -260,6 +260,7 @@ class ProcessAiChatMessageJob implements ShouldQueue
                 ];
 
                 // Execute each tool call
+                $pendingImages = [];
                 foreach ($response['tool_calls'] as $toolCall) {
                     $result = $toolExecutor->execute(
                         $toolCall['name'],
@@ -268,6 +269,21 @@ class ProcessAiChatMessageJob implements ShouldQueue
                         $assistantMsg->id,
                         $user
                     );
+
+                    // A tool that captured a picture (screenshot_url,
+                    // browse_url) returns it under `_images`. Lift it out
+                    // before the result is encoded: base64 has no business in
+                    // a JSON tool result — the providers only accept an image
+                    // inside a message — and storing it would bloat every
+                    // later request with a picture nobody looks at twice.
+                    if (!empty($result['_images']) && is_array($result['_images'])) {
+                        foreach ($result['_images'] as $image) {
+                            if (!empty($image['base64'])) {
+                                $pendingImages[] = $image;
+                            }
+                        }
+                        unset($result['_images']);
+                    }
 
                     // Cap the result so a single oversized payload (fetched
                     // page, file dump, screenshot) can't blow the context
@@ -288,6 +304,34 @@ class ProcessAiChatMessageJob implements ShouldQueue
                         'tool_call_id' => $toolCall['id'],
                         'content' => $encoded,
                     ];
+                }
+
+                // Show the captured pictures to the model.
+                //
+                // Screenshots used to be saved to storage and reported back as
+                // a path, which the model cannot open — so every "copy this
+                // page" ran on text alone and came out approximate. Tool
+                // results themselves can't carry an image on all three
+                // providers, so they ride in as a user turn straight after,
+                // which every provider accepts. They are deliberately NOT
+                // persisted: they matter for this turn's reasoning only.
+                if ($pendingImages !== [] && $textProvider->supportsVision()) {
+                    $content = [];
+                    $budget = 1_200_000; // chars of base64 across this turn's pictures
+                    foreach (array_slice($pendingImages, 0, 3) as $image) {
+                        $budget -= mb_strlen((string) $image['base64']);
+                        if ($budget < 0) {
+                            break;
+                        }
+                        $content[] = ['type' => 'text', 'text' => $image['label'] ?? 'Captured screenshot'];
+                        $content[] = [
+                            'type'       => 'image',
+                            'source'     => $image['base64'],
+                            'media_type' => $image['media_type'] ?? 'image/png',
+                        ];
+                    }
+                    $content[] = ['type' => 'text', 'text' => 'This is what the page actually looks like. Work from it, not from your assumptions about the markup.'];
+                    $messages[] = ['role' => 'user', 'content' => $content];
                 }
 
                 // Call AI again with tool results (with the same retry logic)
@@ -589,9 +633,19 @@ class ProcessAiChatMessageJob implements ShouldQueue
             . "- You CAN edit: resources/views/ (Blade templates), routes/ (web/api routes), app/ (controllers/models), config/, database/migrations/, database/seeders/, tests/, public/css/, public/js/.\n"
             . "- When installing composer packages, always specify a version constraint (e.g. composer require package/name:^2.0).\n"
             . "- After making changes, offer to run relevant artisan commands (e.g. php artisan migrate, php artisan route:clear, php artisan view:clear).\n"
-            . "- To analyze a remote website: fetch_page_resources gets CSS (actual content, not just URLs), JS, images, colors, fonts, and text. browse_url uses a headless browser for full rendering — use action 'extract' for structured data (computed colors, fonts, layout), 'screenshot' to save a visual, 'html' for JS-rendered markup, 'evaluate' to run custom JS.\n"
-            . "- To copy from a remote site: fetch_page_resources (get CSS/design) + download_image (save images) + create_page + add_row/add_block (rebuild locally).\n"
-            . "- To verify your own site after changes: browse_url with your site's URL to screenshot or extract and confirm the changes look right.\n\n"
+            . "- To analyze a remote website: browse_url action 'sections' is the primary tool — it returns the page as an ordered outline (per section: heading, lead text, buttons, images, repeated-card count, computed background/padding/grid, and a suggested block type). browse_url 'design_tokens' returns the real type scale and the colours ranked by usage. fetch_page_resources gets raw CSS/JS/images. browse_url 'html' returns the rendered markup with scripts and styles stripped (pass selector to read one part at a time), 'screenshot' shows you the actual picture, 'evaluate' runs custom JS.\n"
+            . "- NEVER rebuild a page from raw HTML you skimmed. Call browse_url 'sections' first — the outline is the blueprint, and its section_count is what your finished page is measured against.\n"
+            . "\nCOPYING A PAGE FROM ANOTHER SITE — copy_page DOES THE WHOLE JOB:\n"
+            . "- 'Copy this page' / 'rebuild this page on my site' / 'make me a pricing page like <url>' / 'I want a page like theirs' → call copy_page with the address, and a title if a new page is wanted. It reads the outline, skips their navigation, header and footer, and brings every content section across with its own markup, its own scoped CSS and its pictures downloaded here. One call. Then report what it copied.\n"
+            . "- DO NOT rebuild a copied page out of add_row + add_block. Blocks wear THIS site\'s design, so a page rebuilt from them carries the right words in roughly the right order and looks nothing like the page the user pointed at — which is exactly the complaint that keeps coming back. add_row/add_block are for pages built from the user\'s own ideas, not for copies.\n"
+            . "- The copied sections ARE editable: their wording, pictures and links appear in the page builder as a plain form, so \'the user could not customise it\' is no longer a reason to reach for blocks.\n"
+            . "- copy_page returns a DRAFT. Say so, and offer to publish rather than publishing it yourself.\n"
+            . "- import_page_section is the same thing for ONE section — use it to add a single section to an existing page, or to redo a section copy_page reported as failed.\n"
+            . "- Read the result before replying: it lists what was copied, what was skipped (their navigation/footer is skipped ON PURPOSE — do not rebuild those by hand) and what failed. If sections failed, retry those with import_page_section instead of describing the page as finished.\n"
+            . "- If copy_page says the page has no sections it could read, the page builds itself in JavaScript: say that CLOUDFLARE_BROWSER_RENDERING_URL is not configured and that is what it needs, rather than falling back to a block rebuild that will disappoint.\n"
+            . "- 'Make my site look like <url>' WITHOUT asking for a copy is the other job: keep the user\'s own content and borrow the arrangement with add_row/add_block, then style it with browse_url \'design_tokens\' + update_custom_css. When it is genuinely unclear which was meant, copy the page and say in one line that you copied their wording and can swap in the user\'s own.\n"
+            . "- Content on someone else\'s site is usually theirs. Copy it when the user asks, and mention once — briefly, without lecturing — that they should check they may use the wording and pictures.\n"
+            . "- To verify your own site after changes: browse_url with your site\'s URL to screenshot or extract and confirm the changes look right.\n\n"
             . "VERIFY BEFORE CLAIMING SUCCESS — STRICT:\n"
             . "- A tool returning success:true only means the row was written. It does NOT mean the user can see the change. Before you report a visual/content change as done, read the result back: get_page_blocks after add_block/update_block, get_custom_css after update_custom_css, get_page_info after update_page.\n"
             . "- If a tool result carries a `warning`, treat the change as NOT done. Say what the warning said and fix the underlying cause instead of reporting success.\n"

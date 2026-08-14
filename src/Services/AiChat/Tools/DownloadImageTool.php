@@ -12,8 +12,23 @@ class DownloadImageTool extends BaseTool
     private const TIMEOUT = 30;
     private const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
 
+    /** Ceiling on one batch — a page's worth of pictures, not a whole site. */
+    private const MAX_BATCH = 20;
+
     public function execute(array $parameters, ?AiActionLog $actionLog = null): array
     {
+        // Copying a page means pulling every picture on it. One call per image
+        // meant twenty tool calls for one page, and the model would give up
+        // after three and leave the rest pointing at the other site's server.
+        $urls = $parameters['urls'] ?? null;
+        if (is_string($urls) && $urls !== '') {
+            $decoded = json_decode($urls, true);
+            $urls = is_array($decoded) ? $decoded : array_map('trim', explode(',', $urls));
+        }
+        if (is_array($urls) && $urls !== []) {
+            return $this->downloadMany($urls);
+        }
+
         $url = $parameters['url'] ?? '';
         $filename = $parameters['filename'] ?? null;
 
@@ -67,5 +82,49 @@ class DownloadImageTool extends BaseTool
             'size' => strlen($body),
             'mime' => $contentType,
         ];
+    }
+
+    /**
+     * Download a set of images, reporting each outcome separately.
+     *
+     * One failure must not sink the batch: a hotlink-protected logo among
+     * fifteen good photographs is a gap to fill, not a reason to leave the
+     * page pointing at someone else's server.
+     */
+    private function downloadMany(array $urls): array
+    {
+        $saved = [];
+        $failed = [];
+        $seen = [];
+
+        foreach ($urls as $url) {
+            $url = is_string($url) ? trim($url) : '';
+            if ($url === '' || isset($seen[$url])) {
+                continue;
+            }
+            $seen[$url] = true;
+
+            if (count($saved) + count($failed) >= self::MAX_BATCH) {
+                $failed[] = ['url' => $url, 'error' => 'Skipped — batch limit of ' . self::MAX_BATCH . ' reached. Call again with the rest.'];
+                continue;
+            }
+
+            $result = $this->execute(['url' => $url]);
+            if (!empty($result['success'])) {
+                $saved[] = ['source' => $url, 'url' => $result['url'], 'filename' => $result['filename']];
+            } else {
+                $failed[] = ['url' => $url, 'error' => $result['error'] ?? 'Unknown error'];
+            }
+        }
+
+        return array_filter([
+            'success'      => $saved !== [],
+            'saved'        => $saved,
+            'saved_count'  => count($saved),
+            'failed'       => $failed ?: null,
+            'note'         => $failed !== []
+                ? count($failed) . ' image(s) could not be downloaded — use the ones that saved and leave the rest out rather than linking to the source site.'
+                : null,
+        ], fn ($v) => $v !== null);
     }
 }

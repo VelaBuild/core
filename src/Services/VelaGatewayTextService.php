@@ -58,7 +58,11 @@ class VelaGatewayTextService implements AiTextProvider
     {
         $body = [
             'model'      => $this->defaultModel,
-            'messages'   => $messages,
+            // The gateway speaks OpenAI's wire format, so Vela's unified image
+            // block has to be translated here as well — sent as-is it is
+            // dropped, and a screenshot the model was meant to look at never
+            // arrives.
+            'messages'   => $this->normalizeVisionMessages($messages),
             'max_tokens' => $maxTokens,
         ];
         if (!empty($tools)) {
@@ -96,6 +100,30 @@ class VelaGatewayTextService implements AiTextProvider
         // Whether vision is supported depends on the gateway-side model. Assume yes
         // for the default model family; the gateway will reject if not.
         return true;
+    }
+
+    /** Convert unified image blocks to the OpenAI image_url shape. */
+    private function normalizeVisionMessages(array $messages): array
+    {
+        return array_map(function ($message) {
+            if (!is_array($message['content'] ?? null)) {
+                return $message;
+            }
+
+            $message['content'] = array_map(function ($block) {
+                if (($block['type'] ?? '') === 'image') {
+                    return [
+                        'type'      => 'image_url',
+                        'image_url' => [
+                            'url' => 'data:' . ($block['media_type'] ?? 'image/png') . ';base64,' . $block['source'],
+                        ],
+                    ];
+                }
+                return $block;
+            }, $message['content']);
+
+            return $message;
+        }, $messages);
     }
 
     /**
