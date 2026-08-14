@@ -97,6 +97,37 @@ class AiChatPageBuilderToolsTest extends PackageTestCase
         $this->assertArrayNotHasKey('visitor_sees', $result);
     }
 
+    public function test_a_block_showing_its_own_empty_state_is_caught(): void
+    {
+        // A block with a placeholder — "No testimonials yet" — has visible
+        // words, so a blank check never fires while the stored content reached
+        // nothing. Rendering it again with the content taken away tells them
+        // apart: the same reading either way means the payload did nothing.
+        $result = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'testimonials',
+            'content' => ['items' => []],
+        ]);
+
+        $this->assertArrayHasKey('warning', $result);
+        $this->assertStringContainsString('no content at all', $result['warning']);
+    }
+
+    public function test_testimonials_render_the_entries_the_schema_advertises(): void
+    {
+        // The view read content['testimonials'] while the block declares, and
+        // list_block_types advertises, `items` — so the documented shape could
+        // never render and the block always showed its empty state.
+        $result = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'testimonials',
+            'content' => ['items' => [['quote' => 'Best dive trip ever.', 'name' => 'Jane Doe', 'title' => 'Diver']]],
+        ]);
+
+        $this->assertStringContainsString('Best dive trip ever.', $result['visitor_sees']);
+        $this->assertArrayNotHasKey('warning', $result);
+    }
+
     public function test_a_block_made_of_pictures_is_not_mistaken_for_an_empty_one(): void
     {
         // Wordless is not the same as broken.

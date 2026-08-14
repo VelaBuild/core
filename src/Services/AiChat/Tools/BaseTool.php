@@ -79,6 +79,30 @@ abstract class BaseTool
 
         $text = trim(preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($html), ENT_QUOTES, 'UTF-8')));
 
+        // A block with its own empty state says something like "No testimonials
+        // yet" — visible words, so the blank check below never fires, while the
+        // content the tool just stored reached nothing. Render the same block
+        // with its content taken away: if a visitor reads the same either way,
+        // the payload made no difference.
+        $emptied = $block->replicate();
+        $emptied->content = $definition['defaults']['content'] ?? [];
+        try {
+            $placeholder = trim(preg_replace('/\s+/u', ' ', html_entity_decode(
+                strip_tags(view($view, ['block' => $emptied, 'page' => $block->row?->page])->render()),
+                ENT_QUOTES,
+                'UTF-8'
+            )));
+        } catch (\Throwable $e) {
+            $placeholder = null;
+        }
+
+        if ($placeholder !== null && $placeholder !== '' && $placeholder === $text) {
+            return ['warning' => 'This block renders exactly as it would with no content at all — a visitor reads "'
+                . \Illuminate\Support\Str::limit($text, 80) . '". What was stored is under a key the view does not read, '
+                . 'so none of it reached the page. Check the shape with list_block_types and send it again; '
+                . 'do not report this as added.'];
+        }
+
         // Some blocks are pictures or embeds and carry no words at all.
         if ($text === '' && !preg_match('/<(img|iframe|svg|input|video)\b/i', $html)) {
             return ['warning' => 'This block renders completely empty — a visitor sees a blank gap where it sits. '

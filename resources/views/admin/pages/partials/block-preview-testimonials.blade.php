@@ -1,5 +1,7 @@
 @php
-    $testimonials = ($block->content)['testimonials'] ?? [];
+    // Same key the public view and the block's registered defaults use, so the
+    // preview stops showing an empty state over content that is really there.
+    $testimonials = ($block->content ?? [])['items'] ?? [];
 @endphp
 @if(count($testimonials) > 0)
     @foreach($testimonials as $t)

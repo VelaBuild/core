@@ -1,5 +1,8 @@
 @php
-    $testimonials = ($block->content)['testimonials'] ?? [];
+    // The block declares its list as `items`, like every other list block, and
+    // that is what list_block_types advertises — this view read `testimonials`,
+    // so content sent the documented way rendered as the empty state instead.
+    $testimonials = ($block->content ?? [])['items'] ?? [];
 @endphp
 @if(count($testimonials) > 0)
 <div class="block-testimonials">
