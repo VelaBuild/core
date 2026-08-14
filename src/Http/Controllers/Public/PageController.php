@@ -94,8 +94,30 @@ class PageController extends Controller
             }
         }
 
+        // Nothing built-in on this page: an imported section may still carry a
+        // form of its own, and a post with no block_id (an older cached page,
+        // a form rebuilt by hand) should still land somewhere sensible.
+        if (!$block) {
+            foreach ($page->rows as $row) {
+                foreach ($row->blocks as $b) {
+                    if ($b->type === 'html' && str_contains((string) ($b->content['html'] ?? ''), '<form')) {
+                        $block = $b;
+                        break 2;
+                    }
+                }
+            }
+        }
+
         if (!$block) {
             abort(404);
+        }
+
+        // A copied section keeps its own form markup, so the block holding it
+        // is an `html` block rather than the built-in contact one. Its fields
+        // are whatever the source page had — Country, Company website — none
+        // of which the five-field rules below can describe.
+        if ($block->type !== 'contact_form') {
+            return $this->storeImportedFormSubmission($request, $page, $block);
         }
 
         // Honeypot check
@@ -189,5 +211,62 @@ class PageController extends Controller
         $successMessage = $settings['success_message'] ?? 'Thank you for your message!';
 
         return redirect()->back()->with('success', $successMessage);
+    }
+
+    /**
+     * Store a submission from a form that came in with an imported section.
+     *
+     * The built-in block knows its five fields and validates them by name.
+     * An imported form is whatever the other site built, so the rules here
+     * describe shape rather than meaning: everything is text of a sane
+     * length, an address that looks like an email has to be one, and the
+     * whole thing is capped so a crafted post cannot fill the table.
+     * The spam defences are the same ones the built-in form uses.
+     */
+    private function storeImportedFormSubmission(Request $request, Page $page, PageBlock $block)
+    {
+        $markup = (string) ($block->content['html'] ?? '');
+        if ($block->type !== 'html' || !str_contains($markup, '<form')) {
+            abort(404);
+        }
+
+        $fields = collect($request->except(['_token', '_method', 'block_id', 'website_url', 'cf-turnstile-response']))
+            ->filter(fn ($value) => is_string($value) || is_numeric($value) || is_bool($value) || is_null($value))
+            ->take(40);
+
+        $rules = [];
+        foreach ($fields as $name => $value) {
+            $rules[$name] = str_contains(strtolower($name), 'email')
+                ? 'nullable|email|max:255'
+                : 'nullable|string|max:5000';
+        }
+        $request->validate($rules);
+
+        $data = [];
+        foreach ($fields as $name => $value) {
+            $value = is_bool($value) ? ($value ? 'yes' : 'no') : (string) $value;
+            if (trim($value) === '') {
+                continue;
+            }
+            $data[$name] = mb_substr($value, 0, 5000);
+        }
+
+        if ($data === []) {
+            return back()->withErrors(['form' => trans('vela::global.please_fill_in_the_form') ?: 'Please fill in the form before sending it.']);
+        }
+
+        try {
+            FormSubmission::create([
+                'page_id'    => $page->id,
+                'block_id'   => $block->id,
+                'data'       => $data,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Imported form submission DB write failed: ' . $e->getMessage());
+        }
+
+        return redirect()->back()->with('success', 'Thank you for your message!');
     }
 }

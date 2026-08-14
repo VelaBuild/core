@@ -37,6 +37,7 @@
             "src/Helpers/image.php",
             "src/Helpers/cache_tag.php",
             "src/Helpers/links.php",
+            "src/Helpers/imported_forms.php",
             "src/helpers.php"
         ]
     },
