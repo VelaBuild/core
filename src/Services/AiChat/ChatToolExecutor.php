@@ -149,6 +149,8 @@ class ChatToolExecutor
             'screenshot_url'          => Tools\ScreenshotUrlTool::class,
             'fetch_page_resources'    => Tools\FetchPageResourcesTool::class,
             'browse_url'              => Tools\BrowseUrlTool::class,
+            'import_page_section'     => Tools\ImportPageSectionTool::class,
+            'copy_page'               => Tools\CopyPageTool::class,
             'pagespeed'               => Tools\PageSpeedTool::class,
             'diff'                    => Tools\DiffFileTool::class,
             'git'                     => Tools\GitTool::class,

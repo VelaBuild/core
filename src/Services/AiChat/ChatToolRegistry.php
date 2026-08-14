@@ -750,21 +750,22 @@ class ChatToolRegistry
         ],
         [
             'name' => 'download_image',
-            'description' => 'Download an image from a URL and save it to the media storage. Use this when a user shares a URL and you need to save images from it (e.g. competitor site images, reference designs).',
+            'description' => 'Download one image (url) or a whole batch (urls, up to 20) and save them into media storage. When copying a page, pass every image the outline reported in a single call — a rebuilt page must never point at the source site\'s server. Returns the local URL of each saved file plus any that failed.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'url' => ['type' => 'string', 'description' => 'Image URL to download'],
-                    'filename' => ['type' => 'string', 'description' => 'Optional filename (auto-detected from URL if omitted)'],
+                    'urls' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Several image URLs to download in one call (max 20). Takes precedence over url.'],
+                    'filename' => ['type' => 'string', 'description' => 'Optional filename for a single download (auto-detected from URL if omitted)'],
                 ],
-                'required' => ['url'],
+                'required' => [],
             ],
             'write' => true,
             'gate' => 'article_create',
         ],
         [
             'name' => 'screenshot_url',
-            'description' => 'Take a screenshot of a URL using Cloudflare Browser Rendering. Saves the screenshot to storage and returns the path. Requires CLOUDFLARE_BROWSER_RENDERING_URL to be configured.',
+            'description' => 'Take a screenshot of a URL using Cloudflare Browser Rendering. Saves it to storage AND shows you the picture itself, so use it whenever you need to see how a page really looks — before copying someone\'s layout, and after changing your own. Requires CLOUDFLARE_BROWSER_RENDERING_URL to be configured.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -794,13 +795,15 @@ class ChatToolRegistry
         ],
         [
             'name' => 'browse_url',
-            'description' => 'Open a URL in a headless browser for full rendering. Actions: "extract" (structured data: headings, links, images, computed colors, fonts), "screenshot" (save screenshot), "html" (get fully-rendered HTML including JS), "evaluate" (run custom JavaScript), "pdf" (generate PDF). Falls back to HTTP fetch if browser rendering is not configured. Use this for: checking your own site after changes, analyzing competitor layouts, validating that changes look correct.',
+            'description' => 'Open a URL in a headless browser for full rendering. Actions: "sections" (THE ONE TO USE WHEN COPYING A PAGE — an ordered outline of every top-level section with its heading, lead text, buttons, images, repeated-card count, computed background/padding/grid and a suggested Vela block type), "design_tokens" (computed fonts, type scale, colours ranked by how much of the page uses them, :root custom properties), "extract" (flat structured data), "screenshot" (captures the page AND shows the picture to you — use it before rebuilding a layout), "html" (rendered markup, scripts/styles stripped; supports selector + raw), "evaluate" (run custom JavaScript), "pdf". "sections", "html", "extract" and "design_tokens" fall back to HTTP fetch when browser rendering is not configured.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'url' => ['type' => 'string', 'description' => 'URL to browse'],
-                    'action' => ['type' => 'string', 'enum' => ['extract', 'screenshot', 'html', 'evaluate', 'pdf'], 'description' => 'What to do (default: extract)'],
+                    'action' => ['type' => 'string', 'enum' => ['extract', 'sections', 'design_tokens', 'screenshot', 'html', 'evaluate', 'pdf'], 'description' => 'What to do (default: extract)'],
                     'script' => ['type' => 'string', 'description' => 'JavaScript to evaluate in the page (for evaluate action)'],
+                    'selector' => ['type' => 'string', 'description' => 'For action "html": return only this element — a tag ("main"), an id ("#pricing") or a class (".hero"). Use it to read a large page one section at a time.'],
+                    'raw' => ['type' => 'boolean', 'description' => 'For action "html": keep scripts, styles and comments (default false — they are stripped so the budget goes on markup that shows layout)'],
                     'width' => ['type' => 'integer', 'description' => 'Viewport width for screenshot (default: 1280)'],
                     'full_page' => ['type' => 'boolean', 'description' => 'Capture full scrollable page (for screenshot)'],
                 ],
@@ -808,6 +811,48 @@ class ChatToolRegistry
             ],
             'write' => false,
             'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'copy_page',
+            'description' => 'Copy a WHOLE page from another site onto this one, as it actually looks. This is THE tool for "copy this page", "rebuild this page on my site", "make me a pricing page like <url>". It reads the page\'s section outline, skips the source site\'s navigation/header/footer, and imports every content section in order with its own markup, its own (scoped) CSS and its images downloaded locally — then the wording, pictures and links are editable in the page builder as a plain form. Creates a DRAFT page when given a title, or adds to an existing page given page_id/page_slug. Do NOT rebuild a copied page out of add_row/add_block instead: that reproduces the wording and none of the design. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'url'             => ['type' => 'string', 'description' => 'Page to copy, e.g. https://example.com/pricing'],
+                    'title'           => ['type' => 'string', 'description' => 'Title for the new page (defaults to a name derived from the URL)'],
+                    'page_slug'       => ['type' => 'string', 'description' => 'Slug for the new page, or the slug of an existing page to add the sections to'],
+                    'page_id'         => ['type' => 'integer', 'description' => 'Existing page to add the sections to'],
+                    'locale'          => ['type' => 'string'],
+                    'max_sections'    => ['type' => 'integer', 'description' => 'Cap on sections copied in this call (default 15)'],
+                    'include_css'     => ['type' => 'boolean', 'description' => 'Bring the source styling across, scoped to those sections (default true)'],
+                    'download_images' => ['type' => 'boolean', 'description' => 'Copy the pictures into local storage (default true)'],
+                ],
+                'required' => ['url'],
+            ],
+            'write' => true,
+            'gate' => 'page_create',
+        ],
+        [
+            'name' => 'import_page_section',
+            'description' => 'Copy ONE content section of a remote page onto a page here exactly as it looks: its own markup goes in as an html block, its own CSS is rewritten to reach nothing outside that block and stored on the page, and its images are downloaded to local storage. Use this when the user asked to COPY a page rather than borrow its arrangement, or for any section the block types cannot reproduce. Identify the section with section_index (the number browse_url action "sections" gave it) or selector. Call it once per section, in order. NEVER import the source site\'s navigation bar, header or footer — this site renders its own on every page from its template and menus, and the tool refuses them. The result cannot be edited in the page builder — it is raw HTML — so prefer real blocks where they genuinely fit. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'url'             => ['type' => 'string', 'description' => 'Page to copy the section from'],
+                    'page_id'         => ['type' => 'integer', 'description' => 'Page here that the section is added to'],
+                    'page_slug'       => ['type' => 'string'],
+                    'locale'          => ['type' => 'string'],
+                    'section_index'   => ['type' => 'integer', 'description' => '1-based section number from browse_url action "sections"'],
+                    'selector'        => ['type' => 'string', 'description' => 'Alternative to section_index: "#pricing", ".hero", "footer"'],
+                    'include_css'     => ['type' => 'boolean', 'description' => 'Bring the source styling across, scoped to this section (default true)'],
+                    'download_images' => ['type' => 'boolean', 'description' => 'Copy the pictures into local storage (default true)'],
+                    'force'           => ['type' => 'boolean', 'description' => 'Import even though the section looks like a navigation bar, header or footer. Only after checking it really is page content.'],
+                    'order'           => ['type' => 'integer', 'description' => 'Position among the page rows (defaults to last)'],
+                ],
+                'required' => ['url'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
         ],
         [
             'name' => 'pagespeed',
