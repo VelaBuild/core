@@ -317,6 +317,8 @@ return [
     'invite_member'                  => 'Lid uitnodigen',
     'invite_sent'                    => 'Uitnodiging verzonden.',
     'manage_team_members'            => 'Teamleden beheren',
+    'undo'                           => 'Ongedaan maken',
+    'redo'                           => 'Opnieuw',
     'remove'                         => 'Verwijderen',
     'team_no_members_notice'         => 'Uw team heeft nog geen leden.',
     'disband_team'                   => 'Team ontbinden',

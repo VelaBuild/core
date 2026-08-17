@@ -317,6 +317,8 @@ return [
     'invite_member'                  => '邀请成员',
     'invite_sent'                    => '邀请已发送。',
     'manage_team_members'            => '管理团队成员',
+    'undo'                           => '撤销',
+    'redo'                           => '重做',
     'remove'                         => '移除',
     'team_no_members_notice'         => '您的团队尚无成员。',
     'disband_team'                   => '解散团队',

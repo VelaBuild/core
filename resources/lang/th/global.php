@@ -317,6 +317,8 @@ return [
     'invite_member'                  => 'เชิญสมาชิก',
     'invite_sent'                    => 'ส่งคำเชิญแล้ว',
     'manage_team_members'            => 'จัดการสมาชิกทีม',
+    'undo'                           => 'เลิกทำ',
+    'redo'                           => 'ทำซ้ำ',
     'remove'                         => 'ลบ',
     'team_no_members_notice'         => 'ทีมของคุณยังไม่มีสมาชิก',
     'disband_team'                   => 'ยุบทีม',

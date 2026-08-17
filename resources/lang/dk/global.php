@@ -317,6 +317,8 @@ return [
     'invite_member'                  => 'Inviter medlem',
     'invite_sent'                    => 'Invitation sendt.',
     'manage_team_members'            => 'Administrer teammedlemmer',
+    'undo'                           => 'Fortryd',
+    'redo'                           => 'Gentag',
     'remove'                         => 'Fjern',
     'team_no_members_notice'         => 'Dit team har endnu ingen medlemmer.',
     'disband_team'                   => 'Opløs team',

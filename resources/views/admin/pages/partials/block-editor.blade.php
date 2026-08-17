@@ -1,4 +1,16 @@
 <div id="page-block-editor">
+    {{-- Undo is a keyboard habit, but nothing on screen says it exists, and on
+         a laptop trackpad the buttons are the faster way back anyway. --}}
+    <div class="d-flex align-items-center mb-2" style="gap:6px;">
+        <button type="button" class="btn btn-sm btn-outline-secondary vela-undo-btn" disabled
+                title="{{ trans('vela::global.undo') }} (Ctrl+Z)">
+            <i class="fas fa-undo"></i>
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary vela-redo-btn" disabled
+                title="{{ trans('vela::global.redo') }} (Ctrl+Shift+Z)">
+            <i class="fas fa-redo"></i>
+        </button>
+    </div>
     <div id="rows-container">
         {{-- Rows rendered by JS --}}
     </div>
@@ -33,6 +45,18 @@
                 </div>
             </div>
             <div class="modal-footer">
+                {{-- Undo inside the dialog steps through this section's own
+                     changes, not the page's. --}}
+                <div class="mr-auto" style="display:flex; gap:6px;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary vela-undo-btn" disabled
+                            title="{{ trans('vela::global.undo') }} (Ctrl+Z)">
+                        <i class="fas fa-undo"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary vela-redo-btn" disabled
+                            title="{{ trans('vela::global.redo') }} (Ctrl+Shift+Z)">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">{{ trans('vela::global.cancel') }}</button>
                 <button type="button" class="btn btn-primary" id="save-block-btn">{{ trans('vela::global.save_block') }}</button>
             </div>

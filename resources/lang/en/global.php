@@ -321,6 +321,8 @@ return [
     'invite_member'                  => 'Invite member',
     'invite_sent'                    => 'Invitation sent.',
     'manage_team_members'            => 'Manage team members',
+    'undo'                           => 'Undo',
+    'redo'                           => 'Redo',
     'remove'                         => 'Remove',
     'browse_media'                   => 'Browse Media Library',
     'team_no_members_notice'         => 'Your team has no members yet.',
