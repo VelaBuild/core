@@ -317,6 +317,8 @@ return [
     'invite_member'                  => 'دعوة عضو',
     'invite_sent'                    => 'تم إرسال الدعوة.',
     'manage_team_members'            => 'إدارة أعضاء الفريق',
+    'undo'                           => 'تراجع',
+    'redo'                           => 'إعادة',
     'remove'                         => 'إزالة',
     'team_no_members_notice'         => 'لا يوجد أعضاء في فريقك بعد.',
     'disband_team'                   => 'حل الفريق',

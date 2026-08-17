@@ -21,6 +21,84 @@ PageEditor.registerBlockType = function(name, config) {
     var _idCounter = 1;
     var _slugManuallyEdited = false;
 
+    // --- Undo ---------------------------------------------------------------
+    //
+    // Everything the editor does was one way. A block dragged into the wrong
+    // column, a section deleted, wording typed over — the only way back was to
+    // do the reverse by hand, and for typing there was no reverse.
+    //
+    // Two stacks, because there are two things a person can be looking at: the
+    // page and its blocks, or one imported section inside the dialog. Ctrl+Z
+    // means "undo what I am looking at", so which stack answers depends on
+    // whether the dialog is open.
+    //
+    // States are whole serialised snapshots. The editor's model is small (a
+    // page of blocks, or one section's markup) and snapshots cannot drift out
+    // of step with the model the way a list of inverse operations can.
+    var HISTORY_LIMIT = 60;
+    var HISTORY_MERGE_MS = 800;
+    var _restoring = false;
+
+    function newHistory() {
+        return { past: [], future: [], last: null, at: 0 };
+    }
+    var _pageHistory = newHistory();
+    var _blockHistory = newHistory();
+
+    /**
+     * Record that something changed, keeping the state as it was before.
+     *
+     * Typing arrives as a change every couple of hundred milliseconds. Each one
+     * as its own step would mean tapping Ctrl+Z once per letter, so changes
+     * that follow closely on the last are folded into it: what is kept is the
+     * state from before the burst started, which is where Ctrl+Z should land.
+     */
+    function noteHistory(store, state) {
+        if (_restoring || state === null) return;
+
+        // The opening state is timestamped as long ago on purpose: it is not an
+        // edit, so the first real change must never be folded into it. Dated to
+        // now instead, a section changed within a moment of being opened had
+        // nothing to go back to.
+        if (store.last === null) { store.last = state; store.at = 0; return; }
+        if (state === store.last) return;
+
+        var now = Date.now();
+        if (now - store.at >= HISTORY_MERGE_MS) {
+            store.past.push(store.last);
+            if (store.past.length > HISTORY_LIMIT) store.past.shift();
+        }
+        // Any fresh change makes whatever was undone unreachable again.
+        store.future.length = 0;
+        store.last = state;
+        store.at = now;
+    }
+
+    function stepHistory(store, from, to, current, apply) {
+        // A change still inside the merge window has not been pushed yet, and
+        // without this the first Ctrl+Z would skip over it to the step before.
+        if (store.last !== null && current !== store.last) {
+            from.push(store.last);
+            store.last = current;
+        }
+        if (!from.length) return false;
+
+        to.push(current);
+        var state = from.pop();
+        store.last = state;
+        store.at = 0;   // the next change starts a new step rather than merging
+        apply(state);
+        return true;
+    }
+
+    function undoHistory(store, current, apply) {
+        return stepHistory(store, store.past, store.future, current, apply);
+    }
+
+    function redoHistory(store, current, apply) {
+        return stepHistory(store, store.future, store.past, current, apply);
+    }
+
     function uid() { return 'new_' + (_idCounter++); }
 
     // --- Config (set via window.PageEditorConfig from the view) ---
@@ -559,7 +637,9 @@ PageEditor.registerBlockType = function(name, config) {
     var _htmlDoc = null;          // parsed copy of the block being edited
     var _htmlHasFields = false;   // does this block carry importer field marks?
     var _htmlHidden = [];         // ids of parts the user chose not to show
-    var _htmlPickMode = false;    // clicking the preview hides what you click
+    var _htmlMoveUnavailable = false; // the preview could not load SortableJS
+    var _htmlSelected = null;     // path of the part held in the preview, if any
+    var _htmlPartStyles = {};     // per-part styling, keyed by field or part id
     var _htmlPreviewTimer = null;
 
     /**
@@ -623,6 +703,61 @@ PageEditor.registerBlockType = function(name, config) {
                 el.setAttribute('data-vela-field-kind', kinds.join(' '));
             });
         }
+
+        wrapLooseText(doc, wrapper);
+
+        return doc;
+    }
+
+    var LOOSE_TEXT_SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, OPTION: 1, TITLE: 1, NOSCRIPT: 1 };
+
+    /**
+     * Give wording that shares its element with a tag something to be edited by.
+     *
+     * A line like `<strong>24x faster</strong> builds` marks only the bold part:
+     * "builds" is a bare run of text with no element of its own, so there is
+     * nothing to attach an id to and nothing to click. Half a sentence was
+     * editable and the other half was not, with no way to tell which until you
+     * tried. Wrapping each loose run in a span of its own makes the whole line
+     * reachable while leaving the wording, the tags and the spacing as they were.
+     *
+     * Runs once per open and does nothing the second time: a wrapped run is no
+     * longer loose.
+     */
+    function wrapLooseText(doc, wrapper) {
+        var next = 1;
+        Array.prototype.forEach.call(doc.querySelectorAll('[data-vela-field]'), function(el) {
+            var n = parseInt((el.getAttribute('data-vela-field') || '').slice(1), 10);
+            if (n >= next) next = n + 1;
+        });
+
+        Array.prototype.forEach.call(wrapper.querySelectorAll('*'), function(el) {
+            if (LOOSE_TEXT_SKIP[el.tagName] || el.hasAttribute('data-vela-field')) return;
+            // Only where text sits BESIDE a tag. An element holding nothing but
+            // words is already a field in its own right.
+            if (!el.children.length) return;
+
+            Array.prototype.slice.call(el.childNodes).forEach(function(node) {
+                if (node.nodeType !== 3) return;
+
+                // The spaces around the words are what separate them from the
+                // tag beside them; taken into the span they would be trimmed
+                // away on the first edit and the line would close up.
+                var parts = /^(\s*)([\s\S]*?)(\s*)$/.exec(node.nodeValue || '');
+                if (!parts || !parts[2]) return;
+
+                var span = doc.createElement('span');
+                span.setAttribute('data-vela-field', 'f' + (next++));
+                span.setAttribute('data-vela-field-kind', 'text');
+                span.textContent = parts[2];
+
+                var replacement = doc.createDocumentFragment();
+                if (parts[1]) replacement.appendChild(doc.createTextNode(parts[1]));
+                replacement.appendChild(span);
+                if (parts[3]) replacement.appendChild(doc.createTextNode(parts[3]));
+                el.replaceChild(replacement, node);
+            });
+        });
 
         return doc;
     }
@@ -712,6 +847,66 @@ PageEditor.registerBlockType = function(name, config) {
      * held line breaks gets them back as <br> after escaping, so the only
      * markup that can appear is the break itself.
      */
+    // What formatting a piece of wording is allowed to carry. Anything else a
+    // browser or a paste puts there is unwrapped rather than dropped, so the
+    // words survive even when the tag around them does not.
+    var RICH_TAGS = { B: 1, STRONG: 1, I: 1, EM: 1, U: 1, S: 1, STRIKE: 1, BR: 1,
+        A: 1, SUP: 1, SUB: 1, CODE: 1, MARK: 1 };
+    var RICH_HREF = /^(https?:\/\/|mailto:|tel:|\/|#|\.\/|\.\.\/)/i;
+
+    /**
+     * Reduce edited wording to the formatting the editor is willing to keep.
+     *
+     * The preview is an editable copy of someone else's page: a paste brings
+     * whatever was on the clipboard, and browsers still reach for style
+     * attributes when asked to make something bold. Read here rather than
+     * trusted, because this is the last point before it becomes the block.
+     */
+    function sanitizeRichHtml(html) {
+        var box = document.createElement('div');
+        box.innerHTML = html === null || html === undefined ? '' : String(html);
+
+        Array.prototype.slice.call(box.querySelectorAll('script,style,iframe,object,embed'))
+            .forEach(function(el) { el.parentNode.removeChild(el); });
+
+        // Deepest first, so unwrapping a parent cannot leave a child unchecked.
+        var all = Array.prototype.slice.call(box.querySelectorAll('*')).reverse();
+        all.forEach(function(el) {
+            if (!RICH_TAGS[el.tagName]) {
+                while (el.firstChild) el.parentNode.insertBefore(el.firstChild, el);
+                el.parentNode.removeChild(el);
+                return;
+            }
+
+            var href = el.tagName === 'A' ? (el.getAttribute('href') || '') : '';
+            Array.prototype.slice.call(el.attributes).forEach(function(attr) {
+                el.removeAttribute(attr.name);
+            });
+            if (href && RICH_HREF.test(href)) el.setAttribute('href', href);
+        });
+
+        return box.innerHTML;
+    }
+
+    /** The wording of a field as markup, kept to what is allowed. */
+    function fieldHtml(el) {
+        return sanitizeRichHtml(el.innerHTML || '');
+    }
+
+    function setFieldHtml(el, html) {
+        el.innerHTML = sanitizeRichHtml(html);
+    }
+
+    /** The same wording with its formatting taken off, for the form beside it. */
+    function plainFromHtml(html, multiline) {
+        var holder = document.createElement('div');
+        holder.innerHTML = multiline
+            ? String(html === null || html === undefined ? '' : html).replace(/<br\s*\/?>/gi, '\n')
+            : String(html === null || html === undefined ? '' : html);
+        var text = holder.textContent || '';
+        return multiline ? text.replace(/[ \t]+\n/g, '\n').trim() : text.replace(/\s+/g, ' ').trim();
+    }
+
     function setFieldText(el, value) {
         value = value === null || value === undefined ? '' : String(value);
 
@@ -811,7 +1006,22 @@ PageEditor.registerBlockType = function(name, config) {
                 el.setAttribute('alt', $row.find('.vela-field-alt').val() || '');
             }
             var $text = $row.find('.vela-field-text');
-            if ($text.length) setFieldText(el, $text.val());
+            if ($text.length) {
+                // Two ways in, and they must not fight. The preview leaves the
+                // formatted markup on the row; the box beside it holds the same
+                // wording with the formatting taken off. While those still
+                // agree the markup is what counts, and the moment someone types
+                // in the box they stop agreeing — which is the signal that the
+                // wording was rewritten there, formatting and all.
+                var rich = $row.attr('data-html');
+                var multiline = el.hasAttribute('data-vela-field-multiline');
+                if (rich !== undefined && plainFromHtml(rich, multiline) === $text.val()) {
+                    setFieldHtml(el, rich);
+                } else {
+                    $row.removeAttr('data-html');
+                    setFieldText(el, $text.val());
+                }
+            }
 
             var $href = $row.find('.vela-field-href');
             if ($href.length) el.setAttribute('href', $href.val());
@@ -826,32 +1036,492 @@ PageEditor.registerBlockType = function(name, config) {
         return doc;
     }
 
+    /**
+     * What the preview treats as one part of the section.
+     *
+     * One answer shared by everything the preview offers — dragging a part,
+     * taking one out — because pointing at a card and getting two different
+     * answers depending on which control you reach for is the feature failing.
+     *
+     * This runs in the preview, which is its own window, so it is carried
+     * there as source text rather than shared as functions.
+     */
+    var PREVIEW_PART_HELPERS =
+        // The design panel keeps its rules in a <style> inside the wrapper, and
+        // the preview adds a toolbar of its own; counting raw children would
+        // read either as part of the section. Only what a reader would call a
+        // part counts here. Positions still travel as raw child indices, which
+        // is what the block's own document is indexed by.
+        'function parts(el){return Array.prototype.filter.call(el.children,function(c){' +
+            'var t=c.tagName;' +
+            'return t!=="STYLE"&&t!=="SCRIPT"&&!c.hasAttribute("data-vela-ui");});}' +
+        // The part under the pointer, and the run of siblings it belongs to.
+        //
+        // A pointer lands on the innermost element it can — the span inside a
+        // heading, the <strong> inside a card. What someone means by "this
+        // part" is the outermost thing that still has something beside it, so
+        // the climb stops at the first element whose parent holds more than one
+        // part. Wording being edited is never taken apart further than the
+        // field itself.
+        // A section can be one heading and nothing else — a hero, nine wrappers
+        // deep around a single <h1>. Nothing there has a sibling, so the climb
+        // finds no part and the heading, the only thing in the section, could
+        // not be pointed at. The lone content of such a chain is that section's
+        // one part.
+        // Boxes only on the way down. Counting a heading as one more box steps
+        // into it, and a headline broken over two lines makes the <br> inside
+        // it the section's one part — so the heading itself answered to nothing.
+        'var BOX=/^(DIV|SECTION|MAIN|ARTICLE|HEADER|FOOTER|ASIDE|NAV|FORM|FIGURE|UL|OL|DL|TABLE|TBODY|TR)$/;' +
+        'var solo=root;' +
+        'while(parts(solo).length===1&&BOX.test(parts(solo)[0].tagName)' +
+            '&&parts(parts(solo)[0]).length)solo=parts(solo)[0];' +
+        'solo=parts(solo).length===1?parts(solo)[0]:null;' +
+        'function partAt(node){' +
+            'var el=node&&node.closest?(node.closest("[data-vela-editable]")||node):node;' +
+            'while(el&&el!==root){' +
+                'var up=el.parentElement;if(!up)return null;' +
+                'if((up===root||root.contains(up))&&parts(up).length>=2)return el;' +
+                'el=up;}' +
+            'return (solo&&node&&solo.contains(node))?solo:null;}' +
+        'function pathOf(el){var path=[];' +
+            'while(el&&el!==root){var up=el.parentElement;if(!up)return null;' +
+            'path.unshift(Array.prototype.indexOf.call(up.children,el));el=up;}' +
+            'return el===root?path.join("/"):null;}' +
+        'function nodeAt(path){var node=root;' +
+            'var steps=String(path).split("/").filter(function(s){return s!=="";});' +
+            'for(var i=0;i<steps.length;i++){node=node.children[parseInt(steps[i],10)];if(!node)return null;}' +
+            'return node;}';
+
+    /**
+     * Where the preview gets SortableJS from.
+     *
+     * The preview is its own document, so the copy the editor page already
+     * loaded is not in scope there. Reading the tag the page used keeps one
+     * source of truth: a site that self-hosts the library gets its own copy in
+     * the preview too, rather than one quietly coming from a CDN.
+     */
+    function sortableScriptUrl() {
+        var tag = document.querySelector('script[src*="Sortable"]');
+        return tag ? tag.src : 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+    }
+
+    /**
+     * Fold the form back into the block and put the result where saving reads it.
+     *
+     * Separate from drawing the preview because typing in the preview must not
+     * redraw it: the document is replaced wholesale, which throws the caret to
+     * the top of the section between one letter and the next. The wording still
+     * has to reach the field the block is saved from, though, or an inline edit
+     * would look right on screen and be gone after Save.
+     */
+    function writeImportedHtml() {
+        if (!_htmlDoc) return '';
+        var html = serializeBlockHtml(applyDesign(applyImportedFields(_htmlDoc), collectDesign()));
+        $('#html-content').val(html);
+        // Every change to the section passes through here — typing in the
+        // preview, a drag, a design choice, a part left out — so this is where
+        // the section's undo steps come from.
+        noteBlockHistory();
+        return html;
+    }
+
     function refreshImportedPreview() {
         var $frame = $('#vela-html-preview');
         if (!$frame.length || !_htmlDoc) return;
 
-        var html = serializeBlockHtml(applyDesign(applyImportedFields(_htmlDoc), collectDesign()));
-        $('#html-content').val(html);
+        var html = writeImportedHtml();
 
-        // While picking, the preview reports what was clicked as a path from
-        // the wrapper, and outlines whatever is under the pointer so it is
-        // clear what would go.
-        var picker = _htmlPickMode ? '<style>*{cursor:crosshair!important}' +
-                '[data-vela-block] *:hover{outline:2px solid #f0ad4e!important;outline-offset:-2px!important}</style>' +
-            '<script>document.addEventListener("click",function(e){' +
-                'e.preventDefault();e.stopPropagation();' +
-                'var root=document.querySelector("[data-vela-block]");' +
-                'if(!root)return;' +
-                'var node=e.target,path=[];' +
-                'while(node&&node!==root){' +
-                    'var parent=node.parentElement;if(!parent)return;' +
-                    'path.unshift(Array.prototype.indexOf.call(parent.children,node));node=parent;}' +
-                'if(node!==root)return;' +
-                'parent.postMessage({velaPick:path.join("/")},"*");' +
-            '},true);<\/script>' : '';
+        // Everything the preview offers is on from the moment it opens. It used
+        // to be three modes behind two buttons, so rearranging meant leaving
+        // whatever you were doing, pressing a button, and pressing it again to
+        // get back — for a section you can see and want to change.
+        //
+        // The gestures are kept apart by what they act on rather than by a
+        // mode: wording answers to the caret, a part answers to the small bar
+        // that appears at its corner when the pointer is over it.
+        var previewCss = '<style>' +
+            '[data-vela-editable]{outline:1px dashed rgba(50,31,219,.35);outline-offset:2px;cursor:text}' +
+            '[data-vela-editable]:hover{outline-color:rgba(50,31,219,.75)}' +
+            '[data-vela-editable]:focus{outline:2px solid #321fdb;outline-offset:2px;' +
+                'background:rgba(50,31,219,.05)}' +
+            '[data-vela-pick-image]{cursor:pointer}' +
+            '[data-vela-pick-image]:hover{outline:2px solid #321fdb;outline-offset:-2px}' +
+            // Dashed while merely pointed at, solid once held, so it is clear
+            // which one a drag or a delete would act on.
+            '[data-vela-hot]{outline:2px dashed #0d6efd !important;outline-offset:-2px}' +
+            '[data-vela-pinned]{outline:2px solid #0d6efd !important;outline-offset:-2px;' +
+                'background:rgba(13,110,253,.04)}' +
+            '.vela-drag-ghost{opacity:.35}' +
+            // The bar is fixed, so it sits over the section without taking part
+            // in its layout — a card that suddenly grew a toolbar in the flow
+            // would reflow the very thing being pointed at.
+            '[data-vela-ui]{position:fixed;z-index:2147483647;display:flex;gap:2px;' +
+                'font:12px/1 system-ui,sans-serif}' +
+            '[data-vela-ui] button,[data-vela-ui] .vela-grip{width:22px;height:22px;padding:0;border:0;' +
+                'cursor:pointer;color:#fff;background:#0d6efd;border-radius:3px;text-align:center;' +
+                'font:13px/22px system-ui,sans-serif;-webkit-user-select:none;user-select:none}' +
+            '.vela-fmt{gap:2px}' +
+            '.vela-fmt button{width:26px;height:26px;background:#212529;font:13px/26px system-ui,sans-serif}' +
+            '.vela-fmt button b,.vela-fmt button i,.vela-fmt button u,.vela-fmt button s{font-size:13px}' +
+            '[data-vela-ui] .vela-name{height:22px;padding:0 7px;background:#0d6efd;color:#fff;' +
+                'border-radius:3px;font:11px/22px system-ui,sans-serif;white-space:nowrap;' +
+                '-webkit-user-select:none;user-select:none}' +
+            '[data-vela-ui] button.vela-drop{background:#dc3545}' +
+            '[data-vela-ui] .vela-grip{cursor:grab}' +
+            // The copied form's controls are real: they take typing that goes
+            // nowhere. Harmless while nothing here was editable, misleading now
+            // that the wording around them is.
+            '[data-vela-block] input,[data-vela-block] select,[data-vela-block] textarea' +
+                '{pointer-events:none}' +
+            '</style>';
 
-        $frame[0].srcdoc = '<!doctype html><html><head><meta charset="utf-8">' +
-            '<style>body{margin:0}' + pageCustomCss() + '</style>' + picker + '</head><body>' + html + '</body></html>';
+        var previewJs =
+            '<script src="' + escHtml(sortableScriptUrl()) + '"><\/script>' +
+            '<script>(function(){' +
+                'var root=document.querySelector("[data-vela-block]");if(!root)return;' +
+                'var picked=' + JSON.stringify(_htmlSelected) + ';' +
+                PREVIEW_PART_HELPERS +
+
+                // --- the wording ------------------------------------------
+                'function send(el){' +
+                    'var multi=el.hasAttribute("data-vela-field-multiline");' +
+                    'var ui=el.querySelector?el.querySelector("[data-vela-ui]"):null;' +
+                    'var home=null,after=null;' +
+                    'if(ui){home=ui.parentNode;after=ui.nextSibling;document.body.appendChild(ui);}' +
+                    'var html=el.innerHTML;' +
+                    'if(ui&&home)home.insertBefore(ui,after);' +
+                    'window.parent.postMessage({velaText:{' +
+                        'field:el.getAttribute("data-vela-field"),html:html,multiline:multi}},"*");}' +
+                'var timer=null;' +
+                'Array.prototype.forEach.call(root.querySelectorAll("[data-vela-field]"),function(el){' +
+                    'var kinds=(el.getAttribute("data-vela-field-kind")||"").split(/\\s+/);' +
+                    'if(kinds.indexOf("image")>-1){' +
+                        'el.setAttribute("data-vela-pick-image","");' +
+                        'el.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();' +
+                            'window.parent.postMessage({velaImage:{' +
+                                'field:el.getAttribute("data-vela-field")}},"*");});' +
+                        'return;}' +
+                    'if(kinds.indexOf("text")===-1)return;' +
+                    'el.setAttribute("data-vela-editable","");' +
+                    // Pasting into a plain contenteditable brings the source
+                    // page's markup with it; plaintext-only keeps the section's
+                    // own styling. Not everywhere supports it, hence the check.
+                    // Rich, not plaintext-only: bold, italic and links are the
+                    // point. What comes back is cut down to a short list of
+                    // inline tags on the way out, so a paste cannot bring the
+                    // clipboard's styling into the section.
+                    'el.contentEditable="true";' +
+                    'el.addEventListener("keydown",function(e){' +
+                        'if(e.key==="Enter"&&!el.hasAttribute("data-vela-field-multiline"))e.preventDefault();});' +
+                    'el.addEventListener("input",function(){' +
+                        'clearTimeout(timer);timer=setTimeout(function(){send(el);},250);});' +
+                    // One pending timer covers every field, so moving to the
+                    // next one would cancel the last edit before it was sent.
+                    'el.addEventListener("blur",function(){clearTimeout(timer);send(el);});' +
+                '});' +
+
+                // A copied section is full of real links, and following one
+                // leaves the editor showing somebody else's page.
+                'document.addEventListener("click",function(e){' +
+                    'var a=e.target&&e.target.closest?e.target.closest("a"):null;' +
+                    'if(a)e.preventDefault();' +
+                '},true);' +
+
+                // --- formatting the selected words ------------------------
+                //
+                // A bar that appears over a selection, the way one does in a
+                // word processor. Styling a whole paragraph is a different job
+                // from making three words of it bold, and only the element as a
+                // whole could be reached before.
+                'try{document.execCommand("styleWithCSS",false,false);}catch(err){}' +
+                'var fmt=document.createElement("div");' +
+                'fmt.setAttribute("data-vela-ui","");fmt.setAttribute("contenteditable","false");' +
+                'fmt.className="vela-fmt";fmt.style.display="none";' +
+                'fmt.innerHTML=' +
+                    '\'<button data-cmd="bold" title="Bold"><b>B</b></button>\'+' +
+                    '\'<button data-cmd="italic" title="Italic"><i>I</i></button>\'+' +
+                    '\'<button data-cmd="underline" title="Underline"><u>U</u></button>\'+' +
+                    '\'<button data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>\'+' +
+                    '\'<button data-cmd="link" title="Link">&#128279;</button>\'+' +
+                    '\'<button data-cmd="removeFormat" title="Clear formatting">&#10005;</button>\';' +
+                'document.body.appendChild(fmt);' +
+
+                'function editableOfSelection(){' +
+                    'var s=document.getSelection();' +
+                    'if(!s||!s.rangeCount||s.isCollapsed)return null;' +
+                    'var node=s.anchorNode;' +
+                    'node=node&&node.nodeType===1?node:(node?node.parentElement:null);' +
+                    'return node&&node.closest?node.closest("[data-vela-editable]"):null;}' +
+
+                'function placeFmt(){' +
+                    'var host=editableOfSelection();' +
+                    'if(!host){fmt.style.display="none";return;}' +
+                    'var r=document.getSelection().getRangeAt(0).getBoundingClientRect();' +
+                    'if(!r||(!r.width&&!r.height)){fmt.style.display="none";return;}' +
+                    'fmt.style.display="flex";' +
+                    'fmt.style.left=Math.max(2,r.left)+"px";' +
+                    'fmt.style.top=Math.max(2,r.top-30)+"px";}' +
+
+                'document.addEventListener("selectionchange",placeFmt);' +
+                'window.addEventListener("scroll",placeFmt,true);' +
+
+                // Pressing the bar must not take the selection away, which is
+                // the very thing the command is about to act on.
+                'fmt.addEventListener("mousedown",function(e){e.preventDefault();});' +
+                'fmt.addEventListener("click",function(e){' +
+                    'var btn=e.target&&e.target.closest?e.target.closest("[data-cmd]"):null;' +
+                    'if(!btn)return;' +
+                    'e.preventDefault();e.stopPropagation();' +
+                    'var host=editableOfSelection();if(!host)return;' +
+                    'var cmd=btn.getAttribute("data-cmd");' +
+                    'if(cmd==="link"){' +
+                        'var current="";' +
+                        'var a=document.getSelection().anchorNode;' +
+                        'a=a&&a.nodeType===1?a:(a?a.parentElement:null);' +
+                        'a=a&&a.closest?a.closest("a"):null;' +
+                        'if(a)current=a.getAttribute("href")||"";' +
+                        'var url=window.prompt("Link address",current||"https://");' +
+                        'if(url===null)return;' +
+                        'if(url==="")document.execCommand("unlink",false,null);' +
+                        'else document.execCommand("createLink",false,url);' +
+                    '}else{document.execCommand(cmd,false,null);}' +
+                    'send(host);placeFmt();' +
+                '});' +
+
+                // --- the parts --------------------------------------------
+                'if(!window.Sortable){window.parent.postMessage({velaMoveUnavailable:1},"*");return;}' +
+
+                'var bar=document.createElement("div");' +
+                'bar.setAttribute("data-vela-ui","");bar.style.display="none";' +
+                // Inside a contenteditable heading the bar is otherwise part of
+                // what is being typed: the caret can land between its buttons
+                // and a select-all takes it with the words.
+                'bar.setAttribute("contenteditable","false");' +
+                // The pointer picks the innermost part it is over, which is the
+                // heading rather than the card holding it. Reaching the card by
+                // aiming at its padding is a game of a few pixels, so the bar
+                // carries the way out to whatever encloses the current part.
+                'bar.innerHTML=' +
+                    '\'<button class="vela-up" title="Select what holds this">&#9650;</button>\'+' +
+                    // Naming what is held is the difference between a drag that
+                    // does nothing and one that does what was meant: clicking
+                    // the middle of a column lands on the heading inside it,
+                    // and dragging that reorders within the column while the
+                    // columns sit still, with nothing on screen to say why.
+                    '\'<span class="vela-name"></span>\'+' +
+                    // A span, not a button: the browser will not begin a
+                    // native drag from inside a button, so the grip pressed
+                    // like a control and moved nothing.
+                    '\'<span class="vela-grip" title="Drag to move this">&#10021;</span>\'+' +
+                    '\'<button class="vela-copy" title="Add another one like this">+</button>\'+' +
+                    '\'<button class="vela-drop" title="Leave this out">&times;</button>\';' +
+                'document.body.appendChild(bar);' +
+
+                // A part chosen by pointing at it is only chosen for as long as
+                // the pointer stays still — reaching for the grip already means
+                // crossing other parts. Clicking one holds it: the bar stays on
+                // it, and the choice outlives the redraw a drag causes, so the
+                // same part can be moved twice without hunting for it again.
+                'var hot=null,list=null,sortable=null,dragging=false,pinned=null;' +
+                'function place(){' +
+                    'if(!hot){bar.style.display="none";return;}' +
+                    'var r=hot.getBoundingClientRect();' +
+                    'bar.style.display="flex";' +
+                    'bar.style.left=Math.max(2,r.left)+"px";' +
+                    'bar.style.top=Math.max(2,r.top-24)+"px";}' +
+
+                // One list is live at a time — whichever the pointer is in.
+                // Binding every run of siblings at once puts a drop target
+                // inside another, and dragging a heading moved the card around
+                // it instead.
+                'function bind(next){' +
+                    'if(next===list)return;' +
+                    'if(sortable){sortable.destroy();sortable=null;}' +
+                    'if(list)list.removeAttribute("data-vela-sortable");' +
+                    'list=next;' +
+                    'if(!list)return;' +
+                    'list.setAttribute("data-vela-sortable","");' +
+                    'var from=null;' +
+                    // Positions are read off the DOM rather than taken from
+                    // Sortable's own indices, which skip whatever `filter`
+                    // excludes and would then not line up with the document.
+                    // The bar is deliberately NOT filtered: Sortable tests the
+                    // filter against the pressed element and everything above
+                    // it, so excluding the bar excluded the grip inside it and
+                    // refused every drag. It needs no excluding anyway — it is
+                    // never a child of the list, only of a part.
+                    // forceFallback because the drag begins on the toolbar's
+                    // grip, which floats over the section. The browser's own
+                    // drag-and-drop starts from the element pressed, and from
+                    // an overlay it started nothing at all; Sortable's own
+                    // pointer handling follows the grip to the part it belongs
+                    // to. It also gives the same behaviour everywhere rather
+                    // than each browser's native drag.
+                    'sortable=Sortable.create(list,{handle:".vela-grip",animation:150,' +
+                        'forceFallback:true,fallbackTolerance:3,' +
+                        'ghostClass:"vela-drag-ghost",filter:"style,script",' +
+                        'onStart:function(e){bar.style.display="none";' +
+                            'from=Array.prototype.indexOf.call(e.from.children,e.item);},' +
+                        'onEnd:function(e){' +
+                            'var to=Array.prototype.indexOf.call(e.to.children,e.item);' +
+                            'if(from===null||to<0||to===from)return;' +
+                            'var path=pathOf(e.to);if(path===null)return;' +
+                            'window.parent.postMessage({velaMove:{container:path,from:from,to:to}},"*");}});}' +
+
+                'function enclosing(){' +
+                    'return (hot&&hot.parentElement)?partAt(hot.parentElement):null;}' +
+
+                // What to call a part. Tags carry the answer for content; for
+                // the boxes around it the class names of a copied site say
+                // nothing a reader would recognise, so it is read off the
+                // layout instead — a box sitting beside its neighbour is a
+                // column, whatever the original called it.
+                'var NAMES={H1:"Heading",H2:"Heading",H3:"Heading",H4:"Heading",H5:"Heading",' +
+                    'H6:"Heading",P:"Text",IMG:"Image",A:"Link",BUTTON:"Button",UL:"List",OL:"List",' +
+                    'LI:"List item",FORM:"Form",SECTION:"Section",FIGURE:"Figure",TABLE:"Table"};' +
+                'function nameOf(el){' +
+                    'if(!el)return "";' +
+                    'if(NAMES[el.tagName])return NAMES[el.tagName];' +
+                    'var up=el.parentElement,sibs=up?parts(up):[];' +
+                    'if(sibs.length>1){' +
+                        'var i=sibs.indexOf(el),other=sibs[i===0?1:i-1];' +
+                        'var a=el.getBoundingClientRect(),b=other.getBoundingClientRect();' +
+                        'if(Math.abs(a.top-b.top)<Math.max(8,Math.min(a.height,b.height)/2))return "Column";' +
+                    '}' +
+                    'return parts(el).length>1?"Group":"Block";}' +
+                'function focusPart(el,pin){' +
+                    'if(pin){' +
+                        'if(pinned&&pinned!==el)pinned.removeAttribute("data-vela-pinned");' +
+                        'pinned=el;' +
+                        'if(pinned)pinned.setAttribute("data-vela-pinned","");' +
+                        'window.parent.postMessage({velaSelect:el?pathOf(el):null},"*");' +
+                    '}' +
+                    'if(el===hot){place();return;}' +
+                    'if(hot)hot.removeAttribute("data-vela-hot");' +
+                    'hot=el;' +
+                    // The bar lives INSIDE the part it belongs to, because
+                    // Sortable only accepts a handle that is a descendant of
+                    // the item being dragged — parked on the body the grip was
+                    // just a button on top of the page and pressing it started
+                    // nothing. Appended last and positioned fixed, it neither
+                    // shifts the layout nor moves any sibling's index.
+                    'if(hot){hot.setAttribute("data-vela-hot","");hot.appendChild(bar);' +
+                        'bind(hot.parentElement);}' +
+                    'else {document.body.appendChild(bar);bind(null);}' +
+                    'var up=enclosing();' +
+                    'var upBtn=bar.querySelector(".vela-up");' +
+                    'upBtn.style.display=(up&&up!==hot)?"":"none";' +
+                    'if(up&&up!==hot)upBtn.title="Select the "+nameOf(up).toLowerCase()+" holding this";' +
+                    'bar.querySelector(".vela-name").textContent=nameOf(hot);' +
+                    'place();}' +
+
+                // A drag leaves the grip almost immediately and travels over
+                // other parts on its way. Following the pointer there would
+                // rebind the list — destroying the very Sortable in the middle
+                // of the drag, which quietly cancelled every move.
+                'bar.addEventListener("mousedown",function(){dragging=true;});' +
+                'document.addEventListener("mouseup",function(){dragging=false;},true);' +
+                'document.addEventListener("mouseover",function(e){' +
+                    'if(dragging||pinned)return;' +
+                    // Pointing at the bar is still pointing at the part it
+                    // belongs to, or it would vanish on the way to its buttons.
+                    'if(e.target&&e.target.closest&&e.target.closest("[data-vela-ui]"))return;' +
+                    'focusPart(partAt(e.target));' +
+                '},true);' +
+                // Only when the pointer leaves the preview altogether. Watching
+                // mouseleave from the document catches every element the
+                // pointer leaves on its way anywhere, so the bar was dropped
+                // the instant anyone set off towards its buttons.
+                'document.addEventListener("mouseout",function(e){' +
+                    'if(!e.relatedTarget&&!pinned)focusPart(null);' +
+                '},true);' +
+
+                // Clicking holds whatever is under the pointer. Wording keeps
+                // its caret as well — being able to move a heading and rewrite
+                // it are not different jobs to be in different states for.
+                'document.addEventListener("click",function(e){' +
+                    'if(dragging)return;' +
+                    'if(e.target&&e.target.closest&&e.target.closest("[data-vela-ui]"))return;' +
+                    'focusPart(partAt(e.target),true);' +
+                '},false);' +
+                // Escape steps out to whatever holds the current part, and only
+                // lets go once there is nothing further out. Selecting the
+                // heading inside a column when the column was meant is the
+                // ordinary mistake, and stepping out is the fix for it — where
+                // letting go entirely just means starting the aim again.
+                'document.addEventListener("keydown",function(e){' +
+                    'if(e.key!=="Escape"||!pinned)return;' +
+                    'e.preventDefault();' +
+                    'if(document.activeElement&&document.activeElement.isContentEditable)' +
+                        'document.activeElement.blur();' +
+                    'var up=enclosing();' +
+                    'if(up&&up!==pinned)focusPart(up,true);else focusPart(null,true);' +
+                '},true);' +
+
+                // The choice survives the redraw a drop causes: the editor
+                // hands back the position it should land on.
+                'if(picked!==null){var re=nodeAt(picked);if(re)focusPart(re,true);}' +
+                'window.addEventListener("scroll",place,true);' +
+                'window.addEventListener("resize",place);' +
+
+                'bar.querySelector(".vela-up").addEventListener("click",function(e){' +
+                    'e.preventDefault();e.stopPropagation();' +
+                    'var up=enclosing();' +
+                    // Held, not merely shown: stepping out is a choice, and
+                    // letting the next pointer movement undo it would make the
+                    // button useless for reaching anything.
+                    'if(up&&up!==hot)focusPart(up,true);' +
+                '});' +
+                'bar.querySelector(".vela-copy").addEventListener("click",function(e){' +
+                    'e.preventDefault();e.stopPropagation();' +
+                    'if(!hot)return;' +
+                    'var path=pathOf(hot);if(path===null)return;' +
+                    'window.parent.postMessage({velaDuplicate:path},"*");' +
+                '});' +
+                'bar.querySelector(".vela-drop").addEventListener("click",function(e){' +
+                    'e.preventDefault();e.stopPropagation();' +
+                    'if(!hot)return;' +
+                    'var path=pathOf(hot);if(path===null)return;' +
+                    'window.parent.postMessage({velaPick:path},"*");' +
+                '});' +
+            '})();<\/script>';
+
+        // Once the pointer has been in the preview, the focus belongs to the
+        // frame, and Ctrl+Z never reaches the editor around it — the shortcut
+        // simply did nothing after a drag or after leaving a part out. The
+        // frame passes it back out instead.
+        //
+        // Not while the caret is in wording being typed: there the browser's
+        // own undo works letter by letter, and what it puts back arrives here
+        // through the same input event any edit does.
+        var keyJs = '<script>(function(){' +
+            'document.addEventListener("keydown",function(e){' +
+                'if(!(e.ctrlKey||e.metaKey))return;' +
+                'var k=(e.key||"").toLowerCase();if(k!=="z"&&k!=="y")return;' +
+                'if(e.target&&e.target.isContentEditable)return;' +
+                'e.preventDefault();' +
+                'window.parent.postMessage({velaUndo:{redo:k==="y"||e.shiftKey}},"*");' +
+            '},true);' +
+        '})();<\/script>';
+
+        // Redrawing the whole document would otherwise send the preview back to
+        // the top on every keystroke, and on every drop — exactly when the part
+        // being worked on is halfway down the section.
+        var frame = $frame[0];
+        var scroll = 0;
+        try { scroll = (frame.contentWindow && frame.contentWindow.scrollY) || 0; } catch (e) {}
+        frame.onload = function() {
+            if (!scroll) return;
+            try { frame.contentWindow.scrollTo(0, scroll); } catch (e) {}
+        };
+
+        // Styles go in the head; the script goes after the markup. It looks the
+        // section up as it runs, and in the head it ran against a body that did
+        // not exist yet — bailing on a null wrapper and binding nothing at all,
+        // silently.
+        frame.srcdoc = '<!doctype html><html><head><meta charset="utf-8">' +
+            '<style>body{margin:0}' + pageCustomCss() + '</style>' +
+            previewCss + '</head><body>' + html + previewJs + keyJs + '</body></html>';
     }
 
     function scheduleImportedPreview() {
@@ -928,8 +1598,34 @@ PageEditor.registerBlockType = function(name, config) {
         });
         if (hidden.length) clean.hidden = hidden.slice(0, 200);
 
+        // One paragraph in a different colour, one heading a size smaller: the
+        // section-wide controls cannot say that, because they say it about
+        // everything at once.
+        var parts = {};
+        Object.keys(design.parts || {}).slice(0, 300).forEach(function(id) {
+            if (!/^[fp]\d+$/.test(id)) return;
+            var from = design.parts[id] || {}, kept = {};
+
+            [['color', DESIGN_COLOUR], ['size', DESIGN_LENGTH],
+             ['lineHeight', /^\d{1,2}(\.\d{1,2})?$/], ['spaceBelow', DESIGN_LENGTH]].forEach(function(pair) {
+                var value = safeCssValue(from[pair[0]], pair[1]);
+                if (value) kept[pair[0]] = value;
+            });
+            if (PART_WEIGHTS.indexOf(from.weight) > 0) kept.weight = from.weight;
+            if (from.style === 'italic' || from.style === 'normal') kept.style = from.style;
+            if (['left', 'center', 'right'].indexOf(from.align) > -1) kept.align = from.align;
+
+            if (Object.keys(kept).length) parts[id] = kept;
+        });
+        if (Object.keys(parts).length) clean.parts = parts;
+
         return clean;
     }
+
+    var PART_WEIGHTS = ['', '300', '400', '500', '600', '700', '800'];
+    var PART_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '40px', '48px', '64px'];
+    var PART_SPACES = ['0px', '4px', '8px', '12px', '16px', '24px', '32px', '48px'];
+    var PART_LINES = ['1', '1.1', '1.25', '1.4', '1.6', '1.8', '2'];
 
     function designCss(blockId, design, grids) {
         var sel = '[data-vela-block="' + blockId + '"]';
@@ -963,6 +1659,30 @@ PageEditor.registerBlockType = function(name, config) {
         (design.hidden || []).forEach(function(id) {
             var attribute = id.charAt(0) === 'f' ? 'data-vela-field' : 'data-vela-part';
             css += sel + ' [' + attribute + '="' + id + '"]{display:none !important}';
+        });
+
+        // After the section-wide rules on purpose, though it hardly matters:
+        // an id selector outranks the `:where()` those are written with, which
+        // is what lets one paragraph disagree with the section around it.
+        Object.keys(design.parts || {}).forEach(function(id) {
+            var p = design.parts[id] || {};
+            var attribute = id.charAt(0) === 'f' ? 'data-vela-field' : 'data-vela-part';
+            var rules = '';
+
+            if (p.color) rules += 'color:' + p.color + ' !important;';
+            if (p.size) rules += 'font-size:' + p.size + ' !important;';
+            if (p.weight) rules += 'font-weight:' + p.weight + ' !important;';
+            if (p.style) rules += 'font-style:' + p.style + ' !important;';
+            if (p.align) rules += 'text-align:' + p.align + ' !important;';
+            if (p.lineHeight) rules += 'line-height:' + p.lineHeight + ' !important;';
+            if (p.spaceBelow) rules += 'margin-bottom:' + p.spaceBelow + ' !important;';
+            if (!rules) return;
+
+            // The wording of a heading often sits in a span inside it, and a
+            // colour set on the heading alone loses to whatever the copied
+            // stylesheet says about that span.
+            css += sel + ' [' + attribute + '="' + id + '"],' +
+                sel + ' [' + attribute + '="' + id + '"] :where(span,strong,em,b,i,a){' + rules + '}';
         });
 
         (grids || []).forEach(function(g) {
@@ -1092,6 +1812,112 @@ PageEditor.registerBlockType = function(name, config) {
             '</div>';
     }
 
+    /**
+     * The id the selected part is styled by, creating one if it has none.
+     *
+     * Only when something is actually being set: an id handed out on every
+     * click would put an attribute into the markup for each part merely looked
+     * at, and each of those would land in the undo history as a change.
+     */
+    function selectedPartId(doc, assign) {
+        if (_htmlSelected === null) return null;
+
+        var el = nodeAtPath(doc, _htmlSelected);
+        if (!el || !el.parentElement || el.hasAttribute('data-vela-block')) return null;
+
+        var id = el.getAttribute('data-vela-field') || el.getAttribute('data-vela-part');
+        if (id || !assign) return id;
+
+        var next = 1;
+        Array.prototype.forEach.call(doc.querySelectorAll('[data-vela-part]'), function(n) {
+            var v = parseInt((n.getAttribute('data-vela-part') || '').slice(1), 10);
+            if (v >= next) next = v + 1;
+        });
+        id = 'p' + next;
+        el.setAttribute('data-vela-part', id);
+        return id;
+    }
+
+    function partSelect(name, label, values, current, blank) {
+        var options = ['<option value="">' + (blank || 'Keep the original') + '</option>'];
+        values.forEach(function(v) {
+            if (v === '') return;
+            options.push('<option value="' + escHtml(v) + '"' +
+                (String(current) === String(v) ? ' selected' : '') + '>' + escHtml(v) + '</option>');
+        });
+        return '<div class="form-group col-md-6 mb-2">' + designLabel(label) +
+            '<select class="form-control form-control-sm vela-part-design" data-part-design="' + name + '">' +
+            options.join('') + '</select></div>';
+    }
+
+    /**
+     * The controls for whatever is selected in the preview.
+     *
+     * The design controls could only ever say something about the whole
+     * section — every heading the same size, every paragraph the same colour —
+     * so the one thing anyone wants next, a single paragraph made smaller or a
+     * figure in the brand colour, had no way to be said at all.
+     */
+    function renderPartDesign(doc) {
+        var id = selectedPartId(doc, false);
+        var el = _htmlSelected === null ? null : nodeAtPath(doc, _htmlSelected);
+
+        if (!el || el.hasAttribute('data-vela-block')) {
+            return '<div class="alert alert-light border py-2 mb-3" style="font-size:.8rem;">' +
+                'Click any part of the preview to style just that part — its size, colour, weight and spacing. ' +
+                'The controls below apply to the whole section.' +
+                '</div>';
+        }
+
+        var p = (id && _htmlPartStyles[id]) || {};
+        var label = (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 32)
+            || '<' + el.tagName.toLowerCase() + '>';
+        var colour = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#111111';
+        var set = Object.keys(p).length;
+
+        return '<details class="mb-3" open id="vela-part-design" data-part-id="' + escHtml(id || '') + '">' +
+            '<summary style="cursor:pointer;font-weight:500;">' +
+                '<i class="fas fa-highlighter mr-1"></i> This part' +
+                '<span class="text-muted ml-1" style="font-weight:400;font-size:.8rem;">— ' + escHtml(label) + '</span>' +
+            '</summary>' +
+            '<div class="form-row mt-2">' +
+                '<div class="form-group col-md-6 mb-2">' + designLabel('Colour') +
+                    '<div class="input-group input-group-sm">' +
+                        '<div class="input-group-prepend"><span class="input-group-text p-0" style="overflow:hidden">' +
+                            '<input type="color" class="vela-part-swatch" value="' + escHtml(colour) + '" ' +
+                                'style="width:34px;height:29px;border:0;padding:0;background:none;cursor:pointer">' +
+                        '</span></div>' +
+                        '<input type="text" class="form-control vela-part-design" data-part-design="color" ' +
+                            'value="' + escHtml(p.color || '') + '" placeholder="Keep the original">' +
+                        '<div class="input-group-append">' +
+                            '<button class="btn btn-outline-secondary vela-part-clear" type="button" ' +
+                                'title="Keep the original">&times;</button>' +
+                        '</div>' +
+                    '</div></div>' +
+                partSelect('size', 'Size', PART_SIZES, p.size) +
+                partSelect('weight', 'Weight', PART_WEIGHTS, p.weight) +
+                partSelect('style', 'Style', ['normal', 'italic'], p.style) +
+                partSelect('align', 'Alignment', ['left', 'center', 'right'], p.align) +
+                partSelect('lineHeight', 'Line height', PART_LINES, p.lineHeight) +
+                partSelect('spaceBelow', 'Space below', PART_SPACES, p.spaceBelow) +
+            '</div>' +
+            (set ? '<button type="button" class="btn btn-link btn-sm px-0" id="vela-part-reset">' +
+                'Clear this part\'s styling</button>' : '') +
+            '</details>';
+    }
+
+    /**
+     * Refresh only the controls for the selected part.
+     *
+     * Choosing a part must not redraw the preview: the preview is replaced
+     * wholesale, and clicking a sentence to style it would throw away the caret
+     * that same click had just placed in it.
+     */
+    function redrawPartPanel() {
+        if (!_htmlDoc) return;
+        $('#vela-part-slot').html(renderPartDesign(_htmlDoc));
+    }
+
     function renderDesignPanel(doc) {
         var wrapper = doc.querySelector('[data-vela-block]');
         if (!wrapper) return '';
@@ -1121,7 +1947,12 @@ PageEditor.registerBlockType = function(name, config) {
                 '<select class="form-control form-control-sm vela-design" data-design-grid="' + escHtml(g.id) + '">' + options.join('') + '</select></div>';
         }).join('');
 
-        return '<details class="mb-3" open><summary style="cursor:pointer;font-weight:500;">' +
+        // One root element around the whole panel. The redraw used to swap in
+        // "the first <details>", which stops being the right one the moment the
+        // panel grows a second.
+        return '<div id="vela-design-root">' +
+            '<div id="vela-part-slot">' + renderPartDesign(doc) + '</div>' +
+            '<details class="mb-3" open><summary style="cursor:pointer;font-weight:500;">' +
                 '<i class="fas fa-palette mr-1"></i> Design</summary>' +
             '<div class="form-row mt-2">' +
                 designColourField('textColor', 'Text colour', d.textColor) +
@@ -1142,7 +1973,7 @@ PageEditor.registerBlockType = function(name, config) {
             '</div>' +
             renderHiddenParts(doc) +
             '<button type="button" class="btn btn-link btn-sm px-0" id="vela-design-reset">Reset design to the original</button>' +
-            '</details>';
+            '</details></div>';
     }
 
     /**
@@ -1165,10 +1996,19 @@ PageEditor.registerBlockType = function(name, config) {
                 '</li>';
         }).join('');
 
+        // No mode to switch on: pointing at a part in the preview is what
+        // offers its controls. All that is left here is what came out and the
+        // way back in.
         return '<div class="mt-2 mb-2">' +
-            '<button type="button" class="btn btn-sm ' + (_htmlPickMode ? 'btn-warning' : 'btn-outline-secondary') + '" id="vela-pick-mode">' +
-                '<i class="fas fa-hand-pointer mr-1"></i>' + (_htmlPickMode ? 'Done choosing' : 'Click the preview to leave parts out') +
-            '</button>' +
+            '<div class="text-muted" style="font-size:.75rem;">' +
+                'Click any wording in the preview to rewrite it, or a picture to swap it. ' +
+                'Point at a part to drag it into a new place or leave it out — nothing is deleted, ' +
+                'and whatever you take out is listed here.' +
+            '</div>' +
+            (_htmlMoveUnavailable ? '<div class="alert alert-warning py-1 mt-2 mb-0" style="font-size:.75rem;">' +
+                '<i class="fas fa-exclamation-triangle mr-1"></i> Dragging needs the SortableJS file, which the preview ' +
+                'could not load. Check that the admin page can reach it, then reopen this section.' +
+                '</div>' : '') +
             (rows ? '<ul class="list-unstyled mt-2 mb-0">' + rows + '</ul>' : '') +
             '</div>';
     }
@@ -1181,7 +2021,8 @@ PageEditor.registerBlockType = function(name, config) {
      * document and the element found gets a part id, which is what the hidden
      * list and the generated CSS use from then on.
      */
-    function markPartAtPath(doc, path) {
+    /** Walk a position path — "3/1/0" — down from the section wrapper. */
+    function nodeAtPath(doc, path) {
         var node = doc.querySelector('[data-vela-block]');
         if (!node) return null;
 
@@ -1190,6 +2031,12 @@ PageEditor.registerBlockType = function(name, config) {
             node = node.children[parseInt(steps[i], 10)];
             if (!node) return null;
         }
+        return node;
+    }
+
+    function markPartAtPath(doc, path) {
+        var node = nodeAtPath(doc, path);
+        if (!node) return null;
 
         // Never the wrapper itself: hiding that hides the whole section, which
         // is what deleting the block is for.
@@ -1212,8 +2059,85 @@ PageEditor.registerBlockType = function(name, config) {
         return id;
     }
 
+    /** The next free number for one of the importer's id attributes. */
+    function nextImportedId(doc, attribute, prefix) {
+        var next = 1;
+        Array.prototype.forEach.call(doc.querySelectorAll('[' + attribute + ']'), function(el) {
+            var n = parseInt((el.getAttribute(attribute) || '').slice(prefix.length), 10);
+            if (n >= next) next = n + 1;
+        });
+        return next;
+    }
+
+    /**
+     * Give a copied part ids of its own.
+     *
+     * The ids are what the form rows, the design CSS and the hidden list are
+     * keyed by, so a copy carrying the original's would not be a second card:
+     * editing either row would write to both, hiding one would hide both, and
+     * the form would show two rows fighting over the same wording.
+     */
+    function freshenImportedIds(doc, node) {
+        [['data-vela-field', 'f'], ['data-vela-part', 'p'], ['data-vela-grid', 'g']].forEach(function(pair) {
+            var attribute = pair[0], prefix = pair[1];
+            var next = nextImportedId(doc, attribute, prefix);
+            var targets = node.hasAttribute(attribute) ? [node] : [];
+            targets = targets.concat(Array.prototype.slice.call(node.querySelectorAll('[' + attribute + ']')));
+            targets.forEach(function(el) { el.setAttribute(attribute, prefix + (next++)); });
+        });
+    }
+
+    /**
+     * Put a second copy of a part straight after it.
+     *
+     * A section copied from another site is rarely missing an empty box — what
+     * it is missing is a fourth card like the three already there. A copy
+     * arrives with the original's classes and proportions, so it looks right
+     * before a word of it has been changed.
+     *
+     * Returns the new part's path, so it can be the one left selected.
+     */
+    function duplicateImportedPart(path) {
+        var node = nodeAtPath(_htmlDoc, path);
+        if (!node || !node.parentElement || node.hasAttribute('data-vela-block')) return null;
+
+        var copy = node.cloneNode(true);
+        // Renumbered before it joins the document, so the scan for the highest
+        // id in use cannot count the copy's borrowed ones.
+        freshenImportedIds(_htmlDoc, copy);
+        node.parentElement.insertBefore(copy, node.nextSibling);
+
+        // It lands directly after the original, so only the last step of the
+        // path changes and nothing before it moves.
+        var steps = String(path).split('/');
+        steps[steps.length - 1] = String(parseInt(steps[steps.length - 1], 10) + 1);
+        return steps.join('/');
+    }
+
+    /**
+     * Move one child of a container to another position in it.
+     *
+     * The ids the form, the design CSS and the hidden list are keyed by sit on
+     * the elements themselves, so a moved element takes its wording, its
+     * picture and its styling along and none of those lists need renumbering.
+     */
+    function moveImportedPart(containerPath, from, to) {
+        var container = nodeAtPath(_htmlDoc, containerPath);
+        if (!container) return false;
+
+        var kids = container.children;
+        if (from === to || from < 0 || to < 0 || from >= kids.length || to >= kids.length) return false;
+
+        // Taking the element out shifts everything after it up by one, so a
+        // move to the right lands one place short without this.
+        var moved = kids[from];
+        container.insertBefore(moved, kids[to > from ? to + 1 : to] || null);
+
+        return true;
+    }
+
     function collectDesign() {
-        var design = { grids: {}, hidden: _htmlHidden.slice() };
+        var design = { grids: {}, hidden: _htmlHidden.slice(), parts: _htmlPartStyles };
         $('.vela-design').each(function() {
             var $el = $(this);
             var value = $el.val();
@@ -1231,6 +2155,7 @@ PageEditor.registerBlockType = function(name, config) {
             if (value) design[name] = value;
         });
         if (!Object.keys(design.grids).length) delete design.grids;
+        if (!Object.keys(design.parts).length) delete design.parts;
         return design;
     }
 
@@ -1249,17 +2174,19 @@ PageEditor.registerBlockType = function(name, config) {
      * three places is how they drift apart. The values already typed are
      * written into the document first so nothing is lost in the redraw.
      */
-    function redrawImportedEditor() {
+    function redrawImportedEditor(fromDoc) {
         if (!_htmlDoc) return;
 
-        applyDesign(applyImportedFields(_htmlDoc), collectDesign());
+        // `fromDoc` means the document is already the truth and the form is
+        // stale — the case after an undo.
+        if (!fromDoc) applyDesign(applyImportedFields(_htmlDoc), collectDesign());
 
         var $panel = $('#block-edit-content');
         var scroll = $panel.scrollTop();
         var design = renderDesignPanel(_htmlDoc);
         var fields = renderImportedFields(_htmlDoc);
 
-        $panel.find('details').first().replaceWith(design);
+        $panel.find('#vela-design-root').replaceWith(design);
         if (fields) {
             $panel.find('#vela-field-list').replaceWith(fields);
         }
@@ -1294,8 +2221,13 @@ PageEditor.registerBlockType = function(name, config) {
         renderEditor: function(block) {
             var html = block.content && block.content.html ? block.content.html : '';
             _htmlDoc = upgradeImportedBlock(parseBlockHtml(html));
-            _htmlPickMode = false;
-            _htmlHidden = (readDesign(_htmlDoc.querySelector('[data-vela-block]')).hidden || []).slice();
+            _htmlMoveUnavailable = false;
+            _htmlSelected = null;
+            _htmlPartStyles = {};
+            _blockHistory = newHistory();
+            var opened = readDesign(_htmlDoc.querySelector('[data-vela-block]'));
+            _htmlHidden = (opened.hidden || []).slice();
+            _htmlPartStyles = JSON.parse(JSON.stringify(opened.parts || {}));
             var fields = renderImportedFields(_htmlDoc);
             var imported = !!_htmlDoc.querySelector('[data-vela-block]');
             _htmlHasFields = !!fields || imported;
@@ -1312,8 +2244,9 @@ PageEditor.registerBlockType = function(name, config) {
             // wording — otherwise a section like a bare headline dropped the
             // user back to a textarea of raw markup with no way to see it.
             return '<div class="mb-2 text-muted" style="font-size:.85rem;">' +
-                    '<i class="fas fa-wand-magic-sparkles mr-1"></i> Imported section — change its wording, pictures, links and design below. ' +
-                    'Anything left blank keeps how the original looked.' +
+                    '<i class="fas fa-wand-magic-sparkles mr-1"></i> Imported section — work on it straight in the preview: ' +
+                    'click wording to rewrite it, click a picture to swap it, and point at any part to drag it ' +
+                    'somewhere else or leave it out. The design is below; anything left blank keeps the original.' +
                 '</div>' +
                 '<iframe id="vela-html-preview" style="width:100%;height:300px;border:1px solid #e9ecef;border-radius:4px;background:#fff;margin-bottom:12px;"></iframe>' +
                 renderDesignPanel(_htmlDoc) +
@@ -1339,7 +2272,14 @@ PageEditor.registerBlockType = function(name, config) {
 
             refreshImportedPreview();
 
-            $('#vela-field-list').on('input.velaImported', '.vela-field-text, .vela-field-href, .vela-field-src, .vela-field-alt, .vela-field-placeholder', function() {
+            // Delegated from the panel, not from the list. Every redraw
+            // replaces the list wholesale, which threw away any handler bound
+            // to it: after hiding a part — or copying one — typing in these
+            // rows quietly stopped reaching the section.
+            $('#block-edit-content').on('input.velaImported',
+                '#vela-field-list .vela-field-text, #vela-field-list .vela-field-href, ' +
+                '#vela-field-list .vela-field-src, #vela-field-list .vela-field-alt, ' +
+                '#vela-field-list .vela-field-placeholder', function() {
                 if ($(this).hasClass('vela-field-src')) {
                     $(this).closest('[data-field]').find('.vela-field-thumb').attr('src', $(this).val());
                 }
@@ -1377,16 +2317,131 @@ PageEditor.registerBlockType = function(name, config) {
                 toggleHiddenPart($(this).data('target'));
             });
 
-            $('#block-edit-content').on('click.velaImported', '#vela-pick-mode', function() {
-                _htmlPickMode = !_htmlPickMode;
+            // Styling one part. The id is minted here rather than on selection,
+            // so merely looking at a part leaves the markup alone.
+            $('#block-edit-content').on('change.velaImported input.velaImported', '.vela-part-design', function() {
+                var id = selectedPartId(_htmlDoc, true);
+                if (!id) return;
+
+                var values = _htmlPartStyles[id] || {};
+                $('#vela-part-design').find('.vela-part-design').each(function() {
+                    var name = $(this).data('part-design');
+                    var value = ($(this).val() || '').trim();
+                    if (value) values[name] = value; else delete values[name];
+                });
+
+                if (Object.keys(values).length) _htmlPartStyles[id] = values;
+                else delete _htmlPartStyles[id];
+
+                if (/^#[0-9a-fA-F]{6}$/.test(values.color || '')) {
+                    $('#vela-part-design').find('.vela-part-swatch').val(values.color);
+                }
+                $('#vela-part-design').attr('data-part-id', id);
+                scheduleImportedPreview();
+            });
+
+            $('#block-edit-content').on('input.velaImported change.velaImported', '.vela-part-swatch', function() {
+                $('#vela-part-design').find('[data-part-design="color"]').val($(this).val()).trigger('change');
+            });
+
+            $('#block-edit-content').on('click.velaImported', '.vela-part-clear', function() {
+                $('#vela-part-design').find('[data-part-design="color"]').val('').trigger('change');
+            });
+
+            $('#block-edit-content').on('click.velaImported', '#vela-part-reset', function() {
+                var id = selectedPartId(_htmlDoc, false);
+                if (id) delete _htmlPartStyles[id];
                 redrawImportedEditor();
             });
 
             $(window).on('message.velaImported', function(event) {
                 var data = event.originalEvent && event.originalEvent.data;
-                if (!data || typeof data.velaPick !== 'string' || !_htmlPickMode || !_htmlDoc) return;
-                var id = markPartAtPath(_htmlDoc, data.velaPick);
-                if (id) toggleHiddenPart(id);
+                if (!data || !_htmlDoc) return;
+
+                if (data.velaUndo) {
+                    if (data.velaUndo.redo) runRedo(); else runUndo();
+                    return;
+                }
+
+                // Remembered out here, because the preview it was chosen in is
+                // thrown away and rebuilt on the next change.
+                if ('velaSelect' in data) {
+                    _htmlSelected = data.velaSelect;
+                    redrawPartPanel();
+                    return;
+                }
+
+                // Wording typed into the preview. The form row is the one place
+                // the block is read back from, so the edit lands there and the
+                // saved markup is rewritten — but the preview is left alone, or
+                // the caret would jump to the top of the section mid-sentence.
+                if (data.velaText && data.velaText.field) {
+                    var $richRow = $('#vela-field-list [data-field="' + data.velaText.field + '"]');
+                    var $text = $richRow.find('.vela-field-text');
+                    if ($text.length) {
+                        var clean = sanitizeRichHtml(data.velaText.html);
+                        if ($richRow.attr('data-html') !== clean) {
+                            $richRow.attr('data-html', clean);
+                            $text.val(plainFromHtml(clean, !!data.velaText.multiline));
+                            writeImportedHtml();
+                        }
+                    }
+                    return;
+                }
+
+                // A picture is the one thing that cannot be typed, so clicking
+                // it opens the library instead. This one does redraw: the new
+                // picture has to appear, and nothing is being typed.
+                if (data.velaImage && data.velaImage.field) {
+                    var $row = $('#vela-field-list [data-field="' + data.velaImage.field + '"]');
+                    if ($row.length) {
+                        openMediaBrowser(function(media) {
+                            $row.find('.vela-field-src').val(media.url);
+                            $row.find('.vela-field-thumb').attr('src', media.url);
+                            if (media.alt && !$row.find('.vela-field-alt').val()) {
+                                $row.find('.vela-field-alt').val(media.alt);
+                            }
+                            refreshImportedPreview();
+                        });
+                    }
+                    return;
+                }
+
+                if (typeof data.velaPick === 'string') {
+                    var id = markPartAtPath(_htmlDoc, data.velaPick);
+                    if (id) toggleHiddenPart(id);
+                    return;
+                }
+
+                if (data.velaMoveUnavailable && !_htmlMoveUnavailable) {
+                    _htmlMoveUnavailable = true;
+                    redrawImportedEditor();
+                    return;
+                }
+
+                // A move can change which grids the design panel offers, so the
+                // whole editor is redrawn rather than only the preview.
+                // The copy becomes the selected one: it is what the next thing
+                // you do — rewriting its wording — is meant to land on.
+                if (typeof data.velaDuplicate === 'string') {
+                    var made = duplicateImportedPart(data.velaDuplicate);
+                    if (made !== null) {
+                        _htmlSelected = made;
+                        redrawImportedEditor();
+                    }
+                    return;
+                }
+
+                if (data.velaMove) {
+                    if (moveImportedPart(data.velaMove.container, data.velaMove.from, data.velaMove.to)) {
+                        // Follow the part to where it landed, so the redraw
+                        // hands the choice back on the moved element rather
+                        // than on whatever now sits at the old position.
+                        var container = String(data.velaMove.container || '');
+                        _htmlSelected = (container ? container + '/' : '') + data.velaMove.to;
+                        redrawImportedEditor();
+                    }
+                }
             });
 
             $('#block-edit-content').on('click.velaImported', '.vela-design-clear', function() {
@@ -1398,11 +2453,11 @@ PageEditor.registerBlockType = function(name, config) {
                 $('.vela-design').val('');
                 $('.vela-design-custom').val('').attr('hidden', 'hidden');
                 _htmlHidden = [];
-                _htmlPickMode = false;
+                _htmlPartStyles = {};
                 redrawImportedEditor();
             });
 
-            $('#vela-field-list').on('click.velaImported', '.vela-field-browse', function() {
+            $('#block-edit-content').on('click.velaImported', '#vela-field-list .vela-field-browse', function() {
                 var $row = $(this).closest('[data-field]');
                 openMediaBrowser(function(media) {
                     $row.find('.vela-field-src').val(media.url);
@@ -2128,6 +3183,90 @@ PageEditor.registerBlockType = function(name, config) {
         rows.forEach(function(row) {
             initBlockSortable(row.id);
         });
+
+        // Nearly every change to the page ends here, so one hook covers adding,
+        // removing, duplicating and reordering without each of them having to
+        // remember to record itself.
+        notePageHistory();
+    }
+
+    // --- Undo: the page and its blocks --------------------------------------
+
+    function pageState() {
+        return JSON.stringify(rows);
+    }
+
+    function notePageHistory() {
+        noteHistory(_pageHistory, pageState());
+        updateHistoryButtons();
+    }
+
+    function applyPageState(json) {
+        _restoring = true;
+        try {
+            rows = JSON.parse(json);
+            renderRows();
+            initRowSortable();
+        } finally {
+            _restoring = false;
+        }
+        updateHistoryButtons();
+    }
+
+    // --- Undo: one imported section -----------------------------------------
+
+    function blockState() {
+        if (!_htmlDoc) return null;
+        return JSON.stringify({ html: serializeBlockHtml(_htmlDoc), hidden: _htmlHidden });
+    }
+
+    function noteBlockHistory() {
+        noteHistory(_blockHistory, blockState());
+        updateHistoryButtons();
+    }
+
+    function applyBlockState(json) {
+        var state = JSON.parse(json);
+        _restoring = true;
+        try {
+            _htmlDoc = parseBlockHtml(state.html);
+            _htmlHidden = (state.hidden || []).slice();
+            // Rebuilt FROM the restored markup. The ordinary redraw folds the
+            // form back into the document first, which on the way out of an
+            // undo would put the wording that was just undone straight back.
+            redrawImportedEditor(true);
+        } finally {
+            _restoring = false;
+        }
+        updateHistoryButtons();
+    }
+
+    function historyScope() {
+        return ($('#block-edit-modal').hasClass('show') && _htmlDoc) ? 'block' : 'page';
+    }
+
+    function runUndo() {
+        return historyScope() === 'block'
+            ? undoHistory(_blockHistory, blockState(), applyBlockState)
+            : undoHistory(_pageHistory, pageState(), applyPageState);
+    }
+
+    function runRedo() {
+        return historyScope() === 'block'
+            ? redoHistory(_blockHistory, blockState(), applyBlockState)
+            : redoHistory(_pageHistory, pageState(), applyPageState);
+    }
+
+    function updateHistoryButtons() {
+        var block = historyScope() === 'block';
+        var store = block ? _blockHistory : _pageHistory;
+        var current = block ? blockState() : pageState();
+        // A change still inside the merge window is undoable even though it has
+        // not been pushed, or the button would sit greyed out right after an edit.
+        var pending = store.last !== null && current !== store.last;
+
+        $('.vela-undo-btn').prop('disabled', !(store.past.length || pending));
+        $('.vela-redo-btn').prop('disabled', !store.future.length);
     }
 
     function buildRowHtml(row, ri) {
@@ -2216,6 +3355,9 @@ PageEditor.registerBlockType = function(name, config) {
                 var moved = rows.splice(evt.oldIndex, 1)[0];
                 rows.splice(evt.newIndex, 0, moved);
                 rows.forEach(function(r, i) { r.order = i; });
+                // Sortable has already moved the markup, so nothing re-renders
+                // here and this is the only chance to record the move.
+                notePageHistory();
             }
         });
         el._sortable = s;
@@ -2542,6 +3684,7 @@ PageEditor.registerBlockType = function(name, config) {
             var rowId = $(this).data('row-id');
             var row = getRow(rowId);
             if (row) row.name = $(this).val();
+            notePageHistory();
         });
 
         // Row background settings
@@ -2739,7 +3882,10 @@ PageEditor.registerBlockType = function(name, config) {
             _htmlDoc = null;
             _htmlHasFields = false;
             _htmlHidden = [];
-            _htmlPickMode = false;
+            _htmlMoveUnavailable = false;
+            _htmlSelected = null;
+            _htmlPartStyles = {};
+            _blockHistory = newHistory();
             $('#save-block-btn').show();
         });
 
@@ -2756,6 +3902,29 @@ PageEditor.registerBlockType = function(name, config) {
                 .replace(/-+/g, '-')
                 .replace(/^-|-$/g, '');
             $('#slug').val(slug);
+        });
+
+        $(document).on('click', '.vela-undo-btn', function() { runUndo(); });
+        $(document).on('click', '.vela-redo-btn', function() { runRedo(); });
+
+        $(document).on('keydown', function(e) {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            var key = (e.key || '').toLowerCase();
+            if (key !== 'z' && key !== 'y') return;
+
+            // A text box keeps the browser's own undo, which works letter by
+            // letter and is what someone in the middle of a field means. The
+            // wording typed straight into the preview is covered by this too:
+            // it lives in another document, so those keystrokes never arrive
+            // here, and its native undo raises the same input event an edit
+            // does, which puts the wording back through the ordinary path.
+            var target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+                || target.isContentEditable)) return;
+
+            e.preventDefault();
+            if (key === 'y' || e.shiftKey) runRedo();
+            else runUndo();
         });
 
         // Form submit: serialize rows to hidden input

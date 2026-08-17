@@ -317,6 +317,8 @@ return [
     'invite_member'                  => 'Invita membro',
     'invite_sent'                    => 'Invito inviato.',
     'manage_team_members'            => 'Gestisci i membri del team',
+    'undo'                           => 'Annulla',
+    'redo'                           => 'Ripeti',
     'remove'                         => 'Rimuovi',
     'team_no_members_notice'         => 'Il tuo team non ha ancora membri.',
     'disband_team'                   => 'Sciogli il team',
