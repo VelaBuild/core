@@ -810,7 +810,18 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     function parseBlockHtml(html) {
-        return new DOMParser().parseFromString('<div id="vela-root">' + (html || '') + '</div>', 'text/html');
+        var doc = new DOMParser().parseFromString(
+            '<div id="vela-root">' + stripEditorFurniture(html || '') + '</div>',
+            'text/html'
+        );
+
+        // A stray toolbar saved into the markup renders as a floating bar on
+        // the live page; it belongs to the editor and never to the block.
+        Array.prototype.forEach.call(doc.querySelectorAll('[data-vela-ui]'), function(el) {
+            el.parentNode.removeChild(el);
+        });
+
+        return doc;
     }
 
     function serializeBlockHtml(doc) {
@@ -862,12 +873,36 @@ PageEditor.registerBlockType = function(name, config) {
      * attributes when asked to make something bold. Read here rather than
      * trusted, because this is the last point before it becomes the block.
      */
+    /**
+     * Take the toolbar's own text out of a page's wording.
+     *
+     * The bar reads \u25B2 Block \u2725 + \u00D7 — an up arrow, the name of the part, a
+     * grip, a copy button and a close button. Caught by an earlier read it
+     * ended up inside the words themselves, so a heading on a live page reads
+     * "Tools▲✥×". As plain text there is nothing structural left to key on;
+     * the glyphs together are specific enough to be safe.
+     */
+    // The up arrow is hidden when there is nothing above the part, and the
+    // name is empty for an unnamed one, so only the grip and the close button
+    // are always there. That pair is the signature.
+    var EDITOR_FURNITURE = /\u25B2?(?:Block|Group|Section|Row)?\u2725\+?\u00D7/g;
+
+    function stripEditorFurniture(value) {
+        return String(value === null || value === undefined ? '' : value).replace(EDITOR_FURNITURE, '');
+    }
+
     function sanitizeRichHtml(html) {
         var box = document.createElement('div');
         box.innerHTML = html === null || html === undefined ? '' : String(html);
 
-        Array.prototype.slice.call(box.querySelectorAll('script,style,iframe,object,embed'))
+        Array.prototype.slice.call(box.querySelectorAll('script,style,iframe,object,embed,[data-vela-ui]'))
             .forEach(function(el) { el.parentNode.removeChild(el); });
+
+        // The preview's own toolbar sits inside the part it belongs to, so a
+        // read that catches it writes "Block✥×" into the page's wording — and
+        // it is saved as plain text, where nothing downstream can tell it from
+        // something a person typed.
+        box.innerHTML = stripEditorFurniture(box.innerHTML);
 
         // Deepest first, so unwrapping a parent cannot leave a child unchecked.
         var all = Array.prototype.slice.call(box.querySelectorAll('*')).reverse();
@@ -1183,13 +1218,18 @@ PageEditor.registerBlockType = function(name, config) {
                 PREVIEW_PART_HELPERS +
 
                 // --- the wording ------------------------------------------
+                // Read from a copy with the editor's own furniture taken out.
+                // Moving the one bar aside and putting it back worked until
+                // something else of the editor's was inside too, and what it
+                // missed was saved as plain text — a heading on a live page
+                // reading "Tools▲✥×", with nothing left to tell it from words
+                // somebody typed.
                 'function send(el){' +
                     'var multi=el.hasAttribute("data-vela-field-multiline");' +
-                    'var ui=el.querySelector?el.querySelector("[data-vela-ui]"):null;' +
-                    'var home=null,after=null;' +
-                    'if(ui){home=ui.parentNode;after=ui.nextSibling;document.body.appendChild(ui);}' +
-                    'var html=el.innerHTML;' +
-                    'if(ui&&home)home.insertBefore(ui,after);' +
+                    'var copy=el.cloneNode(true);' +
+                    'Array.prototype.forEach.call(copy.querySelectorAll("[data-vela-ui]"),' +
+                        'function(ui){ui.parentNode.removeChild(ui);});' +
+                    'var html=copy.innerHTML;' +
                     'window.parent.postMessage({velaText:{' +
                         'field:el.getAttribute("data-vela-field"),html:html,multiline:multi}},"*");}' +
                 'var timer=null;' +
