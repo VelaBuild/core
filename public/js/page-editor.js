@@ -1689,8 +1689,9 @@ PageEditor.registerBlockType = function(name, config) {
             if (!/^[fp]\d+$/.test(id)) return;
             var from = design.parts[id] || {}, kept = {};
 
-            [['color', DESIGN_COLOUR], ['size', DESIGN_LENGTH],
-             ['lineHeight', /^\d{1,2}(\.\d{1,2})?$/], ['spaceBelow', DESIGN_LENGTH]].forEach(function(pair) {
+            [['color', DESIGN_COLOUR], ['background', DESIGN_COLOUR], ['size', DESIGN_LENGTH],
+             ['lineHeight', /^\d{1,2}(\.\d{1,2})?$/], ['spaceBelow', DESIGN_LENGTH],
+             ['padding', DESIGN_LENGTH], ['radius', DESIGN_LENGTH]].forEach(function(pair) {
                 var value = safeCssValue(from[pair[0]], pair[1]);
                 if (value) kept[pair[0]] = value;
             });
@@ -1709,6 +1710,7 @@ PageEditor.registerBlockType = function(name, config) {
     var PART_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '40px', '48px', '64px'];
     var PART_SPACES = ['0px', '4px', '8px', '12px', '16px', '24px', '32px', '48px'];
     var PART_LINES = ['1', '1.1', '1.25', '1.4', '1.6', '1.8', '2'];
+    var PART_RADII = ['0px', '4px', '8px', '12px', '16px', '24px', '999px'];
 
     function designCss(blockId, design, grids) {
         var sel = '[data-vela-block="' + blockId + '"]';
@@ -1751,6 +1753,18 @@ PageEditor.registerBlockType = function(name, config) {
             var p = design.parts[id] || {};
             var attribute = id.charAt(0) === 'f' ? 'data-vela-field' : 'data-vela-part';
             var rules = '';
+
+            var boxRules = '';
+            // A box's own rules: painted on the element and nowhere else. Put
+            // through the text rule below they would reach every span inside
+            // it, and a background would be drawn behind each word instead of
+            // behind the box.
+            if (p.background) boxRules += 'background:' + p.background + ' !important;';
+            if (p.padding) boxRules += 'padding:' + p.padding + ' !important;';
+            if (p.radius) boxRules += 'border-radius:' + p.radius + ' !important;';
+            if (boxRules) {
+                css += sel + ' [' + attribute + '="' + id + '"]{' + boxRules + '}';
+            }
 
             if (p.color) rules += 'color:' + p.color + ' !important;';
             if (p.size) rules += 'font-size:' + p.size + ' !important;';
@@ -1951,6 +1965,13 @@ PageEditor.registerBlockType = function(name, config) {
         return id;
     }
 
+    /** The swatch belonging to one part field. */
+    function partSwatchSelector(name) {
+        return name === 'color'
+            ? '.vela-part-swatch:not([data-for])'
+            : '.vela-part-swatch[data-for="' + name + '"]';
+    }
+
     function partSelect(name, label, values, current, blank) {
         var options = ['<option value="">' + (blank || 'Keep the original') + '</option>'];
         values.forEach(function(v) {
@@ -1986,6 +2007,7 @@ PageEditor.registerBlockType = function(name, config) {
         var label = (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 32)
             || '<' + el.tagName.toLowerCase() + '>';
         var colour = /^#[0-9a-f]{6}$/i.test(p.color || '') ? p.color : '#111111';
+        var background = /^#[0-9a-f]{6}$/i.test(p.background || '') ? p.background : '#ffffff';
         var set = Object.keys(p).length;
 
         return '<details class="mb-3" open id="vela-part-design" data-part-id="' + escHtml(id || '') + '">' +
@@ -2007,6 +2029,21 @@ PageEditor.registerBlockType = function(name, config) {
                                 'title="Keep the original">&times;</button>' +
                         '</div>' +
                     '</div></div>' +
+                '<div class="form-group col-md-6 mb-2">' + designLabel('Background') +
+                    '<div class="input-group input-group-sm vela-colour-group">' +
+                        '<div class="input-group-prepend"><span class="input-group-text p-0" style="overflow:hidden">' +
+                            '<input type="color" class="vela-part-swatch" data-for="background" value="' + escHtml(background) + '" ' +
+                                'style="width:34px;height:29px;border:0;padding:0;background:none;cursor:pointer">' +
+                        '</span></div>' +
+                        '<input type="text" class="form-control vela-part-design" data-part-design="background" ' +
+                            'value="' + escHtml(p.background || '') + '" placeholder="Keep the original">' +
+                        '<div class="input-group-append">' +
+                            '<button class="btn btn-outline-secondary vela-part-clear" type="button" data-for="background" ' +
+                                'title="Keep the original">&times;</button>' +
+                        '</div>' +
+                    '</div></div>' +
+                partSelect('padding', 'Inner spacing', PART_SPACES, p.padding) +
+                partSelect('radius', 'Corners', PART_RADII, p.radius) +
                 partSelect('size', 'Size', PART_SIZES, p.size) +
                 partSelect('weight', 'Weight', PART_WEIGHTS, p.weight) +
                 partSelect('style', 'Style', ['normal', 'italic'], p.style) +
@@ -2660,19 +2697,26 @@ PageEditor.registerBlockType = function(name, config) {
                 if (Object.keys(values).length) _htmlPartStyles[id] = values;
                 else delete _htmlPartStyles[id];
 
-                if (/^#[0-9a-fA-F]{6}$/.test(values.color || '')) {
-                    $('#vela-part-design').find('.vela-part-swatch').val(values.color);
-                }
+                // Each swatch follows its own field: there are two of them now,
+                // and keeping them both on the text colour meant the
+                // background picker showed the wrong colour the moment a hex
+                // was typed.
+                ['color', 'background'].forEach(function(name) {
+                    if (!/^#[0-9a-fA-F]{6}$/.test(values[name] || '')) return;
+                    $('#vela-part-design').find(partSwatchSelector(name)).val(values[name]);
+                });
                 $('#vela-part-design').attr('data-part-id', id);
                 scheduleImportedPreview();
             });
 
             $('#block-edit-content').on('input.velaImported change.velaImported', '.vela-part-swatch', function() {
-                $('#vela-part-design').find('[data-part-design="color"]').val($(this).val()).trigger('change');
+                var name = $(this).data('for') || 'color';
+                $('#vela-part-design').find('[data-part-design="' + name + '"]').val($(this).val()).trigger('change');
             });
 
             $('#block-edit-content').on('click.velaImported', '.vela-part-clear', function() {
-                $('#vela-part-design').find('[data-part-design="color"]').val('').trigger('change');
+                var name = $(this).data('for') || 'color';
+                $('#vela-part-design').find('[data-part-design="' + name + '"]').val('').trigger('change');
             });
 
             $('#block-edit-content').on('click.velaImported', '#vela-part-reset', function() {
