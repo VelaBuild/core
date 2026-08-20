@@ -20,6 +20,10 @@ PageEditor.registerBlockType = function(name, config) {
     var editorJsInstance = null;
     var _idCounter = 1;
     var _slugManuallyEdited = false;
+    // Work done in the block dialog reaches the page only when that dialog's
+    // own save runs, so until then closing it discards everything typed.
+    var _blockEditTouched = false;
+    var _committingBlock = false;
 
     // --- Undo ---------------------------------------------------------------
     //
@@ -136,6 +140,9 @@ PageEditor.registerBlockType = function(name, config) {
         editorJsInstance = new EditorJS({
             holder: 'block-editorjs',
             data: data,
+            // Rich text lives inside the editor instance rather than in a form
+            // field, so this is the only place typing here announces itself.
+            onChange: function() { _blockEditTouched = true; },
             tools: {
                 header: Header,
                 image: {
@@ -218,7 +225,13 @@ PageEditor.registerBlockType = function(name, config) {
     var _mediaBrowserSelected = [];
 
     function openMediaBrowser(callback) {
-        _mediaBrowserCallback = callback;
+        // Every consumer of this writes the pick straight in with .val(), which
+        // raises no input event, so a chosen image would not register as work
+        // done and the dialog would close over it without a word.
+        _mediaBrowserCallback = function(media) {
+            _blockEditTouched = true;
+            callback(media);
+        };
         _mediaBrowserMulti = false;
         _mediaBrowserMultiCallback = null;
         _mediaBrowserSelected = [];
@@ -1281,6 +1294,13 @@ PageEditor.registerBlockType = function(name, config) {
                     'el.addEventListener("keydown",function(e){' +
                         'if(e.key==="Enter"&&!el.hasAttribute("data-vela-field-multiline"))e.preventDefault();});' +
                     'el.addEventListener("input",function(){' +
+                        // The wording itself is held back a moment so the
+                        // section is not rebuilt on every keystroke, but the
+                        // fact that someone is typing has to leave immediately:
+                        // clicking Cancel a moment later closes the dialog in
+                        // the same tick, and a message still sitting behind the
+                        // debounce arrives to an empty room.
+                        'window.parent.postMessage({velaTouched:true},"*");' +
                         'clearTimeout(timer);timer=setTimeout(function(){send(el);},250);});' +
                     // One pending timer covers every field, so moving to the
                     // next one would cancel the last edit before it was sent.
@@ -1564,7 +1584,12 @@ PageEditor.registerBlockType = function(name, config) {
         var keyJs = '<script>(function(){' +
             'document.addEventListener("keydown",function(e){' +
                 'if(!(e.ctrlKey||e.metaKey))return;' +
-                'var k=(e.key||"").toLowerCase();if(k!=="z"&&k!=="y")return;' +
+                'var k=(e.key||"").toLowerCase();' +
+                // Ctrl+S is worth passing out even mid-sentence: the browser's
+                // own "save this file" dialog is never what was meant, and the
+                // wording being typed is exactly what wants keeping.
+                'if(k==="s"){e.preventDefault();window.parent.postMessage({velaSave:true},"*");return;}' +
+                'if(k!=="z"&&k!=="y")return;' +
                 'if(e.target&&e.target.isContentEditable)return;' +
                 'e.preventDefault();' +
                 'window.parent.postMessage({velaUndo:{redo:k==="y"||e.shiftKey}},"*");' +
@@ -2734,6 +2759,14 @@ PageEditor.registerBlockType = function(name, config) {
                     return;
                 }
 
+                // The shortcut belongs to whatever is wrapped around the editor,
+                // which knows how the page is saved; this only carries it back
+                // out of the frame.
+                if (data.velaSave) {
+                    $(document).trigger('vela:request-save');
+                    return;
+                }
+
                 // Remembered out here, because the preview it was chosen in is
                 // thrown away and rebuilt on the next change.
                 if ('velaSelect' in data) {
@@ -2741,6 +2774,17 @@ PageEditor.registerBlockType = function(name, config) {
                     redrawPartPanel();
                     return;
                 }
+
+                // Everything past this point changes the section — wording,
+                // images, parts being duplicated or moved — and none of it
+                // passes through a form field, so it would not otherwise count
+                // as work worth warning about on the way out.
+                if (!('velaMoveUnavailable' in data)) {
+                    _blockEditTouched = true;
+                }
+
+                // Carries nothing but that fact.
+                if (data.velaTouched) return;
 
                 // Wording typed into the preview. The form row is the one place
                 // the block is read back from, so the edit lands there and the
@@ -3908,6 +3952,8 @@ PageEditor.registerBlockType = function(name, config) {
 
     function finalizeSave() {
         if (editorJsInstance) { try { editorJsInstance.destroy(); } catch(e) {} editorJsInstance = null; }
+        // The work is in the page now, so this close has nothing to warn about.
+        _committingBlock = true;
         $('#block-edit-modal').modal('hide');
         renderRows();
         initRowSortable();
@@ -4213,9 +4259,9 @@ PageEditor.registerBlockType = function(name, config) {
             });
         });
 
-        $('#media-browser-modal').on('shown.bs.modal', function() {
+        $('#media-browser-modal').on('shown.bs.modal shown.coreui.modal', function() {
             $('.modal-backdrop').last().css('z-index', 1065);
-        }).on('hidden.bs.modal', function() {
+        }).on('hidden.bs.modal hidden.coreui.modal', function() {
             if ($('#block-edit-modal').hasClass('show')) {
                 $('body').addClass('modal-open');
             }
@@ -4269,19 +4315,7 @@ PageEditor.registerBlockType = function(name, config) {
             });
         });
 
-        // Bootstrap marks the dialog aria-hidden as it closes. If focus is
-        // still on something inside it — the close button the user just
-        // clicked — the browser refuses, because hiding a focused element from
-        // assistive technology would strand a screen reader inside a dialog
-        // that is no longer there. Hand focus back to the page first.
-        $('#block-edit-modal').on('hide.bs.modal', function() {
-            var focused = document.activeElement;
-            if (focused && this.contains(focused) && typeof focused.blur === 'function') {
-                focused.blur();
-            }
-        });
-
-        $('#block-edit-modal').on('hidden.bs.modal', function() {
+        $('#block-edit-modal').on('hidden.bs.modal hidden.coreui.modal', function() {
             if (editorJsInstance) { try { editorJsInstance.destroy(); } catch(e) {} editorJsInstance = null; }
             // The iframe would otherwise sit there holding a whole rendered
             // page until the next block is opened.
@@ -4293,6 +4327,8 @@ PageEditor.registerBlockType = function(name, config) {
             _htmlSelected = null;
             _htmlPartStyles = {};
             _blockHistory = newHistory();
+            _blockEditTouched = false;
+            _committingBlock = false;
             $('#save-block-btn').show();
         });
 
@@ -4340,7 +4376,126 @@ PageEditor.registerBlockType = function(name, config) {
         });
     }
 
+    /**
+     * Adopt the ids the server assigned to rows and blocks that were new.
+     *
+     * Only relevant to a save that leaves the editor open: the placeholder ids
+     * live on in the page, and saving again with them would create duplicates
+     * of everything just written. Rows carry their id in the markup as well as
+     * in the model, so both are updated; blocks are addressed by position, so
+     * the model alone is enough. Nothing is re-rendered — the wording someone
+     * is halfway through typing survives the save.
+     */
+    function applyIdMap(map) {
+        if (!map) return;
+        var rowMap   = map.rows   || {};
+        var blockMap = map.blocks || {};
+
+        rows.forEach(function(row) {
+            var newRowId = rowMap[String(row.id)];
+            if (newRowId !== undefined && newRowId !== row.id) {
+                // .data() is read straight off these elements by the handlers,
+                // and jQuery caches that on first read, so the attribute alone
+                // would leave the stale id in play.
+                $('[data-row-id="' + row.id + '"]')
+                    .attr('data-row-id', newRowId)
+                    .data('row-id', newRowId)
+                    .data('rowId', newRowId);
+                row.id = newRowId;
+            }
+            row.columns.forEach(function(col) {
+                col.blocks.forEach(function(block) {
+                    var newBlockId = blockMap[String(block.id)];
+                    if (newBlockId !== undefined) block.id = newBlockId;
+                });
+            });
+        });
+    }
+
+    // Closing the block dialog is the one way to lose work here without being
+    // told: Cancel, the X, Escape and a click on the backdrop all throw away
+    // everything typed, and none of it ever reached the page, so undo cannot
+    // bring it back either.
+    //
+    // Bound out here, off document, rather than inside bindFormEvents(): these
+    // are delegated, so they need neither the dialog to exist yet nor init() to
+    // have finished, and a guard against losing work should not itself be lost
+    // to an error raised somewhere earlier in setup.
+    $(document)
+        .on('hide.bs.modal hide.coreui.modal', '#block-edit-modal', function(e) {
+            if (_committingBlock || !_blockEditTouched) return;
+
+            // This close is always cancelled, whatever the answer turns out to
+            // be. A native confirm hands focus back to the button that opened
+            // it, and asking from inside the close means that button is inside
+            // a dialog already on its way out — the browser then blocks the
+            // aria-hidden it is about to be marked with, because focus is still
+            // in there. Asking after this close has been called off, and
+            // closing again once the answer is in, keeps the two apart.
+            e.preventDefault();
+
+            var modal = this;
+            var message = (window.PageEditorConfig && PageEditorConfig.i18n
+                && PageEditorConfig.i18n.discardBlockChanges)
+                || 'Discard your changes to this block?';
+
+            setTimeout(function() {
+                if (!confirm(message)) return;      // staying, with the work intact
+
+                // Answered: nothing left to warn about, so the second close
+                // runs the ordinary path with no question in the middle of it.
+                _blockEditTouched = false;
+                $(modal).modal('hide');
+            }, 0);
+        })
+        // Bootstrap marks the dialog aria-hidden as it closes. If focus is
+        // still on something inside it — the close button that was just
+        // clicked — the browser refuses, because hiding a focused element from
+        // assistive technology would strand a screen reader inside a dialog
+        // that is no longer there. Hand focus back to the page first.
+        //
+        // Runs after the guard above, and must: answering the confirm hands
+        // focus straight back to the button that opened it, so a blur taken
+        // before the question is undone by the time it is answered.
+        .on('hide.bs.modal hide.coreui.modal', '#block-edit-modal', function(e) {
+            // Staying open — the caret belongs wherever the work is.
+            if (e.isDefaultPrevented()) return;
+
+            var modal = this;
+
+            // Deferred by a tick, and it has to be. While this event is still
+            // running the dialog's focus trap is live: it answers any focus
+            // landing outside by pulling it back onto the dialog itself, so a
+            // blur taken here reads as "focus left" and gets undone — the
+            // browser then reports the dialog, rather than the button, as the
+            // thing being hidden out from under the focus. Bootstrap drops the
+            // trap the moment this event returns, and only marks the dialog
+            // aria-hidden after the fade, which leaves this tick free.
+            setTimeout(function() {
+                var focused = document.activeElement;
+                if (focused && modal.contains(focused) && typeof focused.blur === 'function') {
+                    focused.blur();
+                }
+            }, 0);
+        })
+        // A fresh dialog starts clean, and every close — kept or discarded —
+        // ends the commit it was in.
+        .on('shown.bs.modal shown.coreui.modal', '#block-edit-modal', function() {
+            _blockEditTouched = false;
+            _committingBlock = false;
+        })
+        .on('input change', '#block-edit-content', function() {
+            _blockEditTouched = true;
+        });
+
     // Expose public API
     window.PageEditor.init = init;
+    window.PageEditor.collect = collectData;
+    window.PageEditor.applyIdMap = applyIdMap;
+    // Open dialog with work in it — not yet part of the page, so collect()
+    // cannot see it and whatever guards the page needs to ask.
+    window.PageEditor.blockEditorDirty = function() {
+        return _blockEditTouched && $('#block-edit-modal').hasClass('show');
+    };
 
 })(jQuery);
