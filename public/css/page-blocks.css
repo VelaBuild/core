@@ -382,3 +382,8 @@
 .block-app-download-description,
 .block-pricing-tier-headline,
 .block-pricing-tier-desc { color: inherit; }
+
+/* A section copied from another site carries its own spacing, so the 20px this
+   stylesheet puts under every block reads as a band of page background between
+   one section and the next. */
+.page-block-public.block-imported-section { margin-bottom: 0; }

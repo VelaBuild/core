@@ -86,6 +86,10 @@ class ImportPageSectionTool extends BaseTool
             // The section brings its own container and padding; a contained
             // row would put this site's gutters inside the other site's.
             'width'        => 'full',
+            // And its own space above and below. The row's default 20px is not
+            // breathing room here, it is a white seam between one section and
+            // the next — visible the moment two of them sit together.
+            'padding'      => '0',
             'order_column' => $parameters['order'] ?? ((int) $page->rows()->max('order_column') + 1),
         ]);
 

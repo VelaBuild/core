@@ -3688,6 +3688,37 @@ PageEditor.registerBlockType = function(name, config) {
         });
 
         // Row background settings
+    // Presets rather than a box expecting CSS. The field held the whole padding
+    // shorthand and was labelled "e.g. 40px 20px", so the one thing anyone came
+    // here for — closing the white seam between two sections — was a guess at a
+    // syntax. A single length is space above and below; the sides are the
+    // template's business, and a full-width row has none.
+    var ROW_SPACING = [
+        ['0', 'None'],
+        ['20px', 'Small (20px)'],
+        ['40px', 'Medium (40px)'],
+        ['64px', 'Large (64px)'],
+        ['80px', 'Extra large (80px)']
+    ];
+
+    function spacingField(id, label, value) {
+        value = value || '';
+        var known = ROW_SPACING.some(function(p) { return p[0] === value; });
+        var custom = value !== '' && !known;
+
+        var options = ['<option value=""' + (value === '' ? ' selected' : '') + '>Template default</option>'];
+        ROW_SPACING.forEach(function(p) {
+            options.push('<option value="' + p[0] + '"' + (value === p[0] ? ' selected' : '') + '>' + p[1] + '</option>');
+        });
+        options.push('<option value="__custom"' + (custom ? ' selected' : '') + '>Custom\u2026</option>');
+
+        return '<div class="form-group"><label>' + label + '</label>' +
+            '<select class="form-control" id="' + id + '-preset">' + options.join('') + '</select>' +
+            '<input type="text" class="form-control mt-1" id="' + id + '" value="' + escHtml(value) + '" ' +
+                'placeholder="e.g. 40px, or 40px 20px for the sides too"' + (custom ? '' : ' hidden') + '>' +
+            '</div>';
+    }
+
         $(document).on('click', '.row-bg-btn', function() {
             var rowId = $(this).data('row-id');
             var row = getRow(rowId);
@@ -3720,9 +3751,7 @@ PageEditor.registerBlockType = function(name, config) {
                 '<option value="center"' + (row.text_alignment === 'center' ? ' selected' : '') + '>Center</option>' +
                 '<option value="right"' + (row.text_alignment === 'right' ? ' selected' : '') + '>Right</option>' +
                 '</select></div></div>' +
-                '<div class="col-6"><div class="form-group"><label>Padding</label>' +
-                '<input type="text" class="form-control" id="row-padding" value="' + escHtml(row.padding || '') + '" placeholder="e.g. 40px 20px">' +
-                '</div></div></div>';
+                '<div class="col-6">' + spacingField('row-padding', 'Space above &amp; below', row.padding) + '</div></div>';
             $('#block-edit-content').html(html);
             $('#block-edit-modal .modal-title').text('Row Style');
             clearEditorPreviewPane();
@@ -3736,6 +3765,11 @@ PageEditor.registerBlockType = function(name, config) {
             $('#row-text-color').on('input', function() { $('#row-text-color-text').val($(this).val()); });
             $('#row-text-color-text').on('input', function() { var v = $(this).val(); if (/^#[0-9a-fA-F]{6}$/.test(v)) $('#row-text-color').val(v); });
             $('#row-text-color-clear').on('click', function() { $('#row-text-color-text').val(''); });
+            $('#row-padding-preset').on('change', function() {
+                var choice = $(this).val();
+                if (choice === '__custom') { $('#row-padding').removeAttr('hidden').focus(); return; }
+                $('#row-padding').attr('hidden', 'hidden').val(choice);
+            });
             $('#block-edit-modal').modal('show');
         });
 

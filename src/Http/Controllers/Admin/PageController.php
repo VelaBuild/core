@@ -187,7 +187,7 @@ class PageController extends Controller
                     'background_image' => $rowData['background_image'] ?? null,
                     'text_color'       => $rowData['text_color'] ?? null,
                     'text_alignment'   => $rowData['text_alignment'] ?? null,
-                    'padding'          => $rowData['padding'] ?? null,
+                    'padding'          => $this->cleanSpacing($rowData['padding'] ?? null),
                     'order_column'     => $rowData['order'] ?? $rowOrder,
                 ]);
 
@@ -204,7 +204,7 @@ class PageController extends Controller
                         'background_image' => $blockData['background_image'] ?? null,
                         'text_color'       => $blockData['text_color'] ?? null,
                         'text_alignment'   => $blockData['text_alignment'] ?? null,
-                        'padding'          => $blockData['padding'] ?? null,
+                        'padding'          => $this->cleanSpacing($blockData['padding'] ?? null),
                     ]);
                 }
             }
@@ -285,7 +285,7 @@ class PageController extends Controller
                     'background_image' => $rowData['background_image'] ?? null,
                     'text_color'       => $rowData['text_color'] ?? null,
                     'text_alignment'   => $rowData['text_alignment'] ?? null,
-                    'padding'          => $rowData['padding'] ?? null,
+                    'padding'          => $this->cleanSpacing($rowData['padding'] ?? null),
                     'width'            => in_array($rowData['width'] ?? null, ['full', 'contained'], true) ? $rowData['width'] : 'contained',
                     'order_column'     => $rowData['order'] ?? $rowOrder,
                 ];
@@ -317,7 +317,7 @@ class PageController extends Controller
                         'background_image' => $blockData['background_image'] ?? null,
                         'text_color'       => $blockData['text_color'] ?? null,
                         'text_alignment'   => $blockData['text_alignment'] ?? null,
-                        'padding'          => $blockData['padding'] ?? null,
+                        'padding'          => $this->cleanSpacing($blockData['padding'] ?? null),
                     ];
 
                     if ($blockId && is_numeric($blockId) && in_array((int) $blockId, $existingBlockIds)) {
@@ -413,5 +413,35 @@ class PageController extends Controller
         $media         = $model->addMediaFromRequest('upload')->toMediaCollection('ck-media');
 
         return response()->json(['id' => $media->id, 'url' => $media->getUrl()], Response::HTTP_CREATED);
+    }
+
+    /**
+     * Keep a padding value to something that can only ever be a padding value.
+     *
+     * It is written straight into a style attribute, and nothing checked it on
+     * the way in: "0;background:url(...)" was a perfectly acceptable answer to
+     * a box labelled "Padding". The admin is trusted, but a field that accepts
+     * arbitrary CSS is a field that will one day be reached by something that
+     * is not the admin.
+     */
+    protected function cleanSpacing($value): ?string
+    {
+        $value = trim((string) ($value ?? ''));
+        if ($value === '') {
+            return null;
+        }
+
+        $lengths = preg_split('/\s+/', $value);
+        if (count($lengths) > 4) {
+            return null;
+        }
+
+        foreach ($lengths as $length) {
+            if (!preg_match('/^(0|\d{1,4}(\.\d{1,2})?(px|rem|em|%|vh|vw))$/i', $length)) {
+                return null;
+            }
+        }
+
+        return implode(' ', $lengths);
     }
 }
