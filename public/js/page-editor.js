@@ -651,6 +651,9 @@ PageEditor.registerBlockType = function(name, config) {
      * editable one. They are cheap to work out from the markup itself, so an
      * old section repairs itself the first time it is opened.
      */
+    /** What a layout framework puts on something meant to be a column. */
+    var COLUMN_CLASS = /(^|[\s:])(col-span|col-start|col-end|basis-|flex-1|w-1\/2|w-1\/3|w-2\/3)/;
+
     function upgradeImportedBlock(doc) {
         var wrapper = doc.querySelector('[data-vela-block]')
             || doc.querySelector('[class*="vela-import-"]');
@@ -660,22 +663,39 @@ PageEditor.registerBlockType = function(name, config) {
             wrapper.setAttribute('data-vela-block', 'b' + Math.abs(hashString(wrapper.innerHTML)).toString(16).slice(0, 10));
         }
 
-        if (!doc.querySelector('[data-vela-grid]')) {
-            var gridIndex = 0;
-            Array.prototype.forEach.call(wrapper.querySelectorAll('*'), function(el) {
-                var kids = el.children;
-                if (kids.length < 2) return;
-                var signature = null;
-                for (var i = 0; i < kids.length; i++) {
-                    var current = kids[i].tagName + '|' + Array.prototype.slice.call(kids[i].classList).sort().slice(0, 4).join(' ');
-                    if (signature === null) signature = current;
-                    else if (signature !== current) return;
-                }
-                if (!signature) return;
-                el.setAttribute('data-vela-grid', 'g' + (++gridIndex));
-                el.setAttribute('data-vela-grid-count', String(kids.length));
-            });
-        }
+        // Rows the layout controls can act on. Two kinds count: a run of
+        // identical cards, and a row of columns — a heading beside a form is
+        // the arrangement people most want to change, and its two children
+        // look nothing alike, so matching on sameness alone left exactly that
+        // row with no control at all.
+        var gridIndex = 0;
+        Array.prototype.forEach.call(doc.querySelectorAll('[data-vela-grid]'), function(el) {
+            var n = parseInt((el.getAttribute('data-vela-grid') || '').slice(1), 10);
+            if (n >= gridIndex) gridIndex = n;
+        });
+
+        Array.prototype.forEach.call(wrapper.querySelectorAll('*'), function(el) {
+            if (el.hasAttribute('data-vela-grid')) return;
+
+            var kids = el.children;
+            if (kids.length < 2) return;
+
+            var signature = null;
+            var same = true;
+            var columns = 0;
+            for (var i = 0; i < kids.length; i++) {
+                var current = kids[i].tagName + '|' + Array.prototype.slice.call(kids[i].classList).sort().slice(0, 4).join(' ');
+                if (signature === null) signature = current;
+                else if (signature !== current) same = false;
+
+                if (COLUMN_CLASS.test(kids[i].className || '')) columns++;
+            }
+
+            if (!((same && signature) || columns >= 2)) return;
+
+            el.setAttribute('data-vela-grid', 'g' + (++gridIndex));
+            el.setAttribute('data-vela-grid-count', String(kids.length));
+        });
 
         if (!doc.querySelector('[data-vela-field]')) {
             var fieldIndex = 0;
@@ -1631,6 +1651,22 @@ PageEditor.registerBlockType = function(name, config) {
         });
         if (Object.keys(grids).length) clean.grids = grids;
 
+        // How each row is arranged. Kept to the handful of shapes the
+        // controls offer, since these end up inside a CSS selector and a
+        // declaration.
+        var layout = {};
+        Object.keys(design.layout || {}).forEach(function(id) {
+            if (!/^g\d+$/.test(id)) return;
+            var wanted = design.layout[id] || {};
+            var kept = {};
+            if (LAYOUT_SPLITS.indexOf(wanted.split) > -1) kept.split = wanted.split;
+            if (LAYOUT_GAPS.indexOf(wanted.gap) > -1) kept.gap = wanted.gap;
+            if (['start', 'center', 'end', 'stretch'].indexOf(wanted.align) > -1) kept.align = wanted.align;
+            if (wanted.reverse === true || wanted.reverse === 'true') kept.reverse = true;
+            if (Object.keys(kept).length) layout[id] = kept;
+        });
+        if (Object.keys(layout).length) clean.layout = layout;
+
         // Parts the user chose not to show. Ids only — anything else here
         // would end up inside a CSS selector.
         var hidden = (design.hidden || []).filter(function(id) {
@@ -1726,10 +1762,35 @@ PageEditor.registerBlockType = function(name, config) {
         });
 
         (grids || []).forEach(function(g) {
+            var row = sel + ' [data-vela-grid="' + g.id + '"]';
             var columns = parseInt((design.grids || {})[g.id], 10);
-            if (!columns || columns < 1 || columns > 8) return;
-            css += sel + ' [data-vela-grid="' + g.id + '"]{display:grid !important;' +
-                'grid-template-columns:repeat(' + columns + ',minmax(0,1fr)) !important}';
+            var layout = (design.layout || {})[g.id] || {};
+            var declarations = '';
+
+            // A split describes two columns; asking for a number of columns
+            // describes any row. Either turns the row into a grid, so the
+            // widths below can only ever apply to something laid out as one.
+            if (layout.split) {
+                var parts = layout.split.split('/');
+                declarations += 'display:grid !important;grid-template-columns:' +
+                    parseInt(parts[0], 10) + 'fr ' + parseInt(parts[1], 10) + 'fr !important;';
+            } else if (columns >= 1 && columns <= 8) {
+                declarations += 'display:grid !important;grid-template-columns:repeat(' +
+                    columns + ',minmax(0,1fr)) !important;';
+            }
+
+            if (layout.gap) declarations += 'gap:' + layout.gap + ' !important;';
+            if (layout.align) declarations += 'align-items:' + layout.align + ' !important;';
+
+            if (declarations) css += row + '{' + declarations + '}';
+
+            // Reversed by writing direction rather than by `order`, which only
+            // grid and flex obey — this turns a row round whatever it is laid
+            // out with, and the children are set back so their own text does
+            // not read right to left.
+            if (layout.reverse) {
+                css += row + '{direction:rtl !important}' + row + ' > *{direction:ltr !important}';
+            }
         });
 
         return css;
@@ -1797,6 +1858,11 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     /** Sizes offered as a list; "Custom…" reveals a box for anything else. */
+    // Two columns is the row people rearrange; past that a split stops being
+    // meaningful and the column count does the work.
+    var LAYOUT_SPLITS = ['50/50', '60/40', '40/60', '70/30', '30/70', '33/67', '67/33'];
+    var LAYOUT_GAPS = ['0px', '8px', '16px', '24px', '32px', '48px', '64px'];
+
     var DESIGN_PRESETS = {
         headingSize: { label: 'Heading size', values: ['28px', '32px', '40px', '48px', '56px', '64px', '72px'] },
         bodySize:    { label: 'Body text size', values: ['14px', '15px', '16px', '18px', '20px', '22px'] },
@@ -1976,15 +2042,56 @@ PageEditor.registerBlockType = function(name, config) {
         var gridRows = grids.filter(function(g) {
             return g.count >= 2 && g.count <= 8 && g.label;
         }).slice(0, 6).map(function(g) {
-            var current = (d.grids || {})[g.id] || '';
-            var options = ['<option value="">Keep the original (' + g.count + ')</option>'];
-            for (var n = 1; n <= 6; n++) {
-                options.push('<option value="' + n + '"' + (String(current) === String(n) ? ' selected' : '') + '>' + n + ' per row</option>');
+            var columns = (d.grids || {})[g.id] || '';
+            var layout = (d.layout || {})[g.id] || {};
+
+            // Stacking is one column, so the arrangement and the column count
+            // are the same choice and belong in the same list.
+            var arrange = ['<option value="">Keep the original (' + g.count + ' across)</option>',
+                '<option value="1"' + (String(columns) === '1' ? ' selected' : '') + '>Stacked, one under the other</option>'];
+            for (var n = 2; n <= 6; n++) {
+                arrange.push('<option value="' + n + '"' + (String(columns) === String(n) ? ' selected' : '') + '>' + n + ' across</option>');
             }
-            return '<div class="form-group col-md-6 mb-2">' +
-                '<label class="mb-1 text-truncate d-block" title="' + escHtml(g.label || g.id) + '" ' +
-                'style="font-size:.75rem;color:#6c757d;">Columns — ' + escHtml(g.label || g.id) + '</label>' +
-                '<select class="form-control form-control-sm vela-design" data-design-grid="' + escHtml(g.id) + '">' + options.join('') + '</select></div>';
+
+            var splits = ['<option value="">Even</option>'].concat(LAYOUT_SPLITS.map(function(v) {
+                return '<option value="' + v + '"' + (layout.split === v ? ' selected' : '') + '>' + v.replace('/', ' / ') + '</option>';
+            }));
+
+            var gaps = ['<option value="">Keep the original</option>'].concat(LAYOUT_GAPS.map(function(v) {
+                return '<option value="' + v + '"' + (layout.gap === v ? ' selected' : '') + '>' + v + '</option>';
+            }));
+
+            var aligns = [['', 'Keep the original'], ['start', 'Top'], ['center', 'Middle'], ['end', 'Bottom'], ['stretch', 'Same height']]
+                .map(function(a) {
+                    return '<option value="' + a[0] + '"' + (layout.align === a[0] ? ' selected' : '') + '>' + a[1] + '</option>';
+                });
+
+            return '<div class="col-12 mb-2 p-2" style="background:#f8f9fa;border-radius:6px;">' +
+                '<div class="text-truncate mb-2" title="' + escHtml(g.label || g.id) + '" ' +
+                    'style="font-size:.75rem;font-weight:600;color:#495057;">' +
+                    '<i class="fas fa-table-columns mr-1"></i>' + escHtml(g.label || g.id) + '</div>' +
+                '<div class="form-row">' +
+                    '<div class="form-group col-md-6 mb-2">' + designLabel('Arrangement') +
+                        '<select class="form-control form-control-sm vela-design" data-design-grid="' + escHtml(g.id) + '">' +
+                        arrange.join('') + '</select></div>' +
+                    '<div class="form-group col-md-6 mb-2">' + designLabel('Widths') +
+                        '<select class="form-control form-control-sm vela-layout" data-layout="split" data-grid="' + escHtml(g.id) + '"' +
+                            (g.count === 2 ? '' : ' disabled title="Two columns only"') + '>' +
+                        splits.join('') + '</select></div>' +
+                    '<div class="form-group col-md-4 mb-2">' + designLabel('Gap') +
+                        '<select class="form-control form-control-sm vela-layout" data-layout="gap" data-grid="' + escHtml(g.id) + '">' +
+                        gaps.join('') + '</select></div>' +
+                    '<div class="form-group col-md-4 mb-2">' + designLabel('Line up') +
+                        '<select class="form-control form-control-sm vela-layout" data-layout="align" data-grid="' + escHtml(g.id) + '">' +
+                        aligns.join('') + '</select></div>' +
+                    '<div class="form-group col-md-4 mb-2 d-flex align-items-end">' +
+                        '<div class="custom-control custom-checkbox">' +
+                            '<input type="checkbox" class="custom-control-input vela-layout" data-layout="reverse" ' +
+                                'data-grid="' + escHtml(g.id) + '" id="vela-rev-' + escHtml(g.id) + '"' + (layout.reverse ? ' checked' : '') + '>' +
+                            '<label class="custom-control-label" for="vela-rev-' + escHtml(g.id) + '" style="font-size:.8rem;">Reverse order</label>' +
+                        '</div>' +
+                    '</div>' +
+                '</div></div>';
         }).join('');
 
         // One root element around the whole panel. The redraw used to swap in
@@ -2194,6 +2301,17 @@ PageEditor.registerBlockType = function(name, config) {
             }
             if (value) design[name] = value;
         });
+        $('.vela-layout').each(function() {
+            var $el = $(this);
+            var id = $el.data('grid');
+            var key = $el.data('layout');
+            var value = $el.is(':checkbox') ? $el.is(':checked') : $el.val();
+            if (!id || !key || !value) return;
+            design.layout = design.layout || {};
+            design.layout[id] = design.layout[id] || {};
+            design.layout[id][key] = value;
+        });
+
         if (!Object.keys(design.grids).length) delete design.grids;
         if (!Object.keys(design.parts).length) delete design.parts;
         return design;
@@ -2325,6 +2443,8 @@ PageEditor.registerBlockType = function(name, config) {
                 }
                 scheduleImportedPreview();
             });
+
+            $('#block-edit-content').on('change.velaImported', '.vela-layout', function() { scheduleImportedPreview(); });
 
             $('#block-edit-content').on('change.velaImported input.velaImported', '.vela-design, .vela-design-custom', function() {
                 var $el = $(this);
@@ -2492,6 +2612,8 @@ PageEditor.registerBlockType = function(name, config) {
             $('#block-edit-content').on('click.velaImported', '#vela-design-reset', function() {
                 $('.vela-design').val('');
                 $('.vela-design-custom').val('').attr('hidden', 'hidden');
+                $('.vela-layout').not(':checkbox').val('');
+                $('.vela-layout:checkbox').prop('checked', false);
                 _htmlHidden = [];
                 _htmlPartStyles = {};
                 redrawImportedEditor();
