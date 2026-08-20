@@ -639,6 +639,7 @@ PageEditor.registerBlockType = function(name, config) {
     var _htmlHidden = [];         // ids of parts the user chose not to show
     var _htmlMoveUnavailable = false; // the preview could not load SortableJS
     var _htmlSelected = null;     // path of the part held in the preview, if any
+    var _htmlTab = 'content';     // which tab of the panel is open
     var _htmlPartStyles = {};     // per-part styling, keyed by field or part id
     var _htmlPreviewTimer = null;
 
@@ -990,8 +991,14 @@ PageEditor.registerBlockType = function(name, config) {
         return 'Text';
     }
 
-    function renderImportedFields(doc) {
+    function renderImportedFields(doc, root) {
         var els = fieldElements(doc);
+        if (root && !root.hasAttribute('data-vela-block')) {
+            // Only what is inside the part being worked on. A page's worth of
+            // wording in one list — 257 rows on a pricing section — is a form
+            // to hunt through, not a way to change a heading.
+            els = els.filter(function(el) { return root === el || root.contains(el); });
+        }
         if (!els.length) return '';
 
         var out = '<div id="vela-field-list">';
@@ -2019,27 +2026,35 @@ PageEditor.registerBlockType = function(name, config) {
      * wholesale, and clicking a sentence to style it would throw away the caret
      * that same click had just placed in it.
      */
+    /**
+     * Redraw the panel around a new selection.
+     *
+     * What is in front of you decides what the panel shows — its wording, its
+     * styling, the row it sits in — so a selection is not a detail of one
+     * slot, it is the panel's subject.
+     */
     function redrawPartPanel() {
         if (!_htmlDoc) return;
-        $('#vela-part-slot').html(renderPartDesign(_htmlDoc));
+
+        // Whatever is typed but not yet written back would be lost in the
+        // redraw; the document is the one place both sides agree on.
+        applyDesign(applyImportedFields(_htmlDoc), collectDesign());
+
+        var $root = $('#vela-design-root');
+        if (!$root.length) return;
+        $root.replaceWith(renderDesignPanel(_htmlDoc));
     }
 
-    function renderDesignPanel(doc) {
-        var wrapper = doc.querySelector('[data-vela-block]');
-        if (!wrapper) return '';
-
-        var d = readDesign(wrapper);
-        var grids = gridElements(doc);
-
-        var fonts = DESIGN_FONTS.map(function(f) {
-            return '<option value="' + escHtml(f[0]) + '"' + (d.font === f[0] ? ' selected' : '') + '>' + escHtml(f[1]) + '</option>';
-        }).join('');
-
-        // Only the repeated rows a person would recognise. A comparison table
-        // is dozens of "grids" of 18 and 36 cells whose only name would be
-        // g7, g8, g9 — sixteen useless dropdowns burying the three that mean
-        // something.
-        var gridRows = grids.filter(function(g) {
+    /**
+     * The layout controls for a row, or for every row in the section.
+     *
+     * Elementor asks what you have selected and shows the controls for that;
+     * a list of every row in the section, whatever you are working on, is the
+     * thing that made this panel feel like a settings screen.
+     */
+    function layoutGroups(d, grids, onlyId) {
+        return grids.filter(function(g) {
+            if (onlyId) return g.id === onlyId;
             return g.count >= 2 && g.count <= 8 && g.label;
         }).slice(0, 6).map(function(g) {
             var columns = (d.grids || {})[g.id] || '';
@@ -2093,15 +2108,36 @@ PageEditor.registerBlockType = function(name, config) {
                     '</div>' +
                 '</div></div>';
         }).join('');
+    }
 
-        // One root element around the whole panel. The redraw used to swap in
-        // "the first <details>", which stops being the right one the moment the
-        // panel grows a second.
-        return '<div id="vela-design-root">' +
-            '<div id="vela-part-slot">' + renderPartDesign(doc) + '</div>' +
-            '<details class="mb-3" open><summary style="cursor:pointer;font-weight:500;">' +
-                '<i class="fas fa-palette mr-1"></i> Design</summary>' +
-            '<div class="form-row mt-2">' +
+    function renderDesignPanel(doc) {
+        var wrapper = doc.querySelector('[data-vela-block]');
+        if (!wrapper) return '';
+
+        var d = readDesign(wrapper);
+        var grids = gridElements(doc);
+
+        var fonts = DESIGN_FONTS.map(function(f) {
+            return '<option value="' + escHtml(f[0]) + '"' + (d.font === f[0] ? ' selected' : '') + '>' + escHtml(f[1]) + '</option>';
+        }).join('');
+
+        // Only the repeated rows a person would recognise. A comparison table
+        // is dozens of "grids" of 18 and 36 cells whose only name would be
+        // g7, g8, g9 — sixteen useless dropdowns burying the three that mean
+        // something.
+        var gridRows = layoutGroups(d, grids);
+
+        var selected = _htmlSelected === null ? null : nodeAtPath(doc, _htmlSelected);
+        if (selected && selected.hasAttribute('data-vela-block')) selected = null;
+
+        // The row the selection sits in, so the layout tab talks about the
+        // thing in front of you rather than every row in the section.
+        var ownRow = null;
+        for (var node = selected; node && !node.hasAttribute('data-vela-block'); node = node.parentElement) {
+            if (node.hasAttribute('data-vela-grid')) { ownRow = node.getAttribute('data-vela-grid'); break; }
+        }
+
+        var sectionStyle = '<div class="form-row mt-2">' +
                 designColourField('textColor', 'Text colour', d.textColor) +
                 designColourField('background', 'Background', d.background) +
                 '<div class="form-group col-md-6 mb-2">' + designLabel('Font') +
@@ -2116,11 +2152,129 @@ PageEditor.registerBlockType = function(name, config) {
                             return '<option value="' + a + '"' + (d.align === a ? ' selected' : '') + '>' + (a === '' ? 'Keep the original' : a) + '</option>';
                         }).join('') +
                     '</select></div>' +
-                gridRows +
+            '</div>';
+
+        var fields = renderImportedFields(doc, selected);
+        var emptyContent = '<div class="alert alert-light border py-2 mb-0"><small>' +
+            (selected
+                ? 'Nothing in this part is wording, a picture or a link. Style it under <strong>Style</strong>, ' +
+                  'or pick something inside it in the preview.'
+                : 'No editable wording was found in this section — its text sits inside markup this form cannot ' +
+                  'take apart. Change it under "Edit the HTML directly" below.') +
+            '</small></div>';
+
+        var ownLayout = ownRow ? layoutGroups(d, grids, ownRow) : '';
+        var restLayout = layoutGroups(d, grids);
+
+        return '<div id="vela-design-root">' +
+            renderBreadcrumb(doc, selected) +
+            '<ul class="nav nav-tabs" id="vela-tabs">' +
+                tabButton('content', 'Content', 'fa-pen') +
+                tabButton('style', 'Style', 'fa-palette') +
+                tabButton('layout', 'Layout', 'fa-table-columns') +
+            '</ul>' +
+
+            // Every tab is rendered and only hidden, never left out: the panel
+            // is where a save reads its values from, and a control that is not
+            // in the page is a choice quietly dropped.
+            '<div class="vela-tab-body pt-3"' + (_htmlTab === 'content' ? '' : ' hidden') + ' data-tab="content">' +
+                (selected
+                    ? (fields || emptyContent + '<div id="vela-field-list"></div>')
+                    // Nothing chosen yet: an invitation to point at something,
+                    // with the whole section's wording folded away behind it.
+                    // Opened flat, that list is a form to hunt through — 257
+                    // rows on a pricing page — for a job the preview does in
+                    // one click.
+                    : '<div class="alert alert-light border py-2" style="font-size:.85rem;">' +
+                        '<i class="fas fa-hand-pointer mr-1"></i> Click anything in the preview to work on it. ' +
+                        'What you pick shows up here, with its own Style and Layout.' +
+                      '</div>' +
+                      (fields
+                        ? '<details><summary style="cursor:pointer;font-size:.85rem;">' +
+                            'All wording in this section (' + fieldElements(doc).length + ')</summary>' +
+                            '<div class="mt-2">' + fields + '</div></details>'
+                        : emptyContent + '<div id="vela-field-list"></div>')) +
             '</div>' +
-            renderHiddenParts(doc) +
-            '<button type="button" class="btn btn-link btn-sm px-0" id="vela-design-reset">Reset design to the original</button>' +
-            '</details></div>';
+
+            '<div class="vela-tab-body pt-3"' + (_htmlTab === 'style' ? '' : ' hidden') + ' data-tab="style">' +
+                '<div id="vela-part-slot">' + renderPartDesign(doc) + '</div>' +
+                '<details class="mb-3"' + (selected ? '' : ' open') + '>' +
+                    '<summary style="cursor:pointer;font-weight:500;">' +
+                        '<i class="fas fa-palette mr-1"></i> Whole section</summary>' +
+                    sectionStyle +
+                    renderHiddenParts(doc) +
+                    '<button type="button" class="btn btn-link btn-sm px-0" id="vela-design-reset">Reset design to the original</button>' +
+                '</details>' +
+            '</div>' +
+
+            '<div class="vela-tab-body pt-3"' + (_htmlTab === 'layout' ? '' : ' hidden') + ' data-tab="layout">' +
+                (ownLayout || '') +
+                (ownRow
+                    ? '<details class="mb-2"><summary style="cursor:pointer;font-size:.85rem;">Other rows in this section</summary>' +
+                        '<div class="form-row mt-2">' + restLayout + '</div></details>'
+                    : (restLayout
+                        ? '<div class="form-row">' + restLayout + '</div>'
+                        : '<div class="alert alert-light border py-2 mb-0"><small>This section has no row of ' +
+                          'columns to rearrange.</small></div>')) +
+            '</div>' +
+            '</div>';
+    }
+
+    function tabButton(name, label, icon) {
+        return '<li class="nav-item">' +
+            '<a class="nav-link' + (_htmlTab === name ? ' active' : '') + '" href="#" data-vela-tab="' + name + '" ' +
+                'style="padding:.35rem .7rem;font-size:.85rem;">' +
+                '<i class="fas ' + icon + ' mr-1"></i>' + label +
+            '</a></li>';
+    }
+
+    /**
+     * Where the selection sits, and a way back up.
+     *
+     * Reaching a card by aiming at the few pixels of padding around its
+     * heading is the game this replaces: every ancestor is one click.
+     */
+    function renderBreadcrumb(doc, selected) {
+        var crumbs = [{ path: null, label: 'Section' }];
+
+        if (selected) {
+            var chain = [];
+            for (var node = selected; node && !node.hasAttribute('data-vela-block'); node = node.parentElement) {
+                chain.unshift(node);
+            }
+            var path = [];
+            chain.forEach(function(node) {
+                var parent = node.parentElement;
+                path.push(Array.prototype.indexOf.call(parent.children, node));
+                crumbs.push({ path: path.join('/'), label: partName(node) });
+            });
+        }
+
+        return '<nav class="mb-2 text-truncate" style="font-size:.75rem;color:#6c757d;">' +
+            crumbs.map(function(c, i) {
+                var last = i === crumbs.length - 1;
+                var label = escHtml(c.label);
+                return (last
+                    ? '<span style="color:#212529;font-weight:600;">' + label + '</span>'
+                    : '<a href="#" class="vela-crumb" data-path="' + escHtml(c.path === null ? '' : c.path) + '">' + label + '</a>');
+            }).join('<span class="mx-1">›</span>') +
+            '</nav>';
+    }
+
+    /** What to call a part in the breadcrumb. */
+    function partName(el) {
+        var tag = el.tagName.toLowerCase();
+        if (/^h[1-6]$/.test(tag)) return 'Heading';
+        if (tag === 'p') return 'Text';
+        if (tag === 'img') return 'Image';
+        if (tag === 'a') return 'Link';
+        if (tag === 'button') return 'Button';
+        if (tag === 'form') return 'Form';
+        if (tag === 'ul' || tag === 'ol') return 'List';
+        if (tag === 'li') return 'List item';
+        if (el.hasAttribute('data-vela-grid')) return 'Row';
+        if (el.querySelector && el.querySelector('[data-vela-field]')) return 'Group';
+        return tag === 'section' ? 'Section part' : 'Block';
     }
 
     /**
@@ -2341,13 +2495,10 @@ PageEditor.registerBlockType = function(name, config) {
 
         var $panel = $('#block-edit-content');
         var scroll = $panel.scrollTop();
-        var design = renderDesignPanel(_htmlDoc);
-        var fields = renderImportedFields(_htmlDoc);
-
-        $panel.find('#vela-design-root').replaceWith(design);
-        if (fields) {
-            $panel.find('#vela-field-list').replaceWith(fields);
-        }
+        // The panel holds the wording list inside its Content tab now, so one
+        // redraw covers both; replacing the list separately afterwards put a
+        // second copy of it on the page.
+        $panel.find('#vela-design-root').replaceWith(renderDesignPanel(_htmlDoc));
         $panel.scrollTop(scroll);
 
         refreshImportedPreview();
@@ -2408,10 +2559,6 @@ PageEditor.registerBlockType = function(name, config) {
                 '</div>' +
                 '<iframe id="vela-html-preview" style="width:100%;height:300px;border:1px solid #e9ecef;border-radius:4px;background:#fff;margin-bottom:12px;"></iframe>' +
                 renderDesignPanel(_htmlDoc) +
-                (fields || '<div id="vela-field-list"></div><div class="alert alert-light border py-2"><small>' +
-                    'No editable wording was found in this section — its text sits inside markup this form cannot take apart. ' +
-                    'Change it under "Edit the HTML directly" below, or restyle it with the design controls above.' +
-                    '</small></div>') +
                 '<details class="mt-3"><summary style="cursor:pointer;font-weight:500;font-size:.9em;">' +
                     '<i class="fas fa-code mr-1"></i> Edit the HTML directly</summary>' +
                     '<textarea class="form-control mt-2" id="html-content" rows="10" style="font-family:monospace;font-size:.8rem;">' + escHtml(html) + '</textarea>' +
@@ -2442,6 +2589,26 @@ PageEditor.registerBlockType = function(name, config) {
                     $(this).closest('[data-field]').find('.vela-field-thumb').attr('src', $(this).val());
                 }
                 scheduleImportedPreview();
+            });
+
+            $('#block-edit-content').on('click.velaImported', '[data-vela-tab]', function(e) {
+                e.preventDefault();
+                _htmlTab = $(this).data('vela-tab');
+                $('#vela-tabs .nav-link').removeClass('active');
+                $(this).addClass('active');
+                $('.vela-tab-body').each(function() {
+                    $(this).attr('hidden', $(this).data('tab') === _htmlTab ? null : 'hidden');
+                });
+            });
+
+            $('#block-edit-content').on('click.velaImported', '.vela-crumb', function(e) {
+                e.preventDefault();
+                var path = $(this).data('path');
+                _htmlSelected = (path === '' || path === undefined) ? null : String(path);
+                redrawPartPanel();
+                // The preview holds the same selection, so it has to hear about
+                // one made from the breadcrumb.
+                refreshImportedPreview();
             });
 
             $('#block-edit-content').on('change.velaImported', '.vela-layout', function() { scheduleImportedPreview(); });
