@@ -18,5 +18,5 @@
     {{-- An imported section's form is stored without an action so a visitor's
          details can never be posted to the site it was copied from; the
          wiring for THIS site is added here, at render time. --}}
-    {!! vela_optimize_imgs(\VelaBuild\Core\Services\ImportedDisclosures::wire(vela_wire_imported_form($block->content['html'] ?? '', $page ?? null, $block))) !!}
+    {!! vela_optimize_imgs(\VelaBuild\Core\Services\ImportedAnimations::settle(\VelaBuild\Core\Services\ImportedCarousels::wire(\VelaBuild\Core\Services\ImportedDisclosures::wire(vela_wire_imported_form($block->content['html'] ?? '', $page ?? null, $block))))) !!}
 </div>
