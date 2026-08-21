@@ -4,6 +4,8 @@ namespace VelaBuild\Core\Services\AiChat\Tools;
 
 use VelaBuild\Core\Models\AiActionLog;
 use VelaBuild\Core\Models\Page;
+use VelaBuild\Core\Models\VelaConfig;
+use VelaBuild\Core\Services\AiChat\StyleConflictDetector;
 
 class GetPageBlocksTool extends BaseTool
 {
@@ -49,6 +51,17 @@ class GetPageBlocksTool extends BaseTool
             ];
         })->toArray();
 
+        // Advanced settings CSS ships with the blocks. Read apart from it, a
+        // block record says the background image is set while the page shows
+        // none, and the answer is always a rule in here painting over it.
+        $pageCss = (string) ($page->custom_css ?? '');
+        $siteCss = (string) (VelaConfig::where('key', 'custom_css_global')->first()?->value ?? '');
+
+        $conflicts = StyleConflictDetector::detect(self::imageTargets($rows), [
+            'page custom CSS (Advanced settings)' => $pageCss,
+            'site-wide custom CSS' => $siteCss,
+        ]);
+
         return [
             'success' => true,
             'page'    => [
@@ -59,11 +72,47 @@ class GetPageBlocksTool extends BaseTool
                 'status' => $page->status,
             ],
             'rows'    => $rows,
+            'custom_css' => [
+                'page' => $pageCss,
+                'site' => $siteCss,
+                'edited_at' => 'Admin: page Advanced settings (page scope) / Settings > Custom CSS (site scope). '
+                    . 'Change it with update_custom_css.',
+            ],
+            'style_conflicts' => $conflicts,
+            'style_conflicts_note' => $conflicts
+                ? 'Custom CSS is hiding something this page is configured to show. Report these before anything else '
+                    . 'when someone says an image or colour is not appearing.'
+                : 'No custom CSS rule was found covering a row or block background image.',
             'note'    => "A row's `name` is an INTERNAL admin label only — it is NOT rendered on the page. "
                 . "To show a visible heading/title to visitors, the row must contain an actual content block "
                 . "(a 'text' block whose content includes the heading, or a hero/cta block with a title field). "
                 . "If a section has a name but no block carrying that text, visitors see no title.",
         ];
+    }
+
+    /**
+     * Selector => image URL for every row and block carrying a background
+     * image, which is what custom CSS can end up covering.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<string, string>
+     */
+    private static function imageTargets(array $rows): array
+    {
+        $targets = [];
+
+        foreach ($rows as $row) {
+            if (!empty($row['background_image'])) {
+                $targets['#row-' . $row['id']] = (string) $row['background_image'];
+            }
+            foreach ($row['blocks'] as $block) {
+                if (!empty($block['background_image'])) {
+                    $targets['#block-' . $block['id']] = (string) $block['background_image'];
+                }
+            }
+        }
+
+        return $targets;
     }
 
     private function resolvePage(array $params): ?Page

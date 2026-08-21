@@ -5,6 +5,7 @@ namespace VelaBuild\Core\Services\AiChat\Tools;
 use VelaBuild\Core\Models\AiActionLog;
 use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Models\Page;
+use VelaBuild\Core\Services\AiChat\StyleConflictDetector;
 
 class GetCustomCssTool extends BaseTool
 {
@@ -43,6 +44,16 @@ class GetCustomCssTool extends BaseTool
                 'page_title' => $page->title,
                 'css' => $page->custom_css ?? '',
                 'has_css' => !empty($page->custom_css),
+                // Read on its own, this CSS looks harmless; against the page's
+                // own background images it is often the reason one of them is
+                // invisible.
+                'style_conflicts' => StyleConflictDetector::detect(
+                    self::imageTargets($page),
+                    [
+                        'page custom CSS (Advanced settings)' => (string) ($page->custom_css ?? ''),
+                        'site-wide custom CSS' => (string) (VelaConfig::where('key', 'custom_css_global')->first()?->value ?? ''),
+                    ]
+                ),
                 'block_variables' => self::blockVariables(),
                 'how_to_recolour_blocks' => 'Buttons, icons and accents are driven by these custom properties, not by '
                     . 'per-element rules. Override them inside #row-<id> or #block-<id> (both ids are rendered on the '
@@ -51,6 +62,31 @@ class GetCustomCssTool extends BaseTool
         }
 
         return ['error' => "Invalid scope '{$scope}'"];
+    }
+
+    /**
+     * Selector => image URL for the rows and blocks of one page.
+     *
+     * @return array<string, string>
+     */
+    private static function imageTargets(Page $page): array
+    {
+        $page->loadMissing('rows.blocks');
+
+        $targets = [];
+
+        foreach ($page->rows as $row) {
+            if (!empty($row->background_image)) {
+                $targets['#row-' . $row->id] = (string) $row->background_image;
+            }
+            foreach ($row->blocks as $block) {
+                if (!empty($block->background_image)) {
+                    $targets['#block-' . $block->id] = (string) $block->background_image;
+                }
+            }
+        }
+
+        return $targets;
     }
 
     /**
