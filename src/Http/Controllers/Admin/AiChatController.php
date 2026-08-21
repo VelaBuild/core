@@ -11,6 +11,7 @@ use VelaBuild\Core\Services\AiChat\ChatToolExecutor;
 use VelaBuild\Core\Jobs\ProcessAiChatMessageJob;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class AiChatController extends Controller
@@ -187,13 +188,64 @@ class AiChatController extends Controller
 
         $user = auth('vela')->user();
         $conversations = AiConversation::where('user_id', $user->id)
+            ->withCount([
+                'messages',
+                'actionLogs as edit_count' => function ($query) {
+                    $query->where('status', 'completed')->whereNull('undone_at');
+                },
+            ])
             ->orderBy('updated_at', 'desc')
             ->take(20)
             ->get(['id', 'title', 'created_at', 'updated_at']);
 
+        // Every conversation is titled by the same generator, so a list of
+        // titles alone reads as twenty copies of one entry. The first thing
+        // the user actually asked for is what tells them apart.
+        $transcripts = AiMessage::whereIn('conversation_id', $conversations->pluck('id'))
+            ->whereIn('role', ['user', 'assistant'])
+            ->orderBy('id')
+            ->get(['conversation_id', 'role', 'content'])
+            ->groupBy('conversation_id');
+
+        $openings = $transcripts->map(
+            fn ($messages) => (string) ($messages->firstWhere('role', 'user')->content ?? '')
+        );
+
+        // The last thing the assistant said is where a conversation was left,
+        // which is what the user is looking for when they come back to it —
+        // and unlike the opening it does not just repeat the title.
+        $endings = $transcripts->map(
+            fn ($messages) => (string) ($messages->last(fn ($message) => $message->role === 'assistant')->content ?? '')
+        );
+
         return response()->json([
             'success' => true,
-            'conversations' => $conversations,
+            'conversations' => $conversations->map(function (AiConversation $conversation) use ($openings, $endings) {
+                $opening = trim(preg_replace('/\s+/', ' ', $openings[$conversation->id] ?? ''));
+                // Markdown scaffolding reads as noise at preview length.
+                $ending = trim(preg_replace(
+                    ['/```.*?```/s', '/[*_`#>]+/', '/\s+/'],
+                    ['', '', ' '],
+                    $endings[$conversation->id] ?? ''
+                ));
+                $title = $conversation->title ?: (Str::limit($opening, 48) ?: 'Conversation #' . $conversation->id);
+
+                // Titles are generated from the opening question, so showing the
+                // opening underneath repeats it. Where the assistant replied,
+                // its last answer says where the conversation was left instead.
+                $preview = $ending !== '' ? $ending : $opening;
+
+                return [
+                    'id' => $conversation->id,
+                    'title' => $title,
+                    'preview' => Str::limit($preview, 110),
+                    'message_count' => $conversation->messages_count,
+                    'edit_count' => $conversation->edit_count,
+                    'updated_at' => $conversation->updated_at?->toIso8601String(),
+                    'updated_human' => $conversation->updated_at?->diffForHumans(),
+                    'started_human' => $conversation->created_at?->isoFormat('D MMM YYYY'),
+                ];
+            }),
         ]);
     }
 

@@ -465,6 +465,13 @@
     // -----------------------------------------------------------------------
 
     document.getElementById('ai-chat-history').addEventListener('click', function() {
+        // Second press closes it — the button is the only way back out when
+        // the panel covers the transcript.
+        if (document.querySelector('.ai-chat-convs')) {
+            closeConversationList();
+            return;
+        }
+
         fetch(config.routes.conversations, {
             headers: { 'X-CSRF-TOKEN': config.csrfToken }
         })
@@ -481,46 +488,186 @@
         });
     });
 
+    /**
+     * The picker used to be a bulleted list of titles, and since every title
+     * comes out of the same generator ("Conversation #12", "Website help"),
+     * twenty rows read as one row repeated. Each row now carries the opening
+     * question, when it was last touched, and how much work it holds, so the
+     * one being looked for is recognisable at a glance.
+     */
     function showConversationList(conversations) {
-        var container = document.getElementById('ai-chat-messages');
+        // Appended to the transcript it landed below whatever was already
+        // there, so opening the list from inside a long conversation scrolled
+        // it out of sight and the button looked broken. It is a panel over the
+        // transcript instead: it opens where the eye already is, whatever the
+        // conversation underneath it holds.
+        var sidebar = document.getElementById('ai-chatbot-sidebar');
 
-        var wrapper = document.createElement('div');
-        wrapper.className = 'ai-chat-message ai-chat-assistant';
+        closeConversationList();
 
-        var bubble = document.createElement('div');
-        bubble.className = 'ai-chat-bubble ai-chat-conv-list';
+        var panel = document.createElement('div');
+        panel.className = 'ai-chat-convs ai-chat-conv-list';
 
-        var title = document.createElement('strong');
-        title.textContent = 'Previous conversations:';
-        bubble.appendChild(title);
+        var head = document.createElement('div');
+        head.className = 'ai-chat-convs-head';
+
+        var heading = document.createElement('span');
+        heading.className = 'ai-chat-convs-heading';
+        heading.textContent = 'Your conversations';
+        head.appendChild(heading);
+
+        var count = document.createElement('span');
+        count.className = 'ai-chat-convs-count';
+        count.textContent = conversations.length;
+        head.appendChild(count);
+
+        var close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'ai-chat-convs-close';
+        close.setAttribute('aria-label', 'Close conversation list');
+        close.innerHTML = '<i class="fas fa-times"></i>';
+        close.addEventListener('click', closeConversationList);
+        head.appendChild(close);
+
+        panel.appendChild(head);
 
         var list = document.createElement('ul');
-        list.className = 'list-unstyled mt-2 mb-0';
+        list.className = 'ai-chat-convs-list';
 
         conversations.forEach(function(conv) {
-            var item = document.createElement('li');
-            var link = document.createElement('a');
-            link.href = '#';
-            link.textContent = conv.title || 'Conversation #' + conv.id;
-            link.setAttribute('data-conv-id', conv.id);
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                var cid = parseInt(this.getAttribute('data-conv-id'), 10);
-                conversationId = cid;
-                lastMessageId = 0;
-                localStorage.setItem('ai-chat-conversation-id', cid);
-                clearMessages();
-                hideUndoBar();
-                loadConversationHistory(cid);
-            });
-            item.appendChild(link);
-            list.appendChild(item);
+            list.appendChild(buildConversationRow(conv, panel));
         });
 
-        bubble.appendChild(list);
-        wrapper.appendChild(bubble);
-        container.appendChild(wrapper);
-        scrollToBottom();
+        panel.appendChild(list);
+        sidebar.appendChild(panel);
+
+        // Between the header and the compose box, both of which stay usable.
+        var head_ = sidebar.querySelector('.vela-ai-chat-head');
+        var compose = sidebar.querySelector('.vela-ai-compose');
+        panel.style.top = ((head_ ? head_.offsetHeight : 56) + 8) + 'px';
+        panel.style.bottom = ((compose ? compose.offsetHeight : 60) + 8) + 'px';
+
+        var active = panel.querySelector('.ai-chat-conv.is-active');
+        if (active) active.scrollIntoView({ block: 'nearest' });
+
+        document.addEventListener('keydown', conversationListEscape);
+        setTimeout(function() { document.addEventListener('mousedown', conversationListOutside); }, 0);
+    }
+
+    function closeConversationList() {
+        var open = document.querySelector('.ai-chat-convs');
+        if (open) open.remove();
+        document.removeEventListener('keydown', conversationListEscape);
+        document.removeEventListener('mousedown', conversationListOutside);
+    }
+
+    function conversationListEscape(e) {
+        if (e.key === 'Escape') closeConversationList();
+    }
+
+    function conversationListOutside(e) {
+        var panel = document.querySelector('.ai-chat-convs');
+        if (!panel) return;
+        // The history button toggles the panel itself; ignore clicks on it here.
+        if (panel.contains(e.target) || e.target.closest('#ai-chat-history')) return;
+        closeConversationList();
+    }
+
+    function buildConversationRow(conv, panel) {
+        var item = document.createElement('li');
+
+        var row = document.createElement('button');
+        row.type = 'button';
+        row.className = 'ai-chat-conv';
+        if (conversationId && parseInt(conv.id, 10) === parseInt(conversationId, 10)) {
+            row.classList.add('is-active');
+        }
+
+        var title = conv.title || ('Conversation #' + conv.id);
+
+        var avatar = document.createElement('span');
+        avatar.className = 'ai-chat-conv-avatar';
+        // A stable hue per conversation: colour is the fastest way back to the
+        // row someone opened yesterday, and it survives retitling.
+        avatar.style.background = 'hsl(' + ((conv.id * 47) % 360) + ' 62% 46%)';
+        avatar.textContent = title.trim().charAt(0).toUpperCase() || '#';
+        row.appendChild(avatar);
+
+        var body = document.createElement('span');
+        body.className = 'ai-chat-conv-body';
+
+        var top = document.createElement('span');
+        top.className = 'ai-chat-conv-top';
+
+        var name = document.createElement('span');
+        name.className = 'ai-chat-conv-title';
+        name.textContent = title;
+        top.appendChild(name);
+
+        var when = document.createElement('time');
+        when.className = 'ai-chat-conv-time';
+        when.textContent = conv.updated_human || '';
+        if (conv.updated_at) when.setAttribute('datetime', conv.updated_at);
+        if (conv.started_human) when.title = 'Started ' + conv.started_human;
+        top.appendChild(when);
+
+        body.appendChild(top);
+
+        if (conv.preview) {
+            var preview = document.createElement('span');
+            preview.className = 'ai-chat-conv-preview';
+            preview.textContent = conv.preview;
+            body.appendChild(preview);
+        }
+
+        var meta = document.createElement('span');
+        meta.className = 'ai-chat-conv-meta';
+
+        if (conv.message_count) {
+            meta.appendChild(metaChip('far fa-comment', conv.message_count + (conv.message_count === 1 ? ' message' : ' messages')));
+        }
+        if (conv.edit_count) {
+            var edits = metaChip('fas fa-pen', conv.edit_count + (conv.edit_count === 1 ? ' edit' : ' edits'));
+            edits.classList.add('ai-chat-conv-chip-edits');
+            meta.appendChild(edits);
+        }
+        if (row.classList.contains('is-active')) {
+            var current = metaChip('fas fa-circle', 'Open now');
+            current.classList.add('ai-chat-conv-chip-current');
+            meta.appendChild(current);
+        }
+        if (meta.childNodes.length) body.appendChild(meta);
+
+        row.appendChild(body);
+
+        row.addEventListener('click', function() {
+            var cid = parseInt(conv.id, 10);
+            conversationId = cid;
+            lastMessageId = 0;
+            localStorage.setItem('ai-chat-conversation-id', cid);
+            closeConversationList();
+            clearMessages();
+            hideUndoBar();
+            loadConversationHistory(cid);
+        });
+
+        item.appendChild(row);
+        return item;
+    }
+
+    function metaChip(iconClass, text) {
+        var chip = document.createElement('span');
+        chip.className = 'ai-chat-conv-chip';
+
+        var icon = document.createElement('i');
+        icon.className = iconClass;
+        chip.appendChild(icon);
+
+        var label = document.createElement('span');
+        label.textContent = text;
+        chip.appendChild(label);
+
+        return chip;
     }
 
     // -----------------------------------------------------------------------
