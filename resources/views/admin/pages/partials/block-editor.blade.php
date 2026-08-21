@@ -167,6 +167,10 @@
 .block-img-dz .dz-preview .dz-success-mark,
 .block-img-dz .dz-preview .dz-error-mark { display: none; }
 .block-img-dz .dz-preview .dz-progress { display: none; }
+/* Keep the media picker on one line — a 100%-wide .form-control wraps the append group. */
+.input-group > .form-control.media-field-input { flex: 1 1 auto; width: 1%; min-width: 0; }
+#block-edit-modal .input-group { flex-wrap: nowrap; }
+.media-field-preview img { display: block; }
 .media-browser-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
 .media-browser-item { cursor: pointer; border: 2px solid transparent; border-radius: 6px; overflow: hidden; transition: border-color 0.2s, box-shadow 0.2s; background: #f8f9fa; }
 .media-browser-item:hover { border-color: #321fdb; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }

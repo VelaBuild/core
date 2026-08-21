@@ -125,6 +125,21 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     // --- Helper ---
+    // Image URL field with a media-library picker, live thumbnail and a clear button.
+    function imageField(id, label, value) {
+        value = value || '';
+        return '<div class="form-group"><label>' + label + '</label>' +
+            '<div class="input-group">' +
+            '<input type="text" class="form-control media-field-input" id="' + id + '" value="' + escHtml(value) + '" placeholder="Pick from the media library or paste a URL">' +
+            '<div class="input-group-append">' +
+            '<button type="button" class="btn btn-outline-primary browse-media-field" title="Media Library"><i class="fas fa-images mr-1"></i> Choose Image</button>' +
+            '<button type="button" class="btn btn-outline-secondary clear-media-field" title="Remove image"><i class="fas fa-times"></i></button>' +
+            '</div></div>' +
+            '<div class="media-field-preview mt-2"' + (value ? '' : ' style="display:none;"') + '>' +
+            '<img src="' + (value ? escHtml(value) : '') + '" style="max-height:80px;border-radius:4px;border:1px solid #e5e7eb;">' +
+            '</div></div>';
+    }
+
     function escHtml(str) {
         if (!str) return '';
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -3446,7 +3461,10 @@ PageEditor.registerBlockType = function(name, config) {
                     '<option value="left"' + (s.text_alignment === 'left' ? ' selected' : '') + '>Left</option>' +
                     '<option value="center"' + (s.text_alignment !== 'left' && s.text_alignment !== 'right' ? ' selected' : '') + '>Center</option>' +
                     '<option value="right"' + (s.text_alignment === 'right' ? ' selected' : '') + '>Right</option></select></div>' +
-                '<div class="form-group col-md-4"><label>Min Height</label><input type="text" class="form-control" id="hero-height" value="' + escHtml(s.min_height || '80vh') + '" placeholder="80vh"></div></div>';
+                '<div class="form-group col-md-4"><label>Min Height</label><input type="text" class="form-control" id="hero-height" value="' + escHtml(s.min_height || '80vh') + '" placeholder="80vh"></div></div>' +
+                // The banner image is what people come here to change, so it sits in the
+                // block form itself rather than behind the collapsed Block Style panel.
+                imageField('block-bg-image', 'Background Image', block.background_image);
         },
         initEditor: function(block) {},
         collectData: function(block) {
@@ -3870,9 +3888,7 @@ PageEditor.registerBlockType = function(name, config) {
             '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-bg-color" value="' + escHtml(block.background_color || '#ffffff') + '" style="width:60px;padding:2px;">' +
             '<input type="text" class="form-control" id="block-bg-color-text" value="' + escHtml(block.background_color || '') + '" placeholder="#hex or empty for none">' +
             '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
-            '<div class="form-group"><label>Background Image URL</label>' +
-            '<input type="text" class="form-control" id="block-bg-image" value="' + escHtml(block.background_image || '') + '" placeholder="https://...">' +
-            '</div>' +
+            (html.indexOf('id="block-bg-image"') === -1 ? imageField('block-bg-image', 'Background Image', block.background_image) : '') +
             '<div class="form-group"><label>Text Color</label>' +
             '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-text-color" value="' + escHtml(block.text_color || '#000000') + '" style="width:60px;padding:2px;">' +
             '<input type="text" class="form-control" id="block-text-color-text" value="' + escHtml(block.text_color || '') + '" placeholder="#hex or empty for default">' +
@@ -4154,10 +4170,7 @@ PageEditor.registerBlockType = function(name, config) {
                 '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-bg-color" value="' + escHtml(row.background_color || '#ffffff') + '" style="width:60px;padding:2px;">' +
                 '<input type="text" class="form-control" id="row-bg-color-text" value="' + escHtml(row.background_color || '') + '" placeholder="#hex or empty for none">' +
                 '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
-                '<div class="form-group"><label>Background Image URL</label>' +
-                '<input type="text" class="form-control" id="row-bg-image" value="' + escHtml(row.background_image || '') + '" placeholder="https://...">' +
-                (row.background_image ? '<div class="mt-2"><img src="' + escHtml(row.background_image) + '" style="max-height:80px;border-radius:4px;"></div>' : '') +
-                '</div>' +
+                imageField('row-bg-image', 'Background Image', row.background_image) +
                 '<hr>' +
                 '<div class="form-group"><label>Text Color</label>' +
                 '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-text-color" value="' + escHtml(row.text_color || '#000000') + '" style="width:60px;padding:2px;">' +
@@ -4247,11 +4260,26 @@ PageEditor.registerBlockType = function(name, config) {
             $('#media-browser-modal').modal('hide');
         });
 
+        $(document).on('click', '.clear-media-field', function() {
+            $(this).closest('.input-group').find('input[type="text"]').val('').trigger('change');
+        });
+
+        $(document).on('input change', '.media-field-input', function() {
+            var val = ($(this).val() || '').trim();
+            var $preview = $(this).closest('.form-group').find('.media-field-preview');
+            if (val) {
+                $preview.find('img').attr('src', val);
+                $preview.show();
+            } else {
+                $preview.hide().find('img').attr('src', '');
+            }
+        });
+
         $(document).on('click', '.browse-media-field', function() {
             var $input = $(this).closest('.input-group').find('input[type="text"]');
             var $row = $(this).closest('.gallery-image-row, .carousel-slide-row, .testi-row');
             openMediaBrowser(function(media) {
-                $input.val(media.url);
+                $input.val(media.url).trigger('change');
                 if (media.alt && $row.length) {
                     var $alt = $row.find('.gal-alt');
                     if ($alt.length && !$alt.val()) $alt.val(media.alt);
