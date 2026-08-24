@@ -2,7 +2,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <title>@yield('title', config('app.name', 'Vela CMS'))</title>
-    <meta name="description" content="@yield('description', '')">
+    {{-- A page with no description of its own falls back to the site's, rather
+         than shipping an empty tag that search engines and audits both flag. --}}
+    <meta name="description" content="@yield('description', config('vela.site.description') ?: config('vela.site.tagline', ''))">
 
     <!-- Additional Meta Tags -->
     <meta name="keywords" content="@yield('keywords', '')">

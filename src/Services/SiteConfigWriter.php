@@ -43,6 +43,12 @@ class SiteConfigWriter
         if (! empty($siteConfig['site_tagline'])) {
             config(['vela.site.tagline' => $siteConfig['site_tagline']]);
         }
+        // write() has always recorded this, but nothing ever read it back into
+        // the config — so the site description a user typed in Settings never
+        // reached the page that needed it.
+        if (! empty($siteConfig['site_description'])) {
+            config(['vela.site.description' => $siteConfig['site_description']]);
+        }
         if (! empty($siteConfig['active_template'])) {
             config(['vela.template.active' => $siteConfig['active_template']]);
         }

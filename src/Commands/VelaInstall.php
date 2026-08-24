@@ -348,6 +348,18 @@ class VelaInstall extends Command
             }
         });
 
+        // Every page without a description of its own falls back to the site's,
+        // and a fresh install has none — so each page ships an empty meta
+        // description. The theme's own hero subtitle is the closest thing to a
+        // description of this site that already exists; the user replaces it in
+        // Settings like any other starter content.
+        if (! VelaConfig::where('key', 'site_description')->exists()) {
+            $starter = $this->starterDescription($rowsData);
+            if ($starter !== null) {
+                VelaConfig::updateOrCreate(['key' => 'site_description'], ['value' => $starter]);
+            }
+        }
+
         $this->components->twoColumnDetail('Homepage', '<fg=green>installed from ' . config('vela.template.active', 'default') . ' template</>');
     }
 
@@ -398,6 +410,39 @@ class VelaInstall extends Command
      * into the runtime config at boot, which is what makes an install pick up
      * the old site's theme. Remove it and re-read the config file.
      */
+    /**
+     * The homepage's own opening line, to stand in as the site description.
+     *
+     * A hero subtitle if the theme leads with one; otherwise the first
+     * paragraph of its first text block, which is what a theme without a hero
+     * (editorial) opens with instead.
+     */
+    protected function starterDescription(array $rowsData): ?string
+    {
+        foreach ($rowsData as $rowData) {
+            foreach ($rowData['blocks'] ?? [] as $blockData) {
+                if (($blockData['type'] ?? '') === 'hero' && !empty($blockData['content']['subtitle'])) {
+                    return $blockData['content']['subtitle'];
+                }
+            }
+        }
+
+        foreach ($rowsData as $rowData) {
+            foreach ($rowData['blocks'] ?? [] as $blockData) {
+                if (($blockData['type'] ?? '') !== 'text') {
+                    continue;
+                }
+                foreach ($blockData['content']['blocks'] ?? [] as $editorBlock) {
+                    if (($editorBlock['type'] ?? '') === 'paragraph' && !empty($editorBlock['data']['text'])) {
+                        return strip_tags($editorBlock['data']['text']);
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     protected function discardOrphanedSiteConfig(): void
     {
         if (VelaConfig::where('key', 'active_template')->exists()) {

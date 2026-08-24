@@ -150,6 +150,30 @@ a:hover {
     transition: all 0.3s ease;
 }
 
+/* Mobile navigation panel.
+   `.hidden` keeps the desktop nav out of the way on a phone; the menu button
+   adds `.is-open`, and this drops the same links down as a panel. The
+   !important is needed only to outrank `.hidden`'s display:none. */
+@media (max-width: 767px) {
+    .primary-nav.is-open {
+        display: flex !important;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        padding: 20px 24px;
+        border-top: 1px solid var(--light-gray);
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+    }
+    /* space-x-8 puts a left margin on every sibling but the first, which
+       reads as a stray indent once the row becomes a column. */
+    .primary-nav.is-open > :not([hidden]) ~ :not([hidden]) { margin-left: 0; }
+}
+
 .nav-premium.scrolled {
     background: rgba(255, 255, 255, 0.98);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
