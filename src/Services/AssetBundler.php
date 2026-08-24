@@ -170,6 +170,15 @@ class AssetBundler
         $manifest = $this->manifest();
         $html = '';
 
+        // A bundle the manifest does not know about has never been built —
+        // most often on a site that installed but never ran vela:assets:build.
+        // Emitting nothing for it serves the page with no stylesheet at all,
+        // so fall back to the source files that bundle is made of.
+        $unbuilt = array_values(array_filter(
+            $bundleNames,
+            fn ($b) => !isset($manifest["{$b}.css"]) && !isset($manifest["{$b}.js"])
+        ));
+
         // CSS first (all bundles), then JS — keeps head/body ordering sane.
         foreach ($bundleNames as $bundle) {
             $key = "{$bundle}.css";
@@ -185,7 +194,7 @@ class AssetBundler
             }
         }
 
-        return $html;
+        return $html . ($unbuilt ? $this->rawTags($unbuilt) : '');
     }
 
     protected function bundleUrl(string $filename): string

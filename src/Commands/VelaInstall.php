@@ -43,6 +43,12 @@ class VelaInstall extends Command
         $this->callSilently('vendor:publish', ['--tag' => 'vela-errors']);
         $this->components->twoColumnDetail('Config & assets', $force ? '<fg=green>published (forced)</>' : '<fg=green>published (existing files preserved)</>');
 
+        // Bundles are generated per site, not shipped with the package. Until
+        // they exist the layouts have no stylesheet to link, so build them as
+        // part of installing rather than leaving it to a command nobody runs.
+        $this->callSilently('vela:assets:build');
+        $this->components->twoColumnDetail('Asset bundles', '<fg=green>built</>');
+
         // 2. Queue setup
         $this->configureQueue();
 
