@@ -184,7 +184,7 @@
         <div class="md-container">
             <div class="md-nav-inner">
                 <a href="{{ route('vela.public.home') }}" class="md-logo">
-                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [72, 144], 'fit', []) !!}
+                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), '', [72, 144], 'fit', []) !!}
                     <span class="md-logo-name">{{ config('app.name', 'Vela CMS') }}</span>
                 </a>
 

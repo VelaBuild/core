@@ -61,7 +61,7 @@ if (!function_exists('renderDarkMarkdown')) {
                     @endif
                     <h1>{{ $post->translated_title }}</h1>
                     <div class="dk-article-meta">
-                        <time>{{ ($post->published_at ?? $post->created_at)->format('F j, Y') }}</time>
+                        <time datetime="{{ ($post->published_at ?? $post->created_at)->toDateString() }}">{{ ($post->published_at ?? $post->created_at)->format('F j, Y') }}</time>
                         @if($post->categories->count() > 0)
                             <span class="dk-meta-dot">·</span>
                             <a href="{{ route('vela.public.categories.show', Str::slug($post->categories->first()->name)) }}">{{ $post->categories->first()->translated_name }}</a>
@@ -198,7 +198,7 @@ if (!function_exists('renderDarkMarkdown')) {
                     @endif
                     <h3 class="dk-card-title">{{ $relatedPost->translated_title }}</h3>
                     <div class="dk-card-meta">
-                        <time>{{ ($relatedPost->published_at ?? $relatedPost->created_at)->format('M j, Y') }}</time>
+                        <time datetime="{{ ($relatedPost->published_at ?? $relatedPost->created_at)->toDateString() }}">{{ ($relatedPost->published_at ?? $relatedPost->created_at)->format('M j, Y') }}</time>
                     </div>
                 </div>
             </a>

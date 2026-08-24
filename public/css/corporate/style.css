@@ -433,7 +433,9 @@
     padding: 12px 0;
     flex-wrap: wrap;
 }
-.co-breadcrumb a { color: #1e40af; text-decoration: none; }
+/* Underlined always: the link colour alone sits at 1.83:1 against the
+   surrounding breadcrumb text, so colour cannot be the only signal. */
+.co-breadcrumb a { color: #1e40af; text-decoration: underline; }
 .co-breadcrumb a:hover { text-decoration: underline; }
 .co-breadcrumb-sep { color: #cbd5e1; }
 
@@ -621,7 +623,7 @@
 }
 .co-footer-brand .co-footer-logo:hover { text-decoration: none; color: #bfdbfe; }
 .co-footer-brand .co-footer-logo img { height: 32px; width: auto; max-width: 120px; object-fit: contain; border-radius: 4px; }
-.co-footer-brand p { font-size: 0.9rem; line-height: 1.6; color: #64748b; max-width: 260px; }
+.co-footer-brand p { font-size: 0.9rem; line-height: 1.6; color: #73839a; max-width: 260px; }
 .co-footer-col h4 {
     font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
     font-size: 0.8rem;
@@ -633,13 +635,13 @@
 }
 .co-footer-col ul { list-style: none; }
 .co-footer-col li { margin-bottom: 10px; }
-.co-footer-col a { color: #64748b; font-size: 0.9rem; text-decoration: none; }
+.co-footer-col a { color: #73839a; font-size: 0.9rem; text-decoration: none; }
 .co-footer-col a:hover { color: #fff; text-decoration: none; }
 .co-footer-bottom {
     border-top: 1px solid #1e293b;
     padding: 20px 0;
     font-size: 0.82rem;
-    color: #475569;
+    color: #6f839e;
     display: flex;
     align-items: center;
     justify-content: space-between;

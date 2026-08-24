@@ -36,7 +36,7 @@
 <section class="mn-section">
     <div class="mn-container">
         @if($posts->count() > 0)
-            <p style="color:#888;margin-bottom:24px;">{{ __('vela::public.showing_category_articles', ['count' => $posts->count(), 'category' => $category->translated_name]) }}</p>
+            <p style="color:#757575;margin-bottom:24px;">{{ __('vela::public.showing_category_articles', ['count' => $posts->count(), 'category' => $category->translated_name]) }}</p>
 
             <div class="mn-grid">
                 @foreach($posts as $post)

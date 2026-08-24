@@ -48,7 +48,10 @@
 </div>
 
 <!-- Articles Grid -->
-<section class="py-16 bg-white">
+{{-- A <div>: each card below is an <article>, so the h2 inside it belongs
+     to that article, not to this wrapper — which would leave a <section>
+     with no heading of its own. --}}
+<div class="py-16 bg-white">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         @if($posts->count() > 0)
         <div class="mb-8 flex justify-between items-center">
@@ -140,7 +143,7 @@
         </div>
         @endif
     </div>
-</section>
+</div>
 
 <!-- Categories Section -->
 @if($categories->count() > 0)

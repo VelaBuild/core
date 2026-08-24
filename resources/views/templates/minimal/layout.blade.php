@@ -242,7 +242,7 @@
         .mn-card-body { padding: 20px; }
         .mn-card-meta {
             font-size: 0.8rem;
-            color: #888;
+            color: #757575;
             margin-bottom: 8px;
             display: flex;
             align-items: center;
@@ -284,7 +284,7 @@
         }
         .mn-chip:hover { border-color: #1a1a1a; background: #fafafa; }
         .mn-chip img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
-        .mn-chip-count { font-size: 0.8rem; color: #888; font-weight: 400; }
+        .mn-chip-count { font-size: 0.8rem; color: #757575; font-weight: 400; }
 
         /* Article page */
         .mn-article-header { padding: 48px 0 0; }
@@ -308,7 +308,7 @@
             color: #666;
             margin-bottom: 16px;
         }
-        .mn-article-header .mn-date { font-size: 0.85rem; color: #888; }
+        .mn-article-header .mn-date { font-size: 0.85rem; color: #757575; }
         .mn-article-img {
             margin: 32px 0;
             border-radius: 8px;
@@ -363,10 +363,10 @@
         .mn-breadcrumb {
             padding: 16px 0;
             font-size: 0.85rem;
-            color: #888;
+            color: #757575;
             border-bottom: 1px solid #f0f0f0;
         }
-        .mn-breadcrumb a { color: #888; transition: color 0.2s; }
+        .mn-breadcrumb a { color: #757575; transition: color 0.2s; }
         .mn-breadcrumb a:hover { color: #1a1a1a; }
         .mn-breadcrumb span { margin: 0 8px; }
 
@@ -394,7 +394,7 @@
         .mn-footer {
             border-top: 1px solid #e5e5e5;
             padding: 48px 0 32px;
-            color: #888;
+            color: #757575;
             font-size: 0.85rem;
         }
         .mn-footer-inner {
@@ -406,7 +406,7 @@
         }
         .mn-footer-brand { max-width: 320px; }
         .mn-footer-brand .mn-logo { margin-bottom: 12px; }
-        .mn-footer-brand p { color: #888; font-size: 0.85rem; line-height: 1.6; }
+        .mn-footer-brand p { color: #757575; font-size: 0.85rem; line-height: 1.6; }
         .mn-footer-links h4 {
             font-family: 'Inter', sans-serif;
             font-size: 0.85rem;
@@ -416,14 +416,14 @@
         }
         .mn-footer-links ul { list-style: none; }
         .mn-footer-links li { margin-bottom: 8px; }
-        .mn-footer-links a { color: #888; transition: color 0.2s; }
+        .mn-footer-links a { color: #757575; transition: color 0.2s; }
         .mn-footer-links a:hover { color: #1a1a1a; }
         .mn-footer-bottom {
             margin-top: 40px;
             padding-top: 20px;
             border-top: 1px solid #e5e5e5;
             text-align: center;
-            color: #aaa;
+            color: #757575;
         }
         @media (max-width: 640px) {
             .mn-footer-inner { flex-direction: column; }
@@ -453,7 +453,7 @@
         <div class="mn-container">
             <div class="mn-nav-inner">
                 <a href="{{ route('vela.public.home') }}" class="mn-logo">
-                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [100, 200], 'fit', []) !!}
+                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), '', [100, 200], 'fit', []) !!}
                     <span>{{ config('app.name', 'Vela CMS') }}</span>
                 </a>
 
@@ -525,7 +525,7 @@
             <div class="mn-footer-inner">
                 <div class="mn-footer-brand">
                     <a href="{{ route('vela.public.home') }}" class="mn-logo">
-                        {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [100, 200], 'fit', []) !!}
+                        {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), '', [100, 200], 'fit', []) !!}
                         <span>{{ config('app.name', 'Vela CMS') }}</span>
                     </a>
                     <p>{{ config('vela.site.tagline', '') }}</p>

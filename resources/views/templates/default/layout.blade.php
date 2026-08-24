@@ -122,7 +122,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-12">
                     <div class="col-span-1 md:col-span-2">
                         <div class="flex items-center space-x-3 mb-6">
-                            {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [100, 200], 'fit', ['class' => 'h-10 w-auto']) !!}
+                            {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), '', [100, 200], 'fit', ['class' => 'h-10 w-auto']) !!}
                             <div>
                                 <h2 class="text-xl font-bold text-white">{{ config('app.name', 'Vela CMS') }}</h2>
                             </div>

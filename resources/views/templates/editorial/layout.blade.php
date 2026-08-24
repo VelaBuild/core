@@ -195,7 +195,7 @@
         <div class="ed-container">
             <div class="ed-masthead-inner">
                 <a href="{{ route('vela.public.home') }}" class="ed-logo">
-                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [80, 160], 'fit', []) !!}
+                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), '', [80, 160], 'fit', []) !!}
                     <span class="ed-logo-name">{{ config('app.name', 'Vela CMS') }}</span>
                 </a>
 

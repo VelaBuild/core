@@ -550,7 +550,7 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-newspaper',
             'view' => 'vela::public.pages.blocks.posts_grid',
             'editor' => null,
-            'defaults' => ['content' => [], 'settings' => ['columns' => 3, 'max_count' => 12, 'order_by' => 'newest']],
+            'defaults' => ['content' => [], 'settings' => ['columns' => 3, 'max_count' => 12, 'order_by' => 'newest', 'skip' => 0]],
         ]);
 
         $vela->registerBlock('hero', [

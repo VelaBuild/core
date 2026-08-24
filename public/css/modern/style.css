@@ -214,7 +214,7 @@
     align-items: center;
     gap: 10px;
     font-size: 0.78rem;
-    color: #94a3b8;
+    color: #627693;
     font-weight: 500;
     margin-top: auto;
 }
@@ -289,7 +289,7 @@
     align-items: center;
     gap: 8px;
     font-size: 0.82rem;
-    color: #94a3b8;
+    color: #627693;
     padding: 16px 0;
     flex-wrap: wrap;
 }
@@ -518,7 +518,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #94a3b8;
+    color: #627693;
 }
 .md-share-btn {
     display: inline-flex;
@@ -610,7 +610,7 @@
 .md-empty-state {
     text-align: center;
     padding: 80px 24px;
-    color: #94a3b8;
+    color: #627693;
 }
 .md-empty-state svg {
     width: 56px;
@@ -652,7 +652,7 @@
 }
 .md-footer-brand p {
     font-size: 0.88rem;
-    color: #94a3b8;
+    color: #627693;
     max-width: 280px;
     line-height: 1.6;
 }
@@ -684,7 +684,7 @@
     border-top: 1px solid #f1f5f9;
     padding: 16px 0;
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: #627693;
 }
 
 @media (max-width: 640px) {

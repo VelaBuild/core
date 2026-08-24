@@ -571,7 +571,9 @@ a:hover {
 .text-center { text-align: center; }
 .text-left { text-align: left; }
 .text-right { text-align: right; }
-.text-gray-500 { --tw-text-opacity: 1; color: rgb(107 114 128 / var(--tw-text-opacity)); }
+/* Nudged from 107 114 128: that value clears 4.5:1 on white but only
+   reaches 4.39:1 on the gray-100 bands this class is used over. */
+.text-gray-500 { --tw-text-opacity: 1; color: rgb(104 110 124 / var(--tw-text-opacity)); }
 .text-gray-600 { --tw-text-opacity: 1; color: rgb(75 85 99 / var(--tw-text-opacity)); }
 .text-gray-700 { --tw-text-opacity: 1; color: rgb(55 65 81 / var(--tw-text-opacity)); }
 .text-gray-800 { --tw-text-opacity: 1; color: rgb(31 41 55 / var(--tw-text-opacity)); }

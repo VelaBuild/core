@@ -176,7 +176,7 @@
         <div class="co-container">
             <div class="co-nav-inner">
                 <a href="{{ route('vela.public.home') }}" class="co-logo">
-                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [72, 144], 'fit', []) !!}
+                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), '', [72, 144], 'fit', []) !!}
                     <span>{{ config('app.name', 'Vela CMS') }}</span>
                 </a>
 
@@ -229,7 +229,7 @@
             <div class="co-footer-grid">
                 <div class="co-footer-brand">
                     <a href="{{ route('vela.public.home') }}" class="co-footer-logo">
-                        {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [80, 160], 'fit', []) !!}
+                        {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), '', [80, 160], 'fit', []) !!}
                         <span>{{ config('app.name', 'Vela CMS') }}</span>
                     </a>
                     <p>{{ config('vela.site.tagline', '') }}</p>

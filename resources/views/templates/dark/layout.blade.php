@@ -20,8 +20,8 @@
     <style>
         /* Critical inline CSS — Dark Theme */
         :root {
-            --block-accent: #14b8a6;
-            --block-accent-hover: #0d9488;
+            --block-accent: #0d857b;
+            --block-accent-hover: #0b7267;
             --block-text-primary: #e5e5e5;
             --block-text-secondary: #d4d4d4;
             --block-text-muted: #a3a3a3;
@@ -29,7 +29,7 @@
             --block-bg-light: #141414;
             --block-bg-hover: #1a1a1a;
             --block-bg-white: #0a0a0a;
-            --block-form-border: #404040;
+            --block-form-border: #787878;
             --block-overlay: rgba(0,0,0,0.8);
             --block-overlay-light: rgba(0,0,0,0.7);
         }
@@ -192,7 +192,7 @@
         <div class="dk-container">
             <div class="dk-nav-inner">
                 <a href="{{ route('vela.public.home') }}" class="dk-logo">
-                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [72, 144], 'fit', []) !!}
+                    {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), '', [72, 144], 'fit', []) !!}
                     <span class="dk-logo-name">{{ config('app.name', 'Vela CMS') }}</span>
                 </a>
 

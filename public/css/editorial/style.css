@@ -132,7 +132,7 @@
     align-items: center;
     gap: 12px;
     font-size: 0.82rem;
-    color: #6b7280;
+    color: #686e7c;
 }
 .ed-featured-meta .ed-dot { color: #d1d5db; }
 
@@ -172,7 +172,7 @@
     align-items: center;
     justify-content: center;
     background: #f3f4f6;
-    color: #9ca3af;
+    color: #686e7c;
 }
 .ed-placeholder svg { width: 36px; height: 36px; }
 
@@ -210,7 +210,7 @@
 }
 .ed-card-date {
     font-size: 0.78rem;
-    color: #9ca3af;
+    color: #686e7c;
     font-weight: 500;
 }
 
@@ -295,7 +295,7 @@
     align-items: center;
     gap: 16px;
     font-size: 0.85rem;
-    color: #6b7280;
+    color: #686e7c;
     flex-wrap: wrap;
 }
 .ed-article-meta a { color: #b91c1c; }
@@ -441,11 +441,13 @@
     align-items: center;
     gap: 8px;
     font-size: 0.8rem;
-    color: #6b7280;
+    color: #686e7c;
     padding: 16px 0;
     flex-wrap: wrap;
 }
-.ed-breadcrumb a { color: #b91c1c; text-decoration: none; }
+/* Underlined always — the link colour alone is 1.26:1 against the text
+   around it, which is not enough to distinguish it. */
+.ed-breadcrumb a { color: #b91c1c; text-decoration: underline; }
 .ed-breadcrumb a:hover { text-decoration: underline; }
 .ed-breadcrumb-sep { color: #d1d5db; }
 
@@ -514,7 +516,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    color: #6b7280;
+    color: #686e7c;
 }
 .ed-share-btn {
     display: inline-flex;
@@ -543,10 +545,10 @@
 }
 .ed-category-card:hover { border-color: #b91c1c; text-decoration: none; background: #fef2f2; }
 .ed-category-info h3 { font-size: 1rem; color: #111827; margin-bottom: 4px; }
-.ed-category-info p { font-size: 0.85rem; color: #6b7280; }
+.ed-category-info p { font-size: 0.85rem; color: #686e7c; }
 .ed-category-count {
     font-size: 0.85rem;
-    color: #9ca3af;
+    color: #686e7c;
     font-weight: 600;
     white-space: nowrap;
     flex-shrink: 0;
@@ -569,13 +571,13 @@
     border-bottom: 3px solid #111827;
 }
 .ed-posts-header h1 {}
-.ed-posts-header p { color: #6b7280; margin-top: 10px; max-width: 520px; font-size: 1rem; }
+.ed-posts-header p { color: #686e7c; margin-top: 10px; max-width: 520px; font-size: 1rem; }
 
 /* Empty state */
 .ed-empty-state {
     text-align: center;
     padding: 80px 24px;
-    color: #6b7280;
+    color: #686e7c;
 }
 .ed-empty-state svg {
     width: 56px;
@@ -613,7 +615,7 @@
 .ed-footer-logo:hover { color: #b91c1c; text-decoration: none; }
 .ed-footer-brand p {
     font-size: 0.88rem;
-    color: #6b7280;
+    color: #686e7c;
     max-width: 280px;
     line-height: 1.6;
 }
@@ -635,7 +637,7 @@
     border-top: 1px solid #e5e7eb;
     padding: 16px 0;
     font-size: 0.8rem;
-    color: #9ca3af;
+    color: #686e7c;
 }
 
 @media (max-width: 640px) {

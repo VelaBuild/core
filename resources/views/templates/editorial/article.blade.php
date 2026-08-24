@@ -61,7 +61,7 @@ if (!function_exists('renderEditorialMarkdown')) {
                     @endif
                     <h1>{{ $post->translated_title }}</h1>
                     <div class="ed-article-meta">
-                        <time>{{ ($post->published_at ?? $post->created_at)->format('F j, Y') }}</time>
+                        <time datetime="{{ ($post->published_at ?? $post->created_at)->toDateString() }}">{{ ($post->published_at ?? $post->created_at)->format('F j, Y') }}</time>
                         @if($post->categories->count() > 0)
                             <span class="ed-meta-dot">·</span>
                             <a href="{{ route('vela.public.categories.show', Str::slug($post->categories->first()->name)) }}">{{ $post->categories->first()->translated_name }}</a>
@@ -143,10 +143,10 @@ if (!function_exists('renderEditorialMarkdown')) {
                                 @endswitch
                             @endforeach
                         @else
-                            <p style="color:#6b7280;">{{ trans('vela::global.content_processing') }}</p>
+                            <p style="color:#686e7c;">{{ trans('vela::global.content_processing') }}</p>
                         @endif
                     @else
-                        <p style="color:#6b7280;">{{ __('vela::public.no_content_available') }}</p>
+                        <p style="color:#686e7c;">{{ __('vela::public.no_content_available') }}</p>
                     @endif
 
                     <!-- Page blocks -->
@@ -217,7 +217,7 @@ if (!function_exists('renderEditorialMarkdown')) {
                     @endif
                     <h3 class="ed-card-title">{{ $relatedPost->translated_title }}</h3>
                     <div class="ed-card-date">
-                        <time>{{ ($relatedPost->published_at ?? $relatedPost->created_at)->format('F j, Y') }}</time>
+                        <time datetime="{{ ($relatedPost->published_at ?? $relatedPost->created_at)->toDateString() }}">{{ ($relatedPost->published_at ?? $relatedPost->created_at)->format('F j, Y') }}</time>
                     </div>
                 </div>
             </a>

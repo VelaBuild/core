@@ -5,12 +5,14 @@
     $orderBy = $settings['order_by'] ?? 'newest';
     $categoryId = $settings['category_id'] ?? '';
     $showExcerpt = $settings['show_excerpt'] ?? true;
+    $skip = max(0, (int)($settings['skip'] ?? 0));
 @endphp
 <div style="background:#f8f9fa; border-radius:4px; padding:12px;">
     <small class="text-muted">
         <i class="fas fa-newspaper mr-1"></i>
         {{ trans('vela::global.posts_grid') }}
         &mdash; {{ $columns }} {{ trans('vela::global.columns') }}, max {{ $maxCount }}, {{ $orderBy }}
+        @if($skip) , skipping {{ $skip }} @endif
         @if($categoryId) (category #{{ $categoryId }}) @endif
     </small>
 </div>

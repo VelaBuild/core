@@ -41,7 +41,7 @@
             @foreach($categories as $category)
                 <a href="{{ route('vela.public.categories.show', Str::slug($category->name)) }}" class="ed-chip">
                     {{ $category->translated_name }}
-                    <span style="font-size:0.75rem;color:#9ca3af;">({{ $category->contents()->where('status', 'published')->count() }})</span>
+                    <span style="font-size:0.75rem;color:#686e7c;">({{ $category->contents()->where('status', 'published')->count() }})</span>
                 </a>
             @endforeach
         </div>
@@ -74,7 +74,7 @@
                             <p class="ed-card-excerpt">{{ Str::limit($post->translated_description, 140) }}</p>
                         @endif
                         <div class="ed-card-date">
-                            <time>{{ ($post->published_at ?? $post->created_at)->format('F j, Y') }}</time>
+                            <time datetime="{{ ($post->published_at ?? $post->created_at)->toDateString() }}">{{ ($post->published_at ?? $post->created_at)->format('F j, Y') }}</time>
                         </div>
                     </div>
                 </a>

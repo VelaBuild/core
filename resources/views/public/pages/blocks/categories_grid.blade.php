@@ -21,9 +21,11 @@
         {!! vela_image($category->image->url, $category->translated_name, [320, 480, 640, 960], 'crop', ['style' => 'width:100%;height:160px;object-fit:cover;']) !!}
 @endif
         <div style="padding:16px;">
-            <h3 style="margin:0 0 4px;font-size:1.1em;">{{ $category->translated_name }}</h3>
+            {{-- h2 for the same reason as the posts grid: this block can sit
+                 directly under the page's h1, with no h2 to descend from. --}}
+            <h2 style="margin:0 0 4px;font-size:1.1em;">{{ $category->translated_name }}</h2>
 @if($showPostCount)
-            <span style="font-size:0.85em;color:#6b7280;">{{ $category->contents()->where('status', 'published')->count() }} {{ trans('vela::global.posts') }}</span>
+            <span style="font-size:0.85em;opacity:0.85;">{{ $category->contents()->where('status', 'published')->count() }} {{ trans('vela::global.posts') }}</span>
 @endif
         </div>
     </a>

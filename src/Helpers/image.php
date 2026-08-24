@@ -98,9 +98,19 @@ if (!function_exists('vela_image')) {
                 break;
             case 'preload':
                 $loadAttr = ' loading="eager" fetchpriority="high"';
-                break;
+                // Fall through: an eagerly loaded image still needs `sizes`.
             case 'eager':
             case false:
+                // A srcset carrying width descriptors is invalid HTML without
+                // `sizes`, and `sizes="auto"` is defined only for lazy images —
+                // so state the widest candidate instead. Without this every
+                // eager or preloaded image fails validation.
+                if (!$hasSizes) {
+                    $widest = $sizes ? max($sizes) : 0;
+                    $sizesAttr = $widest > 0
+                        ? ' sizes="(max-width: ' . $widest . 'px) 100vw, ' . $widest . 'px"'
+                        : ' sizes="100vw"';
+                }
                 break;
         }
 

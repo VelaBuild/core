@@ -67,6 +67,7 @@
                 "type": "posts_grid",
                 "content": {},
                 "settings": {
+                    "skip": 1,
                     "columns": 2,
                     "max_count": 4,
                     "category_id": "",

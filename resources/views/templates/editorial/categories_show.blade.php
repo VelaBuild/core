@@ -78,7 +78,7 @@
                             <p class="ed-card-excerpt">{{ Str::limit($post->translated_description, 140) }}</p>
                         @endif
                         <div class="ed-card-date">
-                            <time>{{ ($post->published_at ?? $post->created_at)->format('F j, Y') }}</time>
+                            <time datetime="{{ ($post->published_at ?? $post->created_at)->toDateString() }}">{{ ($post->published_at ?? $post->created_at)->format('F j, Y') }}</time>
                         </div>
                     </div>
                 </a>
@@ -108,7 +108,7 @@
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:32px;">
             <div>
                 <h2 class="ed-section-title">{{ __('vela::public.other_categories') }}</h2>
-                <p style="color:#6b7280;margin:0;">{{ __('vela::public.explore_articles_in_other_categories') }}</p>
+                <p style="color:#686e7c;margin:0;">{{ __('vela::public.explore_articles_in_other_categories') }}</p>
             </div>
             <a href="{{ route('vela.public.categories.index') }}" class="ed-btn ed-btn-outline">{{ __('vela::public.view_all') }}</a>
         </div>
@@ -117,7 +117,7 @@
             @foreach($categories->where('id', '!=', $category->id)->take(8) as $otherCat)
             <a href="{{ route('vela.public.categories.show', Str::slug($otherCat->name)) }}" class="ed-chip">
                 {{ $otherCat->translated_name }}
-                <span style="font-size:0.75rem;color:#9ca3af;margin-left:4px;">({{ $otherCat->contents()->where('status', 'published')->count() }})</span>
+                <span style="font-size:0.75rem;color:#686e7c;margin-left:4px;">({{ $otherCat->contents()->where('status', 'published')->count() }})</span>
             </a>
             @endforeach
         </div>
