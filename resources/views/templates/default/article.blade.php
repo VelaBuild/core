@@ -44,8 +44,9 @@ if (!function_exists('renderMarkdown')) {
 @endpush
 
 @section('content')
-<!-- Breadcrumb -->
-<section class="bg-gray-100 py-4">
+<!-- Breadcrumb — a <div>, not a <section>: a landmark section is expected
+     to carry a heading, and a breadcrumb has none. -->
+<div class="bg-gray-100 py-4">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav class="flex" aria-label="Breadcrumb">
             <ol class="flex items-center space-x-4">
@@ -67,7 +68,7 @@ if (!function_exists('renderMarkdown')) {
             </ol>
         </nav>
     </div>
-</section>
+</div>
 
 <!-- Article Content -->
 <section class="py-16 bg-white">

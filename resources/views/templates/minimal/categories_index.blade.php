@@ -42,7 +42,7 @@
                     @endif
                 </div>
                 <div class="mn-card-body" style="text-align:center;">
-                    <h3 class="mn-card-title" style="justify-content:center;">{{ $category->translated_name }}</h3>
+                    <h2 class="mn-card-title" style="justify-content:center;">{{ $category->translated_name }}</h2>
                     <p class="mn-card-desc">
                         {{ trans_choice('vela::public.articles_count', $category->contents()->where('status', 'published')->count(), ['count' => $category->contents()->where('status', 'published')->count()]) }}
                     </p>
@@ -52,7 +52,7 @@
         </div>
         @else
         <div style="text-align:center;padding:64px 0;">
-            <p style="font-size:1.1rem;color:#666;">{{ __('vela::public.no_categories_available') }}</p>
+            <h2 style="font-size:1.1rem;font-weight:600;color:#666;">{{ __('vela::public.no_categories_available') }}</h2>
         </div>
         @endif
     </div>

@@ -89,7 +89,7 @@
         @else
             <div class="ed-empty-state">
                 <i class="fas fa-newspaper" style="font-size:2.5rem; color:#d1d5db; margin-bottom:20px;"></i>
-                <h3>{{ __('vela::public.no_articles_found') }}</h3>
+                <h2>{{ __('vela::public.no_articles_found') }}</h2>
                 <p>{{ __('vela::public.no_articles_description') }}</p>
                 <a href="{{ route('vela.public.home') }}" class="ed-btn ed-btn-primary">{{ __('vela::public.back_to_home') }}</a>
             </div>

@@ -53,7 +53,7 @@
                         @endif
                     </div>
                     <div class="co-card-body">
-                        <h3 class="co-card-title">{{ $category->translated_name }}</h3>
+                        <h2 class="co-card-title">{{ $category->translated_name }}</h2>
                         @if($category->description)
                             <p class="co-card-desc">{{ Str::limit($category->description, 100) }}</p>
                         @endif
@@ -71,7 +71,7 @@
                 <svg style="width:64px;height:64px;color:#9ca3af;margin:0 auto 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                 </svg>
-                <h3 style="font-size:1.25rem;font-weight:600;color:#111827;margin-bottom:8px;">{{ __('vela::public.no_categories_available') }}</h3>
+                <h2 style="font-size:1.25rem;font-weight:600;color:#111827;margin-bottom:8px;">{{ __('vela::public.no_categories_available') }}</h2>
                 <p style="color:#6b7280;margin-bottom:24px;">{{ __('vela::public.check_back_later_categories') }}</p>
                 <a href="{{ route('vela.public.posts.index') }}" class="co-btn co-btn-primary">{{ __('vela::public.view_all_articles') }}</a>
             </div>

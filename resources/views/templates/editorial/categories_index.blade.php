@@ -67,7 +67,7 @@
         @else
             <div class="ed-empty-state">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                <h3>{{ __('vela::public.no_categories_available') }}</h3>
+                <h2>{{ __('vela::public.no_categories_available') }}</h2>
                 <p>{{ __('vela::public.check_back_later_categories') }}</p>
                 <a href="{{ route('vela.public.posts.index') }}" class="ed-btn ed-btn-primary">{{ __('vela::public.view_all_articles') }}</a>
             </div>

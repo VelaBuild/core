@@ -5,6 +5,8 @@ namespace VelaBuild\Core\Commands;
 use VelaBuild\Core\Models\VelaUser;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Models\PageRow;
+use VelaBuild\Core\Models\VelaConfig;
+use VelaBuild\Core\Services\SiteConfigWriter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -49,6 +51,12 @@ class VelaInstall extends Command
         $this->callSilently('migrate', ['--force' => true]);
         $this->components->twoColumnDetail('Migrations', '<fg=green>complete</>');
 
+        // 3b. A site config cache left by an earlier site outlives the
+        //     database, and the provider applies it at boot — so the template
+        //     the installer is about to build the homepage from is the old
+        //     site's, not the configured one. Drop it while the DB is fresh.
+        $this->discardOrphanedSiteConfig();
+
         // 4. Seed permissions & roles
         $this->seedPermissionsAndRoles();
 
@@ -66,7 +74,12 @@ class VelaInstall extends Command
         // 8. Static files in git
         $this->configureStaticTracking();
 
-        // 9. Mark as installed
+        // 9. Persist the active template and rebuild the site config cache so
+        //    the admin's Appearance screen and the next boot agree with what
+        //    was just installed.
+        $this->syncSiteConfig();
+
+        // 10. Mark as installed
         $this->markInstalled();
 
         // 9. Done
@@ -368,6 +381,61 @@ class VelaInstall extends Command
         } else {
             $this->components->twoColumnDetail('Static files', '<fg=yellow>gitignored</>');
         }
+    }
+
+    /**
+     * Drop a site config cache that belongs to a previous database.
+     *
+     * The file is only authoritative for the site whose DB it was written
+     * from. On a fresh schema there is no `active_template` row, so anything
+     * on disk is a leftover — and the provider has already pushed its values
+     * into the runtime config at boot, which is what makes an install pick up
+     * the old site's theme. Remove it and re-read the config file.
+     */
+    protected function discardOrphanedSiteConfig(): void
+    {
+        if (VelaConfig::where('key', 'active_template')->exists()) {
+            return;
+        }
+
+        $path = storage_path('app/vela-site.php');
+        if (!file_exists($path)) {
+            return;
+        }
+
+        @unlink($path);
+
+        foreach ([config_path('vela.php'), __DIR__ . '/../../config/vela.php'] as $configFile) {
+            if (!file_exists($configFile)) {
+                continue;
+            }
+            $fresh = require $configFile;
+            if (is_array($fresh) && !empty($fresh['template']['active'])) {
+                config(['vela.template.active' => $fresh['template']['active']]);
+            }
+            break;
+        }
+
+        $this->components->twoColumnDetail('Site config cache', '<fg=yellow>orphaned file discarded</>');
+    }
+
+    /**
+     * Record the active template in the DB and rebuild the site config cache,
+     * so the admin's Appearance screen and the next boot both agree with the
+     * theme this install just built the homepage from.
+     */
+    protected function syncSiteConfig(): void
+    {
+        $this->step('Syncing site configuration...');
+
+        VelaConfig::updateOrCreate(
+            ['key' => 'active_template'],
+            ['value' => config('vela.template.active', 'default')]
+        );
+
+        app(SiteConfigWriter::class)->write();
+
+        $this->components->twoColumnDetail('Site config', '<fg=green>cache rebuilt</>');
     }
 
     protected function markInstalled(): void

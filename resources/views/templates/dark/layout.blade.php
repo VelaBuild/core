@@ -8,7 +8,7 @@
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700&display=swap" rel="stylesheet">
 
     <!-- Styles (combined + minified bundles) -->
     @velaAssets('public', 'template-dark')
@@ -183,6 +183,7 @@
 @stack('head')
 @include('vela::templates._partials.theme-colors')
 @include('vela::templates._partials.custom-css')
+@include('vela::templates._partials.interactive-styles')
 </head>
 <body class="dk-body">
 
@@ -251,7 +252,7 @@
 
                 <div class="dk-footer-links">
                     <div class="dk-footer-col">
-                        <h3>{{ __('vela::public.navigate') }}</h3>
+                        <h2>{{ __('vela::public.navigate') }}</h2>
                         <nav>
                             @velaMenu('footer_quick_links')
                         </nav>

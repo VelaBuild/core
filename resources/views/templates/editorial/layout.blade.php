@@ -175,6 +175,7 @@
 @stack('head')
 @include('vela::templates._partials.theme-colors')
 @include('vela::templates._partials.custom-css')
+@include('vela::templates._partials.interactive-styles')
 </head>
 <body class="ed-body">
 

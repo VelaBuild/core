@@ -21,6 +21,7 @@
 @stack('head')
 @include('vela::templates._partials.theme-colors')
 @include('vela::templates._partials.custom-css')
+@include('vela::templates._partials.interactive-styles')
 </head>
 <body class="antialiased">
     <!-- Premium Navigation -->
@@ -123,7 +124,7 @@
                         <div class="flex items-center space-x-3 mb-6">
                             {!! vela_image(asset(config('vela.theme.logo_image', 'images/logo.png')), config('app.name', 'Vela CMS'), [100, 200], 'fit', ['class' => 'h-10 w-auto']) !!}
                             <div>
-                                <h3 class="text-xl font-bold text-white">{{ config('app.name', 'Vela CMS') }}</h3>
+                                <h2 class="text-xl font-bold text-white">{{ config('app.name', 'Vela CMS') }}</h2>
                             </div>
                         </div>
                         <p class="text-gray-300 mb-6 max-w-md">
@@ -135,7 +136,7 @@
                     </div>
 
                     <div class="pl-4 ">
-                        <h4 class="text-lg font-semibold text-white mb-6">{{ __('vela::public.quick_links') }}</h4>
+                        <h2 class="text-lg font-semibold text-white mb-6">{{ __('vela::public.quick_links') }}</h2>
                         <ul class="space-y-3" style="list-style-type: none;">
                             @velaMenu('footer_quick_links', 'vela::partials.menu-default-list', [
                                 'linkClass' => 'text-white hover:text-blue-300 transition-colors duration-300',
@@ -144,7 +145,7 @@
                     </div>
 
                     <div>
-                        <h4 class="text-lg font-semibold text-white mb-6">{{ __('vela::public.contact_us') }}</h4>
+                        <h2 class="text-lg font-semibold text-white mb-6">{{ __('vela::public.contact_us') }}</h2>
                         <div class="space-y-3">
                             @yield('footer_contact')
                         </div>

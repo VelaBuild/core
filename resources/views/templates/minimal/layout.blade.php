@@ -445,6 +445,7 @@
 @stack('head')
 @include('vela::templates._partials.theme-colors')
 @include('vela::templates._partials.custom-css')
+@include('vela::templates._partials.interactive-styles')
 </head>
 <body>
     <!-- Navigation -->
@@ -531,14 +532,14 @@
                 </div>
 
                 <div class="mn-footer-links">
-                    <h3>{{ __('vela::public.quick_links') }}</h3>
+                    <h2>{{ __('vela::public.quick_links') }}</h2>
                     <ul>
                         @velaMenu('footer_quick_links', 'vela::partials.menu-default-list')
                     </ul>
                 </div>
 
                 <div class="mn-footer-links">
-                    <h3>{{ __('vela::public.contact_us') }}</h3>
+                    <h2>{{ __('vela::public.contact_us') }}</h2>
                     <ul>
                         <li>{{ config('app.name', 'Vela CMS') }}</li>
                     </ul>

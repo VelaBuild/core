@@ -27,8 +27,9 @@
     </div>
 </section>
 
-<!-- Breadcrumb -->
-<section class="bg-gray-100 py-4">
+<!-- Breadcrumb — a <div>, not a <section>: a landmark section is expected
+     to carry a heading, and a breadcrumb has none. -->
+<div class="bg-gray-100 py-4">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <nav class="flex" aria-label="Breadcrumb">
             <ol class="flex items-center space-x-4">
@@ -44,7 +45,7 @@
             </ol>
         </nav>
     </div>
-</section>
+</div>
 
 <!-- Articles Grid -->
 <section class="py-16 bg-white">
@@ -95,11 +96,11 @@
                     </div>
 
                     <!-- Article Title -->
-                    <h3 class="article-title">
+                    <h2 class="article-title">
                         <a href="{{ route('vela.public.posts.show', $post->slug) }}">
                             {{ $post->translated_title }}
                         </a>
-                    </h3>
+                    </h2>
 
                     @if($post->description)
                     <p class="article-description">
@@ -131,7 +132,7 @@
             <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
             </svg>
-            <h3 class="text-xl font-semibold text-gray-900 mb-2">{{ __('vela::public.no_articles_found') }}</h3>
+            <h2 class="text-xl font-semibold text-gray-900 mb-2">{{ __('vela::public.no_articles_found') }}</h2>
             <p class="text-gray-600 mb-6">{{ __('vela::public.no_articles_available') }}</p>
             <a href="{{ route('vela.public.home') }}" class="btn-premium">
                 {{ __('vela::public.back_to_home') }}

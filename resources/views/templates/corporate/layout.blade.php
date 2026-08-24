@@ -107,7 +107,6 @@
 
         /* Hero */
         .co-hero {
-            margin-top: 64px;
             min-height: 520px;
             background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #1e40af 100%);
             display: flex;
@@ -139,6 +138,7 @@
         }
         .co-main {
             min-height: 60vh;
+            padding-top: 64px; /* offset fixed .co-nav */
         }
 
         @media (max-width: 768px) {
@@ -167,6 +167,7 @@
 @stack('head')
 @include('vela::templates._partials.theme-colors')
 @include('vela::templates._partials.custom-css')
+@include('vela::templates._partials.interactive-styles')
 </head>
 <body class="co-body">
 
@@ -235,14 +236,14 @@
                 </div>
 
                 <div class="co-footer-col">
-                    <h3>{{ __('vela::public.quick_links') }}</h3>
+                    <h2>{{ __('vela::public.quick_links') }}</h2>
                     <ul>
                         @velaMenu('footer_quick_links', 'vela::partials.menu-default-list')
                     </ul>
                 </div>
 
                 <div class="co-footer-col">
-                    <h3>{{ __('vela::public.resources') }}</h3>
+                    <h2>{{ __('vela::public.resources') }}</h2>
                     <ul>
                         <li><a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.all_articles') }}</a></li>
                         <li><a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a></li>
@@ -250,7 +251,7 @@
                 </div>
 
                 <div class="co-footer-col">
-                    <h3>{{ __('vela::public.contact_us') }}</h3>
+                    <h2>{{ __('vela::public.contact_us') }}</h2>
                     <ul>
                         <li>{{ config('app.name', 'Vela CMS') }}</li>
                     </ul>

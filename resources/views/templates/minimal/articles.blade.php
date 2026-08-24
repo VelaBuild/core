@@ -57,7 +57,7 @@
                                 <span>{{ $post->categories->first()->translated_name }}</span>
                             @endif
                         </div>
-                        <h3 class="mn-card-title">{{ $post->translated_title }}</h3>
+                        <h2 class="mn-card-title">{{ $post->translated_title }}</h2>
                         @if($post->description)
                             <p class="mn-card-desc">{{ Str::limit($post->translated_description, 100) }}</p>
                         @endif
@@ -73,7 +73,7 @@
             @endif
         @else
             <div style="text-align:center;padding:64px 0;">
-                <p style="font-size:1.1rem;color:#666;margin-bottom:16px;">{{ __('vela::public.no_articles_found') }}</p>
+                <h2 style="font-size:1.1rem;font-weight:600;color:#666;margin-bottom:16px;">{{ __('vela::public.no_articles_found') }}</h2>
                 <a href="{{ route('vela.public.home') }}" class="mn-btn mn-btn-primary">{{ __('vela::public.back_to_home') }}</a>
             </div>
         @endif
