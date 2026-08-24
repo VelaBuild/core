@@ -2,7 +2,7 @@
     "label": "Dark",
     "namespace": "vela-dark",
     "description": "Dark colour scheme for low-light reading",
-    "screenshot": "vendor/vela/screenshots/dark.png",
+    "screenshot": "vendor/vela/screenshots/dark.jpg",
     "category": "dark",
     "options": {
         "primary_color":    { "type": "color",  "label": "Accent Colour",     "group": "Colours",  "default": "#14b8a6" },

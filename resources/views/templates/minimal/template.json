@@ -2,7 +2,7 @@
     "label": "Minimal",
     "namespace": "vela-minimal",
     "description": "Clean, content-focused design with minimal distractions",
-    "screenshot": "vendor/vela/screenshots/minimal.png",
+    "screenshot": "vendor/vela/screenshots/minimal.jpg",
     "category": "minimal",
     "options": {
         "primary_color":    { "type": "color",  "label": "Primary Colour",    "group": "Colours",  "default": "#111827" },

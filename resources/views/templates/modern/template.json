@@ -2,7 +2,7 @@
     "label": "Modern",
     "namespace": "vela-modern",
     "description": "Bold gradients and contemporary design",
-    "screenshot": "vendor/vela/screenshots/modern.png",
+    "screenshot": "vendor/vela/screenshots/modern.jpg",
     "category": "creative",
     "options": {
         "primary_color":    { "type": "color",  "label": "Primary Colour",    "group": "Colours",  "default": "#7c3aed" },

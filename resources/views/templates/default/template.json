@@ -2,7 +2,7 @@
     "label": "Default",
     "namespace": "vela",
     "description": "Feature-rich theme with hero images and animations",
-    "screenshot": "vendor/vela/screenshots/default.png",
+    "screenshot": "vendor/vela/screenshots/default.jpg",
     "category": "premium",
     "options": {
         "primary_color":    { "type": "color",  "label": "Primary Colour",    "group": "Colours",  "default": "#2A5894" },

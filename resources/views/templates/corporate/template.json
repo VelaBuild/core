@@ -2,7 +2,7 @@
     "label": "Corporate",
     "namespace": "vela-corporate",
     "description": "Professional layout for business and enterprise sites",
-    "screenshot": "vendor/vela/screenshots/corporate.png",
+    "screenshot": "vendor/vela/screenshots/corporate.jpg",
     "category": "professional",
     "options": {
         "primary_color":    { "type": "color",  "label": "Primary Colour",    "group": "Colours",  "default": "#1e40af" },

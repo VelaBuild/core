@@ -2,7 +2,7 @@
     "label": "Editorial",
     "namespace": "vela-editorial",
     "description": "Magazine-style layout with featured articles",
-    "screenshot": "vendor/vela/screenshots/editorial.png",
+    "screenshot": "vendor/vela/screenshots/editorial.jpg",
     "category": "content",
     "options": {
         "primary_color":    { "type": "color", "label": "Accent Colour",     "group": "Colours",  "default": "#b91c1c" },
