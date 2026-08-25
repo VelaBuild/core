@@ -3,7 +3,7 @@
         "name": "Hero",
         "css_class": "home-row-hero",
         "background_color": "#ffffff",
-        "background_image": null,
+        "background_image": "public/vendor/vela/images/heroes/minimal.webp",
         "text_color": "#1a1a1a",
         "order": 0,
         "blocks": [
@@ -44,7 +44,13 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "Recent Writing", "level": 2}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "Recent Writing",
+                                "level": 2
+                            }
+                        }
                     ]
                 },
                 "settings": {},
@@ -83,7 +89,13 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "Topics", "level": 2}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "Topics",
+                                "level": 2
+                            }
+                        }
                     ]
                 },
                 "settings": {},

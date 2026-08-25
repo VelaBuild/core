@@ -11,6 +11,8 @@
     @section('og_image', $page->og_image->url)
 @endif
 
+@include('vela::templates._partials.hero-preload', ['page' => $page])
+
 @section('content')
 @if($page->slug === 'home')
 <div class="page-content page-content--home page-slug-{{ $page->slug }} page-id-{{ $page->id }}">

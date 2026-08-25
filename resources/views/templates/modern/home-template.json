@@ -3,7 +3,7 @@
         "name": "Hero",
         "css_class": "home-row-hero",
         "background_color": "#4c1d95",
-        "background_image": null,
+        "background_image": "public/vendor/vela/images/heroes/modern.webp",
         "order": 0,
         "blocks": [
             {
@@ -20,7 +20,7 @@
                     "secondary_button_url": "/categories"
                 },
                 "settings": {
-                    "background_overlay": "linear-gradient(135deg, rgba(124,58,237,0.8), rgba(37,99,235,0.8))",
+                    "background_overlay": "linear-gradient(135deg, rgba(124,58,237,0.9), rgba(37,99,235,0.9))",
                     "text_alignment": "center",
                     "min_height": "70vh"
                 },
@@ -43,7 +43,13 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "Latest Posts", "level": 2}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "Latest Posts",
+                                "level": 2
+                            }
+                        }
                     ]
                 },
                 "settings": {},
@@ -82,7 +88,13 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "Explore Topics", "level": 2}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "Explore Topics",
+                                "level": 2
+                            }
+                        }
                     ]
                 },
                 "settings": {},

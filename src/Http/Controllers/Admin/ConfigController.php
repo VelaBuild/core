@@ -316,6 +316,17 @@ class ConfigController extends Controller
                     }
                 }
             }
+
+            // Switching a theme changes the layout and the stylesheet, and
+            // deliberately leaves the homepage alone — those rows and blocks are
+            // the site's content, not the theme's, and replacing them silently
+            // would throw away whatever the owner had arranged. But nothing said
+            // so, and the result reads as a theme that only changed its header
+            // and footer. Point at the step that does the rest.
+            if ($newTemplate && $newTemplate !== $oldTemplate
+                && is_file(($templates[$newTemplate]['path'] ?? '') . '/home-template.json')) {
+                session()->flash('theme_switched_to', $newTemplate);
+            }
         } elseif ($group === 'customcss') {
             VelaConfig::updateOrCreate(
                 ['key' => 'custom_css_global'],

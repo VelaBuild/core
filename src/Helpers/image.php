@@ -291,3 +291,31 @@ if (!function_exists('vela_image_relative_path')) {
         return null;
     }
 }
+
+if (!function_exists('vela_background_url')) {
+    /**
+     * Resolve a CSS `background-image` source to an optimised, loadable URL.
+     *
+     * Row and block backgrounds are written straight into a style attribute, so
+     * they never went through the optimiser the way an <img> does: a full-bleed
+     * hero was served at upload size, in its upload format, to every device.
+     * This routes it through vela_image_url() at a width that covers a wide
+     * desktop.
+     *
+     * The fallback matters as much as the optimisation. vela_image_url() hands
+     * back the string it was given when optimisation is off or the file cannot
+     * be resolved, and a stored path like `public/vendor/vela/...` is not a URL
+     * a browser can follow — so anything that is not already absolute is put
+     * through asset(), which also keeps subdirectory installs working.
+     */
+    function vela_background_url(string $src, int $width = 1920): string
+    {
+        $url = vela_image_url($src, $width);
+
+        if (str_starts_with($url, 'http') || str_starts_with($url, '/') || str_starts_with($url, 'data:')) {
+            return $url;
+        }
+
+        return asset(preg_replace('#^public/#', '', $url));
+    }
+}

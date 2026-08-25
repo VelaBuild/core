@@ -12,6 +12,29 @@
             <div class="alert alert-warning">{{ session('error') }}</div>
         @endif
 
+        {{-- A theme swap changes the layout and the stylesheet; the homepage
+             keeps whatever rows and blocks it already had. Without saying so,
+             the change reads as a theme that only replaced the header and
+             footer — so offer the step that installs this theme's own
+             homepage, next to a plain statement of what just happened. --}}
+        @if(session('theme_switched_to') && isset($templates[session('theme_switched_to')]))
+            @php $velaSwitched = session('theme_switched_to'); @endphp
+            <div class="alert alert-info d-flex align-items-center justify-content-between flex-wrap">
+                <div class="mr-3">
+                    {{ trans('vela::global.theme_switched_layout_only', ['theme' => __($templates[$velaSwitched]['label'])]) }}
+                </div>
+                <form action="{{ route('vela.admin.settings.appearance.installHomepage') }}" method="POST" class="d-inline"
+                      onsubmit="return confirm('{{ trans('vela::global.install_homepage_confirm_replace') }}');">
+                    @csrf
+                    <input type="hidden" name="template" value="{{ $velaSwitched }}">
+                    <input type="hidden" name="mode" value="replace">
+                    <button type="submit" class="btn btn-sm btn-warning">
+                        <i class="fas fa-home"></i> {{ trans('vela::global.install_as_homepage') }}
+                    </button>
+                </form>
+            </div>
+        @endif
+
         <!-- Theme Picker -->
         <h5 class="mb-3">{{ trans('vela::global.theme') }}</h5>
         <form action="{{ route('vela.admin.settings.updateGroup', 'appearance') }}" method="POST" id="theme-form">
@@ -40,7 +63,17 @@
                             @endif
                         </div>
                         <div class="card-footer p-1 text-center">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="event.stopPropagation(); openPreview('{{ route('vela.admin.settings.appearance.preview', $slug) }}', '{{ __($template['label']) }}');">
+                            @php
+                                // The full-height capture sits beside the card
+                                // image under the same name; vela:generate-theme-
+                                // screenshots writes both.
+                                $velaFullShot = !empty($template['screenshot'])
+                                    ? preg_replace('/(\.[a-z]+)$/i', '-full$1', $template['screenshot'])
+                                    : null;
+                                $velaHasFullShot = $velaFullShot && file_exists(public_path($velaFullShot));
+                            @endphp
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    onclick="event.stopPropagation(); openPreview('{{ route('vela.admin.settings.appearance.preview', $slug) }}', '{{ __($template['label']) }}', '{{ $velaHasFullShot ? asset($velaFullShot) : '' }}');">
                                 <i class="fas fa-eye"></i> {{ trans('vela::global.preview') }}
                             </button>
                         </div>
@@ -178,8 +211,17 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body p-0">
-                <iframe id="themePreviewFrame" src="about:blank" style="width:100%; height:75vh; border:none;"></iframe>
+            <div class="modal-body p-0" style="max-height:80vh; overflow-y:auto; background:#f1f3f5;">
+                {{-- The whole homepage as one image, so the modal shows the
+                     theme end to end the moment it opens. The live frame is a
+                     click away for anyone who wants to move around in it. --}}
+                <img id="themePreviewShot" src="" alt="" style="width:100%; display:none;">
+                <iframe id="themePreviewFrame" src="about:blank" style="width:100%; height:75vh; border:none; display:none;"></iframe>
+            </div>
+            <div class="modal-footer py-1">
+                <button type="button" id="themePreviewLive" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-external-link-alt"></i> {{ trans('vela::global.preview') }} — live
+                </button>
             </div>
         </div>
     </div>
@@ -188,13 +230,45 @@
 
 @section('scripts')
 <script>
-function openPreview(url, label) {
+var themePreviewUrl = '';
+
+function openPreview(url, label, shot) {
+    var frame = document.getElementById('themePreviewFrame');
+    var img = document.getElementById('themePreviewShot');
+    var liveBtn = document.getElementById('themePreviewLive');
+
+    themePreviewUrl = url;
     document.getElementById('themePreviewModalLabel').textContent = label + ' — Preview';
-    document.getElementById('themePreviewFrame').src = url;
+
+    // Prefer the captured page: it is one request and shows the theme whole.
+    // A theme with no capture yet still gets the live frame it always had.
+    if (shot) {
+        img.src = shot;
+        img.alt = label;
+        img.style.display = '';
+        frame.style.display = 'none';
+        frame.src = 'about:blank';
+        liveBtn.style.display = '';
+    } else {
+        showLivePreview();
+    }
+
     $('#themePreviewModal').modal('show');
 }
+
+function showLivePreview() {
+    var frame = document.getElementById('themePreviewFrame');
+    document.getElementById('themePreviewShot').style.display = 'none';
+    document.getElementById('themePreviewLive').style.display = 'none';
+    frame.style.display = '';
+    frame.src = themePreviewUrl;
+}
+
+document.getElementById('themePreviewLive').addEventListener('click', showLivePreview);
+
 $('#themePreviewModal').on('hidden.bs.modal', function () {
     document.getElementById('themePreviewFrame').src = 'about:blank';
+    document.getElementById('themePreviewShot').src = '';
 });
 </script>
 @endsection

@@ -3,7 +3,7 @@
         "name": "Hero",
         "css_class": "home-row-hero",
         "background_color": "#1e3a5f",
-        "background_image": null,
+        "background_image": "public/vendor/vela/images/heroes/corporate.webp",
         "order": 0,
         "blocks": [
             {
@@ -43,8 +43,19 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "Latest Publications", "level": 2}},
-                        {"type": "paragraph", "data": {"text": "Stay informed with our most recent articles and expert commentary."}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "Latest Publications",
+                                "level": 2
+                            }
+                        },
+                        {
+                            "type": "paragraph",
+                            "data": {
+                                "text": "Stay informed with our most recent articles and expert commentary."
+                            }
+                        }
                     ]
                 },
                 "settings": {},
@@ -83,7 +94,13 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "Focus Areas", "level": 2}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "Focus Areas",
+                                "level": 2
+                            }
+                        }
                     ]
                 },
                 "settings": {},

@@ -555,6 +555,7 @@ return [
     'columns'                        => 'columns',
     'empty_block'                    => 'Empty block',
     'install_homepage'               => 'Install Homepage',
+    'theme_switched_layout_only'     => 'Switched to :theme. The layout and styling have changed; the homepage still uses the rows and blocks it already had. Install this theme\'s homepage to use its design instead.',
     'install_homepage_desc'          => 'Install a template homepage into the page builder. This creates page builder rows and blocks from the template\'s homepage design.',
     'install_as_homepage'            => 'Install as Homepage',
     'install_as_new_page'            => 'Install as New Page',

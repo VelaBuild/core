@@ -3,7 +3,11 @@
 @php
 $rowStyle = '';
 if ($row->background_color) $rowStyle .= 'background-color:' . e($row->background_color) . ';';
-if ($row->background_image) $rowStyle .= 'background-image:url(' . e($row->background_image) . ');background-size:cover;background-position:center;';
+// A CSS background never passed through the optimiser, so a full-bleed row
+// image was served at whatever size it was uploaded, in its original format,
+// to phones and desktops alike — while every <img> on the same page got WebP
+// and a size that fits. vela_image_url() closes that gap.
+if ($row->background_image) $rowStyle .= 'background-image:url(' . e(vela_background_url($row->background_image)) . ');background-size:cover;background-position:center;';
 // Also published as a custom property: a block whose container sets its own
 // colour (.block-hero paints white over its overlay) beats a plain inherited
 // `color`, so those blocks read this variable to know the author overrode it.
@@ -46,7 +50,7 @@ $gridFr     = implode(' ', $columns->map(fn($blocks) => $blocks->first()->column
 @php
 $blockStyle = '';
 if ($block->background_color) $blockStyle .= 'background-color:' . e($block->background_color) . ';';
-if ($block->background_image) $blockStyle .= 'background-image:url(' . e($block->background_image) . ');background-size:cover;background-position:center;';
+if ($block->background_image) $blockStyle .= 'background-image:url(' . e(vela_background_url($block->background_image)) . ');background-size:cover;background-position:center;';
 if ($block->text_color)       $blockStyle .= 'color:' . e($block->text_color) . ';--vela-text-color:' . e($block->text_color) . ';';
 if ($block->text_alignment)   $blockStyle .= 'text-align:' . e($block->text_alignment) . ';';
 $blockPadding = trim((string) ($block->padding ?? ''));

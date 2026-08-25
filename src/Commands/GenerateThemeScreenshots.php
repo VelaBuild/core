@@ -84,14 +84,25 @@ class GenerateThemeScreenshots extends Command
             // Chrome needs a document to load; a temp file keeps the capture off
             // the network and out of the router, so no auth or route is involved.
             $tmp = tempnam(sys_get_temp_dir(), 'vela-theme-') . '.html';
-            file_put_contents($tmp, $html);
+            file_put_contents($tmp, $this->prepareForCapture($html));
+
+            $fullPath = "{$outputDir}/{$slug}-full.jpg";
 
             try {
-                // 1344px wide keeps the card in Settings > Appearance sharp on a
-                // retina screen while holding each preview under ~100 KB; the
-                // whole set was 7 MB as full-size PNGs.
-                $screenshots->capture('file://' . $tmp, $outputPath, 1344, 82);
-                $this->components->twoColumnDetail($slug, '<fg=green>captured</> <fg=gray>(' . $this->humanSize(filesize($outputPath)) . ')</>');
+                // The card is roughly 1.4:1, so the capture is shot at that
+                // shape: an ordinary 16:9 frame has to be cropped to fit it,
+                // and what survives is a thin band. At this ratio the nav, the
+                // hero and the top of the first cards fill the card instead.
+                $screenshots->capture('file://' . $tmp, $outputPath, 1344, 82, [1440, 1010]);
+
+                // The whole page, for the modal that opens on click.
+                $screenshots->captureFullPage('file://' . $tmp, $fullPath, 1200, 80);
+
+                $this->components->twoColumnDetail(
+                    $slug,
+                    '<fg=green>captured</> <fg=gray>(card ' . $this->humanSize(filesize($outputPath))
+                        . ', full ' . $this->humanSize(filesize($fullPath)) . ')</>'
+                );
                 $captured++;
             } catch (\Throwable $e) {
                 $this->components->twoColumnDetail($slug, '<fg=red>' . $e->getMessage() . '</>');
@@ -182,6 +193,50 @@ class GenerateThemeScreenshots extends Command
         $page->setRelation('rows', $rows);
 
         return view(vela_template_view('page'), compact('page'))->render();
+    }
+
+    /** Viewport height the capture should pretend it has. */
+    private const NOMINAL_VIEWPORT_HEIGHT = 900;
+
+    /**
+     * Prepare the rendered page for capture.
+     *
+     * Chrome's command-line screenshot only ever photographs the viewport, so a
+     * full-page shot means opening a window taller than any page. That breaks
+     * anything sized in `vh`: the hero asks for 80vh, and in a 5000px window
+     * that is a 4000px hero — the first capture of corporate came out with the
+     * hero filling four fifths of the image and the content crushed underneath.
+     *
+     * So two things happen here. Viewport-relative heights are resolved against
+     * a normal viewport before the tall window ever sees them, and the end of
+     * the document is marked so the empty space below it can be cut off —
+     * looking for blank rows instead would fail on a dark theme, whose footer
+     * is the same colour as the space beneath it.
+     */
+    protected function prepareForCapture(string $html): string
+    {
+        // Inline `min-height:80vh` and friends, resolved at a normal viewport.
+        $html = preg_replace_callback(
+            '/(min-height|height)\s*:\s*(\d+(?:\.\d+)?)vh/i',
+            fn ($m) => $m[1] . ':' . (int) round(((float) $m[2] / 100) * self::NOMINAL_VIEWPORT_HEIGHT) . 'px',
+            $html
+        );
+
+        // The same unit in the theme stylesheets, where it only ever exists to
+        // stop a short page collapsing — which a full-page capture never is.
+        $capture = '<style>main{min-height:0 !important}</style>';
+        $marker = '<div style="height:2px;background:' . ScreenshotService::END_MARKER_COLOUR . ';margin:0;padding:0;"></div>';
+
+        $headEnd = stripos($html, '</head>');
+        if ($headEnd !== false) {
+            $html = substr($html, 0, $headEnd) . $capture . substr($html, $headEnd);
+        }
+
+        $bodyEnd = strripos($html, '</body>');
+
+        return $bodyEnd === false
+            ? $html . $marker
+            : substr($html, 0, $bodyEnd) . $marker . substr($html, $bodyEnd);
     }
 
     protected function humanSize(int $bytes): string
