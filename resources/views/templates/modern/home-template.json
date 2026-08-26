@@ -20,7 +20,7 @@
                     "secondary_button_url": "/categories"
                 },
                 "settings": {
-                    "background_overlay": "linear-gradient(135deg, rgba(124,58,237,0.9), rgba(37,99,235,0.9))",
+                    "background_overlay": "linear-gradient(135deg, rgba(91,33,182,0.78), rgba(30,64,175,0.78))",
                     "text_alignment": "center",
                     "min_height": "70vh"
                 },

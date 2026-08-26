@@ -20,7 +20,7 @@
                     "secondary_button_url": "/categories"
                 },
                 "settings": {
-                    "background_overlay": "rgba(0,0,0,0.5)",
+                    "background_overlay": "rgba(0,0,0,0.55)",
                     "text_alignment": "center",
                     "min_height": "70vh"
                 },

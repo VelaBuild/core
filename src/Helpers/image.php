@@ -310,6 +310,20 @@ if (!function_exists('vela_background_url')) {
      */
     function vela_background_url(string $src, int $width = 1920): string
     {
+        // Never ask for more pixels than the file has. The optimiser scales to
+        // whatever width it is given, so requesting 1920 from a 1280px source
+        // upscales it and re-encodes — a 92 KB hero came back down the wire at
+        // 215 KB, larger than the original and no sharper. Safe to clamp here
+        // because this emits one URL with no width descriptor attached to it;
+        // a srcset could not do the same without lying about its candidates.
+        $relative = vela_image_relative_path($src);
+        if ($relative !== null) {
+            [$intrinsicWidth] = vela_image_dimensions($relative);
+            if ($intrinsicWidth > 0) {
+                $width = min($width, $intrinsicWidth);
+            }
+        }
+
         $url = vela_image_url($src, $width);
 
         if (str_starts_with($url, 'http') || str_starts_with($url, '/') || str_starts_with($url, 'data:')) {
