@@ -2,6 +2,8 @@
 
 namespace VelaBuild\Core\Services;
 
+use VelaBuild\Core\Services\Concerns\ReportsAiFailure;
+
 use VelaBuild\Core\Contracts\AiTextProvider;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -9,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 use VelaBuild\Core\Services\AiSettingsService;
 class ClaudeTextService implements AiTextProvider
 {
+    use ReportsAiFailure;
+
     private ?string $apiKey;
     private string $baseUrl = 'https://api.anthropic.com/v1/messages';
     private string $model;
@@ -61,6 +65,7 @@ class ClaudeTextService implements AiTextProvider
                     'prompt' => substr($prompt, 0, 100) . '...',
                     'model' => $this->model,
                 ]);
+                $this->recordAiFailure($response->status(), $response->body());
                 return null;
             }
         } catch (\Exception $e) {
@@ -71,6 +76,7 @@ class ClaudeTextService implements AiTextProvider
                 'max_tokens' => $maxTokens,
                 'exception_type' => get_class($e),
             ]);
+            $this->recordAiException($e);
             return null;
         }
     }
@@ -262,6 +268,7 @@ class ClaudeTextService implements AiTextProvider
                     'response' => $response->body(),
                     'model' => $this->model,
                 ]);
+                $this->recordAiFailure($response->status(), $response->body());
                 return null;
             }
         } catch (\Exception $e) {
@@ -270,6 +277,7 @@ class ClaudeTextService implements AiTextProvider
                 'model' => $this->model,
                 'exception_type' => get_class($e),
             ]);
+            $this->recordAiException($e);
             return null;
         }
     }

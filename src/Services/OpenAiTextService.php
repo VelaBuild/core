@@ -2,6 +2,8 @@
 
 namespace VelaBuild\Core\Services;
 
+use VelaBuild\Core\Services\Concerns\ReportsAiFailure;
+
 use VelaBuild\Core\Contracts\AiTextProvider;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -9,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 use VelaBuild\Core\Services\AiSettingsService;
 class OpenAiTextService implements AiTextProvider
 {
+    use ReportsAiFailure;
+
     private string $apiKey;
     private string $baseUrl = 'https://api.openai.com/v1/chat/completions';
 
@@ -65,6 +69,7 @@ class OpenAiTextService implements AiTextProvider
                     'prompt' => substr($prompt, 0, 100) . '...',
                     'model' => 'gpt-4o'
                 ]);
+                $this->recordAiFailure($response->status(), $response->body());
                 return null;
             }
         } catch (\Exception $e) {
@@ -76,6 +81,7 @@ class OpenAiTextService implements AiTextProvider
                 'temperature' => $temperature,
                 'exception_type' => get_class($e)
             ]);
+            $this->recordAiException($e);
             return null;
         }
     }
@@ -164,6 +170,7 @@ class OpenAiTextService implements AiTextProvider
                     'status' => $response->status(),
                     'response' => $response->body(),
                 ]);
+                $this->recordAiFailure($response->status(), $response->body());
                 return null;
             }
         } catch (\Exception $e) {
@@ -171,6 +178,7 @@ class OpenAiTextService implements AiTextProvider
                 'message' => $e->getMessage(),
                 'exception_type' => get_class($e),
             ]);
+            $this->recordAiException($e);
             return null;
         }
     }

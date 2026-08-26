@@ -60,14 +60,26 @@ class DesignToSite extends Command
                 return 1;
             }
 
-            $textProvider = $this->aiManager->resolveTextProvider();
-            if (!$textProvider->supportsVision()) {
-                $this->error('The configured AI provider does not support vision. Configure a vision-capable provider.');
+            $this->builder->onProgress(fn($msg) => $this->line($msg));
+
+            // Settle on a provider that both reads images and actually
+            // answers, before anything is captured or sent anywhere. A key
+            // that is present but out of credit used to get this far and then
+            // fail silently on every call of the run.
+            try {
+                $this->builder->provider();
+            } catch (\RuntimeException $e) {
+                $this->error($e->getMessage());
                 return 1;
             }
 
-            if (!$this->screenshotService->isAvailable()) {
-                $this->error('Chrome/Chromium not found. Install chromium-browser or google-chrome for screenshot capture.');
+            // Nothing here for the operator to install by hand: an existing
+            // browser is used, a configured cloud service is used, and failing
+            // both a browser is fetched into this site's own storage.
+            try {
+                $this->line($this->screenshotService->ensureCaptureRoute(fn($msg) => $this->line($msg)));
+            } catch (\RuntimeException $e) {
+                $this->error($e->getMessage());
                 return 1;
             }
 
@@ -108,6 +120,10 @@ class DesignToSite extends Command
                 if ($file === '.' || $file === '..') {
                     continue;
                 }
+                // Leftovers from an earlier run are not a design to build from.
+                if (preg_match('/^loop_\d+_(screenshot|report)\./i', $file)) {
+                    continue;
+                }
                 $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
                 if (in_array($ext, $supportedExtensions)) {
                     $designFiles[] = $file;
@@ -122,16 +138,21 @@ class DesignToSite extends Command
             // Step 5: PSD/AI extraction
             app(AssetExtractorService::class)->extractAll($designPath);
 
-            // Step 6: Overwrite safety check
-            if (!$force) {
+            // Step 6: Overwrite safety check. A dry run changes nothing, so
+            // there is nothing here to agree to.
+            if (!$force && !$dryRun) {
                 $hasCustomizations = VelaConfig::where('key', 'like', 'css_%')->exists()
                     || Page::where('slug', '!=', 'home')->exists()
                     || Content::exists();
 
                 if ($hasCustomizations) {
                     $this->warn('Existing site content/styling detected. This command will modify your site.');
+                    // With no terminal to answer, confirm() takes the default
+                    // and declines — which used to end the run with a success
+                    // code and no word about why nothing happened.
                     if (!$this->confirm('Continue? Use --force to skip this prompt.')) {
-                        return 0;
+                        $this->line('Stopped. Nothing was changed. Re-run with --force to build anyway.');
+                        return 1;
                     }
                 }
             }
@@ -144,7 +165,6 @@ class DesignToSite extends Command
             }
 
             // Step 8: Generate context
-            $this->builder->onProgress(fn($msg) => $this->line($msg));
             $context = $this->builder->generateContext($designPath);
             $this->info('Design context generated: ' . count($context['assets']) . ' assets, ' . count($context['instructions']) . ' instruction files');
 
@@ -162,21 +182,29 @@ class DesignToSite extends Command
             $this->info('Starting initial build...');
             $this->builder->runBuildLoop($context, $designPath, $url);
 
-            // Step 12: QA loop
+            // Step 12: QA loop. Captures and reports go to a subfolder of
+            // their own: written beside the design, a run's own screenshots
+            // were read back in as designs the next time round.
+            $outputPath = $designPath . '/output';
+            if (!is_dir($outputPath)) {
+                mkdir($outputPath, 0755, true);
+            }
+
             $staleCount = 0;
             $previousAssessment = null;
-            $loop = 1;
+            $loopsRun = 0;
 
-            for (; $loop <= $maxLoops; $loop++) {
+            for ($loop = 1; $loop <= $maxLoops; $loop++) {
+                $loopsRun = $loop;
                 $this->info("QA Loop {$loop}/{$maxLoops}...");
 
-                $screenshotPath = $designPath . '/loop_' . $loop . '_screenshot.png';
-                $screenshotPath = $this->screenshotService->capture($url, $screenshotPath);
+                $screenshotPath = $outputPath . '/loop_' . $loop . '_screenshot.png';
+                $screenshotPath = $this->screenshotService->captureLiveFullPage($url, $screenshotPath);
 
                 // Validate screenshot
                 if (file_exists($screenshotPath) && filesize($screenshotPath) < 1024) {
                     $this->warn('Screenshot appears small, retrying...');
-                    $screenshotPath = $this->screenshotService->capture($url, $screenshotPath);
+                    $screenshotPath = $this->screenshotService->captureLiveFullPage($url, $screenshotPath);
                     if (!file_exists($screenshotPath) || filesize($screenshotPath) < 1024) {
                         $this->error('Screenshot appears blank — check server and URL.');
                         break;
@@ -186,7 +214,7 @@ class DesignToSite extends Command
                 $assessment = $this->builder->runQaComparison($context, $screenshotPath, $designPath);
 
                 // Save report
-                $reportPath = $designPath . '/loop_' . $loop . '_report.md';
+                $reportPath = $outputPath . '/loop_' . $loop . '_report.md';
                 file_put_contents($reportPath, $assessment['report']);
 
                 $this->line($assessment['summary']);
@@ -214,8 +242,8 @@ class DesignToSite extends Command
             }
 
             // Step 13: Summary output
-            $this->info("Design builder complete. {$loop} QA loops executed.");
-            $this->info("Screenshots and reports saved to: {$designPath}");
+            $this->info("Design builder complete. {$loopsRun} QA loops executed.");
+            $this->info("Screenshots and reports saved to: {$outputPath}");
 
             return 0;
 

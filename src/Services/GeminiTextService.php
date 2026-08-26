@@ -2,6 +2,8 @@
 
 namespace VelaBuild\Core\Services;
 
+use VelaBuild\Core\Services\Concerns\ReportsAiFailure;
+
 use VelaBuild\Core\Contracts\AiTextProvider;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -9,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 use VelaBuild\Core\Services\AiSettingsService;
 class GeminiTextService implements AiTextProvider
 {
+    use ReportsAiFailure;
+
     private ?string $apiKey;
     private string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
@@ -55,6 +59,7 @@ class GeminiTextService implements AiTextProvider
                     'response' => $response->body(),
                     'prompt' => substr($prompt, 0, 100) . '...',
                 ]);
+                $this->recordAiFailure($response->status(), $response->body());
                 return null;
             }
         } catch (\Exception $e) {
@@ -64,6 +69,7 @@ class GeminiTextService implements AiTextProvider
                 'max_tokens' => $maxTokens,
                 'exception_type' => get_class($e),
             ]);
+            $this->recordAiException($e);
             return null;
         }
     }
@@ -242,6 +248,7 @@ class GeminiTextService implements AiTextProvider
                     'status' => $response->status(),
                     'response' => $response->body(),
                 ]);
+                $this->recordAiFailure($response->status(), $response->body());
                 return null;
             }
         } catch (\Exception $e) {
@@ -249,6 +256,7 @@ class GeminiTextService implements AiTextProvider
                 'message' => $e->getMessage(),
                 'exception_type' => get_class($e),
             ]);
+            $this->recordAiException($e);
             return null;
         }
     }
