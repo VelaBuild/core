@@ -828,6 +828,13 @@ class VelaServiceProvider extends ServiceProvider
             'route'       => 'vela.admin.settings.design-system.index',
             'order'       => 110,
         ]);
+        $vela->registerSettingsItem('design-builder', [
+            'label'       => __('Build from a design'),
+            'description' => __('Upload a picture of the site you want and have it built for you.'),
+            'icon'        => 'fas fa-magic',
+            'route'       => 'vela.admin.settings.design-builder.index',
+            'order'       => 115,
+        ]);
         $vela->registerSettingsItem('menus', [
             'label'       => __('Menus'),
             'description' => __('Configure header, footer, and other navigation slots declared by your theme.'),

@@ -100,6 +100,19 @@ Route::post('settings/design-system/fonts',       [Admin\DesignSystemController:
 Route::post('settings/design-system/import-zip',  [Admin\DesignSystemController::class, 'importZip'])->name('settings.design-system.import-zip');
 Route::post('settings/design-system/import-url',  [Admin\DesignSystemController::class, 'importZipFromUrl'])->name('settings.design-system.import-url');
 
+// Design Builder — turns an uploaded picture of a site into the site. The
+// build itself runs detached, so these routes only start it and report on
+// it; captures are served from storage rather than linked, being outside
+// the web root.
+Route::get('settings/design-builder',             [Admin\DesignBuilderController::class, 'index'])->name('settings.design-builder.index');
+Route::post('settings/design-builder/upload',     [Admin\DesignBuilderController::class, 'upload'])->name('settings.design-builder.upload');
+Route::post('settings/design-builder/delete',     [Admin\DesignBuilderController::class, 'deleteFile'])->name('settings.design-builder.delete');
+Route::post('settings/design-builder/brief',      [Admin\DesignBuilderController::class, 'saveBrief'])->name('settings.design-builder.brief');
+Route::post('settings/design-builder/start',      [Admin\DesignBuilderController::class, 'start'])->name('settings.design-builder.start');
+Route::get('settings/design-builder/status',      [Admin\DesignBuilderController::class, 'status'])->name('settings.design-builder.status');
+Route::get('settings/design-builder/capture/{name}', [Admin\DesignBuilderController::class, 'capture'])->name('settings.design-builder.capture')->where('name', '[a-zA-Z0-9._\-]+');
+Route::get('settings/design-builder/design/{name}',  [Admin\DesignBuilderController::class, 'design'])->name('settings.design-builder.design')->where('name', '[a-zA-Z0-9._\-]+');
+
 // Translation manager — dashboard at /admin/translations showing
 // per-locale completeness across pages, articles, categories, and lang
 // files, with one-click AI translate buttons.

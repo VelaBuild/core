@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Http;
 use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\DesignBuilderService;
 use VelaBuild\Core\Services\ScreenshotService;
+use VelaBuild\Core\Services\DesignBuildStatus;
 use VelaBuild\Core\Services\AssetExtractorService;
 use VelaBuild\Core\Services\FigmaExportService;
 use VelaBuild\Core\Models\VelaConfig;
@@ -28,6 +29,7 @@ class DesignToSite extends Command
     private AiProviderManager $aiManager;
     private DesignBuilderService $builder;
     private ScreenshotService $screenshotService;
+    private ?DesignBuildStatus $status = null;
 
     public function __construct(
         AiProviderManager $aiManager,
@@ -54,6 +56,13 @@ class DesignToSite extends Command
             $dryRun = (bool) $this->option('dry-run');
             $figmaUrl = $this->option('figma-url') ?: null;
 
+            // Everything printed from here is also recorded, so the admin page
+            // that started this in a process of its own can follow along.
+            if (!$dryRun) {
+                $this->status = new DesignBuildStatus($designPath);
+                $this->status->start($maxLoops);
+            }
+
             // Step 2: Prerequisite validation
             if (!$this->aiManager->hasTextProvider()) {
                 $this->error('No AI text provider configured. Set OPENAI_API_KEY / ANTHROPIC_API_KEY / GEMINI_API_KEY in .env, or add a key under admin → Settings → AI.');
@@ -70,6 +79,7 @@ class DesignToSite extends Command
                 $this->builder->provider();
             } catch (\RuntimeException $e) {
                 $this->error($e->getMessage());
+                $this->status?->finish(false, $e->getMessage());
                 return 1;
             }
 
@@ -80,6 +90,7 @@ class DesignToSite extends Command
                 $this->line($this->screenshotService->ensureCaptureRoute(fn($msg) => $this->line($msg)));
             } catch (\RuntimeException $e) {
                 $this->error($e->getMessage());
+                $this->status?->finish(false, $e->getMessage());
                 return 1;
             }
 
@@ -245,16 +256,40 @@ class DesignToSite extends Command
             $this->info("Design builder complete. {$loopsRun} QA loops executed.");
             $this->info("Screenshots and reports saved to: {$outputPath}");
 
+            $this->status?->finish(true);
+
             return 0;
 
         } catch (\Exception $e) {
             $this->error($e->getMessage());
+            $this->status?->finish(false, $e->getMessage());
             return 1;
         } finally {
             if ($fp) {
                 flock($fp, LOCK_UN);
                 fclose($fp);
             }
+
+            // Any exit that did not say how it went — a missing design folder,
+            // a server that is not up — would otherwise leave the page
+            // watching a build that is no longer running.
+            if (($this->status?->read()['state'] ?? null) === 'running') {
+                $this->status->finish(false, 'The build stopped before it finished. See the messages above.');
+            }
         }
+    }
+
+    /**
+     * Everything the command prints, recorded as it is printed.
+     *
+     * info(), warn() and error() all reach the terminal through line(), so
+     * capturing it here catches the whole commentary without each call site
+     * having to remember to report itself.
+     */
+    public function line($string, $style = null, $verbosity = null)
+    {
+        parent::line($string, $style, $verbosity);
+
+        $this->status?->line((string) $string);
     }
 }
