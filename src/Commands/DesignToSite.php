@@ -189,9 +189,22 @@ class DesignToSite extends Command
             // Step 10: Warn about data transmission
             $this->warn('Note: Screenshots of your site will be sent to the AI provider for visual comparison.');
 
-            // Step 11: Build loop
+            // Step 11: Build loop. The theme in use is noted first: a theme
+            // written during the build can fail in ways no amount of checking
+            // the Blade will catch, and a site left answering 500 is worse
+            // than one that never changed.
+            $themeBefore = VelaConfig::where('key', 'active_template')->value('value');
+
             $this->info('Starting initial build...');
             $this->builder->runBuildLoop($context, $designPath, $url);
+
+            if (!$this->siteStillWorks($url)) {
+                $this->restoreTheme($themeBefore);
+                $this->error('The site stopped responding after the build, so the theme it was using has been put back. The reason is in storage/logs.');
+                $this->status?->finish(false, 'The build left the site unable to render, and was rolled back.');
+
+                return 1;
+            }
 
             // Step 12: QA loop. Captures and reports go to a subfolder of
             // their own: written beside the design, a run's own screenshots
@@ -247,6 +260,15 @@ class DesignToSite extends Command
                 }
 
                 $this->builder->runFixLoop($assessment['fixes'], $context, $designPath, $url);
+
+                // A round of fixes can break the site as easily as the build
+                // can. Stop at the first one that does, with the site working.
+                if (!$this->siteStillWorks($url)) {
+                    $this->restoreTheme($themeBefore);
+                    $this->error('A round of fixes left the site unable to render, so the previous theme has been put back.');
+                    break;
+                }
+
                 $previousAssessment = $assessment['fixes'];
 
                 $this->line("Tokens used this loop: input={$assessment['usage']['input']}, output={$assessment['usage']['output']}");
@@ -276,6 +298,37 @@ class DesignToSite extends Command
             if (($this->status?->read()['state'] ?? null) === 'running') {
                 $this->status->finish(false, 'The build stopped before it finished. See the messages above.');
             }
+        }
+    }
+
+    /**
+     * Whether the site can still render its own front page.
+     */
+    private function siteStillWorks(string $url): bool
+    {
+        try {
+            return Http::timeout(20)->get($url)->successful();
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Put back the theme the site was using before the build.
+     */
+    private function restoreTheme(?string $theme): void
+    {
+        if ($theme === null) {
+            return;
+        }
+
+        VelaConfig::updateOrCreate(['key' => 'active_template'], ['value' => $theme]);
+
+        try {
+            app(\VelaBuild\Core\Services\SiteConfigWriter::class)->write();
+            \VelaBuild\Core\Services\SiteConfigWriter::apply();
+        } catch (\Throwable $e) {
+            $this->warn('The theme was restored in the database but the site config cache could not be rebuilt: ' . $e->getMessage());
         }
     }
 

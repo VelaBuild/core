@@ -5,6 +5,57 @@ class ChatToolRegistry
 {
     private array $tools = [
         [
+            'name' => 'get_theme_contract',
+            'description' => 'How to write a Vela theme: which views exist, what each is handed, and the includes that render block-editor content, pagination and meta tags. Read this before writing any theme file — none of it is guessable.',
+            'parameters' => ['type' => 'object', 'properties' => [], 'required' => []],
+            'write' => false,
+            'gate' => 'ai_chat_template_edit',
+        ],
+        [
+            'name' => 'set_theme_tokens',
+            'description' => 'Set the design decisions at the top of a theme\'s stylesheet — typeface, palette, corner rounding, page width, section spacing. The whole theme reads from them, so this restyles the site in one call. This is how you make a theme match a design: read the values off the picture and set them. Call it with no tokens to see the full list and what each one does.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'theme' => ['type' => 'string'],
+                    'tokens' => ['type' => 'object', 'description' => 'Name to value, without the leading dashes: {"accent": "#C1440E", "bg": "#FFF8F0", "font-display": "Georgia, serif"}'],
+                ],
+                'required' => ['theme', 'tokens'],
+            ],
+            'write' => true,
+            'gate' => 'ai_chat_template_edit',
+        ],
+        [
+            'name' => 'create_theme',
+            'description' => 'Start a new theme of this site\'s own, written from scratch rather than adapted from a shipped one. Use when a design does not resemble any existing template. Creates an empty theme; write its views with write_theme_file, then switch_template to it.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'name' => ['type' => 'string', 'description' => 'Short name, becomes the folder name'],
+                    'label' => ['type' => 'string', 'description' => 'How it appears in the admin'],
+                    'description' => ['type' => 'string'],
+                ],
+                'required' => ['name'],
+            ],
+            'write' => true,
+            'gate' => 'ai_chat_template_edit',
+        ],
+        [
+            'name' => 'write_theme_file',
+            'description' => 'Write one whole view of a theme created with create_theme. Blade that would not compile is refused with the reason, so a broken view never reaches a visitor. Views: layout, page, articles, article, categories_index, categories_show. Any view you do not write falls back to a plain built-in one.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'theme' => ['type' => 'string'],
+                    'view' => ['type' => 'string', 'enum' => ['layout', 'page', 'articles', 'article', 'categories_index', 'categories_show']],
+                    'contents' => ['type' => 'string', 'description' => 'The complete Blade file'],
+                ],
+                'required' => ['theme', 'view', 'contents'],
+            ],
+            'write' => true,
+            'gate' => 'ai_chat_template_edit',
+        ],
+        [
             'name' => 'update_site_config',
             'description' => 'Update an EXISTING site configuration value in the database. Only keys the site already stores can be written — call get_site_config with no key to see them. If the user asks for a feature and no matching setting exists, this tool will refuse: say plainly that the site has no such setting and offer to build it, instead of writing a guessed key that nothing reads.',
             'parameters' => [

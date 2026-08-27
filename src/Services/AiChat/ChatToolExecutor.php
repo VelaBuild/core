@@ -39,7 +39,7 @@ class ChatToolExecutor
 
         // 3. Create pending action log for write tools
         $actionLog = null;
-        if ($toolDef['write']) {
+        if (!empty($toolDef['write'])) {
             $actionLog = AiActionLog::create([
                 'conversation_id' => $conversationId,
                 'message_id' => $messageId,
@@ -93,6 +93,10 @@ class ChatToolExecutor
     private function resolveHandler(string $toolName): Tools\BaseTool
     {
         $map = [
+            'get_theme_contract' => Tools\GetThemeContractTool::class,
+            'create_theme' => Tools\CreateThemeTool::class,
+            'set_theme_tokens' => Tools\SetThemeTokensTool::class,
+            'write_theme_file' => Tools\WriteThemeFileTool::class,
             'update_site_config' => Tools\UpdateSiteConfigTool::class,
             'update_template_colors' => Tools\UpdateTemplateColorsTool::class,
             'create_page' => Tools\CreatePageTool::class,

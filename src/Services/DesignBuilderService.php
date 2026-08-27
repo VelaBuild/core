@@ -5,6 +5,7 @@ namespace VelaBuild\Core\Services;
 use VelaBuild\Core\Contracts\AiTextProvider;
 use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\PermissionGates;
+use VelaBuild\Core\Services\ThemeAuthor;
 use VelaBuild\Core\Services\AiChat\ChatToolRegistry;
 use VelaBuild\Core\Services\AiChat\ChatToolExecutor;
 use VelaBuild\Core\Models\AiConversation;
@@ -26,9 +27,12 @@ class DesignBuilderService
      * Turns of tool calling a build or fix pass is allowed.
      *
      * Ten was not enough to both survey the site and build it — the survey
-     * won every time, and runs ended having written nothing.
+     * won every time, and runs ended having written nothing. Twenty-five was
+     * not enough either once a build also had to compose a homepage out of
+     * blocks and write the theme that styles them: a run spent all of it on
+     * the blocks and stopped before the stylesheet.
      */
-    public const MAX_TOOL_ITERATIONS = 25;
+    public const MAX_TOOL_ITERATIONS = 40;
 
     public function __construct(
         AiProviderManager $aiManager,
@@ -379,7 +383,7 @@ class DesignBuilderService
                             'name' => $tc['name'] ?? '',
                             'arguments' => is_string($tc['arguments'] ?? null)
                                 ? $tc['arguments']
-                                : json_encode($tc['arguments'] ?? new \stdClass),
+                                : json_encode($tc['arguments'] ?? new \stdClass, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                         ],
                     ];
                 }, $response['tool_calls']),
@@ -404,14 +408,14 @@ class DesignBuilderService
                 AiMessage::create([
                     'conversation_id' => $conversation->id,
                     'role' => 'tool',
-                    'content' => json_encode($result),
+                    'content' => json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                     'tool_call_id' => $toolCall['id'],
                 ]);
 
                 $messages[] = [
                     'role' => 'tool',
                     'tool_call_id' => $toolCall['id'],
-                    'content' => json_encode($result),
+                    'content' => json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 ];
             }
 
@@ -591,7 +595,7 @@ PROMPT;
                             'name' => $tc['name'] ?? '',
                             'arguments' => is_string($tc['arguments'] ?? null)
                                 ? $tc['arguments']
-                                : json_encode($tc['arguments'] ?? new \stdClass),
+                                : json_encode($tc['arguments'] ?? new \stdClass, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                         ],
                     ];
                 }, $response['tool_calls']),
@@ -616,14 +620,14 @@ PROMPT;
                 AiMessage::create([
                     'conversation_id' => $conversation->id,
                     'role' => 'tool',
-                    'content' => json_encode($result),
+                    'content' => json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                     'tool_call_id' => $toolCall['id'],
                 ]);
 
                 $messages[] = [
                     'role' => 'tool',
                     'tool_call_id' => $toolCall['id'],
-                    'content' => json_encode($result),
+                    'content' => json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
                 ];
             }
 
@@ -759,57 +763,156 @@ PROMPT;
 
     private function buildingInstructions(int $steps): string
     {
+        $blockClasses = $this->blockClassReference();
+
         return <<<PROMPT
-You have a design to replicate. Build the site to match it as closely as you can.
+You have a design to replicate. Two things carry it, and keeping them apart is
+what makes the result both faithful and editable:
+
+  The THEME carries the frame and the look — the header, the navigation, the
+  footer, the typeface, the colours, and the CSS that gives every block on
+  every page the shape the design gives it.
+
+  BLOCKS carry the page — the hero, the panels, the cards, the quote. They are
+  what the site's owner sees and edits in the admin. Anything you write into
+  the theme instead of a block is content they can never change again.
+
+So: build the homepage out of blocks, and write a theme whose stylesheet makes
+those blocks look exactly like the design.
 
 HOW TO BUILD, IN ORDER:
-1. switch_template — pick the template whose layout is closest to the design.
-2. create_category — one per section or topic the design shows.
-3. create_article — one per article the design shows, with status "published".
-   A listing in the design that holds five articles needs five articles to
-   exist. Write real headlines and copy that suit the design's subject; a
-   listing with nothing in it renders as "No articles yet" and matches nothing.
-4. generate_image — for pictures the design shows that no supplied asset
-   covers. Use the url it returns exactly as given.
-5. update_site_config — site name and description.
-6. update_template_colors, then update_custom_css — colours, type and spacing.
-7. add_row / add_block / update_block — only for structure the template does
-   not already provide.
+1. get_theme_contract and list_block_types — read both first. The contract
+   says what a theme's views are handed; list_block_types names every block
+   and, for each, the CSS classes it renders with. Your stylesheet targets
+   those class names, so guessing them means writing CSS that matches nothing.
+2. create_theme — name it after the site.
+3. switch_template — to it, straight away, while it is still empty. An empty
+   theme falls back to plain built-in views, so the site keeps working, and
+   everything you do from here is visible instead of waiting behind a switch
+   you might not reach.
+4. delete_row — a fresh install ships a homepage of its own: a welcome hero,
+   an article listing, a call to action. Call get_page_blocks on the home page
+   and delete every row of it. What you build next replaces it.
+5. add_row and add_block — build the design's homepage, section by section,
+   from the block types that fit:
+     a full-width headline over an image  -> hero
+     a row of figures or short claims     -> icon_box
+     cards carrying a price               -> pricing_tiers
+     a quotation with an attribution      -> testimonials
+     a grid of articles                   -> posts_grid
+     a grid of topics                     -> categories_grid
+     a band inviting an action            -> cta
+     pictures                             -> image or gallery
+   Use html only where nothing else fits. Put the design's real words in —
+   its headlines, its prices, its quote — not placeholders describing them.
+6. set_theme_tokens — this is what makes the site look like the design rather
+   than like Vela, and it is one call. The theme you created already has a
+   frame, navigation, a footer and a rule for every block; all of it reads
+   from a set of tokens. Read the design and set them: the typeface, the
+   background, the ink, the accent, the colour of the full-width bands, the
+   corner rounding, the page width. Call it with no tokens to see the list.
+   Do not stop before this: without it the design's structure is there in
+   somebody else's colours.
+7. write_theme_file — only if a token cannot express something the design
+   needs, and only for the view at fault. The skeleton is a working theme;
+   replacing it wholesale usually loses the header and footer.
+8. create_category — one per section or topic the design shows.
+9. create_article — one per article the design shows, with status "published".
+   A listing holding five articles needs five articles to exist. Write real
+   headlines and copy suited to the subject; an empty listing matches nothing.
+10. generate_image — for pictures the design shows that no supplied asset
+    covers. Use the url it returns exactly as given.
+11. update_site_config — site name and description.
+12. write_theme_file for "articles", "article", "categories_index" and
+    "categories_show", styled to match. Anything you leave out falls back to a
+    plain built-in view: the site still works, it just is not your design.
+
+THE CLASS NAMES YOUR STYLESHEET MUST USE:
+{$blockClasses}
 
 RULES:
-- Content first, styling second. A page styled perfectly with nothing in it is
-  further from the design than a plain page with the right articles on it.
+- Reach for set_theme_tokens first, every time. Most of what separates two
+  designs is a typeface, a palette and a corner radius, and the theme is
+  built to take them.
+- If you do write a stylesheet, style those class names and no others. A rule
+  written against a name that is not in that list matches nothing, changes
+  nothing, and reports nothing — the quietest way to end up with the design's
+  structure in Vela's colours. A layout whose stylesheet mentions none of
+  them is refused.
+- update_custom_css is for a small adjustment afterwards, not for the design.
+- A section written as markup in the theme is a section the owner cannot edit.
+  Only put something there when no block can hold it, and never the homepage's
+  words, prices or headings.
+- Blade that would not compile is refused with the reason. Fix it and write
+  again; nothing broken reaches a visitor.
 - Adding another empty listing block does not add content. Only
   create_article and create_category do.
-- Use update_custom_css for all visual styling.
 - You have about {$steps} turns. Spend them changing the site, not surveying
   it: read a thing only when you cannot act without knowing it.
 PROMPT;
     }
 
+    /**
+     * Every block and the classes it renders with, for the prompt itself.
+     *
+     * Left to ask for these, a run skipped the asking and wrote a stylesheet
+     * against invented names — .block-accent, .block-text-primary — which
+     * matched nothing and left the site in Vela's own colours. They are small
+     * enough to simply hand over.
+     */
+    private function blockClassReference(): string
+    {
+        $author = app(ThemeAuthor::class);
+        $lines = [];
+
+        foreach (array_keys(app(\VelaBuild\Core\Vela::class)->blocks()->all()) as $type) {
+            $classes = $author->blockClasses($type);
+
+            if ($classes) {
+                $lines[] = '  ' . $type . ': .' . implode(' .', $classes);
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
     private function correctingInstructions(int $steps): string
     {
         return <<<PROMPT
-The site is already built. Your job is to correct what is there so it matches
-the design more closely — not to build it again.
+The site is already built and has a theme written for it. Your job is to
+correct what is there so it matches the design more closely — not to build it
+again.
 
 HOW TO CORRECT:
-- Call get_page_blocks first and work from what the page actually contains.
-- Change what exists: update_block, update_row, update_custom_css,
-  update_template_colors, update_site_config, edit_article_content.
+- A section on the page that you did not design is a leftover row from the
+  install's own homepage. Find it with get_page_blocks and delete_row it;
+  do not try to restyle it into the design.
+- How a section looks is the theme's stylesheet; what it says is a block.
+  A wrong colour, size or spacing is fixed with write_theme_file; wrong words
+  or a missing card with update_block or add_block. Never move a homepage
+  section into the theme as markup to make it look right — that takes it away
+  from the person who owns the site.
+- Most differences are the theme's, and most of those are a token: a colour
+  that is too blue, type that is not the design's, corners too round, a band
+  the wrong shade. set_theme_tokens fixes those in one call and cannot break
+  the page. Only rewrite a view with write_theme_file when no token covers
+  what is wrong, and then keep everything that was already right.
+- Content differences: update_block, update_row, edit_article_content,
+  update_site_config.
 - Remove what the design does not have: delete_block, delete_row.
 - Only add a row or block for a section the design shows and the page has
   none of. If the page already has an articles listing, a topics listing or a
   hero, correct that one — never add a second.
 
 RULES:
+- Never create_theme again. One theme was written for this design; correct it.
 - Never call create_article or create_category for a title or name that
   already exists. Call list_articles or list_categories if you are unsure.
 - A section appearing twice on the page is a worse mismatch than the fault you
   were fixing. When something looks wrong, ask whether to change or delete it
   before you ask whether to add anything.
-- A screenshot that is much taller than the design usually means the page has
-  repeated sections, or empty space to remove.
+- A screenshot much taller than the design usually means repeated sections, or
+  empty space to remove.
 - You have about {$steps} turns. Spend them on the largest visual differences
   first.
 PROMPT;
