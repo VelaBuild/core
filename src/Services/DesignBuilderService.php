@@ -764,6 +764,7 @@ PROMPT;
     private function buildingInstructions(int $steps): string
     {
         $blockClasses = $this->blockClassReference();
+        $editableBlocks = implode(', ', app(\VelaBuild\Core\Vela::class)->blocks()->editableNames());
 
         return <<<PROMPT
 You have a design to replicate. Two things carry it, and keeping them apart is
@@ -797,7 +798,8 @@ HOW TO BUILD, IN ORDER:
    from the block types that fit:
      a full-width headline over an image  -> hero
      a row of figures or short claims     -> icon_box
-     cards carrying a price               -> pricing_tiers
+     cards carrying a price               -> text or html, with the price
+                                            written into the card's own copy
      a quotation with an attribution      -> testimonials
      a grid of articles                   -> posts_grid
      a grid of topics                     -> categories_grid
@@ -805,6 +807,9 @@ HOW TO BUILD, IN ORDER:
      pictures                             -> image or gallery
    Use html only where nothing else fits. Put the design's real words in —
    its headlines, its prices, its quote — not placeholders describing them.
+   Only these block types can be edited in the admin, so only these may be
+   used: {$editableBlocks}. Any other renders for a visitor but shows the
+   site's owner "Unknown block type", and they could never change it.
 6. set_theme_tokens — this is what makes the site look like the design rather
    than like Vela, and it is one call. The theme you created already has a
    frame, navigation, a footer and a rule for every block; all of it reads

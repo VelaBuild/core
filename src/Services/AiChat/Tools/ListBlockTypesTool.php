@@ -35,6 +35,10 @@ class ListBlockTypesTool extends BaseTool
             // The class names the block actually renders with. Without them a
             // theme cannot style a block to match a design — it would be
             // guessing at selectors, and CSS that matches nothing is silent.
+            // A block with no editor in the admin renders for a visitor and
+            // shows "Unknown block type" to the person who owns the page.
+            $entry['editable_in_admin'] = app(\VelaBuild\Core\Vela::class)->blocks()->isEditable($name);
+
             $classes = $this->cssClasses($name);
             if ($classes) {
                 $entry['css_classes'] = $classes;

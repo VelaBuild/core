@@ -21,11 +21,23 @@ class AddBlockTool extends BaseTool
         }
 
         $type = $parameters['type'] ?? null;
-        $registered = array_keys(app(\VelaBuild\Core\Vela::class)->blocks()->all());
+        $blocks = app(\VelaBuild\Core\Vela::class)->blocks();
+        $registered = array_keys($blocks->all());
         if (!$type || !in_array($type, $registered, true)) {
             return [
                 'error'          => "Unknown block type '" . ($type ?? '') . "'. Call list_block_types for valid types and their content shape.",
                 'available_types' => $registered,
+            ];
+        }
+
+        // Some blocks render on the public site but have no editor in the
+        // admin: put one on a page and its owner is shown "Unknown block
+        // type" and can never change a word of it. Adding one is worse than
+        // not having the section at all, so it is refused here.
+        if (!$blocks->isEditable($type)) {
+            return [
+                'error' => "The '{$type}' block renders on the site but cannot be edited in the admin — anyone opening the page would see \"Unknown block type\" and could not change it. Build the section from an editable block instead.",
+                'editable_types' => $blocks->editableNames(),
             ];
         }
 
