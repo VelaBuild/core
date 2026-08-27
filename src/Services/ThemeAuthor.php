@@ -347,8 +347,10 @@ articles.blade.php — every article
 
 article.blade.php — one article
     Given: $post, $relatedPosts, $categories, $metaTags
-    $post->translated_title, $post->translated_content (already HTML — print
-    with {!! !!}), translated_description, main_image, published_at, categories.
+    $post->translated_title, translated_description, main_image, published_at,
+    categories. The body is NOT html: articles are stored as editor blocks and
+    printing translated_content puts raw JSON on the page. Render it with
+        @include('vela::templates._partials.article-content', ['post' => $post])
 
 categories_index.blade.php — every category
     Given: $categories, $metaTags

@@ -211,6 +211,15 @@ class ThemeSkeleton
         .prose img { margin: 24px 0; border-radius: var(--radius); }
         .prose h2, .prose h3 { margin-top: 1.4em; }
         .prose blockquote { border-left: 3px solid var(--accent); margin: 24px 0; padding-left: 20px; font-style: italic; }
+        .prose blockquote cite { display: block; margin-top: 8px; font-size: 13px; font-style: normal; color: var(--muted); }
+        .prose figure { margin: 24px 0; }
+        .prose figcaption { color: var(--muted); font-size: 13px; text-align: center; margin-top: 8px; }
+        .prose pre { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; overflow-x: auto; }
+        .prose hr { border: 0; border-top: 1px solid var(--line); margin: 32px 0; }
+        .prose .table-scroll { overflow-x: auto; margin: 24px 0; }
+        .prose table { border-collapse: collapse; width: 100%; font-size: 14px; }
+        .prose th, .prose td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+        .prose th { background: var(--surface); }
         .pager { display: flex; justify-content: space-between; gap: 16px; padding-bottom: var(--section-gap); }
         .pager a { text-decoration: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 18px; }
 
@@ -399,7 +408,9 @@ BLADE;
         {!! vela_image($post->main_image, $post->translated_title, [800, 1200], 'fit', [], 'preload') !!}
     @endif
 
-    <div class="prose">{!! $post->translated_content !!}</div>
+    <div class="prose">
+        @include('vela::templates._partials.article-content', ['post' => $post])
+    </div>
 </article>
 
 @if($relatedPosts && count($relatedPosts))
@@ -443,7 +454,9 @@ BLADE;
         <a class="card" href="{{ route('vela.public.categories.show', Str::slug($category->name)) }}">
             <div class="card-body">
                 <h3>{{ $category->name }}</h3>
-                @php($count = $category->contents_count ?? $category->contents()->count())
+                @php
+                    $count = $category->contents_count ?? $category->contents()->count();
+                @endphp
                 <p>{{ trans_choice('vela::public.articles_count', $count, ['count' => $count]) }}</p>
             </div>
         </a>
