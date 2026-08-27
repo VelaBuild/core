@@ -38,9 +38,15 @@
                     @foreach($files as $file)
                         <div class="border rounded p-2 text-center" style="width:120px;">
                             @if($file['is_image'])
-                                <img src="{{ route('vela.admin.settings.design-builder.design', $file['name']) }}"
-                                     alt="{{ $file['name'] }}"
-                                     style="width:100%;height:70px;object-fit:cover;border-radius:3px;">
+                                <button type="button" class="btn p-0 border-0 bg-transparent vela-design-open"
+                                        data-src="{{ route('vela.admin.settings.design-builder.design', $file['name']) }}"
+                                        data-name="{{ $file['name'] }}"
+                                        title="Click to see it full size"
+                                        style="display:block;width:100%;cursor:zoom-in;">
+                                    <img src="{{ route('vela.admin.settings.design-builder.design', $file['name']) }}"
+                                         alt="{{ $file['name'] }}"
+                                         style="width:100%;height:70px;object-fit:cover;border-radius:3px;">
+                                </button>
                             @else
                                 <div class="text-muted" style="height:70px;line-height:70px;"><i class="fas fa-file-alt fa-2x"></i></div>
                             @endif
@@ -159,6 +165,66 @@
 
     </div>
 </div>
+
+<div id="vela-lightbox" class="d-none"
+     style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.9);
+            display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+    <div class="d-flex justify-content-between align-items-center w-100 mb-2" style="max-width:1200px;">
+        <span id="vela-lightbox-name" class="text-white small"></span>
+        <button type="button" id="vela-lightbox-close" class="btn btn-sm btn-light">
+            <i class="fas fa-times mr-1"></i> Close
+        </button>
+    </div>
+    {{-- A tall design is read by scrolling, not by being shrunk to fit a screen it was never drawn for. --}}
+    <div style="max-width:1200px;width:100%;flex:1;overflow:auto;background:#fff;border-radius:4px;">
+        <img id="vela-lightbox-img" src="" alt="" style="width:100%;display:block;">
+    </div>
+</div>
+
+<script>
+(function () {
+    var box = document.getElementById('vela-lightbox');
+    var img = document.getElementById('vela-lightbox-img');
+    var name = document.getElementById('vela-lightbox-name');
+    var opener = null;
+
+    function open(src, label) {
+        opener = document.activeElement;
+        img.src = src;
+        img.alt = label;
+        name.textContent = label;
+        box.classList.remove('d-none');
+        // The page behind must not scroll while this is over it, or a flick of
+        // the wheel past the end of the design moves the wrong thing.
+        document.body.style.overflow = 'hidden';
+        document.getElementById('vela-lightbox-close').focus();
+    }
+
+    function close() {
+        box.classList.add('d-none');
+        img.src = '';
+        document.body.style.overflow = '';
+        if (opener) { opener.focus(); opener = null; }
+    }
+
+    document.querySelectorAll('.vela-design-open').forEach(function (button) {
+        button.addEventListener('click', function () {
+            open(button.dataset.src, button.dataset.name || '');
+        });
+    });
+
+    document.getElementById('vela-lightbox-close').addEventListener('click', close);
+
+    // Anywhere off the picture closes it, which is what the dark ground invites.
+    box.addEventListener('click', function (event) {
+        if (event.target === box) { close(); }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !box.classList.contains('d-none')) { close(); }
+    });
+})();
+</script>
 
 <script>
 (function () {
