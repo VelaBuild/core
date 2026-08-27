@@ -94,6 +94,14 @@ class ThemeAuthor
         file_put_contents($directory . '/layout.blade.php', $skeleton->layout());
         file_put_contents($directory . '/page.blade.php', $skeleton->page());
 
+        // All six, not just the two: a view left out falls back to a built-in
+        // written in utility classes that only a Tailwind build supplies, so
+        // /posts and /categories came out as unstyled text under a finished
+        // homepage.
+        foreach ($skeleton->views() as $view => $contents) {
+            file_put_contents($directory . '/' . $view . '.blade.php', $contents);
+        }
+
         return $theme;
     }
 

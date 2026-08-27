@@ -37,6 +37,7 @@ class ThemeSkeleton
         'line' => ['#e2e2e2', 'Borders and rules.'],
         'accent' => ['#1a1a1a', 'Buttons, prices, links, anything that should catch the eye.'],
         'accent-ink' => ['#ffffff', 'Text on top of the accent colour.'],
+        'hero-ink' => ['#ffffff', 'Text in the hero. It sits over an image behind a dark film, so white unless the design says otherwise.'],
         'band' => ['#1a1a1a', 'Full-width bands: the stats strip, the quote, the footer.'],
         'band-ink' => ['#ffffff', 'Text on top of a band.'],
         'bar' => ['#1a1a1a', 'The thin strip above the header. Same as the band unless the design differs.'],
@@ -113,11 +114,18 @@ class ThemeSkeleton
         .site-footer .fine { grid-column: 1 / -1; border-top: 1px solid rgba(255,255,255,.15); margin-top: 24px; padding-top: 20px; font-size: 12px; opacity: .7; }
 
         /* ── blocks: hero ───────────────────────────────────────────── */
-        .block-hero { position: relative; background-size: cover; background-position: center; }
+        .block-hero { position: relative; background-size: cover; background-position: center; color: var(--hero-ink); }
         .block-hero-overlay { position: absolute; inset: 0; }
         .block-hero-inner { position: relative; max-width: var(--page-width); margin: 0 auto; padding: 96px 24px; }
         .block-hero-title { font-size: 56px; margin-bottom: 16px; }
-        .block-hero-subtitle { font-size: 18px; color: var(--muted); max-width: 44ch; margin-bottom: 28px; }
+        /* inline-block, so the hero's own text-align moves this box as well
+           as the words in it. As a block it kept a width and hugged the left,
+           and choosing centre or right in the editor appeared to do nothing. */
+        .block-hero-subtitle {
+            display: inline-block; text-align: inherit;
+            font-size: 18px; max-width: 44ch; margin-bottom: 28px;
+            color: inherit; opacity: .9;
+        }
         .block-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
         .block-hero-btn {
             display: inline-block; padding: 14px 28px; text-decoration: none;
@@ -181,12 +189,38 @@ class ThemeSkeleton
         .block-text { max-width: var(--page-width); margin: 0 auto; padding: 24px; }
         .block-image { max-width: var(--page-width); margin: 0 auto; padding: 24px; }
 
+        /* ── the views that are not the homepage ───────────────────── */
+        .page-head { padding: var(--section-gap) 24px 0; }
+        .page-head h1 { font-size: 42px; }
+        .page-head h2 { font-size: 30px; }
+        .page-head time { color: var(--muted); font-size: 14px; }
+        .card-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px; padding: 32px 24px var(--section-gap);
+        }
+        .card {
+            background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+            overflow: hidden; text-decoration: none; display: block;
+        }
+        .card .card-body { padding: 16px; }
+        .card h3 { font-size: 19px; margin-bottom: .4em; }
+        .card p { color: var(--muted); font-size: 14px; margin: 0 0 .6em; }
+        .card time { color: var(--muted); font-size: 12px; }
+        .article { padding-bottom: var(--section-gap); }
+        .prose { max-width: 68ch; margin: 32px 0; }
+        .prose img { margin: 24px 0; border-radius: var(--radius); }
+        .prose h2, .prose h3 { margin-top: 1.4em; }
+        .prose blockquote { border-left: 3px solid var(--accent); margin: 24px 0; padding-left: 20px; font-style: italic; }
+        .pager { display: flex; justify-content: space-between; gap: 16px; padding-bottom: var(--section-gap); }
+        .pager a { text-decoration: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 18px; }
+
         @media (max-width: 720px) {
             .site-header .wrap { flex-direction: column; align-items: flex-start; gap: 12px; }
             .site-footer .wrap { grid-template-columns: 1fr; }
             .block-hero-title { font-size: 36px; }
             .block-hero-inner { padding: 56px 24px; }
             .top-bar .wrap { flex-direction: column; gap: 4px; }
+            .page-head h1 { font-size: 30px; }
         }
     </style>
 </head>
@@ -250,6 +284,171 @@ BLADE;
 
 @if($page->custom_css)<style>{!! $page->custom_css !!}</style>@endif
 @if($page->custom_js)<script>{!! $page->custom_js !!}</script>@endif
+@endsection
+BLADE;
+    }
+
+    /**
+     * The remaining views, written so a theme never has to fall back.
+     *
+     * The built-in views a missing theme file falls back to are written in
+     * utility classes a Tailwind build supplies, and a theme that does not
+     * ship one renders them as unstyled text — /posts and /categories came
+     * out bare while the homepage looked finished. Writing all six up front
+     * means the fallback is never reached.
+     */
+    public function views(): array
+    {
+        return [
+            'articles' => $this->articles(),
+            'article' => $this->article(),
+            'categories_index' => $this->categoriesIndex(),
+            'categories_show' => $this->categoriesShow(),
+        ];
+    }
+
+    private function meta(): string
+    {
+        return <<<'BLADE'
+@section('title', $metaTags['title'])
+@section('description', $metaTags['description'])
+@section('canonical_url', $metaTags['canonical_url'])
+@section('og_title', $metaTags['og_title'])
+@section('og_description', $metaTags['og_description'])
+@section('og_image', $metaTags['og_image'])
+BLADE;
+    }
+
+    /**
+     * One card in a listing. Shared so the three listings cannot drift.
+     */
+    private function postCard(): string
+    {
+        return <<<'BLADE'
+        <a class="card" href="{{ route('vela.public.posts.show', $post->slug) }}">
+            @if($post->main_image)
+                {!! vela_image($post->main_image, $post->translated_title, [400, 800]) !!}
+            @endif
+            <div class="card-body">
+                <h3>{{ $post->translated_title }}</h3>
+                <p>{{ $post->translated_description }}</p>
+                <time>{{ ($post->published_at ?: $post->created_at)?->format('j M Y') }}</time>
+            </div>
+        </a>
+BLADE;
+    }
+
+    /**
+     * Previous/next by hand: the paginator's own markup expects a CSS
+     * framework this theme does not load.
+     */
+    private function pager(): string
+    {
+        return <<<'BLADE'
+    @if($posts->hasPages())
+        <nav class="pager wrap">
+            @if($posts->previousPageUrl())
+                <a href="{{ $posts->previousPageUrl() }}">&larr; {{ __('vela::public.previous') }}</a>
+            @endif
+            @if($posts->nextPageUrl())
+                <a href="{{ $posts->nextPageUrl() }}">{{ __('vela::public.next') }} &rarr;</a>
+            @endif
+        </nav>
+    @endif
+BLADE;
+    }
+
+    private function articles(): string
+    {
+        return "@extends(vela_template_layout())\n\n" . $this->meta() . "\n\n"
+            . "@section('content')\n"
+            . "<div class=\"page-head wrap\">\n    <h1>{{ __('vela::public.all_articles') }}</h1>\n</div>\n\n"
+            . "<div class=\"card-grid wrap\">\n@foreach(\$posts as \$post)\n" . $this->postCard() . "\n@endforeach\n</div>\n\n"
+            . $this->pager() . "\n@endsection\n";
+    }
+
+    private function categoriesShow(): string
+    {
+        return "@extends(vela_template_layout())\n\n" . $this->meta() . "\n\n"
+            . "@section('content')\n"
+            . "<div class=\"page-head wrap\">\n    <h1>{{ \$category->name }}</h1>\n</div>\n\n"
+            . "<div class=\"card-grid wrap\">\n@foreach(\$posts as \$post)\n" . $this->postCard() . "\n@endforeach\n</div>\n\n"
+            . $this->pager() . "\n@endsection\n";
+    }
+
+    private function article(): string
+    {
+        return <<<'BLADE'
+@extends(vela_template_layout())
+
+@section('title', $metaTags['title'])
+@section('description', $metaTags['description'])
+@section('canonical_url', $metaTags['canonical_url'])
+@section('og_title', $metaTags['og_title'])
+@section('og_description', $metaTags['og_description'])
+@section('og_image', $metaTags['og_image'])
+
+@section('content')
+<article class="article wrap">
+    <div class="page-head">
+        <h1>{{ $post->translated_title }}</h1>
+        <time>{{ ($post->published_at ?: $post->created_at)?->format('j M Y') }}</time>
+    </div>
+
+    @if($post->main_image)
+        {!! vela_image($post->main_image, $post->translated_title, [800, 1200], 'fit', [], 'preload') !!}
+    @endif
+
+    <div class="prose">{!! $post->translated_content !!}</div>
+</article>
+
+@if($relatedPosts && count($relatedPosts))
+<div class="page-head wrap">
+    <h2>{{ __('vela::public.latest_articles') }}</h2>
+</div>
+<div class="card-grid wrap">
+    @foreach($relatedPosts as $post)
+        <a class="card" href="{{ route('vela.public.posts.show', $post->slug) }}">
+            @if($post->main_image)
+                {!! vela_image($post->main_image, $post->translated_title, [400, 800]) !!}
+            @endif
+            <div class="card-body">
+                <h3>{{ $post->translated_title }}</h3>
+                <p>{{ $post->translated_description }}</p>
+            </div>
+        </a>
+    @endforeach
+</div>
+@endif
+@endsection
+BLADE;
+    }
+
+    private function categoriesIndex(): string
+    {
+        return <<<'BLADE'
+@extends(vela_template_layout())
+
+@section('title', $metaTags['title'])
+@section('description', $metaTags['description'])
+@section('canonical_url', $metaTags['canonical_url'])
+
+@section('content')
+<div class="page-head wrap">
+    <h1>{{ __('vela::public.topics') }}</h1>
+</div>
+
+<div class="card-grid wrap">
+    @foreach($categories as $category)
+        <a class="card" href="{{ route('vela.public.categories.show', Str::slug($category->name)) }}">
+            <div class="card-body">
+                <h3>{{ $category->name }}</h3>
+                @php($count = $category->contents_count ?? $category->contents()->count())
+                <p>{{ trans_choice('vela::public.articles_count', $count, ['count' => $count]) }}</p>
+            </div>
+        </a>
+    @endforeach
+</div>
 @endsection
 BLADE;
     }
