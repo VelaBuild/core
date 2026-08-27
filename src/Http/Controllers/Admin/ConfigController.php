@@ -13,19 +13,12 @@ use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Models\Content;
 use VelaBuild\Core\Models\Category;
 use VelaBuild\Core\Helpers\MetaTagsHelper;
+use VelaBuild\Core\Registries\SiteSettingsRegistry;
 use VelaBuild\Core\Services\PwaIconGenerator;
 
 class ConfigController extends Controller
 {
-    private const GROUP_KEYS = [
-        'general' => ['site_name', 'site_niche', 'site_tagline', 'site_description'],
-        'pwa' => ['pwa_enabled', 'pwa_name', 'pwa_short_name', 'pwa_description', 'pwa_display', 'pwa_theme_color', 'pwa_background_color', 'pwa_icon_source', 'pwa_precache_urls', 'pwa_offline_enabled', 'sw_version'],
-        'app' => ['app_ios_url', 'app_android_url', 'app_name', 'app_custom_scheme'],
-        'gdpr' => ['gdpr_enabled', 'gdpr_privacy_url'],
-        'visibility' => ['visibility_mode', 'visibility_noindex', 'visibility_block_ai', 'visibility_holding_page', 'visibility_holding_page_id',
-            'x402_enabled', 'x402_mode', 'x402_pay_to', 'x402_price_usd', 'x402_network', 'x402_description',
-            'content_signal_ai_train', 'content_signal_search', 'content_signal_ai_input'],
-    ];
+    private const GROUP_KEYS = SiteSettingsRegistry::GROUPS;
 
     public function index(Request $request)
     {

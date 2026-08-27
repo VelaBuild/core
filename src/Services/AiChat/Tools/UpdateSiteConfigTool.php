@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Services\AiChat\Tools;
 
 use VelaBuild\Core\Models\AiActionLog;
+use VelaBuild\Core\Registries\SiteSettingsRegistry;
 use VelaBuild\Core\Models\VelaConfig;
 
 class UpdateSiteConfigTool extends BaseTool
@@ -23,7 +24,13 @@ class UpdateSiteConfigTool extends BaseTool
         // it writes is read by nothing. Refuse by default so the answer becomes
         // "this site has no such setting" instead of a write plus a caveat the
         // user is asked to go and verify.
-        if ($current === null && empty($parameters['create_new'])) {
+        //
+        // Settings the site genuinely has are the exception. A fresh install
+        // stores a row only for what someone has already saved, so site_name —
+        // offered in Settings, and mapped onto app.name for every template —
+        // had no row and could not be written at all. A site built by the
+        // design builder was stuck being called Vela CMS because of it.
+        if ($current === null && !SiteSettingsRegistry::knows($key) && empty($parameters['create_new'])) {
             return [
                 'error' => "There is no site setting called '{$key}' — writing it would store a value nothing reads, "
                     . 'so the site would not change. Check whether the feature exists (search_files / list_routes / '
@@ -54,7 +61,7 @@ class UpdateSiteConfigTool extends BaseTool
 
         // Reached only with create_new, i.e. the caller says it checked. Keep
         // the caveat so it still cannot be summarised as a visible change.
-        if ($current === null) {
+        if ($current === null && !SiteSettingsRegistry::knows($key)) {
             $result['warning'] = "'{$key}' did not exist before this write. Confirm the change is actually visible "
                 . 'before telling the user it is done.';
         }
