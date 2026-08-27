@@ -3254,6 +3254,106 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // A tier is a card carrying a price: a name, what it costs, what it
+    // includes, and a way to act on it. Registered late in the day — the
+    // block rendered on the public site from the start, but with no editor
+    // its owner opened the page to "Unknown block type".
+    function buildPricingTierRow(t) {
+        var features = Array.isArray(t.features) ? t.features.join('\n') : (t.features || '');
+        return '<div class="pt-row" style="margin-bottom:10px;padding:10px;background:#f8f9fa;border-radius:6px;border-left:3px solid #3b82f6;">' +
+            '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">' +
+                '<input type="text" class="form-control form-control-sm pt-name" placeholder="Name" value="' + escHtml(t.name || '') + '" style="flex:2;">' +
+                '<input type="text" class="form-control form-control-sm pt-currency" placeholder="$" value="' + escHtml(t.price_currency || '') + '" style="flex:0 0 64px;">' +
+                '<input type="text" class="form-control form-control-sm pt-price" placeholder="Price" value="' + escHtml(t.price || '') + '" style="flex:1;">' +
+                '<input type="text" class="form-control form-control-sm pt-period" placeholder="per month" value="' + escHtml(t.period || '') + '" style="flex:1;">' +
+                '<button type="button" class="btn btn-sm btn-outline-danger remove-pricing-tier" title="Remove"><i class="fas fa-times"></i></button>' +
+            '</div>' +
+            '<textarea class="form-control form-control-sm mb-2 pt-desc" rows="2" placeholder="Description">' + escHtml(t.description || '') + '</textarea>' +
+            '<textarea class="form-control form-control-sm mb-2 pt-features" rows="3" placeholder="One feature per line">' + escHtml(features) + '</textarea>' +
+            '<div style="display:flex;gap:8px;align-items:center;">' +
+                '<input type="text" class="form-control form-control-sm pt-cta-text" placeholder="Button text" value="' + escHtml(t.cta_text || '') + '" style="flex:1;">' +
+                '<input type="text" class="form-control form-control-sm pt-cta-url" placeholder="Button link" value="' + escHtml(t.cta_url || '') + '" style="flex:2;">' +
+                '<label class="mb-0 small text-nowrap" style="cursor:pointer;">' +
+                    '<input type="checkbox" class="pt-featured"' + (t.featured ? ' checked' : '') + '> Featured' +
+                '</label>' +
+            '</div>' +
+        '</div>';
+    }
+
+    PageEditor.registerBlockType('pricing_tiers', {
+        icon: 'fa-tags',
+        label: 'Pricing Tiers',
+        defaults: { content: { tiers: [] }, settings: { columns: 3 } },
+        renderPreview: function(block) {
+            var tiers = block.content && block.content.tiers ? block.content.tiers : [];
+            if (!tiers.length) return '<em class="text-muted">No tiers added</em>';
+            var cols = block.settings && block.settings.columns ? block.settings.columns : 3;
+            var html = '<div style="display:grid;grid-template-columns:repeat(' + Math.min(cols, tiers.length) + ',1fr);gap:8px;">';
+            tiers.forEach(function(t) {
+                html += '<div style="padding:10px;background:#f9fafb;border-radius:4px;border:1px solid ' + (t.featured ? '#3b82f6' : '#e5e7eb') + ';">';
+                html += '<div style="font-weight:600;font-size:0.85em;margin-bottom:4px;">' + escHtml(t.name || '') + '</div>';
+                html += '<div style="font-size:1.1em;font-weight:700;color:#3b82f6;">' + escHtml((t.price_currency || '') + (t.price || '')) + '<span style="font-size:0.6em;font-weight:400;color:#6b7280;"> ' + escHtml(t.period || '') + '</span></div>';
+                if (t.description) {
+                    var d = t.description.length > 60 ? t.description.substring(0, 60) + '...' : t.description;
+                    html += '<div style="font-size:0.78em;color:#6b7280;margin-top:4px;">' + escHtml(d) + '</div>';
+                }
+                var count = Array.isArray(t.features) ? t.features.length : 0;
+                if (count) html += '<div style="font-size:0.72em;color:#9ca3af;margin-top:4px;">' + count + ' feature' + (count === 1 ? '' : 's') + '</div>';
+                html += '</div>';
+            });
+            return html + '</div>';
+        },
+        renderEditor: function(block) {
+            var tiers = block.content && block.content.tiers ? block.content.tiers : [];
+            var cols = block.settings && block.settings.columns ? block.settings.columns : 3;
+            var rowsHtml = '';
+            tiers.forEach(function(t) { rowsHtml += buildPricingTierRow(t); });
+            return '<div id="pricing-tiers-list">' + rowsHtml + '</div>' +
+                '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;">' +
+                    '<button type="button" class="btn btn-sm btn-success" id="add-pricing-tier">+ Add Tier</button>' +
+                    '<label class="mb-0 small text-nowrap">Columns</label>' +
+                    '<select class="form-control form-control-sm" id="pricing-tiers-columns" style="width:auto;">' +
+                        [2, 3, 4].map(function(n) {
+                            return '<option value="' + n + '"' + (cols === n ? ' selected' : '') + '>' + n + '</option>';
+                        }).join('') +
+                    '</select>' +
+                '</div>';
+        },
+        initEditor: function(block) {
+            $(document).off('click', '#add-pricing-tier').on('click', '#add-pricing-tier', function() {
+                $('#pricing-tiers-list').append(buildPricingTierRow({ features: [] }));
+            });
+            $(document).off('click', '.remove-pricing-tier').on('click', '.remove-pricing-tier', function() {
+                $(this).closest('.pt-row').remove();
+            });
+        },
+        collectData: function(block) {
+            var tiers = [];
+            $('#pricing-tiers-list .pt-row').each(function() {
+                var $r = $(this);
+                var features = ($r.find('.pt-features').val() || '')
+                    .split('\n')
+                    .map(function(line) { return line.trim(); })
+                    .filter(function(line) { return line !== ''; });
+                tiers.push({
+                    name: $r.find('.pt-name').val(),
+                    price: $r.find('.pt-price').val(),
+                    price_currency: $r.find('.pt-currency').val(),
+                    period: $r.find('.pt-period').val(),
+                    description: $r.find('.pt-desc').val(),
+                    features: features,
+                    cta_text: $r.find('.pt-cta-text').val(),
+                    cta_url: $r.find('.pt-cta-url').val(),
+                    featured: $r.find('.pt-featured').is(':checked')
+                });
+            });
+            return {
+                content: { tiers: tiers },
+                settings: { columns: parseInt($('#pricing-tiers-columns').val(), 10) || 3 }
+            };
+        }
+    });
+
     PageEditor.registerBlockType('icon_box', {
         icon: 'fa-icons',
         label: 'Icon Box',

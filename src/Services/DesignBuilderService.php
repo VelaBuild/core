@@ -798,8 +798,7 @@ HOW TO BUILD, IN ORDER:
    from the block types that fit:
      a full-width headline over an image  -> hero
      a row of figures or short claims     -> icon_box
-     cards carrying a price               -> text or html, with the price
-                                            written into the card's own copy
+     cards carrying a price               -> pricing_tiers
      a quotation with an attribution      -> testimonials
      a grid of articles                   -> posts_grid
      a grid of topics                     -> categories_grid
