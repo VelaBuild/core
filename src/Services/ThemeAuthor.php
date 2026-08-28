@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Services;
 
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 
 /**
@@ -103,6 +104,47 @@ class ThemeAuthor
         }
 
         return $theme;
+    }
+
+    /**
+     * Remove a theme this site owns.
+     *
+     * Builds make a theme each time, and nothing could ever remove one: a
+     * handful of runs leaves a list of near-duplicates with names read off the
+     * design badly — "zercurity", "zecuritytheme", one simply called "active"
+     * — sitting in the theme picker beside the real ones, with no way out of
+     * the admin at all.
+     *
+     * Two things it will not do. A theme that came with Vela is not ours to
+     * delete: it lives in the package, and composer would put it back. Nor
+     * the theme in use — the site would lose its layout mid-request — so
+     * switching away comes first, which is also the moment someone sees what
+     * they are about to lose.
+     *
+     * What is removed is kept for now, under the same name, so a wrong click
+     * is recoverable by hand.
+     */
+    public function delete(string $theme): void
+    {
+        if (!$this->exists($theme)) {
+            throw new \RuntimeException(
+                'There is no theme called "' . $theme . '" belonging to this site. The themes that come with Vela '
+                . 'live in the package and cannot be deleted — they would return with the next update.'
+            );
+        }
+
+        if ($theme === config('vela.template.active')) {
+            throw new \RuntimeException(
+                'This is the theme the site is using. Switch to another one first, then delete it.'
+            );
+        }
+
+        $trash = storage_path('app/vela-theme-deleted/' . $theme);
+
+        File::deleteDirectory($trash);
+        File::ensureDirectoryExists(dirname($trash));
+        File::copyDirectory($this->directory($theme), $trash);
+        File::deleteDirectory($this->directory($theme));
     }
 
     /**

@@ -76,12 +76,46 @@
                                     onclick="event.stopPropagation(); openPreview('{{ route('vela.admin.settings.appearance.preview', $slug) }}', '{{ __($template['label']) }}', '{{ $velaHasFullShot ? asset($velaFullShot) : '' }}');">
                                 <i class="fas fa-eye"></i> {{ trans('vela::global.preview') }}
                             </button>
+                            @php
+                                // Only themes written into this site can go. The
+                                // ones that ship with Vela live in the package and
+                                // would come back with the next update; the one in
+                                // use would take the site's layout with it.
+                                $velaOwnTheme = is_dir(resource_path('views/templates/' . $slug));
+                                $velaInUse    = ($settings['active_template'] ?? 'default') === $slug;
+                            @endphp
+                            @if($velaOwnTheme && !$velaInUse)
+                            @can('config_edit')
+                            {{-- The card sits inside the theme-switching form, and a
+                                 form inside a form is dropped by the browser. The
+                                 button stays here and belongs to a form further down
+                                 the page by name. --}}
+                            <button type="submit" form="vela-delete-theme-{{ $slug }}"
+                                    class="btn btn-sm btn-outline-danger" title="Delete this theme"
+                                    onclick="event.stopPropagation();">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            @endcan
+                            @endif
                         </div>
                     </div>
                 </div>
                 @endforeach
             </div>
         </form>
+
+        @can('config_edit')
+        @foreach($templates as $slug => $template)
+            @if(is_dir(resource_path('views/templates/' . $slug)) && ($settings['active_template'] ?? 'default') !== $slug)
+            <form id="vela-delete-theme-{{ $slug }}" method="POST"
+                  action="{{ route('vela.admin.settings.appearance.deleteTheme') }}"
+                  onsubmit="return confirm('Delete the {{ __($template['label']) }} theme? A copy is kept in storage, but it is gone from here.');">
+                @csrf
+                <input type="hidden" name="template" value="{{ $slug }}">
+            </form>
+            @endif
+        @endforeach
+        @endcan
 
         <!-- Install Homepage -->
         <hr>

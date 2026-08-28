@@ -472,6 +472,30 @@ class ConfigController extends Controller
         return view(vela_template_view('home'), compact('latestPosts', 'categories', 'featuredPosts', 'metaTags'));
     }
 
+    /**
+     * Delete a theme this site owns.
+     *
+     * Only themes written into the site — the ones a design build makes, which
+     * accumulate one per run and had no way out of the admin at all. The
+     * themes that ship with Vela live in the package and are refused.
+     */
+    public function deleteTheme(Request $request)
+    {
+        abort_if(Gate::denies('config_edit'), 403);
+
+        $request->validate(['template' => 'required|string']);
+
+        $author = app(\VelaBuild\Core\Services\ThemeAuthor::class);
+
+        try {
+            $author->delete($request->input('template'));
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['template' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'That theme has been deleted. A copy is kept in storage in case it was a mistake.');
+    }
+
     public function installHomepage(Request $request)
     {
         abort_if(Gate::denies('config_edit'), 403);

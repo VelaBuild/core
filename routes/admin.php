@@ -80,6 +80,7 @@ Route::get('settings/mcp/generate-key', [Admin\McpSettingsController::class, 'ge
 Route::post('settings/pwa/upload-icon', [Admin\ConfigController::class, 'uploadIcon'])->name('settings.uploadIcon');
 Route::get('settings/appearance/preview/{template}', [Admin\ConfigController::class, 'previewTemplate'])->name('settings.appearance.preview')->where('template', '[a-z\-]+');
 Route::post('settings/appearance/install-homepage', [Admin\ConfigController::class, 'installHomepage'])->name('settings.appearance.installHomepage');
+Route::post('settings/appearance/delete-theme',    [Admin\ConfigController::class, 'deleteTheme'])->name('settings.appearance.deleteTheme');
 Route::post('settings/gdpr/install-privacy-page', [Admin\ConfigController::class, 'installPrivacyPage'])->name('settings.gdpr.installPrivacyPage');
 
 // Tracking & conversion (GA4, GTM, Meta Pixel + CAPI, Google Ads). Lives
