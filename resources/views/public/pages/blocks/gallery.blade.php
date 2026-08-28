@@ -1,5 +1,14 @@
 @php
     $images   = ($block->content)['images'] ?? [];
+    // A gallery is only the pictures it actually has. "#" is what arrives
+    // when something built the block before it had any — a placeholder href
+    // that is not empty, so it passed the check below and rendered as a row
+    // of broken-image icons with the alt text showing through.
+    $images   = array_values(array_filter($images, function ($img) {
+        $url = trim((string) ($img['url'] ?? ''));
+
+        return $url !== '' && $url !== '#';
+    }));
     $settings = $block->settings ?? [];
     $columns  = (int)($settings['columns'] ?? 3);
     $gap      = (int)($settings['gap'] ?? 10);
