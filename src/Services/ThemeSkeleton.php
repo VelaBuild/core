@@ -68,12 +68,23 @@ class ThemeSkeleton
     <meta name="viewport" content="width=device-width, initial-scale=1">
     @include('vela::templates._partials.meta-seo')
     @include('vela::templates._partials.meta-opengraph')
+    {{-- Several blocks are Alpine components. Without it their x-show panels
+         never hide: the gallery block's lightbox, for one, renders as a black
+         sheet over the whole page with a close button that does nothing. --}}
+    <script defer src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js"></script>
+    {{-- Where update_custom_css and a page's own CSS land. A theme without
+         this include makes every one of those calls a silent no-op. --}}
+    @include('vela::templates._partials.custom-css')
+    @stack('head')
     <style>
         :root {
 {$tokenBlock}
         }
 
         *, *::before, *::after { box-sizing: border-box; }
+        /* Held back until Alpine has hidden it, so a panel that starts closed
+           is never shown for the moment before the script runs. */
+        [x-cloak] { display: none !important; }
         body {
             margin: 0;
             background: var(--bg);
@@ -159,6 +170,21 @@ class ThemeSkeleton
         .block-pricing-tier-price { font-family: var(--font-display); color: var(--accent); display: flex; align-items: baseline; gap: 2px; margin-top: auto; }
         .block-pricing-tier-price-num { font-size: 30px; font-weight: 700; }
         .block-pricing-tier-cta { display: none; }
+        .block-pricing-tier-badge {
+            display: inline-block; padding: 4px 10px; margin-bottom: 10px; border-radius: 999px;
+            background: var(--accent); color: var(--accent-ink);
+            font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+        }
+        .block-pricing-tier-headline { font-family: var(--font-display); font-size: 19px; margin: 0 0 .25em; }
+        .block-pricing-tier-price-cur { font-size: 16px; vertical-align: super; }
+        .block-pricing-tier-price-period { color: var(--muted); font-size: 14px; }
+        .block-pricing-tier-price-note { color: var(--muted); font-size: 13px; }
+        .block-pricing-tier-features-cap {
+            font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+            color: var(--muted); margin: 16px 0 8px;
+        }
+        .block-pricing-tier-features { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+        .block-pricing-tier-features li { padding: 5px 0; border-top: 1px solid var(--line); }
 
         /* ── blocks: the quote ──────────────────────────────────────── */
         .block-testimonials { background: var(--band); color: var(--band-ink); padding: var(--section-gap) 24px; }
@@ -166,6 +192,8 @@ class ThemeSkeleton
         .testimonial-quote-icon { display: none; }
         .testimonial-quote { font-family: var(--font-display); font-size: 28px; font-style: italic; line-height: 1.4; margin-bottom: 18px; }
         .testimonial-name { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; }
+        .testimonial-author { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; }
+        .testimonial-title { font-size: 12px; color: var(--muted); }
 
         /* ── blocks: grids of articles and topics ───────────────────── */
         .block-posts-grid, .block-categories-grid {
@@ -179,6 +207,16 @@ class ThemeSkeleton
         .post-card h3, .category-card h3 { font-size: 19px; padding: 16px 16px 0; }
         .post-card p, .category-card p { color: var(--muted); font-size: 14px; padding: 0 16px 16px; margin: .5em 0 0; }
 
+        /* ── how a row lays its columns out ─────────────────────────── */
+        /* page-rows writes the track sizes inline and expects the display
+           mode to come from the stylesheet. Without this a two- or
+           three-column row stacks, which reads as the design being wrong
+           rather than the theme missing a line. */
+        .page-row-columns { display: grid; gap: 20px; }
+        @media (max-width: 768px) {
+            .page-row-columns { grid-template-columns: 1fr !important; }
+        }
+
         /* ── blocks: call to action, text, pictures ─────────────────── */
         .block-cta { background: var(--band); color: var(--band-ink); padding: var(--section-gap) 24px; text-align: center; }
         .block-cta-heading { font-size: 36px; }
@@ -186,8 +224,74 @@ class ThemeSkeleton
         .block-cta-btn { display: inline-block; padding: 14px 28px; text-decoration: none; border-radius: var(--radius); }
         .block-cta-btn-primary { background: var(--accent); color: var(--accent-ink); }
         .block-cta-btn-secondary { border: 2px solid currentColor; }
+        .block-cta-inner { max-width: var(--page-width); margin: 0 auto; }
+        .block-cta-description { opacity: .85; margin: .5em auto 0; max-width: 620px; }
+        .block-cta-note { font-size: 13px; opacity: .7; margin-top: 14px; }
         .block-text { max-width: var(--page-width); margin: 0 auto; padding: 24px; }
         .block-image { max-width: var(--page-width); margin: 0 auto; padding: 24px; }
+        .block-video { max-width: var(--page-width); margin: 0 auto; padding: 24px; }
+        .block-html { max-width: var(--page-width); margin: 0 auto; padding: 24px; }
+        .block-delimiter { max-width: var(--page-width); margin: var(--section-gap) auto; border-top: 1px solid var(--line); }
+        .block-checklist { max-width: var(--page-width); margin: 0 auto; padding: 24px; list-style: none; }
+        .checklist-item { display: flex; gap: 10px; align-items: flex-start; margin: .5em 0; }
+        .checklist-checkbox { accent-color: var(--accent); margin-top: .25em; }
+        .block-warning {
+            max-width: var(--page-width); margin: 24px auto; padding: 18px 20px;
+            background: var(--surface); border-left: 4px solid var(--accent); border-radius: var(--radius);
+        }
+        .block-warning-title { font-family: var(--font-display); margin: 0 0 .25em; }
+        .block-warning-message { color: var(--muted); margin: 0; }
+
+        /* ── blocks: questions and answers ──────────────────────────── */
+        .block-accordion { max-width: 860px; margin: 0 auto; padding: var(--section-gap) 24px; }
+        .block-accordion-item { border-bottom: 1px solid var(--line); }
+        .block-accordion-header {
+            display: flex; justify-content: space-between; align-items: center; gap: 16px; width: 100%;
+            padding: 20px 0; background: none; border: 0; cursor: pointer; text-align: left;
+            font-family: var(--font-display); font-size: 19px; color: inherit;
+        }
+        .block-accordion-chevron { flex: none; transition: transform .2s; }
+        .block-accordion-body { padding: 0 0 20px; color: var(--muted); }
+
+        /* ── blocks: a form someone fills in ────────────────────────── */
+        .block-contact-form {
+            max-width: 640px; margin: 0 auto; padding: var(--section-gap) 24px; text-align: center;
+        }
+        .block-contact-form-title { font-family: var(--font-display); font-size: 32px; margin: 0 0 .25em; }
+        .block-contact-form-intro { color: var(--muted); margin: 0 0 24px; }
+        .block-contact-form .form-group { margin-bottom: 14px; text-align: left; }
+        .block-contact-form label { display: block; font-size: 13px; margin-bottom: 6px; }
+        .block-contact-form input, .block-contact-form textarea, .block-contact-form select {
+            width: 100%; padding: 12px 14px; font: inherit; color: inherit;
+            background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+        }
+        .block-contact-form button[type="submit"] {
+            padding: 14px 28px; border: 0; border-radius: var(--radius); cursor: pointer;
+            background: var(--accent); color: var(--accent-ink); font: inherit;
+        }
+        .form-success { color: var(--accent); }
+        .form-error { color: #b3261e; font-size: 13px; }
+        /* A field only a robot fills in. It must never be seen or reachable. */
+        .honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+        /* ── blocks: pictures side by side, and one at a time ───────── */
+        .block-gallery { max-width: var(--page-width); margin: 0 auto; padding: var(--section-gap) 24px; }
+        .gallery-grid { display: grid; gap: 10px; }
+        .gallery-item { border-radius: var(--radius); overflow: hidden; }
+        .gallery-caption { color: var(--muted); font-size: 13px; padding-top: 6px; }
+        .block-carousel { position: relative; max-width: var(--page-width); margin: 0 auto; padding: var(--section-gap) 24px; }
+        .carousel-track { display: flex; overflow: hidden; border-radius: var(--radius); }
+        .carousel-slide { flex: 0 0 100%; }
+        .carousel-caption { color: var(--muted); font-size: 13px; padding-top: 8px; text-align: center; }
+        .carousel-arrow {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            background: var(--band); color: var(--band-ink); border: 0; cursor: pointer;
+            width: 40px; height: 40px; border-radius: 999px; opacity: .8;
+        }
+        .carousel-prev { left: 32px; }
+        .carousel-next { right: 32px; }
+        .carousel-dots { display: flex; gap: 8px; justify-content: center; padding-top: 14px; }
+        .carousel-dot { width: 8px; height: 8px; border-radius: 999px; border: 0; padding: 0; cursor: pointer; background: var(--line); }
 
         /* ── the views that are not the homepage ───────────────────── */
         .page-head { padding: var(--section-gap) 24px 0; }
@@ -264,6 +368,10 @@ class ThemeSkeleton
             <div class="fine">&copy; {{ date('Y') }} {{ config('app.name') }}</div>
         </div>
     </footer>
+    {{-- Carries the fallback that re-requests an image in its original format
+         when the browser cannot decode the WebP one. --}}
+    @include('vela::templates._partials.scripts-footer')
+    @stack('scripts')
 </body>
 </html>
 BLADE;
@@ -284,7 +392,15 @@ BLADE;
 
 @section('content')
 <div class="page-content page-slug-{{ $page->slug }} page-id-{{ $page->id }}">
-    @if($page->slug !== 'home')
+    @php
+        $__lead = optional($page->rows->sortBy('order_column')->first())
+            ->blocks->sortBy('order_column')->first();
+        $__opensWithHero = $__lead && $__lead->type === 'hero';
+    @endphp
+    {{-- A page that opens with a hero already states its own name, in the
+         design's words and at the design's size. Printing the page title
+         above it gives the reader two headings for one page. --}}
+    @if($page->slug !== 'home' && ! $__opensWithHero)
         <div class="wrap" style="padding-top:48px"><h1>{{ $page->title }}</h1></div>
     @endif
 
