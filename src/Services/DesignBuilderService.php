@@ -264,11 +264,23 @@ class DesignBuilderService
     }
 
     /**
-     * Detect role from filename heuristics.
+     * What a picture in the design folder is for.
+     *
+     * Only assets marked "design" are ever shown to the model, so this decides
+     * whether a build can see anything at all. It used to say "design" only
+     * when the filename said so — which held for files a developer had named
+     * restaurant-design.jpg, and failed silently for everything a real person
+     * uploads: a camera roll IMG_4821.jpg, a browser's download hash, a name
+     * in another language. The build then ran with no design in front of it,
+     * described the site it already had, and reported success.
+     *
+     * So the default is now the other way round: a picture someone put in the
+     * design folder is the design, unless it is plainly a logo or an icon.
      */
     private function detectRole(string $filename): string
     {
         $lower = strtolower($filename);
+
         if (
             str_contains($lower, 'design') ||
             str_contains($lower, 'mockup') ||
@@ -278,6 +290,7 @@ class DesignBuilderService
         ) {
             return 'design';
         }
+
         if (
             str_contains($lower, 'logo') ||
             str_contains($lower, 'icon') ||
@@ -285,7 +298,8 @@ class DesignBuilderService
         ) {
             return 'asset';
         }
-        return 'reference';
+
+        return 'design';
     }
 
     /**
@@ -340,6 +354,16 @@ class DesignBuilderService
                     ];
                 }
             }
+        }
+
+        // A build with no picture in front of it does not fail — it describes
+        // the site it already has and reports success, which reads as "the
+        // design was ignored". Say so instead.
+        if (count($userContent) < 2) {
+            throw new \RuntimeException(
+                'There is no design to build from. Upload a picture of what the site should look like '
+                . '— a screenshot, a mockup, a photo of a sketch — and start the build again.'
+            );
         }
 
         $messages = [
@@ -553,11 +577,38 @@ PROMPT;
             . json_encode($fixes, JSON_PRETTY_PRINT)
             . "\n\nCorrect the existing page so these are resolved, largest visual difference first."
             . "\nInspect the page with get_page_blocks and change or remove what is there;"
-            . " add something only where the design shows a section the page does not have at all.";
+            . " add something only where the design shows a section the page does not have at all."
+            . "\n\nThe design itself is below. Where a fix mentions wording, take the wording from"
+            . " the design and use it exactly; do not compose something in its place.";
+
+        // The fix loop used to be told the design was wrong about the words
+        // and never shown the design. Asked to correct "text content differs",
+        // it wrote plausible marketing copy over sentences that had been read
+        // off the design correctly — a headline the design gives as "Real-Time
+        // Monitoring Your Infrastructure" came back as "Zercurity", and one
+        // reading "Fire, smoke, and slow time." came back as the restaurant's
+        // name. Both times the build had got it right and the fix undid it.
+        $userContent = [['type' => 'text', 'text' => $fixPrompt]];
+
+        foreach ($context['assets'] ?? [] as $asset) {
+            if (($asset['role'] ?? '') !== 'design') {
+                continue;
+            }
+
+            $filePath = $designPath . '/' . $asset['file'];
+
+            if (file_exists($filePath)) {
+                $userContent[] = [
+                    'type' => 'image',
+                    'source' => $this->resizeImageForVision($filePath),
+                    'media_type' => $this->detectMimeType($filePath),
+                ];
+            }
+        }
 
         $messages = [
             ['role' => 'system', 'content' => $systemPrompt],
-            ['role' => 'user', 'content' => $fixPrompt],
+            ['role' => 'user', 'content' => $userContent],
         ];
 
         $availableTools = $this->toolRegistry->forUser($user);
