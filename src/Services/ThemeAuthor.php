@@ -168,10 +168,15 @@ class ThemeAuthor
 
         $contents = $this->unescapeJsonArtefacts($contents);
 
-        $this->assertCompiles($contents);
-        $this->assertUsable($view, $contents);
+        // What is being replaced, so a rewrite can be held to what the file
+        // already did rather than judged on its own.
+        $path = $this->directory($theme) . '/' . $view . '.blade.php';
+        $existing = is_file($path) ? (string) file_get_contents($path) : '';
 
-        file_put_contents($this->directory($theme) . '/' . $view . '.blade.php', $contents);
+        $this->assertCompiles($contents);
+        $this->assertUsable($view, $contents, $existing);
+
+        file_put_contents($path, $contents);
     }
 
     /**
@@ -202,7 +207,7 @@ class ThemeAuthor
      * through @extends. Compiling cannot see it; only rendering can, and by
      * then the site is down.
      */
-    private function assertUsable(string $view, string $contents): void
+    private function assertUsable(string $view, string $contents, string $existing = ''): void
     {
         if ($view !== 'layout') {
             if (!str_contains($contents, '@extends')) {
@@ -226,18 +231,27 @@ class ThemeAuthor
             );
         }
 
-        $this->assertStylesRealBlocks($contents);
+        $this->assertStylesRealBlocks($contents, $existing);
     }
 
     /**
-     * Refuse a stylesheet that styles class names nothing renders.
+     * Refuse a stylesheet that styles class names nothing renders, and refuse
+     * a rewrite that styles fewer of them than the file it replaces.
      *
      * CSS that matches no element is the quietest failure there is: the page
      * loads, the rules are ignored, and the design simply does not appear. A
      * layout written without reading list_block_types invents plausible names
      * — .block-accent, .block-text-primary — and every rule misses.
+     *
+     * A rewrite fails the same way for the opposite reason. Asked to change a
+     * colour, the model writes the whole layout again from memory and the
+     * dozen rules it happens to recall replace the skeleton's complete set.
+     * Every check still passes — the file compiles, it yields content, it
+     * names real classes — and the site comes back up with most of itself
+     * unstyled. Holding a rewrite to what the file already covered is what
+     * catches that, because nothing downstream can: the page still answers.
      */
-    private function assertStylesRealBlocks(string $contents): void
+    private function assertStylesRealBlocks(string $contents, string $existing = ''): void
     {
         if (!str_contains($contents, '<style')) {
             return;
@@ -249,19 +263,40 @@ class ThemeAuthor
             return;
         }
 
-        foreach ($inUse as $class) {
-            // Whole selector only: ".block-text" lives inside the invented
-            // ".block-text-primary", and a substring match would accept a
-            // stylesheet made entirely of names nothing renders.
-            if (preg_match('/\.' . preg_quote($class, '/') . '(?![\w-])/', $contents)) {
-                return;
-            }
+        // Whole selector only: ".block-text" lives inside the invented
+        // ".block-text-primary", and a substring match would accept a
+        // stylesheet made entirely of names nothing renders.
+        $styled = fn (string $css) => array_values(array_filter(
+            $inUse,
+            fn ($class) => (bool) preg_match('/\.' . preg_quote($class, '/') . '(?![\w-])/', $css)
+        ));
+
+        $covered = $styled($contents);
+
+        if (!$covered) {
+            throw new \RuntimeException(
+                'This stylesheet does not mention a single class the site\'s blocks actually render with, so none of it would apply. '
+                . 'The blocks on this site use: ' . implode(', ', array_slice($inUse, 0, 40)) . '. '
+                . 'Call list_block_types for the full set and write the rules against those names.'
+            );
+        }
+
+        if ($existing === '' || !str_contains($existing, '<style')) {
+            return;
+        }
+
+        $lost = array_values(array_diff($styled($existing), $covered));
+
+        if (!$lost) {
+            return;
         }
 
         throw new \RuntimeException(
-            'This stylesheet does not mention a single class the site\'s blocks actually render with, so none of it would apply. '
-            . 'The blocks on this site use: ' . implode(', ', array_slice($inUse, 0, 40)) . '. '
-            . 'Call list_block_types for the full set and write the rules against those names.'
+            'This would drop the styling for ' . count($lost) . ' class(es) the site is using right now: '
+            . implode(', ', array_slice($lost, 0, 40)) . '. '
+            . 'The page would still load, so nothing would report it — those sections would simply come out unstyled. '
+            . 'Keep those rules and change what you meant to change. '
+            . 'To change colours, type or spacing, call set_theme_tokens instead: it rewrites the theme\'s tokens and leaves every rule in place.'
         );
     }
 
