@@ -22,6 +22,15 @@ class SetThemeTokensTool extends BaseTool
 
         $author = app(ThemeAuthor::class);
 
+        $normalised = [];
+        foreach ($tokens as $name => $value) {
+            $normalised[ltrim((string) $name, '-')] = is_string($value) ? trim($value) : $value;
+        }
+
+        if ($error = $this->validateTokenContrast($normalised, $author->currentTokens($theme))) {
+            return $error;
+        }
+
         if ($actionLog) {
             $file = $author->directory($theme) . '/layout.blade.php';
             $actionLog->update(['previous_state' => [

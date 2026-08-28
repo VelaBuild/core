@@ -67,6 +67,11 @@ class UpdateBlockTool extends BaseTool
             return ['error' => 'Nothing to update. Pass content, settings, column_index, column_width, order, or row_id (to move).'];
         }
 
+        if (array_key_exists('background_image', $updates)
+            && ($error = $this->validateImageReference($updates['background_image']))) {
+            return $error;
+        }
+
         if ($error = $this->validateColourContrast(
             $updates['background_color'] ?? $block->background_color,
             $updates['text_color'] ?? $block->text_color,

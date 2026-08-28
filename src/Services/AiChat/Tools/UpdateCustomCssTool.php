@@ -17,6 +17,12 @@ class UpdateCustomCssTool extends BaseTool
             return ['error' => 'CSS content is required'];
         }
 
+        // Not behind force: a picture that cannot load is a mistake in any
+        // stylesheet, not a judgement call about which selectors are real.
+        if ($error = $this->validateCssImageUrls($css)) {
+            return $error;
+        }
+
         if (!($parameters['force'] ?? false) && $dead = $this->unknownBlockClasses($css)) {
             $suggestions = [];
             foreach ($dead as $class => $suggestion) {

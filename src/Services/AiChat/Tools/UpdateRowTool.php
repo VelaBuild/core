@@ -44,6 +44,11 @@ class UpdateRowTool extends BaseTool
 
         // Against the row as it will be, not as it was: changing only the
         // background is exactly how a section ends up white on white.
+        if (array_key_exists('background_image', $updates)
+            && ($error = $this->validateImageReference($updates['background_image']))) {
+            return $error;
+        }
+
         if ($error = $this->validateColourContrast(
             $updates['background_color'] ?? $row->background_color,
             $updates['text_color'] ?? $row->text_color,

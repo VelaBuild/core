@@ -49,6 +49,14 @@ class WriteFileTool extends BaseTool
 
         $fullPath = base_path(ltrim($path, '/'));
 
+        // resources/views/ is writable, and a theme Vela wrote for a design
+        // lives inside it. Those views are checked when write_theme_file puts
+        // them there; a general file writer must not be the way around that,
+        // or the guard just moves the damage to whichever tool has none.
+        if (is_file($fullPath) && ($error = $this->themeGuard($fullPath, (string) $content))) {
+            return ['error' => $error];
+        }
+
         if ($actionLog && is_file($fullPath)) {
             $actionLog->update(['previous_state' => ['content' => file_get_contents($fullPath)]]);
         }
@@ -61,6 +69,36 @@ class WriteFileTool extends BaseTool
         file_put_contents($fullPath, $content);
 
         return ['success' => true, 'path' => $path, 'bytes' => strlen($content)];
+    }
+
+    /**
+     * Why this write must not go through, if it must not.
+     *
+     * Returns null for anything that is not a view of a theme Vela authored,
+     * which is every ordinary write.
+     */
+    private function themeGuard(string $fullPath, string $content): ?string
+    {
+        $themes = dirname(resource_path('views/templates/x'));
+
+        if (!str_starts_with($fullPath, $themes . '/')) {
+            return null;
+        }
+
+        $theme = explode('/', substr($fullPath, strlen($themes) + 1))[0] ?? '';
+        $author = app(\VelaBuild\Core\Services\ThemeAuthor::class);
+
+        if ($theme === '' || !$author->exists($theme)) {
+            return null;
+        }
+
+        try {
+            $author->guardView($fullPath, $content, (string) file_get_contents($fullPath));
+        } catch (\RuntimeException $e) {
+            return $e->getMessage();
+        }
+
+        return null;
     }
 
     public function undo(AiActionLog $actionLog): void

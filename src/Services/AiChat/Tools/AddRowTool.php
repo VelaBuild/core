@@ -33,6 +33,10 @@ class AddRowTool extends BaseTool
         $attributes['order_column'] = $parameters['order']
             ?? ((int) $page->rows()->max('order_column') + 1);
 
+        if ($error = $this->validateImageReference($attributes['background_image'] ?? null)) {
+            return $error;
+        }
+
         if ($error = $this->validateColourContrast(
             $attributes['background_color'] ?? null,
             $attributes['text_color'] ?? null,

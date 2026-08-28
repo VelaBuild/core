@@ -58,6 +58,10 @@ class AddBlockTool extends BaseTool
             $content = $this->normalizeBlockUrls($content);
         }
 
+        if ($error = $this->validateImageReference($parameters['background_image'] ?? null)) {
+            return $error;
+        }
+
         if ($error = $this->validateColourContrast(
             $parameters['background_color'] ?? null,
             $parameters['text_color'] ?? null,

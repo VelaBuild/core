@@ -106,6 +106,36 @@ class ThemeAuthor
     }
 
     /**
+     * The token values a theme is carrying now.
+     *
+     * They live in the layout's :root block, which is also where setTokens
+     * rewrites them, so reading them back is a matter of looking there.
+     */
+    public function currentTokens(string $theme): array
+    {
+        $file = $this->directory($theme) . '/layout.blade.php';
+
+        if (!is_file($file)) {
+            return [];
+        }
+
+        preg_match_all(
+            '/--([a-z0-9-]+):\s*([^;]+);/i',
+            (string) file_get_contents($file),
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        $tokens = [];
+
+        foreach ($matches as $match) {
+            $tokens[$match[1]] = trim($match[2]);
+        }
+
+        return $tokens;
+    }
+
+    /**
      * Change the design decisions at the top of a theme's stylesheet.
      *
      * The whole of the skeleton reads from these, so setting a dozen of them
@@ -196,6 +226,30 @@ class ThemeAuthor
         }
 
         return str_replace(['\\/', '\\"'], ['/', '"'], $contents);
+    }
+
+    /**
+     * Hold a view written by any route to the same checks.
+     *
+     * writeView is not the only way into a theme: edit_template_file writes
+     * into whichever template is active, which is this one whenever a build
+     * has switched to what it wrote. A guard on one door is a guard on none —
+     * refuse write_theme_file and the model reaches for the other tool, which
+     * regenerates the whole file from a 4000-token budget the skeleton layout
+     * does not fit inside.
+     *
+     * Throws with something the caller can act on; returns quietly for a file
+     * that is not one of a theme's views.
+     */
+    public function guardView(string $path, string $contents, string $existing = ''): void
+    {
+        $view = basename($path, '.blade.php');
+
+        if (!array_key_exists($view, self::VIEWS)) {
+            return;
+        }
+
+        $this->assertUsable($view, $contents, $existing);
     }
 
     /**

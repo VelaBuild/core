@@ -144,6 +144,60 @@ abstract class BaseTool
         ];
     }
 
+    /**
+     * Refuse a set of theme tokens that pairs text with a ground it vanishes
+     * into.
+     *
+     * Blocks have been checked for this since a section came out white on
+     * white; a theme's tokens never were, and they decide the colour of every
+     * page at once. A run that read a blue design set the header ink to
+     * #001F3F over a #083D77 bar — 1.53:1, a navigation nobody can see, and
+     * nothing said a word. Only pairs where both halves are known are judged:
+     * a token left alone keeps whatever the theme already had.
+     *
+     * @param array<string, string> $proposed the tokens being set
+     * @param array<string, string> $current  what the theme has now
+     */
+    protected function validateTokenContrast(array $proposed, array $current = []): ?array
+    {
+        $pairs = [
+            ['ink', 'bg', 'body text on the page'],
+            ['band-ink', 'band', 'text on a full-width band'],
+            ['bar-ink', 'bar', 'text in the strip above the header'],
+            ['accent-ink', 'accent', 'text on an accent-coloured button'],
+        ];
+
+        foreach ($pairs as [$inkToken, $groundToken, $what]) {
+            $ink = $proposed[$inkToken] ?? $current[$inkToken] ?? null;
+            $ground = $proposed[$groundToken] ?? $current[$groundToken] ?? null;
+
+            // Only judge a pair this call is actually changing.
+            if (!isset($proposed[$inkToken]) && !isset($proposed[$groundToken])) {
+                continue;
+            }
+
+            if (!$this->isHexColour($ink) || !$this->isHexColour($ground)) {
+                continue;
+            }
+
+            $ratio = $this->contrastRatio($ground, $ink);
+
+            if ($ratio >= 3.0) {
+                continue;
+            }
+
+            return [
+                'error' => "These tokens would make {$what} unreadable: {$inkToken} {$ink} on {$groundToken} "
+                    . "{$ground} is " . number_format($ratio, 2) . ':1, and 3:1 is the floor. '
+                    . 'Set both halves of the pair together — a colour read off the design for one of them needs '
+                    . 'the other chosen to suit it.',
+                'contrast_ratio' => round($ratio, 2),
+            ];
+        }
+
+        return null;
+    }
+
     private function isHexColour(?string $value): bool
     {
         return is_string($value) && preg_match('/^#[0-9a-f]{6}$/i', trim($value)) === 1;
@@ -179,7 +233,96 @@ abstract class BaseTool
      */
     protected function validateBlockContent(string $type, $content): ?array
     {
-        return $this->validateBlockShape($type, $content, 'content');
+        if ($error = $this->validateBlockShape($type, $content, 'content')) {
+            return $error;
+        }
+
+        return $this->validateContentImages($content);
+    }
+
+    /**
+     * Reject a stylesheet pointing at a picture that will never load.
+     *
+     * A build wrote `background: url('https://example.com/hero-background.jpg')`
+     * into a page's CSS. example.com is the address reserved for writing
+     * examples with; nothing is served from it. The section renders with no
+     * background, and every visit makes a request to somebody else's domain
+     * looking for it. Bare filenames fail the same way as they do in a block.
+     */
+    protected function validateCssImageUrls(string $css): ?array
+    {
+        if (!preg_match_all('/url\(\s*[\'"]?([^\'")]+)[\'"]?\s*\)/i', $css, $matches)) {
+            return null;
+        }
+
+        foreach ($matches[1] as $url) {
+            $url = trim($url);
+
+            if ($url === '' || str_starts_with($url, 'data:')) {
+                continue;
+            }
+
+            // Reserved for documentation by RFC 2606: never a real address.
+            if (preg_match('~^(https?:)?//([^/]*\.)?example\.(com|org|net)(/|$)~i', $url)) {
+                return [
+                    'error' => "\"{$url}\" points at example.com, which is the address reserved for writing examples "
+                        . 'with — nothing is served from it, so the picture would never appear and every visit would '
+                        . 'ask an outside domain for it. Use generate_image and the URL it returns, a URL from '
+                        . 'list_media, or leave the background out.',
+                ];
+            }
+
+            if ($error = $this->validateImageReference($url, 'url() in this stylesheet')) {
+                return $error;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Reject a picture written into a block's content that leads nowhere.
+     *
+     * Same failure as a background image, one level down: an image block came
+     * back with {"url": "#"}, which renders an <img> that can never load. A
+     * block put there to hold a picture and holding a placeholder is worse
+     * than one that was never added — it looks like a broken site rather than
+     * an unfinished one.
+     *
+     * Only keys that mean a picture are checked. A plain "url" is a link
+     * everywhere else, and "#" is a perfectly ordinary link; it counts as a
+     * picture only where the same object also carries an "alt".
+     */
+    protected function validateContentImages($content): ?array
+    {
+        if (!is_array($content)) {
+            return null;
+        }
+
+        $urlIsPicture = array_key_exists('alt', $content);
+
+        foreach ($content as $key => $value) {
+            if (is_array($value)) {
+                if ($error = $this->validateContentImages($value)) {
+                    return $error;
+                }
+
+                continue;
+            }
+
+            if (!is_string($value)) {
+                continue;
+            }
+
+            $isPicture = preg_match('/(^|_)(image|src|photo|thumbnail)$/i', (string) $key)
+                || ($urlIsPicture && preg_match('/(^|_)url$/i', (string) $key));
+
+            if ($isPicture && ($error = $this->validateImageReference($value, (string) $key))) {
+                return $error;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -215,6 +358,35 @@ abstract class BaseTool
         }
 
         return $content;
+    }
+
+    /**
+     * Reject an image reference the site cannot serve.
+     *
+     * A design build is handed an inventory of the files it was given, and a
+     * hero came back with background_image set to one of their names —
+     * "1429569b82006dff919370cd5f06e740.jpg". A bare filename is not a URL on
+     * this site: it resolved against the page it was on, 404'd, and left a
+     * hero with a dead background nobody would think to look for. The design
+     * a build reads from is its input; it is not a picture the site owns.
+     */
+    protected function validateImageReference(?string $url, string $field = 'background_image'): ?array
+    {
+        $url = trim((string) $url);
+
+        if ($url === '' || str_starts_with($url, 'data:')) {
+            return null;
+        }
+
+        if (str_contains($url, '/')) {
+            return null;
+        }
+
+        return [
+            'error' => "\"{$url}\" is a filename, not an address this site can serve, so {$field} would render as a "
+                . 'broken image. Use generate_image to make a picture and pass the URL it returns, or a URL from '
+                . 'list_media. The files in the design folder are what you are reading from, not pictures the site has.',
+        ];
     }
 
     /**

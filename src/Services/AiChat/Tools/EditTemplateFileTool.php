@@ -106,7 +106,28 @@ class EditTemplateFileTool extends BaseTool
             }
         }
 
-        // 9. Blade compilation check + 10. Atomic write
+        // 9. The checks a theme's own views are written under.
+        //
+        // This tool edits whichever template is active, and after a design
+        // build that is a theme Vela wrote itself. Those views are held to
+        // more than "it compiles" when write_theme_file puts them there, and
+        // the same must hold coming through here — otherwise guarding one
+        // tool only moves the damage to the other.
+        $author = app(\VelaBuild\Core\Services\ThemeAuthor::class);
+
+        if ($author->exists($activeTemplate)) {
+            try {
+                $author->guardView($fullPath, $newContent, (string) file_get_contents($fullPath));
+            } catch (\RuntimeException $e) {
+                if (file_exists($backupPath)) {
+                    unlink($backupPath);
+                }
+
+                return ['error' => $e->getMessage()];
+            }
+        }
+
+        // 10. Blade compilation check + atomic write
         $tmpPath = $fullPath . '.tmp';
 
         try {
