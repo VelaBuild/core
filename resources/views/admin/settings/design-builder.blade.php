@@ -22,12 +22,21 @@
                 </p>
 
                 @can('config_edit')
-                <form action="{{ route('vela.admin.settings.design-builder.upload') }}" method="POST" enctype="multipart/form-data" class="mb-3">
+                {{-- A form, not a bare div: where Dropzone cannot run, this still
+                     uploads by hand rather than leaving no way in at all. --}}
+                <form action="{{ route('vela.admin.settings.design-builder.upload') }}" method="POST"
+                      enctype="multipart/form-data" class="dropzone mb-3" id="design-dropzone">
                     @csrf
-                    <div class="form-group">
-                        <input type="file" name="files[]" class="form-control-file" multiple accept="image/*" required>
+                    <div class="dz-message text-muted">
+                        <i class="fas fa-image fa-2x mb-2 d-block"></i>
+                        Drop a picture here, or click to choose one.
                     </div>
-                    <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-upload mr-1"></i> Upload</button>
+                    <div class="fallback">
+                        <div class="form-group">
+                            <input type="file" name="files[]" class="form-control-file" multiple accept="image/*" required>
+                        </div>
+                        <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-upload mr-1"></i> Upload</button>
+                    </div>
                 </form>
                 @endcan
 
@@ -41,6 +50,7 @@
                                 <button type="button" class="btn p-0 border-0 bg-transparent vela-design-open"
                                         data-src="{{ route('vela.admin.settings.design-builder.design', $file['name']) }}"
                                         data-name="{{ $file['name'] }}"
+                                        data-kind="image"
                                         title="Click to see it full size"
                                         style="display:block;width:100%;cursor:zoom-in;">
                                     <img src="{{ route('vela.admin.settings.design-builder.design', $file['name']) }}"
@@ -48,11 +58,22 @@
                                          style="width:100%;height:70px;object-fit:cover;border-radius:3px;">
                                 </button>
                             @else
-                                <div class="text-muted" style="height:70px;line-height:70px;"><i class="fas fa-file-alt fa-2x"></i></div>
+                                {{-- A written brief is as much a part of the design as the
+                                     picture is, so it opens the same way rather than being
+                                     the one thing on the shelf that cannot be looked at. --}}
+                                <button type="button" class="btn p-0 border-0 bg-transparent vela-design-open text-muted"
+                                        data-src="{{ route('vela.admin.settings.design-builder.design', $file['name']) }}"
+                                        data-name="{{ $file['name'] }}"
+                                        data-kind="text"
+                                        title="Click to read it"
+                                        style="display:block;width:100%;height:70px;line-height:70px;cursor:zoom-in;">
+                                    <i class="fas fa-file-alt fa-2x"></i>
+                                </button>
                             @endif
                             <div class="small text-truncate mt-1" title="{{ $file['name'] }}">{{ $file['name'] }}</div>
                             @can('config_edit')
-                            <form action="{{ route('vela.admin.settings.design-builder.delete') }}" method="POST">
+                            <form action="{{ route('vela.admin.settings.design-builder.delete') }}" method="POST"
+                                  onsubmit="return confirm('Remove {{ $file['name'] }}? It would have to be added again.');">
                                 @csrf
                                 <input type="hidden" name="name" value="{{ $file['name'] }}">
                                 <button type="submit" class="btn btn-link btn-sm text-danger p-0">Remove</button>
@@ -178,6 +199,8 @@
     {{-- A tall design is read by scrolling, not by being shrunk to fit a screen it was never drawn for. --}}
     <div style="max-width:1200px;width:100%;flex:1;overflow:auto;background:#fff;border-radius:4px;">
         <img id="vela-lightbox-img" src="" alt="" style="width:100%;display:block;">
+        <pre id="vela-lightbox-text" class="d-none mb-0"
+             style="padding:24px;white-space:pre-wrap;word-break:break-word;font-size:14px;"></pre>
     </div>
 </div>
 
@@ -185,13 +208,12 @@
 (function () {
     var box = document.getElementById('vela-lightbox');
     var img = document.getElementById('vela-lightbox-img');
+    var text = document.getElementById('vela-lightbox-text');
     var name = document.getElementById('vela-lightbox-name');
     var opener = null;
 
-    function open(src, label) {
+    function show(label) {
         opener = document.activeElement;
-        img.src = src;
-        img.alt = label;
         name.textContent = label;
         box.classList.remove('d-none');
         // The page behind must not scroll while this is over it, or a flick of
@@ -200,16 +222,53 @@
         document.getElementById('vela-lightbox-close').focus();
     }
 
+    function open(src, label) {
+        img.classList.remove('d-none');
+        text.classList.add('d-none');
+        img.src = src;
+        img.alt = label;
+        show(label);
+    }
+
+    // Read rather than downloaded: a brief is a few lines, and handing it to
+    // the browser as a file would take the operator out of the page they are
+    // working in.
+    function openText(src, label) {
+        img.classList.add('d-none');
+        text.classList.remove('d-none');
+        text.textContent = 'Loading…';
+        show(label);
+
+        fetch(src, { credentials: 'same-origin' })
+            .then(function (response) {
+                if (!response.ok) { throw new Error('HTTP ' + response.status); }
+                return response.text();
+            })
+            .then(function (body) {
+                text.textContent = body.trim() === '' ? '(this file is empty)' : body;
+            })
+            .catch(function () {
+                text.textContent = 'That file could not be read.';
+            });
+    }
+
     function close() {
         box.classList.add('d-none');
         img.src = '';
+        text.textContent = '';
         document.body.style.overflow = '';
         if (opener) { opener.focus(); opener = null; }
     }
 
     document.querySelectorAll('.vela-design-open').forEach(function (button) {
         button.addEventListener('click', function () {
-            open(button.dataset.src, button.dataset.name || '');
+            var label = button.dataset.name || '';
+
+            if (button.dataset.kind === 'text') {
+                openText(button.dataset.src, label);
+            } else {
+                open(button.dataset.src, label);
+            }
         });
     });
 
@@ -281,3 +340,43 @@
 })();
 </script>
 @endsection
+
+@can('config_edit')
+{{-- Pushed rather than written into the page: the admin layout loads Dropzone
+     itself further down, and options set before it exists are simply lost. --}}
+@push('scripts')
+<script>
+    // The upload route reads files[], so the pictures have to arrive as an
+    // array — which is what uploadMultiple gives us with this paramName.
+    Dropzone.options.designDropzone = {
+        paramName: 'files',
+        uploadMultiple: true,
+        parallelUploads: 10,
+        maxFilesize: 20,
+        acceptedFiles: 'image/*',
+        addRemoveLinks: false,
+        headers: { 'X-CSRF-TOKEN': "{{ csrf_token() }}" },
+        // The list of designs, the readiness checks and the Build button are
+        // all rendered by the server from what is on disk, so the page has to
+        // come back to tell the truth about what was just added.
+        queuecomplete: function () {
+            if (this.getRejectedFiles().length === 0) {
+                window.location.reload();
+            }
+        },
+        errormultiple: function (files, response) {
+            var message = typeof response === 'string'
+                ? response
+                : (response && response.message) || 'That file could not be uploaded.';
+
+            files.forEach(function (file) {
+                file.previewElement.classList.add('dz-error');
+                file.previewElement.querySelectorAll('[data-dz-errormessage]').forEach(function (node) {
+                    node.textContent = message;
+                });
+            });
+        }
+    };
+</script>
+@endpush
+@endcan
