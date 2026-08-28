@@ -43,6 +43,29 @@ class SiteConfigWriter
         if (! empty($siteConfig['site_tagline'])) {
             config(['vela.site.tagline' => $siteConfig['site_tagline']]);
         }
+        if (! empty($siteConfig['primary_language'])) {
+            config(['vela.primary_language' => $siteConfig['primary_language']]);
+        }
+        if (! empty($siteConfig['active_languages'])) {
+            $languages = json_decode((string) $siteConfig['active_languages'], true);
+
+            // The site's own languages decide what the locale middleware will
+            // accept, so a primary language missing from them is ignored.
+            if (is_array($languages) && $languages) {
+                $available = config('vela.available_languages', []);
+                $enabled = [];
+
+                foreach ($languages as $code) {
+                    if (isset($available[$code])) {
+                        $enabled[$code] = $available[$code];
+                    }
+                }
+
+                if ($enabled) {
+                    config(['vela.available_languages' => $enabled]);
+                }
+            }
+        }
         // write() has always recorded this, but nothing ever read it back into
         // the config — so the site description a user typed in Settings never
         // reached the page that needed it.
@@ -99,6 +122,20 @@ class SiteConfigWriter
             'active_template' => VelaConfig::where('key', 'active_template')->value('value') ?? '',
             'custom_css_global' => VelaConfig::where('key', 'custom_css_global')->value('value') ?? '',
         ];
+
+        // Settings → Languages writes these, and nothing carried them any
+        // further: the choice was saved, the site went on serving English,
+        // and the page kept reporting lang="en". They are read back in
+        // apply() below.
+        $primaryLanguage = VelaConfig::where('key', 'primary_language')->value('value');
+        if ($primaryLanguage) {
+            $config['primary_language'] = $primaryLanguage;
+        }
+
+        $activeLanguages = VelaConfig::where('key', 'active_languages')->value('value');
+        if ($activeLanguages) {
+            $config['active_languages'] = $activeLanguages;
+        }
 
         // Include all theme options
         $config['theme'] = VelaConfig::where('key', 'like', 'theme_%')
