@@ -163,7 +163,29 @@
         @if(!empty($results))
         <div class="card">
             <div class="card-body">
-                <h5 class="mb-3">What it produced</h5>
+                <h5 class="mb-1">What it produced</h5>
+
+                @if($preview)
+                    <p class="text-muted small">
+                        A build makes its own page and leaves your site alone, so you can look
+                        before you decide.
+                    </p>
+                    <div class="d-flex align-items-center mb-4" style="gap:8px;">
+                        <a href="{{ url($preview->slug) }}" target="_blank" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-external-link-alt mr-1"></i> Open it
+                        </a>
+                        @can('config_edit')
+                        <form action="{{ route('vela.admin.settings.design-builder.use') }}" method="POST"
+                              onsubmit="return confirm('Make this your homepage? The one you have now is kept, unlisted, so you can go back to it.');">
+                            @csrf
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="fas fa-check mr-1"></i> Use this as my homepage
+                            </button>
+                        </form>
+                        @endcan
+                    </div>
+                @endif
+
                 @foreach($results as $result)
                     <div class="mb-4">
                         <h6 class="text-muted">Round {{ $result['loop'] }}</h6>

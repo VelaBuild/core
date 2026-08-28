@@ -3,9 +3,14 @@
 namespace VelaBuild\Core\Http\Controllers\Admin;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
+use VelaBuild\Core\Commands\DesignToSite;
 use VelaBuild\Core\Http\Controllers\Controller;
+use VelaBuild\Core\Models\Page;
+use VelaBuild\Core\Models\VelaConfig;
+use VelaBuild\Core\Services\SiteConfigWriter;
 use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\DesignBuildRunner;
 use VelaBuild\Core\Services\ScreenshotService;
@@ -36,7 +41,62 @@ class DesignBuilderController extends Controller
             'running' => $this->runner->status()->isRunning(),
             'results' => $this->runner->results(),
             'readiness' => $this->readiness(),
+            'preview' => $this->previewPage(),
         ]);
+    }
+
+    /**
+     * The page a finished build put its work on, if there is one.
+     */
+    private function previewPage(): ?Page
+    {
+        return Page::where('slug', DesignToSite::PREVIEW_SLUG)->first();
+    }
+
+    /**
+     * Make what the build produced the site's front page.
+     *
+     * The homepage that was there is kept, unlisted, rather than overwritten:
+     * someone trying a design out should be able to change their mind, and a
+     * page they spent time on is not ours to throw away.
+     */
+    public function useAsHomepage(Request $request)
+    {
+        abort_if(Gate::denies('config_edit'), Response::HTTP_FORBIDDEN);
+
+        $preview = $this->previewPage();
+
+        if (!$preview) {
+            return back()->withErrors(['build' => 'There is no design to use yet. Run a build first.']);
+        }
+
+        DB::transaction(function () use ($preview) {
+            $current = Page::where('slug', 'home')->first();
+
+            if ($current) {
+                $current->update([
+                    'slug' => 'home-' . now()->format('Y-m-d-His'),
+                    'status' => 'unlisted',
+                ]);
+            }
+
+            $preview->update([
+                'slug' => 'home',
+                'status' => 'published',
+            ]);
+
+            // The build names its page after the site the design is for, and
+            // renames nothing while it is only being looked at. This is the
+            // moment the design becomes theirs, so the name comes with it.
+            $name = trim((string) $preview->title);
+
+            if ($name !== '' && $name !== 'Design preview') {
+                VelaConfig::updateOrCreate(['key' => 'site_name'], ['value' => $name]);
+                app(SiteConfigWriter::class)->write();
+            }
+        });
+
+        return back()->with('message', 'That design is now your homepage. The one it replaced is still there, unlisted.');
     }
 
     public function upload(Request $request)

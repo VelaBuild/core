@@ -794,10 +794,11 @@ PROMPT;
         $instructionsJson = json_encode($context['instructions'] ?? [], JSON_PRETTY_PRINT);
         $assetsJson = json_encode($context['assets'] ?? [], JSON_PRETTY_PRINT);
         $steps = self::MAX_TOOL_ITERATIONS;
+        $target = $context['target_page'] ?? null;
 
         $task = $correcting
-            ? $this->correctingInstructions($steps)
-            : $this->buildingInstructions($steps);
+            ? $this->correctingInstructions($steps, $target)
+            : $this->buildingInstructions($steps, $target);
 
         return <<<PROMPT
 You are a site builder AI for {$siteDesc}.
@@ -812,10 +813,42 @@ ASSET INVENTORY:
 PROMPT;
     }
 
-    private function buildingInstructions(int $steps): string
+    /**
+     * Which page the build is for, in the terms the model works in.
+     *
+     * A build is given a page of its own so the design is not weighed against
+     * whatever the site happens to hold: told to work on a homepage already
+     * full of the last design, the model corrects that towards the new one and
+     * the old site shows through. Named explicitly, and told to leave the rest
+     * alone, it builds what the design shows.
+     */
+    private function wherePagePart(?array $target): string
+    {
+        if (!$target) {
+            return 'delete_row — a fresh install ships a homepage of its own: a welcome hero,' . "\n"
+                . '   an article listing, a call to action. Call get_page_blocks on the home page' . "\n"
+                . '   and delete every row of it. What you build next replaces it.';
+        }
+
+        $id = (int) ($target['id'] ?? 0);
+        $slug = (string) ($target['slug'] ?? '');
+
+        return <<<PART
+Build on page id {$id} ("/{$slug}") and on no other. It has been emptied for
+   you, so there is nothing to delete first. Do not touch the homepage or any
+   other page: this one is what will be shown as the result, and the site's
+   own pages are not yours to rewrite. Call update_page once to title it with
+   the name the design gives the site — that name is taken up as the site's
+   own if this design is the one they keep. Do not call update_site_config
+   for the site's name: nothing here is theirs yet.
+PART;
+    }
+
+    private function buildingInstructions(int $steps, ?array $target = null): string
     {
         $blockClasses = $this->blockClassReference();
         $editableBlocks = implode(', ', app(\VelaBuild\Core\Vela::class)->blocks()->editableNames());
+        $where = $this->wherePagePart($target);
 
         return <<<PROMPT
 You have a design to replicate. Two things carry it, and keeping them apart is
@@ -842,10 +875,8 @@ HOW TO BUILD, IN ORDER:
    theme falls back to plain built-in views, so the site keeps working, and
    everything you do from here is visible instead of waiting behind a switch
    you might not reach.
-4. delete_row — a fresh install ships a homepage of its own: a welcome hero,
-   an article listing, a call to action. Call get_page_blocks on the home page
-   and delete every row of it. What you build next replaces it.
-5. add_row and add_block — build the design's homepage, section by section,
+4. {$where}
+5. add_row and add_block — build the design's page, section by section,
    from the block types that fit:
      a full-width headline over an image  -> hero
      a row of figures or short claims     -> icon_box
@@ -931,17 +962,21 @@ PROMPT;
         return implode("\n", $lines);
     }
 
-    private function correctingInstructions(int $steps): string
+    private function correctingInstructions(int $steps, ?array $target = null): string
     {
+        $onlyPage = $target
+            ? 'Everything you change on a page belongs to page id ' . (int) $target['id']
+                . ' ("/' . $target['slug'] . '"). Leave every other page alone.'
+            : 'A section on the page that you did not design is a leftover row from the'
+                . ' install\'s own homepage: find it with get_page_blocks and delete_row it.';
+
         return <<<PROMPT
 The site is already built and has a theme written for it. Your job is to
 correct what is there so it matches the design more closely — not to build it
 again.
 
 HOW TO CORRECT:
-- A section on the page that you did not design is a leftover row from the
-  install's own homepage. Find it with get_page_blocks and delete_row it;
-  do not try to restyle it into the design.
+- {$onlyPage}
 - How a section looks is the theme's stylesheet; what it says is a block.
   A wrong colour, size or spacing is fixed with write_theme_file; wrong words
   or a missing card with update_block or add_block. Never move a homepage

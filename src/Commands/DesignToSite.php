@@ -24,6 +24,9 @@ class DesignToSite extends Command
         {--dry-run : Show build plan without executing}
         {--figma-url= : Figma file URL to export assets from}';
 
+    /** Where a build puts what it makes, until someone says to use it. */
+    public const PREVIEW_SLUG = 'design-preview';
+
     protected $description = 'Build a site from design assets using AI with visual QA loop';
 
     private AiProviderManager $aiManager;
@@ -195,7 +198,36 @@ class DesignToSite extends Command
             // than one that never changed.
             $themeBefore = VelaConfig::where('key', 'active_template')->value('value');
 
-            $this->info('Starting initial build...');
+            // The design is built onto a page of its own rather than over the
+            // homepage. Two reasons. The site that is already there is an
+            // anchor: shown a design it has never seen and a homepage full of
+            // the last one, the model edits what it finds towards the design
+            // instead of building what the design shows — a restaurant asked
+            // to become a SaaS page stayed a restaurant. And a build used to
+            // delete every row of a live homepage before it had produced
+            // anything to replace it with, which is a poor trade to offer
+            // someone who only wanted to see what a design would look like.
+            // Rounds from the run before this one are not results of this
+            // one. Left in place, a two-round build showed a third round from
+            // an earlier design underneath its own, as though it had produced
+            // it. The status file lives here too and is this run's, so only
+            // the rounds go.
+            foreach (glob($designPath . '/output/loop_*') ?: [] as $stale) {
+                @unlink($stale);
+            }
+
+            $preview = $this->previewPage();
+            $context['target_page'] = [
+                'id' => $preview->id,
+                'slug' => $preview->slug,
+                'title' => $preview->title,
+            ];
+
+            // Unlisted, so it can be photographed over HTTP without a login
+            // and without appearing anywhere a visitor would find it.
+            $qaUrl = rtrim($url, '/') . '/' . $preview->slug;
+
+            $this->info('Building onto "' . $preview->slug . '" — the homepage is left as it is.');
             $this->builder->runBuildLoop($context, $designPath, $url);
 
             if (!$this->siteStillWorks($url)) {
@@ -223,12 +255,12 @@ class DesignToSite extends Command
                 $this->info("QA Loop {$loop}/{$maxLoops}...");
 
                 $screenshotPath = $outputPath . '/loop_' . $loop . '_screenshot.png';
-                $screenshotPath = $this->screenshotService->captureLiveFullPage($url, $screenshotPath);
+                $screenshotPath = $this->screenshotService->captureLiveFullPage($qaUrl, $screenshotPath);
 
                 // Validate screenshot
                 if (file_exists($screenshotPath) && filesize($screenshotPath) < 1024) {
                     $this->warn('Screenshot appears small, retrying...');
-                    $screenshotPath = $this->screenshotService->captureLiveFullPage($url, $screenshotPath);
+                    $screenshotPath = $this->screenshotService->captureLiveFullPage($qaUrl, $screenshotPath);
                     if (!file_exists($screenshotPath) || filesize($screenshotPath) < 1024) {
                         $this->error('Screenshot appears blank — check server and URL.');
                         break;
@@ -299,6 +331,38 @@ class DesignToSite extends Command
                 $this->status->finish(false, 'The build stopped before it finished. See the messages above.');
             }
         }
+    }
+
+    /**
+     * The page a build works on: a clean one, kept out of the way.
+     *
+     * Reused between runs rather than piling up, and emptied first — a build
+     * asked to redo a design should start from the design, not from its own
+     * previous attempt at it.
+     */
+    private function previewPage(): Page
+    {
+        $page = Page::withTrashed()->where('slug', self::PREVIEW_SLUG)->first();
+
+        if ($page) {
+            if ($page->trashed()) {
+                $page->restore();
+            }
+
+            $page->rows()->each(fn ($row) => $row->delete());
+            $page->update(['status' => 'unlisted']);
+
+            return $page->fresh();
+        }
+
+        return Page::create([
+            'title' => 'Design preview',
+            'slug' => self::PREVIEW_SLUG,
+            'locale' => config('app.locale', 'en'),
+            'status' => 'unlisted',
+            'meta_title' => 'Design preview',
+            'meta_description' => 'A design being tried out. Not listed anywhere on the site.',
+        ]);
     }
 
     /**
