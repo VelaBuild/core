@@ -68,6 +68,14 @@ class ThemeSkeleton
     <meta name="viewport" content="width=device-width, initial-scale=1">
     @include('vela::templates._partials.meta-seo')
     @include('vela::templates._partials.meta-opengraph')
+    {{-- The block stylesheet every shipped theme pulls in the same way. It
+         carries what the block markup expects and a theme cannot reasonably
+         restate: the row grid — page-rows writes the track widths inline and
+         takes display:grid from here, so without it a two-column row stacks —
+         along with list, quote, table and caption styling for the text and
+         image blocks. It comes before the rules below so the theme can still
+         overrule any of it. --}}
+    @velaAssets('public')
     {{-- Several blocks are Alpine components. Without it their x-show panels
          never hide: the gallery block's lightbox, for one, renders as a black
          sheet over the whole page with a close button that does nothing. --}}
@@ -79,6 +87,20 @@ class ThemeSkeleton
     <style>
         :root {
 {$tokenBlock}
+
+            /* The block stylesheet above paints from its own variables, set
+               for a light page. Pointed at the theme's colours instead, every
+               rule in it follows the design rather than fighting it. */
+            --block-accent: var(--accent);
+            --block-accent-hover: var(--accent);
+            --block-text-primary: var(--ink);
+            --block-text-secondary: var(--ink);
+            --block-text-muted: var(--muted);
+            --block-border: var(--line);
+            --block-bg-light: var(--surface);
+            --block-bg-hover: var(--surface);
+            --block-bg-white: var(--bg);
+            --block-form-border: var(--line);
         }
 
         *, *::before, *::after { box-sizing: border-box; }
@@ -152,9 +174,12 @@ class ThemeSkeleton
             display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 24px; text-align: center; padding: 40px 24px;
         }
+        /* A band sets its own text colour; the block stylesheet paints some
+           of these directly, which would otherwise win over inheriting it. */
+        .block-icon-boxes *, .block-testimonials *, .block-cta * { color: inherit; }
         .icon-box-icon { display: none; }
-        .icon-box-title { font-family: var(--font-display); font-size: 34px; margin-bottom: 4px; }
-        .icon-box-description { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; }
+        .icon-box-title { font-family: var(--font-display); font-size: 34px; margin-bottom: 4px; color: inherit; }
+        .icon-box-description { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; color: inherit; }
 
         /* ── blocks: priced cards ───────────────────────────────────── */
         .block-pricing-tiers {
@@ -190,8 +215,8 @@ class ThemeSkeleton
         .block-testimonials { background: var(--band); color: var(--band-ink); padding: var(--section-gap) 24px; }
         .testimonial-card { max-width: 760px; margin: 0 auto; text-align: center; background: none; border: 0; }
         .testimonial-quote-icon { display: none; }
-        .testimonial-quote { font-family: var(--font-display); font-size: 28px; font-style: italic; line-height: 1.4; margin-bottom: 18px; }
-        .testimonial-name { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; }
+        .testimonial-quote { font-family: var(--font-display); font-size: 28px; font-style: italic; line-height: 1.4; margin-bottom: 18px; color: inherit; }
+        .testimonial-name { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; color: inherit; }
         .testimonial-author { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; }
         .testimonial-title { font-size: 12px; color: var(--muted); }
 
@@ -207,19 +232,9 @@ class ThemeSkeleton
         .post-card h3, .category-card h3 { font-size: 19px; padding: 16px 16px 0; }
         .post-card p, .category-card p { color: var(--muted); font-size: 14px; padding: 0 16px 16px; margin: .5em 0 0; }
 
-        /* ── how a row lays its columns out ─────────────────────────── */
-        /* page-rows writes the track sizes inline and expects the display
-           mode to come from the stylesheet. Without this a two- or
-           three-column row stacks, which reads as the design being wrong
-           rather than the theme missing a line. */
-        .page-row-columns { display: grid; gap: 20px; }
-        @media (max-width: 768px) {
-            .page-row-columns { grid-template-columns: 1fr !important; }
-        }
-
         /* ── blocks: call to action, text, pictures ─────────────────── */
         .block-cta { background: var(--band); color: var(--band-ink); padding: var(--section-gap) 24px; text-align: center; }
-        .block-cta-heading { font-size: 36px; }
+        .block-cta-heading { font-size: 36px; color: inherit; }
         .block-cta-actions { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
         .block-cta-btn { display: inline-block; padding: 14px 28px; text-decoration: none; border-radius: var(--radius); }
         .block-cta-btn-primary { background: var(--accent); color: var(--accent-ink); }
@@ -334,6 +349,23 @@ class ThemeSkeleton
             .block-hero-inner { padding: 56px 24px; }
             .top-bar .wrap { flex-direction: column; gap: 4px; }
             .page-head h1 { font-size: 30px; }
+
+            /* A line of text is a fine link for a cursor and a poor one for a
+               thumb: the navigation came out 21px tall, well under the 44px a
+               touch target is expected to be. The padding is what grows, so
+               the type stays the size the design asked for. */
+            .site-nav { gap: 8px; flex-wrap: wrap; }
+            .site-nav a,
+            .site-name,
+            .site-footer nav a {
+                display: inline-flex;
+                align-items: center;
+                min-height: 44px;
+                padding: 4px 8px;
+                margin-left: -8px;
+            }
+            .block-hero-btn,
+            .block-cta-btn { min-height: 44px; display: inline-flex; align-items: center; }
         }
     </style>
 </head>
