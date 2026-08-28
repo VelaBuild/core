@@ -972,7 +972,11 @@ HOW TO BUILD, IN ORDER:
    says what a theme's views are handed; list_block_types names every block
    and, for each, the CSS classes it renders with. Your stylesheet targets
    those class names, so guessing them means writing CSS that matches nothing.
-2. create_theme — name it after the site.
+2. create_theme — name it after the site the design is for, as the design
+   itself gives that name: the wordmark in the header, the name in the footer.
+   Not a word describing what it is — "theme", "custom", "active", "design"
+   all name the same thing every time, and a site collects one of these per
+   build. No "Theme" on the end either; they are all themes.
 3. switch_template — to it, straight away, while it is still empty. An empty
    theme falls back to plain built-in views, so the site keeps working, and
    everything you do from here is visible instead of waiting behind a switch

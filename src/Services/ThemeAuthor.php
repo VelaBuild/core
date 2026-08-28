@@ -45,16 +45,72 @@ class ThemeAuthor
     }
 
     /**
+     * The folder name a theme gets, from whatever it was called.
+     *
+     * Names arrive as the model wrote them, and "ZercurityTheme" slugs to
+     * "zercuritytheme" because slugging does not split words that were only
+     * ever separated by capitals. Saying "theme" in a theme's name adds
+     * nothing either, so it goes.
+     */
+    private function themeSlug(string $name): string
+    {
+        $slug = Str::slug(Str::snake(trim($name), '-'));
+        $trimmed = preg_replace('/-(theme|template)$/', '', $slug);
+
+        // Only if something is left: a theme somebody really did call "theme"
+        // keeps the name and is turned away below instead.
+        return $trimmed !== '' ? $trimmed : $slug;
+    }
+
+    /**
+     * Why this name cannot be a theme, if it cannot.
+     *
+     * Builds name their own themes, and left to themselves they produce names
+     * that describe nothing: one run called its theme "active", having read
+     * the word off the site's settings. Named that way a theme is impossible
+     * to tell from the next one, which matters now that a site collects one
+     * per build.
+     */
+    private function rejectUnusableName(string $theme): ?string
+    {
+        $meaningless = [
+            'active', 'current', 'new', 'custom', 'default', 'theme', 'template',
+            'site', 'website', 'home', 'homepage', 'main', 'design', 'my-site', 'untitled',
+        ];
+
+        if (in_array($theme, $meaningless, true)) {
+            return 'A theme called "' . $theme . '" says nothing about which one it is, and a site collects one of '
+                . 'these per build. Name it after the site the design is for — the wordmark in the header, the name '
+                . 'in the footer.';
+        }
+
+        $shipped = glob(__DIR__ . '/../../resources/views/templates/*', GLOB_ONLYDIR) ?: [];
+
+        foreach ($shipped as $path) {
+            if (basename($path) === $theme) {
+                return 'Vela already ships a theme called "' . $theme . '", and one written here would hide it. '
+                    . 'Choose the name of the site the design is for instead.';
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Create an empty theme and its manifest. No views: those are written one
      * at a time, so a failure part-way leaves the rest falling back rather
      * than half a design.
      */
     public function scaffold(string $name, string $label, string $description = ''): string
     {
-        $theme = Str::slug($name);
+        $theme = $this->themeSlug($name);
 
         if ($theme === '') {
             throw new \RuntimeException('A theme needs a name that survives being turned into a folder name.');
+        }
+
+        if ($error = $this->rejectUnusableName($theme)) {
+            throw new \RuntimeException($error);
         }
 
         $directory = $this->directory($theme);
