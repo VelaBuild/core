@@ -12,6 +12,7 @@ use VelaBuild\Core\Models\AiConversation;
 use VelaBuild\Core\Models\AiMessage;
 use VelaBuild\Core\Models\VelaUser;
 use VelaBuild\Core\Models\VelaConfig;
+use VelaBuild\Core\Models\Page;
 use Illuminate\Support\Facades\Log;
 
 class DesignBuilderService
@@ -264,6 +265,15 @@ class DesignBuilderService
     }
 
     /**
+     * What a given file would be treated as, for anything that needs to say
+     * so before a build runs.
+     */
+    public function roleFor(string $filename): string
+    {
+        return $this->detectRole($filename);
+    }
+
+    /**
      * What a picture in the design folder is for.
      *
      * Only assets marked "design" are ever shown to the model, so this decides
@@ -384,6 +394,17 @@ class DesignBuilderService
 
         $maxToolIterations = self::MAX_TOOL_ITERATIONS;
         $iteration = 0;
+        $askedAgain = false;
+
+        // The build stops when the model stops calling tools, and it stops
+        // early: the same design and brief produced seven sections one run and
+        // two the next, well inside a budget of forty turns. Nothing checked
+        // the page against the design before calling it finished, so whatever
+        // it had built when it ran out of interest was the result, and the QA
+        // rounds then spent themselves building rather than correcting. It is
+        // asked once more, with the design in front of it and a list of what
+        // it actually made.
+        while (true) {
 
         while ($iteration < $maxToolIterations && !empty($response['tool_calls'])) {
             $iteration++;
@@ -449,6 +470,26 @@ class DesignBuilderService
             }
         }
 
+            // Out of turns, or already asked: nothing more to do here.
+            if ($askedAgain || !$response || $iteration >= $maxToolIterations) {
+                break;
+            }
+
+            $askedAgain = true;
+            $this->progress('Checking the page against the design...');
+
+            $messages[] = [
+                'role' => 'user',
+                'content' => $this->completenessPrompt($context, $designPath),
+            ];
+
+            $response = $textProvider->chat($messages, $formattedTools, 4096);
+
+            if (!$response) {
+                break;
+            }
+        }
+
         // Save final assistant response
         if ($response && ($response['content'] ?? null)) {
             AiMessage::create([
@@ -461,6 +502,67 @@ class DesignBuilderService
 
         $this->updateContextFile($designPath, $context);
         $this->progress('Build loop complete after ' . $iteration . ' tool iterations');
+    }
+
+    /**
+     * What to send when a build says it is finished.
+     *
+     * The design again, and a plain list of what is now on the page — the
+     * model has been working through tool results and cannot see the page as
+     * a whole. Being shown both is what turns "I have done some of it" into
+     * either the rest of it or a straight answer that nothing is missing.
+     */
+    private function completenessPrompt(array $context, string $designPath): array
+    {
+        $content = [[
+            'type' => 'text',
+            'text' => "You have stopped building. Here is the design again, and here is what the page now holds:\n\n"
+                . $this->pageOutline($context)
+                . "\n\nCompare them section by section, top to bottom. For every section the design shows that is "
+                . "not in that list, add it now with add_row and add_block. Keep the design's own wording. "
+                . "If nothing is missing, reply with the word DONE and call nothing.",
+        ]];
+
+        foreach ($context['assets'] ?? [] as $asset) {
+            if (($asset['role'] ?? '') !== 'design') {
+                continue;
+            }
+
+            $filePath = $designPath . '/' . $asset['file'];
+
+            if (file_exists($filePath)) {
+                $content[] = [
+                    'type' => 'image',
+                    'source' => $this->resizeImageForVision($filePath),
+                    'media_type' => $this->detectMimeType($filePath),
+                ];
+            }
+        }
+
+        return $content;
+    }
+
+    /**
+     * The page the build was for, section by section, in one short list.
+     */
+    private function pageOutline(array $context): string
+    {
+        $page = isset($context['target_page']['id'])
+            ? Page::find((int) $context['target_page']['id'])
+            : Page::where('slug', 'home')->first();
+
+        if (!$page) {
+            return '(the page could not be read)';
+        }
+
+        $lines = [];
+
+        foreach ($page->rows()->orderBy('order_column')->get() as $index => $row) {
+            $types = $row->blocks()->orderBy('order_column')->pluck('type')->all();
+            $lines[] = ($index + 1) . '. ' . ($types ? implode(', ', $types) : '(an empty row)');
+        }
+
+        return $lines ? implode("\n", $lines) : '(the page has no sections at all)';
     }
 
     /**
@@ -891,7 +993,11 @@ HOW TO BUILD, IN ORDER:
    Only these block types can be edited in the admin, so only these may be
    used: {$editableBlocks}. Any other renders for a visitor but shows the
    site's owner "Unknown block type", and they could never change it.
-6. set_theme_tokens — this is what makes the site look like the design rather
+6. update_page — one call, to title the page with the name the design gives
+   the site. Read it off the design: the wordmark in the header, the name in
+   the footer. This is the name the site takes if the design is kept, so a
+   page still called "Design preview" leaves it nameless.
+7. set_theme_tokens — this is what makes the site look like the design rather
    than like Vela, and it is one call. The theme you created already has a
    frame, navigation, a footer and a rule for every block; all of it reads
    from a set of tokens. Read the design and set them: the typeface, the
@@ -899,17 +1005,20 @@ HOW TO BUILD, IN ORDER:
    corner rounding, the page width. Call it with no tokens to see the list.
    Do not stop before this: without it the design's structure is there in
    somebody else's colours.
-7. write_theme_file — only if a token cannot express something the design
+8. write_theme_file — only if a token cannot express something the design
    needs, and only for the view at fault. The skeleton is a working theme;
    replacing it wholesale usually loses the header and footer.
-8. create_category — one per section or topic the design shows.
-9. create_article — one per article the design shows, with status "published".
-   A listing holding five articles needs five articles to exist. Write real
-   headlines and copy suited to the subject; an empty listing matches nothing.
-10. generate_image — for pictures the design shows that no supplied asset
-    covers. Use the url it returns exactly as given.
-11. update_site_config — site name and description.
-12. write_theme_file for "articles", "article", "categories_index" and
+9. create_category — one per section or topic the design shows.
+10. create_article — one per article the design shows, with status "published".
+    A listing holding five articles needs five articles to exist. Write real
+    headlines and copy suited to the subject; an empty listing matches nothing.
+11. generate_image — for pictures the design shows that no supplied asset
+    covers. Use the url it returns exactly as given. A file listed in the
+    asset inventory is something you are reading from, not a picture the site
+    can serve: passing one of those names as an image leaves a broken one.
+12. update_site_config — the site's description. Its name comes from the page
+    title you set in step 6, and only if this design is kept.
+13. write_theme_file for "articles", "article", "categories_index" and
     "categories_show", styled to match. Anything you leave out falls back to a
     plain built-in view: the site still works, it just is not your design.
 

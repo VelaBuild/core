@@ -257,13 +257,22 @@ class DesignBuilderController extends Controller
                 : 'This server does not allow background processes. Run "php artisan vela:design-to-site" from a terminal.',
         ];
 
-        $files = count($this->runner->designFiles());
+        // Counted by what each file will be taken for, not just how many there
+        // are: uploading adds to the folder rather than replacing it, so
+        // someone who uploads a second design still has the first, and a
+        // build shown two designs tries to satisfy both.
+        $files = $this->runner->designFiles();
+        $designs = count(array_filter($files, fn ($file) => ($file['role'] ?? '') === 'design'));
+
         $checks[] = [
-            'ok' => $files > 0,
+            'ok' => $designs > 0,
             'label' => 'Design',
-            'detail' => $files > 0
-                ? $files . ' file(s) uploaded.'
-                : 'Upload a picture of what the site should look like.',
+            'detail' => match (true) {
+                $designs === 0 => 'Upload a picture of what the site should look like.',
+                $designs === 1 => 'One picture, which the site will be built to match.',
+                default => $designs . ' pictures, and the site will be built to match all of them. '
+                    . 'Remove any you did not mean to include.',
+            },
         ];
 
         return $checks;

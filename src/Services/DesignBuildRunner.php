@@ -115,10 +115,19 @@ class DesignBuildRunner
                 continue;
             }
 
+            $isImage = !in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['md', 'txt'], true);
+
             $files[] = [
                 'name' => $file,
                 'size' => filesize($path . '/' . $file),
-                'is_image' => !in_array(strtolower(pathinfo($file, PATHINFO_EXTENSION)), ['md', 'txt'], true),
+                'is_image' => $isImage,
+                // Uploads add to this folder rather than replacing it, so a
+                // second design sits quietly beside the first and both are
+                // sent. Saying what each one will be taken for is what makes
+                // that visible before the button is pressed.
+                'role' => $isImage
+                    ? app(DesignBuilderService::class)->roleFor($file)
+                    : 'brief',
             ];
         }
 

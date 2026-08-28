@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\DesignBuilderService;
@@ -197,6 +198,7 @@ class DesignToSite extends Command
             // the Blade will catch, and a site left answering 500 is worse
             // than one that never changed.
             $themeBefore = VelaConfig::where('key', 'active_template')->value('value');
+            $themeSnapshot = $this->snapshotTheme($themeBefore);
 
             // The design is built onto a page of its own rather than over the
             // homepage. Two reasons. The site that is already there is an
@@ -231,7 +233,7 @@ class DesignToSite extends Command
             $this->builder->runBuildLoop($context, $designPath, $url);
 
             if (!$this->siteStillWorks($url)) {
-                $this->restoreTheme($themeBefore);
+                $this->restoreTheme($themeBefore, $themeSnapshot);
                 $this->error('The site stopped responding after the build, so the theme it was using has been put back. The reason is in storage/logs.');
                 $this->status?->finish(false, 'The build left the site unable to render, and was rolled back.');
 
@@ -249,10 +251,22 @@ class DesignToSite extends Command
             $staleCount = 0;
             $previousAssessment = null;
             $loopsRun = 0;
+            $rolledBack = false;
 
             for ($loop = 1; $loop <= $maxLoops; $loop++) {
                 $loopsRun = $loop;
                 $this->info("QA Loop {$loop}/{$maxLoops}...");
+
+                // Photographing a page that is not there produces a picture of
+                // an error, and the comparison reads it as a design that does
+                // not match: it reported "diverges significantly" against a
+                // 500 and spent a round of fixes on a site that was down.
+                if (!$this->siteStillWorks($qaUrl)) {
+                    $this->restoreTheme($themeBefore, $themeSnapshot);
+                    $this->error('The page being built stopped rendering, so the theme has been put back as it was. The reason is in storage/logs.');
+                    $rolledBack = true;
+                    break;
+                }
 
                 $screenshotPath = $outputPath . '/loop_' . $loop . '_screenshot.png';
                 $screenshotPath = $this->screenshotService->captureLiveFullPage($qaUrl, $screenshotPath);
@@ -295,9 +309,13 @@ class DesignToSite extends Command
 
                 // A round of fixes can break the site as easily as the build
                 // can. Stop at the first one that does, with the site working.
-                if (!$this->siteStillWorks($url)) {
-                    $this->restoreTheme($themeBefore);
-                    $this->error('A round of fixes left the site unable to render, so the previous theme has been put back.');
+                if (!$this->siteStillWorks($url) || !$this->siteStillWorks($qaUrl)) {
+                    $this->restoreTheme($themeBefore, $themeSnapshot);
+                    $this->error('A round of fixes left the site unable to render, so the theme has been put back as it was.');
+
+                    // A run that ends by undoing itself did not succeed, and
+                    // the page watching it should not be told that it did.
+                    $rolledBack = true;
                     break;
                 }
 
@@ -309,6 +327,12 @@ class DesignToSite extends Command
             // Step 13: Summary output
             $this->info("Design builder complete. {$loopsRun} QA loops executed.");
             $this->info("Screenshots and reports saved to: {$outputPath}");
+
+            if ($rolledBack) {
+                $this->status?->finish(false, 'A round of fixes left the site unable to render. The theme has been put back as it was, and the design was not applied.');
+
+                return 1;
+            }
 
             $this->status?->finish(true);
 
@@ -380,10 +404,48 @@ class DesignToSite extends Command
     /**
      * Put back the theme the site was using before the build.
      */
-    private function restoreTheme(?string $theme): void
+    /**
+     * Keep a copy of a theme's files before anything is allowed to change
+     * them.
+     *
+     * Noting which theme was in use is not enough to undo a build. A rebuild
+     * works on the theme that is already there, so the name recorded and the
+     * theme broken are the same one, and putting it back puts back exactly
+     * what stopped the site: the rollback ran, said so, and left a site
+     * answering 500. Only a copy of the files can undo that.
+     */
+    private function snapshotTheme(?string $theme): ?string
+    {
+        if (!$theme) {
+            return null;
+        }
+
+        $source = resource_path('views/templates/' . $theme);
+
+        if (!is_dir($source)) {
+            // A theme that ships with Vela is not ours to change and cannot be
+            // damaged by a build, so there is nothing to keep.
+            return null;
+        }
+
+        $target = storage_path('app/vela-theme-backup/' . $theme);
+
+        File::deleteDirectory($target);
+        File::ensureDirectoryExists(dirname($target));
+
+        return File::copyDirectory($source, $target) ? $target : null;
+    }
+
+    private function restoreTheme(?string $theme, ?string $snapshot = null): void
     {
         if ($theme === null) {
             return;
+        }
+
+        if ($snapshot && is_dir($snapshot)) {
+            $target = resource_path('views/templates/' . $theme);
+            File::deleteDirectory($target);
+            File::copyDirectory($snapshot, $target);
         }
 
         VelaConfig::updateOrCreate(['key' => 'active_template'], ['value' => $theme]);

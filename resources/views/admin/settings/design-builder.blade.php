@@ -71,6 +71,16 @@
                                 </button>
                             @endif
                             <div class="small text-truncate mt-1" title="{{ $file['name'] }}">{{ $file['name'] }}</div>
+                            {{-- What this file will be taken for, so a design
+                                 left over from last time is visible as one. --}}
+                            <div class="small text-muted">
+                                @switch($file['role'] ?? '')
+                                    @case('design') the design @break
+                                    @case('asset') a logo @break
+                                    @case('brief') the brief @break
+                                    @default &nbsp;
+                                @endswitch
+                            </div>
                             @can('config_edit')
                             <form action="{{ route('vela.admin.settings.design-builder.delete') }}" method="POST"
                                   onsubmit="return confirm('Remove {{ $file['name'] }}? It would have to be added again.');">
