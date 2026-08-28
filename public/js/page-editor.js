@@ -145,6 +145,19 @@ PageEditor.registerBlockType = function(name, config) {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // What a <input type="color"> can actually be set to.
+    //
+    // These fields are paired: a swatch and a text box, and the text box is
+    // what gets saved. A stored value the swatch cannot represent — the
+    // gradient an AI build writes, a named colour, an rgba() — was being put
+    // into it anyway. The browser refuses it, logs "does not conform to the
+    // required format", and shows black; the value looks lost, and one nudge
+    // of the swatch really does overwrite it. The text box still carries the
+    // real value, so the swatch just needs a colour it can show.
+    function swatchValue(value, fallback) {
+        return /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? value : fallback;
+    }
+
     // --- Internal helpers used by built-in block types ---
 
     function initEditorJS(block) {
@@ -3985,12 +3998,12 @@ PageEditor.registerBlockType = function(name, config) {
         // Block style fields
         html += '<hr><details class="mt-2"><summary style="cursor:pointer;font-weight:500;font-size:0.9em;"><i class="fas fa-paint-roller mr-1"></i> Block Style</summary><div class="mt-2">' +
             '<div class="form-group"><label>Background Color</label>' +
-            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-bg-color" value="' + escHtml(block.background_color || '#ffffff') + '" style="width:60px;padding:2px;">' +
+            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-bg-color" value="' + escHtml(swatchValue(block.background_color, '#ffffff')) + '" style="width:60px;padding:2px;">' +
             '<input type="text" class="form-control" id="block-bg-color-text" value="' + escHtml(block.background_color || '') + '" placeholder="#hex or empty for none">' +
             '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
             (html.indexOf('id="block-bg-image"') === -1 ? imageField('block-bg-image', 'Background Image', block.background_image) : '') +
             '<div class="form-group"><label>Text Color</label>' +
-            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-text-color" value="' + escHtml(block.text_color || '#000000') + '" style="width:60px;padding:2px;">' +
+            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-text-color" value="' + escHtml(swatchValue(block.text_color, '#000000')) + '" style="width:60px;padding:2px;">' +
             '<input type="text" class="form-control" id="block-text-color-text" value="' + escHtml(block.text_color || '') + '" placeholder="#hex or empty for default">' +
             '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-text-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
             '<div class="row"><div class="col-6"><div class="form-group"><label>Text Alignment</label>' +
@@ -4267,13 +4280,13 @@ PageEditor.registerBlockType = function(name, config) {
                 '<small class="form-text text-muted">Templates define their own contained width. Full width spans the viewport.</small>' +
                 '</div>' +
                 '<div class="form-group"><label>Background Color</label>' +
-                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-bg-color" value="' + escHtml(row.background_color || '#ffffff') + '" style="width:60px;padding:2px;">' +
+                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-bg-color" value="' + escHtml(swatchValue(row.background_color, '#ffffff')) + '" style="width:60px;padding:2px;">' +
                 '<input type="text" class="form-control" id="row-bg-color-text" value="' + escHtml(row.background_color || '') + '" placeholder="#hex or empty for none">' +
                 '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
                 imageField('row-bg-image', 'Background Image', row.background_image) +
                 '<hr>' +
                 '<div class="form-group"><label>Text Color</label>' +
-                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-text-color" value="' + escHtml(row.text_color || '#000000') + '" style="width:60px;padding:2px;">' +
+                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-text-color" value="' + escHtml(swatchValue(row.text_color, '#000000')) + '" style="width:60px;padding:2px;">' +
                 '<input type="text" class="form-control" id="row-text-color-text" value="' + escHtml(row.text_color || '') + '" placeholder="#hex or empty for default">' +
                 '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-text-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
                 '<div class="row"><div class="col-6"><div class="form-group"><label>Text Alignment</label>' +
