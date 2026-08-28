@@ -10,6 +10,36 @@
     <div class="alert alert-danger">{{ $error }}</div>
 @endforeach
 
+{{-- The short version of docs/build-from-a-design.md, kept here because this
+     is where somebody has the question. Closed by default so it is not in the
+     way of anyone who has done this before. --}}
+<details class="mb-3">
+    <summary class="text-muted" style="cursor:pointer;">What this does, and what happens to my site</summary>
+    <div class="card mt-2">
+        <div class="card-body small">
+            <p>
+                Show us a picture of a website — a screenshot, a mockup from a designer, a photo of a
+                sketch — and your site is built to look like it. Everything it makes is an ordinary
+                block: open the page in the editor afterwards and change any of it.
+            </p>
+            <p class="mb-2"><strong>Your site is not touched while it works.</strong> The build makes a
+                page of its own. When it is done you can look at it, and only then decide whether to
+                make it your homepage — and the homepage you have now is kept, so you can go back.</p>
+            <p class="mb-2">
+                A build takes a few minutes per round. It photographs what it has made, compares it
+                with your picture, and corrects the differences. Three rounds suits most designs. You
+                can close this page while it runs.
+            </p>
+            <p class="mb-0 text-muted">
+                It reads the words, prices and numbers off your picture accurately, and gives the site
+                your colours and typeface. It does not trace the design pixel for pixel, and it cannot
+                use photographs it does not have. Two runs of the same picture differ in detail — if
+                one comes out thin, build again.
+            </p>
+        </div>
+    </div>
+</details>
+
 <div class="row">
     <div class="col-lg-5">
 
