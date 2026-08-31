@@ -367,6 +367,149 @@ class DesignBuilderService
     }
 
     /**
+     * Read the design once and write down what sections it shows, in order.
+     *
+     * Everything the QA rounds were told was prose — "the header is wrong",
+     * "spacing differs" — and prose cannot say that a section is missing,
+     * because a page with five of the design's seven looks perfectly finished
+     * on its own. Runs went by with sections never built and rounds spent on a
+     * header instead; another added a second hero and reported success.
+     *
+     * A list taken from the design before anything is built is the one thing
+     * here that can be counted. It is not a fidelity measure — the screenshot
+     * comparison stays — but completeness and order stop being a matter of
+     * opinion.
+     *
+     * @return array<int, array{label:string, what:string}>
+     */
+    public function readDesignSections(array $context, string $designPath): array
+    {
+        $content = [[
+            'type' => 'text',
+            'text' => "List the sections this design shows, from the top of the page to the bottom.\n\n"
+                . "A section is a band of the page that stands on its own: the hero, a row of feature cards, a "
+                . "band of statistics, a list of questions, a strip of logos, the newsletter sign-up. Do not list "
+                . "the header, the navigation or the footer — those are the site's frame, not sections of this "
+                . "page. Do not list parts of a section separately: three cards side by side are ONE section.\n\n"
+                . "Answer with JSON and nothing else:\n"
+                . '{"sections":[{"label":"Hero","what":"one line: what it holds and how it is laid out"}]}',
+        ]];
+
+        foreach ($context['assets'] ?? [] as $asset) {
+            if (($asset['role'] ?? '') !== 'design') {
+                continue;
+            }
+
+            $filePath = $designPath . '/' . $asset['file'];
+
+            if (file_exists($filePath)) {
+                $content[] = [
+                    'type' => 'image',
+                    'source' => $this->resizeImageForVision($filePath),
+                    'media_type' => $this->detectMimeType($filePath),
+                ];
+            }
+        }
+
+        if (count($content) < 2) {
+            return [];
+        }
+
+        $this->progress('Reading the design for the sections it shows...');
+
+        try {
+            $response = $this->provider()->chat([
+                ['role' => 'system', 'content' => 'You read a design and report what is on it, exactly and briefly.'],
+                ['role' => 'user', 'content' => $content],
+            ], [], 1500);
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $answer = $this->parseJsonFromResponse((string) ($response['content'] ?? ''));
+        $sections = [];
+
+        foreach ($answer['sections'] ?? [] as $section) {
+            $label = trim((string) ($section['label'] ?? ''));
+
+            if ($label === '') {
+                continue;
+            }
+
+            $sections[] = ['label' => $label, 'what' => trim((string) ($section['what'] ?? ''))];
+        }
+
+        if ($sections !== []) {
+            $this->progress('The design shows ' . count($sections) . ' sections: '
+                . implode(', ', array_column($sections, 'label')));
+        }
+
+        return $sections;
+    }
+
+    /**
+     * What the page has against what the design showed, in a form that can be
+     * read at a glance and acted on.
+     */
+    public function sectionsReport(array $context): string
+    {
+        $wanted = $context['design_sections'] ?? [];
+
+        if ($wanted === []) {
+            return '';
+        }
+
+        $lines = ["The design shows these sections, top to bottom:"];
+
+        foreach ($wanted as $i => $section) {
+            $lines[] = '  ' . ($i + 1) . '. ' . $section['label']
+                . ($section['what'] !== '' ? ' — ' . $section['what'] : '');
+        }
+
+        $lines[] = '';
+        $lines[] = 'The page now holds:';
+        $lines[] = $this->pageOutline($context);
+
+        // The one thing that can be said without judgement, and the fault a
+        // round of fixes is most prone to: the same section twice.
+        $names = [];
+
+        foreach ($this->pageRows($context) as $row) {
+            $name = mb_strtolower(trim((string) $row->name));
+
+            if ($name !== '') {
+                $names[$name] = ($names[$name] ?? 0) + 1;
+            }
+        }
+
+        $twice = array_keys(array_filter($names, fn ($n) => $n > 1));
+
+        if ($twice !== []) {
+            $lines[] = '';
+            $lines[] = 'The page has more than one section called: ' . implode(', ', $twice)
+                . '. Two of the same is a worse mismatch than whatever it was added to fix — correct one and '
+                . 'delete_row the other.';
+        }
+
+        $lines[] = '';
+        $lines[] = 'Compare the two lists before anything else. A section of the design that is not on the page is '
+            . 'a larger difference than any amount of spacing, and a section on the page that the design does not '
+            . 'show should go.';
+
+        return implode("\n", $lines);
+    }
+
+    /** @return \Illuminate\Support\Collection<int, \VelaBuild\Core\Models\PageRow> */
+    private function pageRows(array $context)
+    {
+        $page = isset($context['target_page']['id'])
+            ? Page::find((int) $context['target_page']['id'])
+            : Page::where('slug', 'home')->first();
+
+        return $page ? $page->rows()->orderBy('order_column')->get() : collect();
+    }
+
+    /**
      * Execute the initial build by driving the chat tool system with design context.
      */
     public function runBuildLoop(array &$context, string $designPath, string $url): void
@@ -414,6 +557,25 @@ class DesignBuilderService
                 'There is no design to build from. Upload a picture of what the site should look like '
                 . '— a screenshot, a mockup, a photo of a sketch — and start the build again.'
             );
+        }
+
+        // Taken from the design before anything is built, so the build has a
+        // list to work down and every round afterwards has something countable
+        // to check the page against.
+        $context['design_sections'] = $this->readDesignSections($context, $designPath);
+
+        if ($context['design_sections'] !== []) {
+            $list = [];
+
+            foreach ($context['design_sections'] as $i => $section) {
+                $list[] = '  ' . ($i + 1) . '. ' . $section['label']
+                    . ($section['what'] !== '' ? ' — ' . $section['what'] : '');
+            }
+
+            $userContent[0]['text'] .= "\n\nReading it, these are the sections it shows, top to bottom:\n"
+                . implode("\n", $list)
+                . "\n\nBuild every one of them, in that order. If you disagree with the reading, follow the design "
+                . "rather than the list — but do not finish with fewer sections than it names.";
         }
 
         $messages = [
@@ -556,8 +718,8 @@ class DesignBuilderService
     {
         $content = [[
             'type' => 'text',
-            'text' => "You have stopped building. Here is the design again, and here is what the page now holds:\n\n"
-                . $this->pageOutline($context)
+            'text' => "You have stopped building. Here is the design again, and here is where the page stands:\n\n"
+                . ($this->sectionsReport($context) ?: $this->pageOutline($context))
                 . "\n\nCompare them section by section, top to bottom. For every section the design shows that is "
                 . "not in that list, add it now with add_designed_section — its own markup and its own stylesheet, "
                 . "as the design shows it — or with add_row and add_block if it is a listing of articles or topics. "
@@ -647,6 +809,17 @@ Set "passed" to true ONLY if the screenshot is a close visual match to the desig
 Be specific about what needs fixing. Each fix should be actionable.
 PROMPT;
 
+        // A screenshot comparison judges what is on the screen, and a section
+        // that was never built is not on it to be judged. Naming them here is
+        // what lets "passed" mean the page is finished rather than tidy.
+        if (($context['design_sections'] ?? []) !== []) {
+            $prompt .= "\n\nThe design was read before the build as showing these sections, top to bottom: "
+                . implode(', ', array_column($context['design_sections'], 'label'))
+                . ". Check the screenshot for each one. A section of the design that is not on the page is a fix in "
+                . 'its own right — report it with area "missing section" — and "passed" cannot be true while one is '
+                . 'absent.';
+        }
+
         $userContent = [
             ['type' => 'text', 'text' => $prompt],
         ];
@@ -723,7 +896,14 @@ PROMPT;
 
         $systemPrompt = $this->buildSystemPrompt($context, true);
 
-        $fixPrompt = 'The visual QA comparison of the built site against the design found these issues:' . "\n"
+        // What the design showed against what the page holds. The screenshot
+        // comparison can say a section looks wrong; only this can say one is
+        // not there at all, and a page missing two of seven sections looks
+        // perfectly finished on its own.
+        $inventory = $this->sectionsReport($context);
+
+        $fixPrompt = ($inventory !== '' ? $inventory . "\n\n" : '')
+            . 'The visual QA comparison of the built site against the design found these issues:' . "\n"
             . json_encode($fixes, JSON_PRETTY_PRINT)
             . "\n\nCorrect the existing page so these are resolved, largest visual difference first."
             . "\nInspect the page with get_page_blocks and change or remove what is there;"
