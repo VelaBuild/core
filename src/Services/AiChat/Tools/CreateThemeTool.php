@@ -15,13 +15,24 @@ class CreateThemeTool extends BaseTool
             return ['error' => 'name is required — something short, like the site itself.'];
         }
 
+        $kind = trim((string) ($parameters['kind'] ?? 'landing'));
+
+        if (!array_key_exists($kind, \VelaBuild\Core\Services\ThemeSkeleton::KINDS)) {
+            return [
+                'error' => 'kind must be one of: ' . implode(', ', array_keys(\VelaBuild\Core\Services\ThemeSkeleton::KINDS))
+                    . '. It decides what the theme looks like before you touch it, so choose the one the design is.',
+                'kinds' => \VelaBuild\Core\Services\ThemeSkeleton::KINDS,
+            ];
+        }
+
         $author = app(ThemeAuthor::class);
 
         try {
             $theme = $author->scaffold(
                 $name,
                 (string) ($parameters['label'] ?? $name),
-                (string) ($parameters['description'] ?? '')
+                (string) ($parameters['description'] ?? ''),
+                $kind
             );
         } catch (\RuntimeException $e) {
             return ['error' => $e->getMessage()];
@@ -34,6 +45,7 @@ class CreateThemeTool extends BaseTool
         return [
             'success' => true,
             'theme' => $theme,
+            'kind' => $kind,
             'views_you_can_write' => ThemeAuthor::VIEWS,
             // Handed over unasked, because a stylesheet written against
             // invented class names fails silently — the page renders, the

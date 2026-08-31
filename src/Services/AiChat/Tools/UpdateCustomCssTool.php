@@ -98,14 +98,31 @@ class UpdateCustomCssTool extends BaseTool
                 $actionLog->update(['previous_state' => $previousState]);
             }
 
-            $page->update(['custom_css' => $css]);
+            // Sections written into the page — copied from another site, or
+            // built from a design — keep their stylesheets here, fenced. This
+            // tool replaces a page's CSS wholesale, which is what it is for,
+            // but taking those with it leaves every section on the page
+            // unstyled while reporting success.
+            $preserved = app(\VelaBuild\Core\Services\AiChat\PageCssMerger::class)
+                ->preserveFencedRegions((string) $page->custom_css, $css);
+
+            $page->update(['custom_css' => $preserved['css']]);
 
             // Drop this page's pre-rendered copy so the next visitor is
             // served one with the new stylesheet. Queueing the rebuild instead
             // left it sitting on a queue no worker drains.
             app(\VelaBuild\Core\Services\StaticSiteGenerator::class)->removeHtml('page', $page->slug);
 
-            return ['success' => true, 'scope' => 'page', 'page_id' => $page->id, 'message' => "CSS updated for page '{$page->title}' and cache cleared"];
+            $result = ['success' => true, 'scope' => 'page', 'page_id' => $page->id, 'message' => "CSS updated for page '{$page->title}' and cache cleared"];
+
+            if ($preserved['kept'] > 0) {
+                $result['sections_kept'] = $preserved['kept'];
+                $result['note'] = $preserved['kept'] . ' section stylesheet(s) already on this page were kept — '
+                    . 'this tool would otherwise have replaced them and left those sections unstyled. To change how '
+                    . 'one of those sections looks, write it again with add_designed_section and its replace_row_id.';
+            }
+
+            return $result;
         }
 
         return ['error' => "Invalid scope '{$scope}'. Use 'site' or 'page'."];

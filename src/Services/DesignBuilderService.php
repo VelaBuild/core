@@ -35,6 +35,46 @@ class DesignBuilderService
      */
     public const MAX_TOOL_ITERATIONS = 40;
 
+    /**
+     * Tools a round of corrections is not given.
+     *
+     * One theme was written for this design and the page was built onto one
+     * page; a fix round that makes another theme, or switches away from the
+     * one it is correcting, has thrown away the thing it was asked to improve
+     * — and it did exactly that, twice in one run.
+     *
+     * @var array<int, string>
+     */
+    /**
+     * Tools no part of a design build is given.
+     *
+     * A build goes onto a page of its own so that nobody trying a design out
+     * has their site changed underneath them, and the frame has to keep that
+     * promise too: switch_template dresses every page on the site in the new
+     * theme the moment it is called. use_theme_for_preview is the way through.
+     *
+     * @var array<int, string>
+     */
+    public const TOOLS_A_BUILD_MAY_NOT_USE = [
+        'switch_template',
+    ];
+
+    public const TOOLS_A_FIX_MAY_NOT_USE = [
+        'create_theme',
+        'switch_template',
+        'create_page',
+        'delete_page',
+        // Withholding write_theme_file's guard is pointless while these can
+        // reach the same file. Refused three times for writing a layout with
+        // no <head>, a fix round went around by hand: search_files to find the
+        // layout, read_file to read it, edit_file to change it. A guard that
+        // can be walked around is a request, not a guard.
+        'edit_file',
+        'write_file',
+        'run_command',
+        'git',
+    ];
+
     public function __construct(
         AiProviderManager $aiManager,
         ChatToolRegistry $toolRegistry,
@@ -382,7 +422,7 @@ class DesignBuilderService
         ];
 
         // Get formatted tools for this provider
-        $availableTools = $this->toolRegistry->forUser($user);
+        $availableTools = $this->toolsForBuilding($this->toolRegistry->forUser($user));
         $formattedTools = $this->getFormattedTools($textProvider, $availableTools);
 
         $this->progress('Calling AI to build site...');
@@ -437,7 +477,7 @@ class DesignBuilderService
             foreach ($response['tool_calls'] as $toolCall) {
                 $this->progress('Executing tool: ' . $toolCall['name']);
 
-                $result = $this->toolExecutor->execute(
+                $result = $this->refusePicture($toolCall['name']) ?? $this->toolExecutor->execute(
                     $toolCall['name'],
                     $toolCall['arguments'],
                     $conversation->id,
@@ -519,8 +559,9 @@ class DesignBuilderService
             'text' => "You have stopped building. Here is the design again, and here is what the page now holds:\n\n"
                 . $this->pageOutline($context)
                 . "\n\nCompare them section by section, top to bottom. For every section the design shows that is "
-                . "not in that list, add it now with add_row and add_block. Keep the design's own wording. "
-                . "If nothing is missing, reply with the word DONE and call nothing.",
+                . "not in that list, add it now with add_designed_section — its own markup and its own stylesheet, "
+                . "as the design shows it — or with add_row and add_block if it is a listing of articles or topics. "
+                . "Keep the design's own wording. If nothing is missing, reply with the word DONE and call nothing.",
         ]];
 
         foreach ($context['assets'] ?? [] as $asset) {
@@ -542,9 +583,6 @@ class DesignBuilderService
         return $content;
     }
 
-    /**
-     * The page the build was for, section by section, in one short list.
-     */
     private function pageOutline(array $context): string
     {
         $page = isset($context['target_page']['id'])
@@ -559,7 +597,17 @@ class DesignBuilderService
 
         foreach ($page->rows()->orderBy('order_column')->get() as $index => $row) {
             $types = $row->blocks()->orderBy('order_column')->pluck('type')->all();
-            $lines[] = ($index + 1) . '. ' . ($types ? implode(', ', $types) : '(an empty row)');
+
+            // A page built from written sections is a row of "html" all the
+            // way down, and a list of nine of those tells the model nothing
+            // about what it has already made — which is the one thing this
+            // list is for. The row's name is what the section was called when
+            // it was written, so say that instead.
+            $what = $types === ['html'] && trim((string) $row->name) !== ''
+                ? trim($row->name) . ' (a written section)'
+                : ($types ? implode(', ', $types) : '(an empty row)');
+
+            $lines[] = ($index + 1) . '. ' . $what;
         }
 
         return $lines ? implode("\n", $lines) : '(the page has no sections at all)';
@@ -713,7 +761,13 @@ PROMPT;
             ['role' => 'user', 'content' => $userContent],
         ];
 
-        $availableTools = $this->toolRegistry->forUser($user);
+        // A round of fixes is not a second build, and the prompt saying so was
+        // not enough: a fix round called create_theme twice, switched to the
+        // theme it had just made, and rewrote seven of its views. The site came
+        // back answering 200 on every page in the browser's own serif, with
+        // the design gone. What a correction may not do is taken away from it
+        // here rather than asked for.
+        $availableTools = $this->toolsForCorrecting($this->toolRegistry->forUser($user));
         $formattedTools = $this->getFormattedTools($textProvider, $availableTools);
 
         $this->progress('Applying QA fixes...');
@@ -757,7 +811,7 @@ PROMPT;
             foreach ($response['tool_calls'] as $toolCall) {
                 $this->progress('Executing tool: ' . $toolCall['name']);
 
-                $result = $this->toolExecutor->execute(
+                $result = $this->refusePicture($toolCall['name']) ?? $this->toolExecutor->execute(
                     $toolCall['name'],
                     $toolCall['arguments'],
                     $conversation->id,
@@ -801,6 +855,102 @@ PROMPT;
 
         $this->updateContextFile($designPath, $context);
         $this->progress('Fix loop complete after ' . $iteration . ' tool iterations');
+    }
+
+    /**
+     * The tool list a round of corrections is given.
+     *
+     * @param  array<int, array<string, mixed>> $tools
+     * @return array<int, array<string, mixed>>
+     */
+    public function toolsForCorrecting(array $tools): array
+    {
+        return array_values(array_filter(
+            $tools,
+            fn ($tool) => !in_array($tool['name'] ?? '', self::TOOLS_A_FIX_MAY_NOT_USE, true)
+        ));
+    }
+
+    /**
+     * The tool list the build itself is given.
+     *
+     * @param  array<int, array<string, mixed>> $tools
+     * @return array<int, array<string, mixed>>
+     */
+    public function toolsForBuilding(array $tools): array
+    {
+        return array_values(array_filter(
+            $tools,
+            fn ($tool) => !in_array($tool['name'] ?? '', self::TOOLS_A_BUILD_MAY_NOT_USE, true)
+        ));
+    }
+
+    /**
+     * How many pictures one build may make.
+     *
+     * A build shown a design with three icons and a strip of customer logos
+     * asked for ten: an illustration, three icons that came back looking like
+     * emoji, and six approximated company trademarks. One good picture where
+     * the design has a photograph is worth the wait; nine more are minutes and
+     * money spent making the page look less like the design, not more.
+     */
+    public const MAX_PICTURES = 3;
+
+    /**
+     * A neutral stand-in, shipped with Vela, for a build making no pictures.
+     *
+     * A slot left empty is a hole the QA rounds try to fill; a slot with a
+     * plain grey frame in it is a picture somebody has yet to choose, which is
+     * what it actually is.
+     */
+    public const PLACEHOLDER = '/vendor/vela/images/picture-placeholder.svg';
+
+    private int $picturesMade = 0;
+
+    private bool $picturesAllowed = true;
+
+    /**
+     * Build this one without making any pictures.
+     *
+     * For a site whose owner already has their photographs. The slots stay in
+     * the markup with their alt text, so the layout is still judged on the
+     * same shapes and there is somewhere obvious to drop the real picture in.
+     */
+    public function makeNoPictures(): void
+    {
+        $this->picturesAllowed = false;
+    }
+
+    /**
+     * @return array<string, mixed>|null a refusal, or null to let the call run
+     */
+    private function refusePicture(string $tool): ?array
+    {
+        if ($tool !== 'generate_image') {
+            return null;
+        }
+
+        if (!$this->picturesAllowed) {
+            return [
+                'error' => 'This build was asked not to make pictures — its owner has their own. Where the design '
+                    . 'shows one, put an <img> in at the size and place the design gives it, pointing at '
+                    . self::PLACEHOLDER . ', with alt text describing the picture that belongs there. The '
+                    . 'arrangement is then right and there is somewhere obvious to drop the real one in. Do not '
+                    . 'invent an address for a file: an <img> pointing at nothing is refused.',
+                'use_this_url' => self::PLACEHOLDER,
+            ];
+        }
+
+        if (++$this->picturesMade <= self::MAX_PICTURES) {
+            return null;
+        }
+
+        return [
+            'error' => 'This build has already made ' . self::MAX_PICTURES . ' pictures, which is all it may make. '
+                . 'Spend them on the photographs and illustrations the design shows, not on icons or logos: an icon '
+                . 'is a shape, so draw it in the section\'s own CSS or as inline SVG, and a strip of company logos is '
+                . 'a placeholder for marks the site\'s owner will upload. Build the rest of the page without them.',
+        ];
     }
 
     /**
@@ -951,101 +1101,197 @@ PART;
         $blockClasses = $this->blockClassReference();
         $editableBlocks = implode(', ', app(\VelaBuild\Core\Vela::class)->blocks()->editableNames());
         $where = $this->wherePagePart($target);
+        $pictures = self::MAX_PICTURES;
 
         return <<<PROMPT
 You have a design to replicate. Two things carry it, and keeping them apart is
 what makes the result both faithful and editable:
 
-  The THEME carries the frame and the look — the header, the navigation, the
-  footer, the typeface, the colours, and the CSS that gives every block on
-  every page the shape the design gives it.
+  The THEME carries the frame — the header, the navigation, the footer, the
+  typeface, the colours. Every page on the site wears it, and it is set from a
+  list of tokens rather than written by hand.
 
-  BLOCKS carry the page — the hero, the panels, the cards, the quote. They are
-  what the site's owner sees and edits in the admin. Anything you write into
-  the theme instead of a block is content they can never change again.
-
-So: build the homepage out of blocks, and write a theme whose stylesheet makes
-those blocks look exactly like the design.
+  SECTIONS carry the page. Each one goes on in one of two ways, and choosing
+  between them for each section is the most consequential thing you do here.
 
 HOW TO BUILD, IN ORDER:
-1. get_theme_contract and list_block_types — read both first. The contract
-   says what a theme's views are handed; list_block_types names every block
-   and, for each, the CSS classes it renders with. Your stylesheet targets
-   those class names, so guessing them means writing CSS that matches nothing.
-2. create_theme — name it after the site the design is for, as the design
+1. get_theme_contract — read it first. It says what a theme's views are handed.
+2. create_theme — and its `kind` is the first real decision of the build. Ask
+   what the design IS, not what it contains:
+     landing        one page selling or explaining a thing
+     editorial      a publication — a masthead, articles, topics
+     documentation  reference material in a narrow column
+   The kind sets the furniture and the proportions the theme starts from. A
+   magazine started as a landing page arrives wearing a banner it does not
+   want, and every round afterwards is spent undoing that.
+   Name it after the site the design is for, as the design
    itself gives that name: the wordmark in the header, the name in the footer.
    Not a word describing what it is — "theme", "custom", "active", "design"
    all name the same thing every time, and a site collects one of these per
    build. No "Theme" on the end either; they are all themes.
-3. switch_template — to it, straight away, while it is still empty. An empty
-   theme falls back to plain built-in views, so the site keeps working, and
-   everything you do from here is visible instead of waiting behind a switch
-   you might not reach.
-4. {$where}
-5. add_row and add_block — build the design's page, section by section,
-   from the block types that fit:
-     a full-width headline over an image  -> hero
-     a row of figures or short claims     -> icon_box
-     cards carrying a price               -> pricing_tiers
-     a quotation with an attribution      -> testimonials
-     a grid of articles                   -> posts_grid
-     a grid of topics                     -> categories_grid
-     a band inviting an action            -> cta
-     pictures                             -> image or gallery
-   Use html only where nothing else fits. Put the design's real words in —
-   its headlines, its prices, its quote — not placeholders describing them.
-   Only these block types can be edited in the admin, so only these may be
-   used: {$editableBlocks}. Any other renders for a visitor but shows the
-   site's owner "Unknown block type", and they could never change it.
-6. update_page — one call, to title the page with the name the design gives
+3. use_theme_for_preview — point the preview page at it, straight away, while
+   it is still empty. From here everything you do is visible on that page. The
+   rest of the site keeps the theme it has: someone who pressed Build to see
+   what a design might look like has not agreed to wear it yet, and nothing
+   you do here reaches their homepage until they say so.
+4. The frame, in two calls, before you write a single section.
+
+   set_menu, with scope "design_preview" every time — the design's navigation,
+   staged for the preview page and left off the rest of the site until the
+   design is kept. The links across the header go in
+   "primary". Anything at its right-hand end that stands apart — Login, Sign
+   up, Create account — goes in "header_actions", where the last one renders
+   as a button. The footer's list goes in "footer_quick_links". Until these
+   are set the site shows Home, Articles and Topics on every page: the single
+   most visible thing on the screen that is not the design's, and the one
+   thing no amount of rewriting the layout will change. A link to a page this
+   site does not have needs create_page first, or it goes in as a plain url.
+
+   set_theme_tokens — one call. This is the
+   frame the sections sit in, and they inherit from it: the typeface, the
+   background, the ink, the accent, the colour of the full-width bands, the
+   corner rounding, the page width, how heavy the headings are, whether they
+   are in capitals, how much air sits between sections. Call it with no tokens
+   to see the list, each with what it does. Some of them describe parts a
+   given design may not have — set those and leave the rest. Written sections may use these in their own
+   CSS — var(--accent), var(--font-display), var(--page-width) — which is how
+   the page holds together instead of reading as a dozen separate designs.
+5. {$where}
+6. Now go through the design section by section, top to bottom, and write each
+   one with add_designed_section. This is where the work is, and it has one
+   job: make the page look like the design. Send:
+     html — the section's markup, with the design's REAL words in it: its
+       headings, its sentences, its prices, its button labels. Pictures go in
+       as <img>. What you put in as text and images is exactly what the site's
+       owner will be offered as a form to edit, so a section written with
+       placeholder words is a section they have to rewrite by hand.
+     css — that section's stylesheet, written against class names you used in
+       the html. It is rewritten on the way in so it reaches nothing outside
+       the section; a selector naming a class that is not in your markup
+       matches nothing and is dropped, and you are told how many were.
+     name — what the section is: "Hero", "Features", "FAQ". Required.
+   Reproduce what the design shows: the arrangement, the proportions, the
+   spacing, the type sizes, the shapes. You are writing the CSS, so nothing is
+   out of reach — where the design puts three things across the page, write a
+   grid of three; where a card rises over the band above it, position it.
+
+   THE ONE EXCEPTION, and it is not a judgement call: a section that has to
+   keep up with what the site holds is a BLOCK, always. A grid of articles is
+   posts_grid, a grid of topics is categories_grid, a form someone fills in
+   and sends is contact_form. Written as markup they freeze into a picture of
+   the site on the day it was built and never change again. Put those in with
+   add_row and add_block. Only these block types can be edited in the admin:
+   {$editableBlocks}.
+
+   Do not build anything else out of blocks. Deciding section by section
+   whether a block might do reproduces the design's running order and loses
+   its design, because every section then arrives wearing whichever shape the
+   library has — and the decision comes out differently every run. Write them,
+   and afterwards each one is looked at again to see whether a block could
+   carry it without losing anything.
+
+7. ARRANGEMENT for the block sections. A row is a band across the page and its
+   blocks stack inside it unless you place them, so a design laid out in
+   columns comes out as one column after another unless you say otherwise.
+   Where the design puts things BESIDE each other, they belong in ONE row,
+   each block carrying its own column_index (0, 1, 2) and column_width out of
+   twelve: 4/4/4 for three equal columns, 6/6 for halves, 7/5 for a picture
+   with a narrower column of words beside it.
+   add_row takes width "full" for a section the design runs edge to edge and
+   "contained" otherwise.
+   Two listings side by side are two posts_grid blocks in the same row — and
+   they need different categories, or both show the same articles and the page
+   says everything twice.
+
+8. update_page — one call, to title the page with the name the design gives
    the site. Read it off the design: the wordmark in the header, the name in
    the footer. This is the name the site takes if the design is kept, so a
    page still called "Design preview" leaves it nameless.
-7. set_theme_tokens — this is what makes the site look like the design rather
-   than like Vela, and it is one call. The theme you created already has a
-   frame, navigation, a footer and a rule for every block; all of it reads
-   from a set of tokens. Read the design and set them: the typeface, the
-   background, the ink, the accent, the colour of the full-width bands, the
-   corner rounding, the page width. Call it with no tokens to see the list.
-   Do not stop before this: without it the design's structure is there in
-   somebody else's colours.
-8. write_theme_file — only if a token cannot express something the design
-   needs, and only for the view at fault. The skeleton is a working theme;
-   replacing it wholesale usually loses the header and footer.
 9. create_category — one per section or topic the design shows.
 10. create_article — one per article the design shows, with status "published".
     A listing holding five articles needs five articles to exist. Write real
     headlines and copy suited to the subject; an empty listing matches nothing.
-11. generate_image — for pictures the design shows that no supplied asset
-    covers. Use the url it returns exactly as given. A file listed in the
-    asset inventory is something you are reading from, not a picture the site
-    can serve: passing one of those names as an image leaves a broken one.
+11. generate_image — for PHOTOGRAPHS and ILLUSTRATIONS the design shows that
+    no supplied asset covers, and for nothing else. You may make at most
+    {$pictures} in a build, so spend them where a picture is the content: the
+    one behind a hero, the one beside an article.
+    Say what the picture is AND what kind of picture it is, read off the
+    design: a flat vector illustration, an isometric drawing, a photograph —
+    and the palette it is drawn in. A design built from flat two-colour
+    illustrations came back with photographs of people at desks, which is the
+    right subject in the wrong language and reads as a different site.
+    NOT for icons. An icon is a shape: draw it in the section's own CSS or as
+    inline SVG in its markup. Asked for "an icon representing alerts" a model
+    returns something between a sticker and an emoji, three of which will not
+    match each other, where the design has three flat marks cut from the same
+    geometry.
+    NEVER for a logo, and the tool refuses them. A strip of company logos
+    across a design is a placeholder showing where the site's own customers
+    or partners go. Drawn, it becomes a row of approximated trademarks saying
+    those companies are involved with a site they have never heard of. Set the
+    strip out with their names as text, or leave it out, and say in your final
+    message that the owner should upload the real marks.
+    Use the url it returns exactly as given. A file listed in the asset
+    inventory is something you are reading from, not a picture the site can
+    serve, and an address you invent — "/path-to-illustration.jpg" — is a
+    broken picture in the most prominent place on the page. Both are refused.
 12. update_site_config — the site's description. Its name comes from the page
-    title you set in step 6, and only if this design is kept.
+    title you set in step 8, and only if this design is kept.
 13. write_theme_file for "articles", "article", "categories_index" and
     "categories_show", styled to match. Anything you leave out falls back to a
     plain built-in view: the site still works, it just is not your design.
 
-THE CLASS NAMES YOUR STYLESHEET MUST USE:
+WRITING A SECTION:
+- Never a header, a navigation bar or a footer. The theme draws those on every
+  page; a second set in a section sits underneath them, dead, and is refused.
+- No <script> and no <style> — both are stripped. The stylesheet goes in css,
+  where it can be scoped to the section.
+- You do not need script for the things that usually need it. A section is put
+  through the same machinery a copied one is, every time it renders:
+    an accordion works — write the questions as buttons carrying
+      aria-controls, and the answers as panels with those ids and hidden or
+      display:none. They are paired up and made to open and close.
+    a carousel works — write a track of slides with the overflow hidden, and
+      arrows or dots beside it. The track becomes a strip the browser scrolls
+      and swipes on its own, and your arrows and dots are wired to it.
+    a form works — write the fields and a submit button; it is pointed back at
+      this site rather than nowhere.
+    an element written as the first frame of an animation (opacity:0, held
+      below where it belongs) is put where the animation would have left it,
+      rather than staying invisible.
+    every <img> is rewritten to serve WebP at several widths, so write plain
+      <img src alt> and leave sizes alone.
+  So build the section as the design draws it and let this carry the behaviour.
+- The design shows one width. Write the section so it also holds together on a
+  narrow phone: a max-width media query in the same stylesheet, no fixed pixel
+  widths wider than about 360px, nothing that has to scroll sideways.
+- Keep the words legible on what is behind them. A pale heading on a pale band
+  passes every check here and is unreadable on the page.
+- One section per call, so each can be checked and corrected on its own. To
+  correct a section afterwards, call the tool again with its replace_row_id —
+  adding a second one leaves both, and a second section of the same name is
+  refused.
+- A section that is nothing but shapes, with no wording, no picture and no
+  link, is refused: there would be nothing for its owner to edit.
+
+THE CLASS NAMES THE BLOCKS RENDER WITH:
+For the listing sections you build from blocks, and for the inside-page views
+written in the last step. A section you write yourself has its own class names
+and does not need any of these.
 {$blockClasses}
 
 RULES:
-- Reach for set_theme_tokens first, every time. Most of what separates two
-  designs is a typeface, a palette and a corner radius, and the theme is
-  built to take them.
-- If you do write a stylesheet, style those class names and no others. A rule
-  written against a name that is not in that list matches nothing, changes
-  nothing, and reports nothing — the quietest way to end up with the design's
-  structure in Vela's colours. A layout whose stylesheet mentions none of
-  them is refused.
 - update_custom_css is for a small adjustment afterwards, not for the design.
-- A section written as markup in the theme is a section the owner cannot edit.
-  Only put something there when no block can hold it, and never the homepage's
-  words, prices or headings.
+  A written section's styling belongs in the call that adds the section.
+- A section written as markup in the THEME is a section the owner cannot edit.
+  Sections go on the page, never into a theme view.
 - Blade that would not compile is refused with the reason. Fix it and write
   again; nothing broken reaches a visitor.
 - Adding another empty listing block does not add content. Only
   create_article and create_category do.
+- A design is not missing anything by not having a hero, a call to action or a
+  quotation. Add nothing it does not show: a section invented to fill a gap
+  the design does not have is a section its owner has to find and delete.
 - You have about {$steps} turns. Spend them changing the site, not surveying
   it: read a thing only when you cannot act without knowing it.
 PROMPT;
@@ -1090,22 +1336,47 @@ again.
 
 HOW TO CORRECT:
 - {$onlyPage}
-- How a section looks is the theme's stylesheet; what it says is a block.
-  A wrong colour, size or spacing is fixed with write_theme_file; wrong words
-  or a missing card with update_block or add_block. Never move a homepage
-  section into the theme as markup to make it look right — that takes it away
-  from the person who owns the site.
-- Most differences are the theme's, and most of those are a token: a colour
-  that is too blue, type that is not the design's, corners too round, a band
-  the wrong shade. set_theme_tokens fixes those in one call and cannot break
-  the page. Only rewrite a view with write_theme_file when no token covers
-  what is wrong, and then keep everything that was already right.
-- Content differences: update_block, update_row, edit_article_content,
-  update_site_config.
+- Start with get_page_blocks. It gives you each row's id, and a row holding one
+  html block is a section you wrote: markup and stylesheet of its own.
+- To correct such a section — its arrangement, its spacing, its type, its
+  wording, any of it — call add_designed_section again with replace_row_id set
+  to that row. It rewrites the section and its stylesheet in place. Never add a
+  second section for something the page already has: two heroes are a worse
+  mismatch than the one you were fixing.
+- The header's links, the button at its right-hand end and the footer's list
+  are a MENU, not markup: set_menu with scope "design_preview", one call per
+  slot. A header that reads
+  "Home Articles Topics" where the design reads something else is this and
+  nothing else. Rewriting the layout to put the words in by hand takes them
+  away from the site's owner, and rounds have been spent on it in vain.
+- The frame is the theme, and most of what is wrong with a frame is a token: a
+  colour that is too blue, type that is not the design's, corners too round, a
+  band the wrong shade, headings too light or too large. set_theme_tokens fixes
+  those in one call and cannot break the page. Remember the sections read those
+  tokens too, so a token put right corrects every section at once.
+- Only rewrite a theme view with write_theme_file when what is wrong is the
+  header, the navigation, the footer or an inside page, and no token covers it.
+  Keep everything that was already right.
+- Listings, articles and topics are blocks and content: update_block,
+  update_row, edit_article_content, create_article, update_site_config.
 - Remove what the design does not have: delete_block, delete_row.
-- Only add a row or block for a section the design shows and the page has
-  none of. If the page already has an articles listing, a topics listing or a
-  hero, correct that one — never add a second.
+
+WHEN THE PAGE ALREADY MATCHES:
+- If this round finds nothing of substance left to correct, spend it giving the
+  page back to its owner instead. A written section holds its arrangement in
+  markup: they can reword it and change its pictures, but they cannot add a
+  card to it or take one out. Where a block would carry the same section, they
+  can.
+- So: convert_section_to_block on the sections a block fits — a hero, a band
+  inviting an action, a row of equal boxes, a quotation, a list of questions.
+  It refuses rather than dropping wording the block has nowhere to put, and it
+  tells you the row to write again if you change your mind.
+- Then look at the page against the design one more time. A converted section
+  is painted by the theme, so it will not look identical; if one has moved away
+  from the design, put it back with add_designed_section and its
+  replace_row_id. Keep the ones that still match.
+- Never convert a listing, a form, or a section whose arrangement is the design
+  — an uneven grid, overlapping shapes, a picture beside the words.
 
 RULES:
 - Never create_theme again. One theme was written for this design; correct it.
@@ -1116,6 +1387,8 @@ RULES:
   before you ask whether to add anything.
 - A screenshot much taller than the design usually means repeated sections, or
   empty space to remove.
+- Never move a section's words into the theme to make it look right — that
+  takes them away from the person who owns the site.
 - You have about {$steps} turns. Spend them on the largest visual differences
   first.
 PROMPT;

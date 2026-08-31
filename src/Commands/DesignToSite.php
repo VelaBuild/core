@@ -23,7 +23,8 @@ class DesignToSite extends Command
         {--max-loops=5 : Maximum QA iterations}
         {--force : Overwrite existing site content}
         {--dry-run : Show build plan without executing}
-        {--figma-url= : Figma file URL to export assets from}';
+        {--figma-url= : Figma file URL to export assets from}
+        {--no-images : Do not make any pictures; leave the design\'s image slots to be filled by hand}';
 
     /** Where a build puts what it makes, until someone says to use it. */
     public const PREVIEW_SLUG = 'design-preview';
@@ -74,6 +75,14 @@ class DesignToSite extends Command
             }
 
             $this->builder->onProgress(fn($msg) => $this->line($msg));
+
+            // Someone who already has their photographs does not want ours,
+            // and a generated picture in the wrong style makes the page read
+            // as a different site than the design.
+            if ($this->option('no-images')) {
+                $this->builder->makeNoPictures();
+                $this->line('Pictures will not be generated; the design\'s image slots are left for you to fill.');
+            }
 
             // Settle on a provider that both reads images and actually
             // answers, before anything is captured or sent anywhere. A key
@@ -240,6 +249,30 @@ class DesignToSite extends Command
                 return 1;
             }
 
+            // The theme the build wrote is not necessarily the theme a visitor
+            // is served. Switching writes the database and rebuilds a cached
+            // config, and every page renders from the cache; when the two came
+            // apart, the site went on serving a shipped theme while the build
+            // reported a switch. Three rounds of QA then photographed that
+            // theme, found the header wrong — of course it was, it was somebody
+            // else's — and spent every turn they had rewriting a layout nobody
+            // was being served. Nothing said so, because both halves worked.
+            if ($problem = $this->themeMismatch($qaUrl)) {
+                $this->error($problem);
+                $this->status?->finish(false, $problem);
+
+                return 1;
+            }
+
+            if ($broken = $this->pagesThatFailToRender($url)) {
+                // Not a reason to throw the build away — the design's own page
+                // is fine and the site is still wearing its own theme — but it
+                // has to be said, and said where the person watching will read
+                // it rather than in a log.
+                $this->error('These pages do not render: ' . implode('; ', $broken)
+                    . '. The design itself is unaffected, but that would follow it onto the site if it were kept.');
+            }
+
             // Step 12: QA loop. Captures and reports go to a subfolder of
             // their own: written beside the design, a run's own screenshots
             // were read back in as designs the next time round.
@@ -305,13 +338,26 @@ class DesignToSite extends Command
                     $staleCount = 0;
                 }
 
+                // The theme that can be broken from here is the one the design
+                // is being built in, not the one the site is wearing — the
+                // build never switches that any more. So it is the preview
+                // theme that has to be recoverable, and only a round that has
+                // already produced something is worth keeping a copy of.
+                $previewTheme = app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->theme();
+                $previewSnapshot = $this->snapshotTheme($previewTheme);
+
                 $this->builder->runFixLoop($assessment['fixes'], $context, $designPath, $url);
 
-                // A round of fixes can break the site as easily as the build
-                // can. Stop at the first one that does, with the site working.
+                // A round of fixes can break the page as easily as the build
+                // can. Stop at the first one that does, with it rendering.
                 if (!$this->siteStillWorks($url) || !$this->siteStillWorks($qaUrl)) {
                     $this->restoreTheme($themeBefore, $themeSnapshot);
-                    $this->error('A round of fixes left the site unable to render, so the theme has been put back as it was.');
+
+                    if ($previewTheme && $previewSnapshot) {
+                        $this->restoreThemeFiles($previewTheme, $previewSnapshot);
+                    }
+
+                    $this->error('A round of fixes left the page unable to render, so the theme has been put back as it was.');
 
                     // A run that ends by undoing itself did not succeed, and
                     // the page watching it should not be told that it did.
@@ -374,7 +420,16 @@ class DesignToSite extends Command
             }
 
             $page->rows()->each(fn ($row) => $row->delete());
-            $page->update(['status' => 'unlisted']);
+
+            // The title as well as the rows. A build names this page after the
+            // site its design is for, and the name outlived the design: an
+            // editorial magazine was built onto a page still called
+            // "Zercurity", and the heading above it said so on every round.
+            $page->update([
+                'status' => 'unlisted',
+                'title' => 'Design preview',
+                'meta_title' => 'Design preview',
+            ]);
 
             return $page->fresh();
         }
@@ -387,6 +442,121 @@ class DesignToSite extends Command
             'meta_title' => 'Design preview',
             'meta_description' => 'A design being tried out. Not listed anywhere on the site.',
         ]);
+    }
+
+    /**
+     * Every page of the site, rendered, so a build cannot hand over a site
+     * whose homepage looks finished and whose other pages are 500s.
+     *
+     * `siteStillWorks()` asks two URLs, and both of them have content on them.
+     * A written theme whose page view could not survive a page with NO rows
+     * took down the About, Privacy, Terms and Contact pages an install ships
+     * — four 500s behind a homepage that looked right, reported as a success.
+     *
+     * The views a build writes for the article and topic pages are checked
+     * too, in the design's own theme, since nothing else ever renders them.
+     *
+     * @return array<int, string> what failed, ready to be read out
+     */
+    private function pagesThatFailToRender(string $url): array
+    {
+        $base = rtrim($url, '/');
+        $checks = [];
+
+        foreach (Page::whereIn('status', ['published', 'unlisted'])->orderBy('id')->limit(12)->get() as $page) {
+            $checks[$base . '/' . ($page->slug === 'home' ? '' : $page->slug)] = 'the "' . $page->title . '" page';
+        }
+
+        // In the design's theme, which is the only place these views exist.
+        $inTheme = '?design_preview=1';
+        $checks[$base . '/posts' . $inTheme] = 'the article listing, in the design\'s theme';
+        $checks[$base . '/categories' . $inTheme] = 'the topic listing, in the design\'s theme';
+
+        if ($post = Content::where('status', 'published')->orderBy('id')->first()) {
+            $checks[$base . '/posts/' . $post->slug . $inTheme] = 'an article, in the design\'s theme';
+        }
+
+        $failures = [];
+
+        foreach ($checks as $target => $what) {
+            try {
+                $response = Http::timeout(20)->get($target);
+                $ok = $response->successful();
+                $status = $response->status();
+            } catch (\Throwable $e) {
+                $ok = false;
+                $status = 'no response';
+            }
+
+            if (!$ok) {
+                $failures[] = $what . ' (' . $status . ')';
+            }
+        }
+
+        return $failures;
+    }
+
+    private function themeMismatch(string $qaUrl): ?string
+    {
+        $expected = app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->theme();
+
+        if (!$expected) {
+            return 'The build finished without a theme of its own: nothing pointed the preview page at one, so it is '
+                . 'wearing whichever theme the site already had. Build again — the run must call create_theme and '
+                . 'use_theme_for_preview before it writes any section.';
+        }
+
+        $serving = $this->themeBeingServed($qaUrl);
+
+        if ($serving === $expected) {
+            return null;
+        }
+
+        // One repair attempt: the usual cause is a config cache written from
+        // stale values, and rebuilding it costs a second.
+        try {
+            app(\VelaBuild\Core\Services\SiteConfigWriter::class)->write();
+            \VelaBuild\Core\Services\SiteConfigWriter::apply();
+            app(\VelaBuild\Core\Services\StaticSiteGenerator::class)->purgeHtml();
+        } catch (\Throwable $e) {
+            // Reported below by the check that follows.
+        }
+
+        $serving = $this->themeBeingServed($qaUrl);
+
+        if ($serving === $expected) {
+            $this->line('The preview page was still being served an older theme; its config cache has been rebuilt.');
+
+            return null;
+        }
+
+        return 'The preview page is not wearing the theme this build wrote. It was pointed at "' . $expected
+            . '", and the page being served ' . ($serving === null
+                ? 'is not a theme this builder wrote at all'
+                : 'is "' . $serving . '"')
+            . '. Rebuilding the config cache did not change it, so photographing the page now would compare the '
+            . 'design against somebody else\'s theme. Check that "' . $expected . '" is present in '
+            . 'resources/views/templates, then build again.';
+    }
+
+    /**
+     * The theme named by the page itself, or null if it does not name one.
+     */
+    private function themeBeingServed(string $qaUrl): ?string
+    {
+        try {
+            $response = Http::timeout(20)->get($qaUrl);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (!$response->successful()) {
+            return null;
+        }
+
+        return preg_match('/<html[^>]*\sdata-vela-theme="([^"]*)"/i', $response->body(), $match)
+            ? ($match[1] !== '' ? $match[1] : null)
+            : null;
     }
 
     /**
@@ -434,6 +604,25 @@ class DesignToSite extends Command
         File::ensureDirectoryExists(dirname($target));
 
         return File::copyDirectory($source, $target) ? $target : null;
+    }
+
+    /**
+     * Put a theme's files back without touching which theme anything is using.
+     *
+     * The preview theme is not the site's, so recovering it is a matter of the
+     * files alone: the page is already pointed at it and should stay pointed at
+     * it, wearing the last version that rendered.
+     */
+    private function restoreThemeFiles(string $theme, string $snapshot): void
+    {
+        if (!is_dir($snapshot)) {
+            return;
+        }
+
+        $target = resource_path('views/templates/' . $theme);
+
+        File::deleteDirectory($target);
+        File::copyDirectory($snapshot, $target);
     }
 
     private function restoreTheme(?string $theme, ?string $snapshot = null): void

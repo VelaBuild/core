@@ -94,6 +94,12 @@ class DesignBuilderController extends Controller
                 VelaConfig::updateOrCreate(['key' => 'site_name'], ['value' => $name]);
                 app(SiteConfigWriter::class)->write();
             }
+
+            // Up to here the design's theme and navigation existed only on the
+            // page being looked at. This is the moment they become the site's
+            // — and what they replace is kept, so changing your mind about a
+            // design does not cost you the navigation you wrote before it.
+            app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->promote();
         });
 
         return back()->with('message', 'That design is now your homepage. The one it replaced is still there, unlisted.');
@@ -163,7 +169,8 @@ class DesignBuilderController extends Controller
         try {
             $this->runner->start(
                 config('app.url'),
-                (int) ($request->input('max_loops') ?: 3)
+                (int) ($request->input('max_loops') ?: 3),
+                $request->boolean('generate_images')
             );
         } catch (\RuntimeException $e) {
             return back()->withErrors(['build' => $e->getMessage()]);

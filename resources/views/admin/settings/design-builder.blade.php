@@ -19,12 +19,17 @@
         <div class="card-body small">
             <p>
                 Show us a picture of a website — a screenshot, a mockup from a designer, a photo of a
-                sketch — and your site is built to look like it. Everything it makes is an ordinary
-                block: open the page in the editor afterwards and change any of it.
+                sketch — and your site is built to look like it: each section is written to match what
+                your picture shows, rather than fitted into a ready-made shape. Open the page in the
+                editor afterwards and every headline, sentence, picture and link is there as a plain
+                form to change.
             </p>
             <p class="mb-2"><strong>Your site is not touched while it works.</strong> The build makes a
-                page of its own. When it is done you can look at it, and only then decide whether to
-                make it your homepage — and the homepage you have now is kept, so you can go back.</p>
+                page of its own, and the theme and navigation it writes belong to that page alone —
+                visitors go on seeing the site exactly as it is. When it is done you can look at it,
+                and only then decide whether to make it your homepage. At that point the design's
+                theme and menu become the site's; the homepage and navigation you have now are both
+                kept, so you can go back.</p>
             <p class="mb-2">
                 A build takes a few minutes per round. It photographs what it has made, compares it
                 with your picture, and corrects the differences. Three rounds suits most designs. You
@@ -183,6 +188,18 @@
                         <option value="3" selected>3 — recommended</option>
                         <option value="5">5 — most thorough</option>
                     </select>
+                    {{-- Off for anyone who already has their own photographs:
+                         a generated picture in the right place is worth
+                         waiting for, and one in the wrong style makes the page
+                         read as a different site. --}}
+                    <div class="form-check mr-3">
+                        <input type="checkbox" name="generate_images" value="1" class="form-check-input"
+                               id="vela-generate-images" checked>
+                        <label class="form-check-label small" for="vela-generate-images">
+                            Make pictures for it
+                            <span class="text-muted">— leave off if you will add your own</span>
+                        </label>
+                    </div>
                     <button type="submit" class="btn btn-primary" id="vela-build-btn" @if($running) disabled @endif>
                         <i class="fas fa-magic mr-1"></i> {{ $running ? 'Building…' : 'Build my site' }}
                     </button>
@@ -194,7 +211,7 @@
                         <span class="badge badge-secondary mr-2" id="vela-build-state">…</span>
                         <span class="small text-muted" id="vela-build-hint"></span>
                     </div>
-                    <pre id="vela-build-log" class="bg-light border rounded p-2 small mb-0"
+                    <pre id="vela-build-log" class="bg-dark border rounded p-2 small mb-0"
                          style="max-height:280px;overflow:auto;white-space:pre-wrap;"></pre>
                 </div>
             </div>

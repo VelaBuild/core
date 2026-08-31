@@ -6,6 +6,7 @@ use VelaBuild\Core\Models\AiActionLog;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Models\PageBlock;
 use VelaBuild\Core\Models\PageRow;
+use VelaBuild\Core\Services\AiChat\PageCssMerger;
 use VelaBuild\Core\Services\AiChat\SectionImporter;
 use VelaBuild\Core\Services\StaticSiteGenerator;
 
@@ -21,14 +22,6 @@ use VelaBuild\Core\Services\StaticSiteGenerator;
  */
 class ImportPageSectionTool extends BaseTool
 {
-    /**
-     * Ceiling on one page's whole stylesheet. The column is MEDIUMTEXT since
-     * the migration that came with this tool; the write is checked afterwards
-     * anyway, in case the site is running an older schema where TEXT would
-     * silently truncate it mid-rule.
-     */
-    private const MAX_PAGE_CSS = 400_000;
-
     /** Most pictures one section may bring across. */
     private const MAX_IMAGES = 60;
 
@@ -308,43 +301,7 @@ class ImportPageSectionTool extends BaseTool
      */
     private function mergePageCss(Page $page, string $wrapper, string $css): array
     {
-        $previous = (string) $page->custom_css;
-        $open = "/* vela-import:{$wrapper} start */";
-        $close = "/* vela-import:{$wrapper} end */";
-
-        $stripped = preg_replace(
-            '/' . preg_quote($open, '/') . '.*?' . preg_quote($close, '/') . '/s',
-            '',
-            $previous
-        ) ?? $previous;
-
-        $merged = trim($stripped) . "\n" . $open . "\n" . $css . "\n" . $close . "\n";
-        $warning = null;
-
-        if (strlen($merged) > self::MAX_PAGE_CSS) {
-            // The column is TEXT, so an oversized stylesheet is truncated by
-            // the database mid-rule and takes the rest of the page's CSS with
-            // it. Cut on a rule boundary here instead and say so.
-            $room = self::MAX_PAGE_CSS - strlen($stripped) - strlen($open) - strlen($close) - 4;
-            $cut = $room > 0 ? strrpos(substr($css, 0, $room), '}') : false;
-            $css = $cut === false ? '' : substr($css, 0, $cut + 1);
-            $merged = trim($stripped) . "\n" . $open . "\n" . $css . "\n" . $close . "\n";
-            $warning = 'The imported CSS was larger than a page stylesheet can hold, so the tail was dropped. '
-                . 'Parts of the section will look unstyled — check it with browse_url and fill the gaps with update_custom_css.';
-        }
-
-        $page->update(['custom_css' => $merged]);
-
-        // TEXT columns on an un-migrated install truncate without erroring, so
-        // read back what actually landed rather than trusting the write.
-        $stored = (string) $page->fresh()?->custom_css;
-        if (strlen($stored) < strlen($merged)) {
-            $warning = 'The database stored only ' . strlen($stored) . ' of ' . strlen($merged)
-                . ' bytes of CSS, so this page\'s styling is cut off. Run `php artisan migrate` — the pages table '
-                . 'needs the migration that widens custom_css — then import the section again.';
-        }
-
-        return ['bytes' => strlen($css), 'previous_css' => $previous, 'warning' => $warning];
+        return app(PageCssMerger::class)->merge($page, $wrapper, $css);
     }
 
     /**

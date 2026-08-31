@@ -25,9 +25,70 @@ class ThemeSkeleton
      * an image: what the type is, what the colours are, how round the corners
      * are, how wide the page runs.
      */
+    /**
+     * The kinds of site a skeleton can start as.
+     *
+     * One skeleton meant every build began from the same page: a hero, a row
+     * of cards, a band of colour, a three-column footer — the shape of a
+     * landing page. A design that is not one had to swim against that, and
+     * the clearest sign of it was the hero. Every theme arrived with hero CSS
+     * and three hero tokens prepared before anyone had looked at the design,
+     * so the model found a room set aside and furnished it, on a magazine
+     * front page that has no such thing.
+     */
+    public const KINDS = [
+        'landing' => 'One page selling or explaining a thing: a hero, sections of features, prices or quotes, a band inviting an action.',
+        'editorial' => 'A publication: a masthead, articles and topics, a page that opens straight into its content rather than a hero.',
+        'documentation' => 'Reference material: a narrow column of text, headings and code, quiet furniture, nothing decorative.',
+    ];
+
+    /**
+     * What each kind starts from, where it differs from the defaults below.
+     *
+     * Only values — every kind carries every token, so `set_theme_tokens` and
+     * the stylesheet stay the same everywhere and no block is ever left
+     * unstyled. What changes is what the theme looks like before anyone has
+     * touched it.
+     */
+    public const KIND_TOKENS = [
+        'editorial' => [
+            'font-body' => 'Georgia, "Times New Roman", serif',
+            'body-size' => '18px',
+            'label-case' => 'none',
+            'label-tracking' => '0',
+            'heading-tracking' => '-.01em',
+            'section-gap' => '56px',
+            // An editorial page leads with a story, not a banner. Left at a
+            // landing page's proportions, the first thing built is a hero.
+            'hero-size' => '40px',
+            'hero-pad' => '56px',
+            'radius' => '0',
+            'card-border' => '0',
+        ],
+        'documentation' => [
+            'page-width' => '960px',
+            'body-size' => '16px',
+            'label-case' => 'none',
+            'label-tracking' => '0',
+            'section-gap' => '48px',
+            'hero-size' => '32px',
+            'hero-pad' => '40px',
+            'radius' => '6px',
+            'shadow' => 'none',
+        ],
+    ];
+
     public const TOKENS = [
         'font-display' => ['Georgia, "Times New Roman", serif', 'Headings and the site name.'],
         'font-body' => ['system-ui, -apple-system, "Segoe UI", sans-serif', 'Body copy, navigation, buttons.'],
+        'font-weight-display' => ['700', 'How heavy the headings are: 400 for a light editorial face, 700 usual, 800 or 900 for the heavy type a modern product page uses.'],
+        'heading-case' => ['none', 'Set to "uppercase" if the design sets its headings in capitals.'],
+        'heading-tracking' => ['0', 'Letter spacing on headings. "-.02em" draws a large display face tighter; ".04em" opens a small one out.'],
+        'hero-size' => ['56px', 'How large the hero\'s headline runs. It sets the mobile size too, in proportion.'],
+        'heading-size' => ['36px', 'The size of a section heading: the band inviting an action, the form, the title of an inside page.'],
+        'body-size' => ['16px', 'Body copy. 18px reads as roomy and modern, 15px as dense.'],
+        'label-case' => ['uppercase', 'The small print that labels things — navigation, buttons, the caption under a figure. "none" leaves them as written.'],
+        'label-tracking' => ['.14em', 'How far those small labels are spread. "0" for a design that does not space them out.'],
         'page-width' => ['1200px', 'How wide the content runs before it stops growing.'],
         'radius' => ['4px', 'Corner rounding on cards and buttons. 0 for square, 999px for pills.'],
         'bg' => ['#ffffff', 'The page behind everything.'],
@@ -46,23 +107,36 @@ class ThemeSkeleton
         'bar-text' => ['""', 'What that strip says, in quotes: "Open Tue-Sun - 5pm till late".'],
         'bar-text-right' => ['""', 'What sits at its right-hand end, in quotes. Empty for nothing.'],
         'section-gap' => ['72px', 'Vertical breathing room between sections.'],
+        'hero-pad' => ['96px', 'The air above and below the hero\'s words. It is what makes a hero tall and calm or short and busy.'],
+        'shadow' => ['none', 'What lifts a card off the page: "none" for a flat bordered look, "0 2px 12px rgba(0,0,0,.08)" for the soft one.'],
+        'card-border' => ['1px solid var(--line)', 'The line around a card. Set to "0" where the design separates cards by shadow or background alone.'],
     ];
 
     /**
      * A complete layout: the frame, the navigation, the footer, and a
      * stylesheet covering every block, all of it driven by the tokens.
      */
-    public function layout(): string
+    public function layout(string $kind = 'landing'): string
     {
+        $kind = array_key_exists($kind, self::KINDS) ? $kind : 'landing';
+        $overrides = self::KIND_TOKENS[$kind] ?? [];
+
         $tokens = [];
         foreach (self::TOKENS as $name => [$default, $note]) {
-            $tokens[] = '            --' . $name . ': ' . $default . ';';
+            $tokens[] = '            --' . $name . ': ' . ($overrides[$name] ?? $default) . ';';
         }
         $tokenBlock = implode("\n", $tokens);
+        $kindStyles = $this->kindStyles($kind);
 
         return <<<BLADE
 <!doctype html>
-<html lang="{{ app()->getLocale() }}">
+{{-- The theme says which theme it is, so a build can check over HTTP that the
+     site is actually wearing the one it just wrote. Switching a theme writes
+     the database and rebuilds a cached config, and the page is rendered from
+     the cache: when the two came apart, three rounds of QA photographed a
+     shipped theme, reported that the header was wrong, and spent themselves
+     rewriting a layout no visitor was being served. --}}
+<html lang="{{ app()->getLocale() }}" data-vela-theme="{{ config('vela.template.active') }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -112,9 +186,16 @@ class ThemeSkeleton
             background: var(--bg);
             color: var(--ink);
             font-family: var(--font-body);
+            font-size: var(--body-size);
             line-height: 1.6;
         }
-        h1, h2, h3, h4, h5, .site-name { font-family: var(--font-display); line-height: 1.1; margin: 0 0 .5em; }
+        h1, h2, h3, h4, h5, .site-name {
+            font-family: var(--font-display);
+            font-weight: var(--font-weight-display);
+            text-transform: var(--heading-case);
+            letter-spacing: var(--heading-tracking);
+            line-height: 1.1; margin: 0 0 .5em;
+        }
         a { color: inherit; }
         img { max-width: 100%; height: auto; display: block; }
 
@@ -124,7 +205,7 @@ class ThemeSkeleton
         .top-bar {
             display: var(--bar-display);
             background: var(--bar); color: var(--bar-ink);
-            font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+            font-size: 12px; letter-spacing: var(--label-tracking); text-transform: var(--label-case);
             padding: 10px 0;
         }
         .top-bar .wrap { display: flex; justify-content: space-between; gap: 16px; }
@@ -135,9 +216,19 @@ class ThemeSkeleton
         .site-header { border-bottom: 1px solid var(--line); background: var(--bg); }
         .site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 22px; padding-bottom: 22px; }
         .site-name { font-size: 28px; margin: 0; text-decoration: none; }
-        .site-nav { display: flex; gap: 28px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+        .site-nav { display: flex; gap: 28px; font-size: 13px; letter-spacing: var(--label-tracking); text-transform: var(--label-case); }
         .site-nav a { text-decoration: none; }
         .site-nav a:hover { color: var(--accent); }
+
+        /* The actions a design puts at the right-hand end of its header:
+           a plain link or two, and the last one as a filled button. */
+        .site-actions { display: flex; align-items: center; gap: 16px; font-size: 13px; letter-spacing: var(--label-tracking); text-transform: var(--label-case); }
+        .site-actions a { text-decoration: none; }
+        .site-actions a:last-child {
+            background: var(--accent); color: var(--accent-ink);
+            padding: 10px 20px; border-radius: var(--radius);
+        }
+        .site-actions:empty { display: none; }
 
         /* ── footer ─────────────────────────────────────────────────── */
         .site-footer { background: var(--band); color: var(--band-ink); margin-top: var(--section-gap); padding: 56px 0 32px; }
@@ -149,8 +240,8 @@ class ThemeSkeleton
         /* ── blocks: hero ───────────────────────────────────────────── */
         .block-hero { position: relative; background-size: cover; background-position: center; color: var(--hero-ink); }
         .block-hero-overlay { position: absolute; inset: 0; }
-        .block-hero-inner { position: relative; max-width: var(--page-width); margin: 0 auto; padding: 96px 24px; }
-        .block-hero-title { font-size: 56px; margin-bottom: 16px; }
+        .block-hero-inner { position: relative; max-width: var(--page-width); margin: 0 auto; padding: var(--hero-pad) 24px; }
+        .block-hero-title { font-size: var(--hero-size); margin-bottom: 16px; }
         /* inline-block, so the hero's own text-align moves this box as well
            as the words in it. As a block it kept a width and hugged the left,
            and choosing centre or right in the editor appeared to do nothing. */
@@ -162,7 +253,7 @@ class ThemeSkeleton
         .block-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
         .block-hero-btn {
             display: inline-block; padding: 14px 28px; text-decoration: none;
-            font-size: 13px; letter-spacing: .08em; text-transform: uppercase;
+            font-size: 13px; letter-spacing: var(--label-tracking); text-transform: var(--label-case);
             border-radius: var(--radius);
         }
         .block-hero-btn-primary { background: var(--accent); color: var(--accent-ink); }
@@ -179,7 +270,7 @@ class ThemeSkeleton
         .block-icon-boxes *, .block-testimonials *, .block-cta * { color: inherit; }
         .icon-box-icon { display: none; }
         .icon-box-title { font-family: var(--font-display); font-size: 34px; margin-bottom: 4px; color: inherit; }
-        .icon-box-description { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; color: inherit; }
+        .icon-box-description { font-size: 11px; letter-spacing: var(--label-tracking); text-transform: var(--label-case); opacity: .85; color: inherit; }
 
         /* ── blocks: priced cards ───────────────────────────────────── */
         .block-pricing-tiers {
@@ -187,7 +278,8 @@ class ThemeSkeleton
             gap: 24px; max-width: var(--page-width); margin: 0 auto; padding: var(--section-gap) 24px;
         }
         .block-pricing-tier {
-            background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius);
+            background: var(--bg); border: var(--card-border); border-radius: var(--radius);
+            box-shadow: var(--shadow);
             padding: 24px; display: flex; flex-direction: column;
         }
         .block-pricing-tier-label { font-family: var(--font-display); font-size: 21px; letter-spacing: 0; text-transform: none; margin-bottom: 8px; }
@@ -198,14 +290,14 @@ class ThemeSkeleton
         .block-pricing-tier-badge {
             display: inline-block; padding: 4px 10px; margin-bottom: 10px; border-radius: 999px;
             background: var(--accent); color: var(--accent-ink);
-            font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+            font-size: 11px; letter-spacing: var(--label-tracking); text-transform: var(--label-case);
         }
         .block-pricing-tier-headline { font-family: var(--font-display); font-size: 19px; margin: 0 0 .25em; }
         .block-pricing-tier-price-cur { font-size: 16px; vertical-align: super; }
         .block-pricing-tier-price-period { color: var(--muted); font-size: 14px; }
         .block-pricing-tier-price-note { color: var(--muted); font-size: 13px; }
         .block-pricing-tier-features-cap {
-            font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+            font-size: 11px; letter-spacing: var(--label-tracking); text-transform: var(--label-case);
             color: var(--muted); margin: 16px 0 8px;
         }
         .block-pricing-tier-features { list-style: none; margin: 0; padding: 0; font-size: 14px; }
@@ -216,8 +308,8 @@ class ThemeSkeleton
         .testimonial-card { max-width: 760px; margin: 0 auto; text-align: center; background: none; border: 0; }
         .testimonial-quote-icon { display: none; }
         .testimonial-quote { font-family: var(--font-display); font-size: 28px; font-style: italic; line-height: 1.4; margin-bottom: 18px; color: inherit; }
-        .testimonial-name { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; color: inherit; }
-        .testimonial-author { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; opacity: .85; }
+        .testimonial-name { font-size: 12px; letter-spacing: var(--label-tracking); text-transform: var(--label-case); opacity: .85; color: inherit; }
+        .testimonial-author { font-size: 12px; letter-spacing: var(--label-tracking); text-transform: var(--label-case); opacity: .85; }
         .testimonial-title { font-size: 12px; color: var(--muted); }
 
         /* ── blocks: grids of articles and topics ───────────────────── */
@@ -226,7 +318,8 @@ class ThemeSkeleton
             gap: 24px; max-width: var(--page-width); margin: 0 auto; padding: var(--section-gap) 24px;
         }
         .post-card, .category-card {
-            background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+            background: var(--surface); border: var(--card-border); border-radius: var(--radius);
+            box-shadow: var(--shadow);
             overflow: hidden; text-decoration: none;
         }
         .post-card h3, .category-card h3 { font-size: 19px; padding: 16px 16px 0; }
@@ -234,7 +327,7 @@ class ThemeSkeleton
 
         /* ── blocks: call to action, text, pictures ─────────────────── */
         .block-cta { background: var(--band); color: var(--band-ink); padding: var(--section-gap) 24px; text-align: center; }
-        .block-cta-heading { font-size: 36px; color: inherit; }
+        .block-cta-heading { font-size: var(--heading-size); color: inherit; }
         .block-cta-actions { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
         .block-cta-btn { display: inline-block; padding: 14px 28px; text-decoration: none; border-radius: var(--radius); }
         .block-cta-btn-primary { background: var(--accent); color: var(--accent-ink); }
@@ -272,7 +365,7 @@ class ThemeSkeleton
         .block-contact-form {
             max-width: 640px; margin: 0 auto; padding: var(--section-gap) 24px; text-align: center;
         }
-        .block-contact-form-title { font-family: var(--font-display); font-size: 32px; margin: 0 0 .25em; }
+        .block-contact-form-title { font-family: var(--font-display); font-size: var(--heading-size); margin: 0 0 .25em; }
         .block-contact-form-intro { color: var(--muted); margin: 0 0 24px; }
         .block-contact-form .form-group { margin-bottom: 14px; text-align: left; }
         .block-contact-form label { display: block; font-size: 13px; margin-bottom: 6px; }
@@ -310,7 +403,7 @@ class ThemeSkeleton
 
         /* ── the views that are not the homepage ───────────────────── */
         .page-head { padding: var(--section-gap) 24px 0; }
-        .page-head h1 { font-size: 42px; }
+        .page-head h1 { font-size: var(--heading-size); }
         .page-head h2 { font-size: 30px; }
         .page-head time { color: var(--muted); font-size: 14px; }
         .card-grid {
@@ -318,7 +411,8 @@ class ThemeSkeleton
             gap: 24px; padding: 32px 24px var(--section-gap);
         }
         .card {
-            background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+            background: var(--surface); border: var(--card-border); border-radius: var(--radius);
+            box-shadow: var(--shadow);
             overflow: hidden; text-decoration: none; display: block;
         }
         .card .card-body { padding: 16px; }
@@ -345,17 +439,21 @@ class ThemeSkeleton
         @media (max-width: 720px) {
             .site-header .wrap { flex-direction: column; align-items: flex-start; gap: 12px; }
             .site-footer .wrap { grid-template-columns: 1fr; }
-            .block-hero-title { font-size: 36px; }
-            .block-hero-inner { padding: 56px 24px; }
+            /* In proportion to the sizes the design asked for, rather than
+               fixed ones: a hero set to 96px used to come down to the same
+               36px as one set to 44px, so every design met on a phone. */
+            .block-hero-title { font-size: calc(var(--hero-size) * .64); }
+            .block-hero-inner { padding: calc(var(--hero-pad) * .58) 24px; }
             .top-bar .wrap { flex-direction: column; gap: 4px; }
-            .page-head h1 { font-size: 30px; }
+            .page-head h1 { font-size: calc(var(--heading-size) * .72); }
 
             /* A line of text is a fine link for a cursor and a poor one for a
                thumb: the navigation came out 21px tall, well under the 44px a
                touch target is expected to be. The padding is what grows, so
                the type stays the size the design asked for. */
-            .site-nav { gap: 8px; flex-wrap: wrap; }
+            .site-nav, .site-actions { gap: 8px; flex-wrap: wrap; }
             .site-nav a,
+            .site-actions a,
             .site-name,
             .site-footer nav a {
                 display: inline-flex;
@@ -367,19 +465,24 @@ class ThemeSkeleton
             .block-hero-btn,
             .block-cta-btn { min-height: 44px; display: inline-flex; align-items: center; }
         }
+{$kindStyles}
     </style>
 </head>
 <body>
     <div class="top-bar"><div class="wrap"></div></div>
 
-    <header class="site-header">
+    <header class="site-header site-header--{$kind}">
         <div class="wrap">
             <a class="site-name" href="{{ route('vela.public.home') }}">{{ config('app.name') }}</a>
-            <nav class="site-nav">
-                <a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a>
-                <a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.articles') }}</a>
-                <a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a>
-            </nav>
+            {{-- The site's real menu, the way every shipped theme renders it.
+                 Written out by hand instead, a theme could only ever show
+                 Home / Articles / Topics — so a design whose navigation reads
+                 "About  Osquery  Docs  Login  Create Account" had nowhere to
+                 put it, and round after round of QA went into rewriting this
+                 layout trying. Edit the items in Appearance → Menus, or with
+                 set_menu. --}}
+            <nav class="site-nav">@velaMenu('primary')</nav>
+            <div class="site-actions">@velaMenu('header_actions')</div>
         </div>
     </header>
 
@@ -391,11 +494,7 @@ class ThemeSkeleton
                 <h4>{{ config('app.name') }}</h4>
                 <p>{{ config('vela.site.description') }}</p>
             </div>
-            <div>
-                <a href="{{ route('vela.public.home') }}">{{ __('vela::public.home') }}</a>
-                <a href="{{ route('vela.public.posts.index') }}">{{ __('vela::public.articles') }}</a>
-                <a href="{{ route('vela.public.categories.index') }}">{{ __('vela::public.topics') }}</a>
-            </div>
+            <div>@velaMenu('footer_quick_links')</div>
             <div></div>
             <div class="fine">&copy; {{ date('Y') }} {{ config('app.name') }}</div>
         </div>
@@ -407,6 +506,53 @@ class ThemeSkeleton
 </body>
 </html>
 BLADE;
+    }
+
+    /**
+     * What each kind changes about the frame, on top of the tokens.
+     *
+     * Kept to the furniture — the header and the rhythm around it. Every rule
+     * for every block is written once above, so a theme of any kind can hold
+     * any block; a design is not told what it may contain by the kind it was
+     * started from.
+     */
+    private function kindStyles(string $kind): string
+    {
+        if ($kind === 'editorial') {
+            return <<<'CSS'
+
+        /* ── editorial: a masthead rather than a bar ─────────────────── */
+        .site-header--editorial { border-bottom-width: 3px; }
+        .site-header--editorial .wrap {
+            flex-direction: column; gap: 14px; text-align: center;
+            padding-top: 34px; padding-bottom: 18px;
+        }
+        .site-header--editorial .site-name { font-size: 44px; letter-spacing: -.01em; }
+        .site-header--editorial .site-nav { justify-content: center; flex-wrap: wrap; }
+        .site-header--editorial .site-actions { justify-content: center; }
+        /* A publication's lead is a story, so its first heading is set at
+           reading size rather than at the size a banner would take. */
+        .page-head h1 { max-width: 22ch; }
+        .prose { max-width: 64ch; margin-left: auto; margin-right: auto; }
+CSS;
+        }
+
+        if ($kind === 'documentation') {
+            return <<<'CSS'
+
+        /* ── documentation: quiet furniture, a narrow measure ────────── */
+        .site-header--documentation .wrap { padding-top: 14px; padding-bottom: 14px; }
+        .site-header--documentation .site-name { font-size: 20px; }
+        .site-header--documentation .site-nav { font-size: 14px; }
+        .prose { max-width: 76ch; }
+        .prose pre { font-size: 13px; }
+        .prose h2 { border-bottom: 1px solid var(--line); padding-bottom: .3em; }
+        .site-footer { padding: 32px 0 24px; }
+        .site-footer .wrap { grid-template-columns: 1fr 1fr; }
+CSS;
+        }
+
+        return '';
     }
 
     /**
@@ -425,13 +571,22 @@ BLADE;
 @section('content')
 <div class="page-content page-slug-{{ $page->slug }} page-id-{{ $page->id }}">
     @php
-        $__lead = optional($page->rows->sortBy('order_column')->first())
-            ->blocks->sortBy('order_column')->first();
-        $__opensWithHero = $__lead && $__lead->type === 'hero';
+        // optional() guards one step, and there are two: a page with no rows
+        // at all — the About, Privacy and Contact pages an install ships are
+        // all empty — made this `null->sortBy()` and took the page down with
+        // a 500, on every theme a build had ever written.
+        $__firstRow = $page->rows->sortBy('order_column')->first();
+        $__lead = $__firstRow ? $__firstRow->blocks->sortBy('order_column')->first() : null;
+        $__opensWithHero = $__lead && in_array($__lead->type, ['hero', 'html'], true);
     @endphp
     {{-- A page that opens with a hero already states its own name, in the
          design's words and at the design's size. Printing the page title
-         above it gives the reader two headings for one page. --}}
+         above it gives the reader two headings for one page.
+
+         A written section counts as one. It arrives as an html block carrying
+         its own heading, and checking only for the hero block put the page
+         title — "Zercurity" — in plain type directly above the design's own
+         hero, which is the first thing anyone saw. --}}
     @if($page->slug !== 'home' && ! $__opensWithHero)
         <div class="wrap" style="padding-top:48px"><h1>{{ $page->title }}</h1></div>
     @endif

@@ -101,8 +101,9 @@ class ThemeAuthor
      * at a time, so a failure part-way leaves the rest falling back rather
      * than half a design.
      */
-    public function scaffold(string $name, string $label, string $description = ''): string
+    public function scaffold(string $name, string $label, string $description = '', string $kind = 'landing'): string
     {
+        $kind = array_key_exists($kind, ThemeSkeleton::KINDS) ? $kind : 'landing';
         $theme = $this->themeSlug($name);
 
         if ($theme === '') {
@@ -124,6 +125,10 @@ class ThemeAuthor
             'namespace' => 'vela-' . $theme,
             'description' => $description,
             'category' => 'custom',
+            // Kept so the theme says what it was started as: a magazine and a
+            // landing page begin from different furniture, and a later build
+            // correcting this theme should know which it is looking at.
+            'kind' => $kind,
             'options' => new \stdClass(),
         ];
 
@@ -148,7 +153,7 @@ class ThemeAuthor
         // top. Written from nothing instead, a build produced a body holding
         // only @yield('content') and forty-five lines of crude CSS.
         $skeleton = app(ThemeSkeleton::class);
-        file_put_contents($directory . '/layout.blade.php', $skeleton->layout());
+        file_put_contents($directory . '/layout.blade.php', $skeleton->layout($kind));
         file_put_contents($directory . '/page.blade.php', $skeleton->page());
 
         // All six, not just the two: a view left out falls back to a built-in
@@ -383,7 +388,94 @@ class ThemeAuthor
             );
         }
 
+        $this->assertIsAWholeDocument($contents);
+        $this->assertKeepsTheFrame($contents, $existing);
         $this->assertStylesRealBlocks($contents, $existing);
+    }
+
+    /**
+     * A layout is the whole page, not a piece of one.
+     *
+     * A fix round replaced a 223-line layout with thirteen lines: a header, a
+     * nav, `@yield('content')`, a footer — no doctype, no <head>, no
+     * stylesheet. Every check passed. The site answered 200 on every page and
+     * rendered in the browser's own serif with blue underlined links, which is
+     * to say the design was gone and nothing said so. There is no such thing
+     * as a layout without a head: that is where the stylesheet, the title and
+     * the meta tags live.
+     */
+    private function assertIsAWholeDocument(string $contents): void
+    {
+        $missing = [];
+
+        if (!preg_match('/<html[\s>]/i', $contents)) {
+            $missing[] = '<html>';
+        }
+
+        if (!preg_match('/<head[\s>]/i', $contents)) {
+            $missing[] = '<head>';
+        }
+
+        if (!preg_match('/<body[\s>]/i', $contents)) {
+            $missing[] = '<body>';
+        }
+
+        if (!$missing) {
+            return;
+        }
+
+        throw new \RuntimeException(
+            'A layout is the whole page and this one has no ' . implode(', ', $missing) . '. '
+            . 'Everything a page needs to look like anything — the stylesheet, the fonts, the title, the meta tags — '
+            . 'lives in the head, so a layout without one renders every page of the site in the browser\'s default '
+            . 'type with no styling at all, while still answering normally. Write the whole document: doctype, html, '
+            . 'head with the styles, body with the header, @yield(\'content\') and the footer. To change how the '
+            . 'existing one looks, call set_theme_tokens or change the rules you mean to change and keep the rest.'
+        );
+    }
+
+    /**
+     * Refuse a rewrite that drops what the layout it replaces was carrying.
+     *
+     * These are the parts a theme is not free to leave out and cannot be
+     * checked for by rendering: the block stylesheet every shipped theme
+     * pulls in, the partial where a page's own CSS lands (without it every
+     * update_custom_css call and every written section's styling silently
+     * disappears), the script partial, Alpine. A model rewriting a layout to
+     * change a colour writes it again from memory and these are what memory
+     * leaves out.
+     */
+    private function assertKeepsTheFrame(string $contents, string $existing): void
+    {
+        if (trim($existing) === '') {
+            return;
+        }
+
+        $essentials = [
+            '@velaAssets' => 'the block stylesheet (@velaAssets), so every block on the site keeps its styling',
+            'custom-css' => "the custom-css partial, where a page's own stylesheet and every written section's styling land",
+            '<style' => 'the theme\'s own stylesheet',
+            'scripts-footer' => 'the scripts partial, which carries the image fallback',
+            'alpinejs' => 'Alpine, without which a gallery lightbox renders as a black sheet over the page',
+        ];
+
+        $lost = [];
+        foreach ($essentials as $needle => $what) {
+            if (stripos($existing, $needle) !== false && stripos($contents, $needle) === false) {
+                $lost[] = $what;
+            }
+        }
+
+        if (!$lost) {
+            return;
+        }
+
+        throw new \RuntimeException(
+            'This rewrite drops ' . implode('; and ', $lost) . '. The page would still load, so nothing '
+            . 'downstream would report it — the site would simply come back unstyled. Keep what the layout already '
+            . 'has and change only what you meant to change; to change colours, type or spacing, call '
+            . 'set_theme_tokens instead, which rewrites the tokens and leaves every rule in place.'
+        );
     }
 
     /**

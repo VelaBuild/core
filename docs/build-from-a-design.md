@@ -56,14 +56,18 @@ when you return.
 ## What you get
 
 The build makes **its own page**, at `/design-preview`. Your site is not
-touched while it works, and your existing homepage stays exactly as it is.
+touched while it works: the theme it writes and the navigation it sets belong
+to that page alone, so visitors go on seeing your site exactly as it is, header
+and all.
 
 When it finishes you get:
 
 - **Open it** — see the result as a visitor would.
-- **Use this as my homepage** — put it in place. Your old homepage is kept,
-  unlisted, so you can go back to it. The name the design gave the site becomes
-  your site's name at this point, and not before.
+- **Use this as my homepage** — put it in place. This is the moment the
+  design's theme and its navigation become your site's, and not before. Your
+  old homepage is kept, unlisted, and so is the navigation it replaces, so you
+  can go back to either. The name the design gave the site becomes your site's
+  name at this point too.
 
 If you do not like it, do nothing. Change the brief, or the picture, and build
 again.
@@ -72,20 +76,31 @@ again.
 
 - **Reading your picture.** Headlines, prices, opening hours, the words on
   buttons, the numbers in a statistics strip — these come out right.
-- **The look.** It writes your site a theme of its own: your colours, your
-  typeface, your header and footer, the shape of your cards.
-- **Leaving you in charge.** Everything it puts on the page is an ordinary
-  block. Open **Pages → your page → Edit** and change any of it — a headline, a
-  price, a photo — the way you would change anything else. Nothing it makes is
-  locked away in code.
+- **The look.** It writes your site a theme of its own — your colours, your
+  typeface, your header and footer — and then writes each section of the page
+  to match what your picture shows: the arrangement, the proportions, the
+  spacing. Sections are not fitted into ready-made shapes, which is why the
+  result resembles your design rather than resembling this CMS.
+- **Leaving you in charge.** Open **Pages → your page → Edit** and you get a
+  plain form: every headline, sentence, button label, picture and link on the
+  page, ready to change. Nothing it makes is locked away in code.
 
 ## What it is not
 
-- **Not a pixel-for-pixel copy.** It builds something that reads as the same
-  design, not a tracing of it.
-- **Not a photographer.** It can generate pictures, but the ones in your design
-  are not yours to keep unless you own them. Add your own photos in the page
-  editor.
+- **Not a pixel-for-pixel copy.** It comes close on arrangement, colour and
+  type. It cannot match a typeface it has no access to, and the photographs in
+  your design are not in it — put your own in from the page editor.
+- **Not a section you can rearrange by dragging.** The words, pictures and
+  links in a written section are editable as a form; moving its parts around
+  means editing HTML, or asking for that section to be built again.
+- **Not a photographer.** It makes at most three pictures, for the places where
+  a photograph or an illustration IS the content. It does not draw icons — those
+  are shapes, and it writes them into the section — and it will not draw a logo
+  at all: a strip of company logos in a design shows where your own customers
+  go, and a drawn one is somebody else's trademark, approximated, saying they
+  work with you. Untick **Make pictures for it** if you have your own; the slots
+  are left with a plain grey frame in them, at the right size, ready for you to
+  drop the real picture in from the page editor.
 - **Not consistent between runs.** The same picture built twice gives two
   results of similar quality but different detail. If a run comes out thin,
   build again.
@@ -103,8 +118,9 @@ design was not applied.
 listed as *the design*, and that your brief says what the site is. A build
 given two designs, or no explanation, has to guess.
 
-**A section is in the wrong words.** Edit it. It is a block like any other, and
-editing it takes ten seconds where rebuilding takes ten minutes.
+**A section is in the wrong words.** Edit it. **Pages → your page → Edit** puts
+every piece of wording in the section in front of you as a form, and changing
+one takes ten seconds where rebuilding takes ten minutes.
 
 ## Where things are afterwards
 

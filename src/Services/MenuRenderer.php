@@ -19,6 +19,21 @@ class MenuRenderer
     public function items(string $slot): Collection
     {
         try {
+            // While the design preview page is rendering, a slot the build
+            // staged stands in for the site's own. Everywhere else the site's
+            // navigation is untouched.
+            $frame = app(\VelaBuild\Core\Services\DesignPreviewFrame::class);
+
+            if ($frame->isActive()) {
+                $staged = Menu::where('slot', \VelaBuild\Core\Services\DesignPreviewFrame::slot($slot))
+                    ->with('items')
+                    ->first();
+
+                if ($staged && $staged->items->isNotEmpty()) {
+                    return $staged->items;
+                }
+            }
+
             $menu = Menu::where('slot', $slot)->with('items')->first();
         } catch (\Throwable $e) {
             // No DB on static-cache deploys — fall back to defaults.

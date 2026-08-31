@@ -107,6 +107,106 @@ class SectionImporter
     }
 
     /**
+     * The same treatment, for markup written here rather than fetched.
+     *
+     * A section built out of page-builder blocks wears this site's own styling,
+     * which is why a build from a picture came out recognisable but not alike:
+     * the design reached the page through a dozen theme tokens and a fixed set
+     * of block shapes. Markup written to match the design has no such ceiling,
+     * and the reason it was refused before — that a section the model writes is
+     * a section its owner can never touch — turns out to hold only for markup
+     * written into a THEME. In a block it goes through the same field marking
+     * as an imported section, so the page builder puts a plain form in front of
+     * the wording, the pictures and the links.
+     *
+     * What is dropped here is what cannot be allowed in either case: anything
+     * that executes, and anything that submits. A <style> goes too — the
+     * stylesheet travels beside the markup so it can be scoped to this section,
+     * and one left inline would reach every page it is rendered on.
+     *
+     * @param  string $key  distinguishes this section's wrapper from the rest
+     *                      on the page; each gets its own, since each carries
+     *                      its own stylesheet.
+     * @return array{wrapper_class:string, block_id:string, html:string, images:array<int,string>, editable_fields:int}|array{error:string}
+     */
+    public function fromAuthoredMarkup(string $html, string $key): array
+    {
+        $doc = $this->loadDocument($html);
+        if (!$doc) {
+            return ['error' => 'That markup could not be parsed as HTML. Check the tags are balanced and try again.'];
+        }
+
+        $xpath = new DOMXPath($doc);
+
+        foreach ($xpath->query('//script|//noscript|//style|//link|//meta|//iframe|//object|//embed|//base') ?: [] as $unwanted) {
+            $unwanted->parentNode?->removeChild($unwanted);
+        }
+
+        foreach ($xpath->query('//form') ?: [] as $form) {
+            if ($form instanceof DOMElement) {
+                $form->removeAttribute('action');
+                $form->removeAttribute('method');
+            }
+        }
+
+        $images = [];
+        foreach ($xpath->query('//*') ?: [] as $element) {
+            if (!$element instanceof DOMElement) {
+                continue;
+            }
+
+            foreach (iterator_to_array($element->attributes ?? []) as $attribute) {
+                $name = strtolower($attribute->nodeName);
+
+                if (str_starts_with($name, 'on')) {
+                    $element->removeAttribute($attribute->nodeName);
+                    continue;
+                }
+
+                if ($name === 'href' && str_starts_with(strtolower(trim($attribute->nodeValue ?? '')), 'javascript:')) {
+                    $element->setAttribute('href', '#');
+                }
+            }
+
+            if (strtolower($element->tagName) === 'img') {
+                $src = trim($element->getAttribute('src'));
+                if ($src !== '' && !str_starts_with($src, 'data:')) {
+                    $images[$src] = true;
+                }
+            }
+        }
+
+        $fields = $this->markEditableFields($doc);
+
+        $inner = '';
+        foreach ($doc->getElementsByTagName('body')->item(0)?->childNodes ?? [] as $child) {
+            $inner .= $doc->saveHTML($child);
+        }
+
+        $wrapper = 'vela-design-' . substr(md5($key), 0, 10);
+        $blockId = 'b' . substr(md5($key . '|' . uniqid('', true)), 0, 10);
+
+        // What the section is, so the caller can refuse the parts of a page
+        // this site draws for itself on every page from its own theme.
+        $root = null;
+        foreach ($doc->getElementsByTagName('body')->item(0)?->childNodes ?? [] as $child) {
+            if ($child instanceof DOMElement) {
+                $root = $root === null ? $child : false;
+            }
+        }
+
+        return [
+            'tag'             => $root instanceof DOMElement ? strtolower($root->tagName) : '',
+            'class'           => $root instanceof DOMElement ? trim($root->getAttribute('class')) : '',
+            'wrapper_class'   => $wrapper,
+            'block_id'        => $blockId,
+            'html'            => '<div class="' . $wrapper . '" data-vela-block="' . $blockId . '">' . trim($inner) . '</div>',
+            'images'          => array_keys($images),
+            'editable_fields' => $fields,
+        ];
+    }
+
+    /**
      * Pages and stylesheets already fetched in this process.
      *
      * Copying a page means one call per section, and each was re-downloading

@@ -67,6 +67,14 @@ class PageController extends Controller
             'locale:' . $locale,
         ]);
 
+        // The page a design build writes onto wears the frame that build
+        // produced — its theme and its navigation — while the rest of the site
+        // keeps its own. Until someone presses "use this as my homepage", a
+        // design being tried out changes nothing a visitor sees anywhere else.
+        if ($page->slug === \VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG) {
+            app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->activate();
+        }
+
         return view(vela_template_view('page'), compact('page'));
     }
 

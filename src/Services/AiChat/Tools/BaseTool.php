@@ -390,6 +390,56 @@ abstract class BaseTool
     }
 
     /**
+     * Reject a picture whose address leads to nothing on this site.
+     *
+     * `validateImageReference` catches a bare filename, which is the mistake a
+     * model makes when it names a file in the design folder. It does not catch
+     * the other one: a build put `<img src="/path-to-illustration.jpg">` in the
+     * hero — a placeholder shaped like a path — and the most prominent picture
+     * on the page rendered as a broken-image icon while the build reported
+     * success. Anything that looks like an address passed.
+     *
+     * Only addresses on this site are resolved. `/imgp/` and `/imgr/` are the
+     * image optimiser's own routes and are served by a controller, not a file.
+     */
+    protected function validateImageResolves(?string $url, string $field = 'an image'): ?array
+    {
+        if ($error = $this->validateImageReference($url, $field)) {
+            return $error;
+        }
+
+        $url = trim((string) $url);
+
+        if ($url === '' || str_starts_with($url, 'data:')) {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if ($host !== null && $host !== parse_url((string) config('app.url'), PHP_URL_HOST)) {
+            // Somewhere else's picture. Other guards decide whether that is
+            // allowed; this one cannot check it and must not guess.
+            return null;
+        }
+
+        if ($path === '' || str_starts_with($path, '/imgp/') || str_starts_with($path, '/imgr/')) {
+            return null;
+        }
+
+        if (is_file(public_path(ltrim(rawurldecode($path), '/')))) {
+            return null;
+        }
+
+        return [
+            'error' => "\"{$url}\" is not a picture this site has — nothing is stored at that address, so {$field} "
+                . 'renders as a broken image. It reads like a placeholder standing in for a picture that was never '
+                . 'made. Call generate_image and use the url it returns exactly as given, or take one from '
+                . 'list_media, or leave the picture out of the markup.',
+        ];
+    }
+
+    /**
      * Reject markup in text fields.
      *
      * Block views escape their text, so a tag written into a title is shown to

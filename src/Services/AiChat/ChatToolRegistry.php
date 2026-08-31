@@ -27,13 +27,14 @@ class ChatToolRegistry
         ],
         [
             'name' => 'create_theme',
-            'description' => 'Start a new theme of this site\'s own, written from scratch rather than adapted from a shipped one. Use when a design does not resemble any existing template. Creates an empty theme; write its views with write_theme_file, then switch_template to it.',
+            'description' => 'Start a new theme of this site\'s own, written from scratch rather than adapted from a shipped one. Use when a design does not resemble any existing template. It arrives complete and working — frame, navigation, footer and a rule for every block, all driven by tokens — rather than empty, so adjust it with set_theme_tokens and only reach for write_theme_file where no token covers what is wrong. Choose `kind` by what the design IS: "landing" (a page selling or explaining a thing), "editorial" (a publication, opening into its content), "documentation" (a narrow column of reference text). The kind decides the furniture and proportions the theme starts with; picking the wrong one means working against it all the way.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
                     'name' => ['type' => 'string', 'description' => 'Short name, becomes the folder name'],
                     'label' => ['type' => 'string', 'description' => 'How it appears in the admin'],
                     'description' => ['type' => 'string'],
+                    'kind' => ['type' => 'string', 'enum' => ['landing', 'editorial', 'documentation'], 'description' => 'What kind of site the design is. Default "landing".'],
                 ],
                 'required' => ['name'],
             ],
@@ -885,7 +886,7 @@ class ChatToolRegistry
         ],
         [
             'name' => 'import_page_section',
-            'description' => 'Copy ONE content section of a remote page onto a page here exactly as it looks: its own markup goes in as an html block, its own CSS is rewritten to reach nothing outside that block and stored on the page, and its images are downloaded to local storage. Use this when the user asked to COPY a page rather than borrow its arrangement, or for any section the block types cannot reproduce. Identify the section with section_index (the number browse_url action "sections" gave it) or selector. Call it once per section, in order. NEVER import the source site\'s navigation bar, header or footer — this site renders its own on every page from its template and menus, and the tool refuses them. The result cannot be edited in the page builder — it is raw HTML — so prefer real blocks where they genuinely fit. Undoable.',
+            'description' => 'Copy ONE content section of a remote page onto a page here exactly as it looks: its own markup goes in as an html block, its own CSS is rewritten to reach nothing outside that block and stored on the page, and its images are downloaded to local storage. Use this when the user asked to COPY a page rather than borrow its arrangement, or for any section the block types cannot reproduce. Identify the section with section_index (the number browse_url action "sections" gave it) or selector. Call it once per section, in order. NEVER import the source site\'s navigation bar, header or footer — this site renders its own on every page from its template and menus, and the tool refuses them. Its wording, pictures and links are editable in the page builder as a plain form; the arrangement itself is only editable as HTML, so prefer real blocks where they genuinely fit — and always for a listing of articles or topics, which has to keep up with what the site holds. Undoable.',
             'parameters' => [
                 'type' => 'object',
                 'properties' => [
@@ -901,6 +902,82 @@ class ChatToolRegistry
                     'order'           => ['type' => 'integer', 'description' => 'Position among the page rows (defaults to last)'],
                 ],
                 'required' => ['url'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'set_menu',
+            'description' => 'Set the links in one of the theme\'s menu slots, replacing whatever is in it. THE way to give a site the navigation a design shows: until a slot is set, every theme shows the same Home / Articles / Topics, and no amount of rewriting a layout changes that. Slots: "primary" (the header navigation), "header_actions" (the links at the right-hand end of the header — the last one renders as a button, which is where a "Sign up" or "Create account" goes), "footer_quick_links" (the footer list). Each item is {label, type} plus url for type "url" or page_slug for type "page"; types "home", "posts_index" and "categories_index" need nothing else. Items pointing at a page must be created with create_page first. The site\'s owner can edit these afterwards in Appearance → Menus. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'slot' => ['type' => 'string', 'enum' => ['primary', 'header_actions', 'footer_quick_links']],
+                    'scope' => ['type' => 'string', 'enum' => ['site', 'design_preview'], 'description' => 'Default "site": the navigation every visitor sees. "design_preview" stages it for the page a design build writes onto, leaving the site\'s own alone until the design is kept.'],
+                    'items' => [
+                        'type' => 'array',
+                        'description' => 'The links, in the order they appear.',
+                        'items' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'label' => ['type' => 'string', 'description' => 'The words the design shows on the link.'],
+                                'type' => ['type' => 'string', 'enum' => ['home', 'posts_index', 'categories_index', 'page', 'url']],
+                                'page_slug' => ['type' => 'string', 'description' => 'For type "page": the slug of a page on this site.'],
+                                'url' => ['type' => 'string', 'description' => 'For type "url": where the link goes.'],
+                            ],
+                            'required' => ['label', 'type'],
+                        ],
+                    ],
+                ],
+                'required' => ['slot', 'items'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'use_theme_for_preview',
+            'description' => 'Point the design preview page at a theme without dressing the whole site in it. This is how a DESIGN BUILD makes its theme visible: switch_template changes what every visitor sees immediately, which is not something to do to a site whose owner has only asked to see what a design might look like. The rest of the site keeps its theme until someone presses "use this as my homepage". Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'theme' => ['type' => 'string', 'description' => 'The theme name create_theme returned.'],
+                ],
+                'required' => ['theme'],
+            ],
+            'write' => true,
+            'gate' => 'config_edit',
+        ],
+        [
+            'name' => 'convert_section_to_block',
+            'description' => 'Turn a written section (a row holding one html block) into a real page-builder block, reading its wording, pictures and links back out of the markup. Use it AFTER the design matches, on sections a block can carry: it gives the site\'s owner the ability to restructure that section — add a card, remove one, reorder them — which written markup never allows. It is a trade: a block is painted by the theme, so the section will not look identical. Convertible types: hero, cta, testimonials, icon_box, accordion. It refuses when the block has nowhere to put some of the section\'s wording, rather than dropping it. Photograph the page afterwards and compare with the design; if it moved away, write the section again with add_designed_section and replace_row_id. Undoable, and the markup and stylesheet are kept so undo is exact.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'row_id' => ['type' => 'integer', 'description' => 'The row holding the written section, from get_page_blocks.'],
+                    'type' => ['type' => 'string', 'enum' => ['hero', 'cta', 'testimonials', 'icon_box', 'accordion']],
+                    'force' => ['type' => 'boolean', 'description' => 'Convert even though some wording has nowhere to go and would be dropped.'],
+                ],
+                'required' => ['row_id', 'type'],
+            ],
+            'write' => true,
+            'gate' => 'page_edit',
+        ],
+        [
+            'name' => 'add_designed_section',
+            'description' => 'Add ONE section to a page as the markup and styling a design actually shows, instead of as the nearest page-builder block. THE tool for building a page from a picture of a design: write the section\'s own HTML and its own CSS, and both go in together — the markup as an html block, the stylesheet rewritten so it reaches nothing outside that block. Selectors must be class names that appear in the html you send; anything else is dropped. Its wording, pictures and links stay editable in the page builder as a plain form, so the person whose site it is can still change them. NOT for a listing of articles or topics: those are drawn from what the site holds and must stay posts_grid / categories_grid blocks, or they freeze on the day they were built. Do not write a header, a navigation bar or a footer here — the theme draws those on every page. One call per section, in order. Undoable.',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => [
+                    'page_id'   => ['type' => 'integer', 'description' => 'Page the section is added to'],
+                    'page_slug' => ['type' => 'string'],
+                    'locale'    => ['type' => 'string'],
+                    'html'      => ['type' => 'string', 'description' => 'The section\'s markup. Put the design\'s real headings, sentences and button labels in as text and its pictures in as <img> — that is what becomes the edit form. No <script>, no <style>: the stylesheet goes in css.'],
+                    'css'       => ['type' => 'string', 'description' => 'The section\'s stylesheet, written against the class names used in html. Scoped to this section on the way in.'],
+                    'name'      => ['type' => 'string', 'description' => 'What this section is, for the page builder\'s row label: "Hero", "Pricing", "FAQ".'],
+                    'order'     => ['type' => 'integer', 'description' => 'Position among the page rows (defaults to last)'],
+                    'replace_row_id' => ['type' => 'integer', 'description' => 'Rewrite the section in this row (from get_page_blocks) instead of adding one. This is how a section is CORRECTED — adding a second one leaves both on the page.'],
+                ],
+                'required' => ['html'],
             ],
             'write' => true,
             'gate' => 'page_edit',

@@ -44,6 +44,9 @@ class VelaServiceProvider extends ServiceProvider
         $this->app->singleton(\VelaBuild\Core\Services\AssetBundler::class);
 
         $this->app->singleton(\VelaBuild\Core\Services\MenuRenderer::class);
+        // One per request: whether the design preview's frame is in force is
+        // decided when the page is resolved and read again when its menus are.
+        $this->app->singleton(\VelaBuild\Core\Services\DesignPreviewFrame::class);
 
         $this->app->singleton(\VelaBuild\Core\Services\ToolSettingsService::class, function ($app) {
             return new \VelaBuild\Core\Services\ToolSettingsService();
