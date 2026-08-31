@@ -468,12 +468,12 @@ class DesignToSite extends Command
         }
 
         // In the design's theme, which is the only place these views exist.
-        $inTheme = '?design_preview=1';
-        $checks[$base . '/posts' . $inTheme] = 'the article listing, in the design\'s theme';
-        $checks[$base . '/categories' . $inTheme] = 'the topic listing, in the design\'s theme';
+        $frame = app(\VelaBuild\Core\Services\DesignPreviewFrame::class);
+        $checks[$frame->previewUrl($base . '/posts')] = 'the article listing, in the design\'s theme';
+        $checks[$frame->previewUrl($base . '/categories')] = 'the topic listing, in the design\'s theme';
 
         if ($post = Content::where('status', 'published')->orderBy('id')->first()) {
-            $checks[$base . '/posts/' . $post->slug . $inTheme] = 'an article, in the design\'s theme';
+            $checks[$frame->previewUrl($base . '/posts/' . $post->slug)] = 'an article, in the design\'s theme';
         }
 
         $failures = [];

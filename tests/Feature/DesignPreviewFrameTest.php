@@ -108,6 +108,43 @@ class DesignPreviewFrameTest extends PackageTestCase
         );
     }
 
+    /**
+     * The four views a build writes for the article and topic pages are
+     * rendered nowhere else, so a link has to be able to ask for any public
+     * page in the design's theme — and the build has to follow that link
+     * itself, over HTTP, with no session to be gated by. A secret in the
+     * address is what allows both without putting an undecided design on show
+     * to whoever guesses a query string.
+     */
+    public function test_asking_for_the_designs_theme_needs_the_token(): void
+    {
+        $frame = app(DesignPreviewFrame::class);
+
+        (new UseThemeForPreviewTool())->execute(['theme' => 'default']);
+
+        $token = $frame->token();
+
+        $this->assertNotNull($token);
+        $this->assertTrue($frame->matches($token));
+        $this->assertFalse($frame->matches('1'));
+        $this->assertFalse($frame->matches(null));
+        $this->assertStringContainsString('design_preview=' . $token, $frame->previewUrl('https://site.test/posts'));
+        $this->assertStringContainsString('&design_preview=', $frame->previewUrl('https://site.test/posts?page=2'));
+    }
+
+    public function test_staging_another_theme_retires_the_last_link(): void
+    {
+        $frame = app(DesignPreviewFrame::class);
+
+        (new UseThemeForPreviewTool())->execute(['theme' => 'default']);
+        $first = $frame->token();
+
+        (new UseThemeForPreviewTool())->execute(['theme' => 'modern']);
+
+        $this->assertNotSame($first, $frame->token());
+        $this->assertFalse($frame->matches($first));
+    }
+
     public function test_the_build_is_not_given_the_tool_that_dresses_the_whole_site(): void
     {
         $all = app(\VelaBuild\Core\Services\AiChat\ChatToolRegistry::class)->all();

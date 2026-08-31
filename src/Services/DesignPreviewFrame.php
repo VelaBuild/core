@@ -23,6 +23,17 @@ class DesignPreviewFrame
 {
     public const THEME_KEY = 'design_preview_template';
 
+    /**
+     * The key that lets a link ask for a page in the design's theme.
+     *
+     * The build has to fetch those pages itself, over HTTP and without a
+     * session, to know they render at all — so this cannot be a permission.
+     * A secret in the address is what both allow: the build reads it from
+     * here, and a design nobody has decided to keep is not on show to anyone
+     * who guesses a query string.
+     */
+    public const TOKEN_KEY = 'design_preview_token';
+
     /** Menu slots a theme renders, and the slot each is staged in. */
     public const SLOTS = ['primary', 'header_actions', 'footer_quick_links'];
 
@@ -61,6 +72,38 @@ class DesignPreviewFrame
     public function setTheme(string $theme): void
     {
         VelaConfig::updateOrCreate(['key' => self::THEME_KEY], ['value' => $theme]);
+
+        // A new token per staged theme, so a link handed out for one design
+        // does not open the next one.
+        VelaConfig::updateOrCreate(['key' => self::TOKEN_KEY], ['value' => bin2hex(random_bytes(16))]);
+    }
+
+    public function token(): ?string
+    {
+        $token = VelaConfig::where('key', self::TOKEN_KEY)->value('value');
+
+        return $token !== null && $token !== '' ? $token : null;
+    }
+
+    public function matches(?string $token): bool
+    {
+        $known = $this->token();
+
+        return $known !== null && is_string($token) && hash_equals($known, $token);
+    }
+
+    /**
+     * The same address, asking for the design's theme.
+     */
+    public function previewUrl(string $url): string
+    {
+        $token = $this->token();
+
+        if ($token === null) {
+            return $url;
+        }
+
+        return $url . (str_contains($url, '?') ? '&' : '?') . 'design_preview=' . $token;
     }
 
     /**
