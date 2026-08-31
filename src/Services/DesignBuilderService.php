@@ -1445,6 +1445,15 @@ WRITING A SECTION:
 - The design shows one width. Write the section so it also holds together on a
   narrow phone: a max-width media query in the same stylesheet, no fixed pixel
   widths wider than about 360px, nothing that has to scroll sideways.
+- Placing a section is not designing it. A stylesheet of display:flex and a
+  grid puts the pieces where the design has them and leaves everything else to
+  the theme, and the page comes out as the design's running order wearing
+  somebody else's design — which reads as no styling at all. One that says
+  nothing about how the section looks is refused. For every section, read off
+  the picture and write: the size and weight of its heading, the colour of its
+  words and of what is behind them, the space inside it and around its parts,
+  how a card is separated from the one beside it — a border, a shade, a
+  shadow, a corner — and how large its pictures run.
 - Keep the words legible on what is behind them. A pale heading on a pale band
   passes every check here and is unreadable on the page.
 - One section per call, so each can be checked and corrected on its own. To

@@ -64,6 +64,10 @@ class AddDesignedSectionTool extends BaseTool
             return $error;
         }
 
+        if ($css !== '' && $error = $this->refuseUndesigned($css)) {
+            return $error;
+        }
+
         $name = trim((string) ($parameters['name'] ?? ''));
         if ($name === '') {
             return ['error' => 'name is required — what this section is: "Hero", "Features", "Pricing", "FAQ". '
@@ -289,6 +293,56 @@ class AddDesignedSectionTool extends BaseTool
         if ($page) {
             app(StaticSiteGenerator::class)->removeHtml('page', $page->slug);
         }
+    }
+
+    /**
+     * Refuse a section that has been placed but not designed.
+     *
+     * A build wrote five sections and the whole page's styling came to five
+     * rules: display:flex on a hero, a three-column grid on the cards,
+     * list-style on the topics. The arrangement was right and nothing else
+     * was — no type, no colour, no spacing, no treatment on a card, no size
+     * on a picture — so a design read off a magazine came out as the theme's
+     * defaults in the design's running order, which reads as a build that
+     * applied no styling at all.
+     *
+     * Layout on its own is not the design. What separates them is whether the
+     * stylesheet says anything about how the section LOOKS.
+     */
+    private function refuseUndesigned(string $css): ?array
+    {
+        $properties = [];
+
+        if (preg_match_all('/(?:^|[;{])\s*([a-z-]+)\s*:/mi', $css, $matches)) {
+            $properties = array_map('strtolower', $matches[1]);
+        }
+
+        if ($properties === []) {
+            return null;
+        }
+
+        // Everything that decides how a thing looks rather than where it sits.
+        $design = [
+            'font', 'font-size', 'font-family', 'font-weight', 'font-style',
+            'color', 'background', 'background-color', 'background-image',
+            'border', 'border-radius', 'border-top', 'border-bottom', 'border-left', 'border-right',
+            'box-shadow', 'text-transform', 'letter-spacing', 'line-height',
+            'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
+            'opacity', 'text-align', 'width', 'max-width', 'height', 'aspect-ratio', 'object-fit',
+        ];
+
+        if (array_intersect($properties, $design) !== []) {
+            return null;
+        }
+
+        return [
+            'error' => 'That stylesheet places the section but does not design it: every declaration in it is '
+                . 'layout (' . implode(', ', array_slice(array_unique($properties), 0, 6)) . ') and none of it says '
+                . 'how anything looks. A section styled this way comes out in the theme\'s own type, colour and '
+                . 'spacing — the design\'s arrangement wearing somebody else\'s design. Read the section off the '
+                . 'picture again and write what it shows: the size and weight of its heading, the colour behind it, '
+                . 'the space inside it, how a card is separated from the one beside it, how large its picture runs.',
+        ];
     }
 
     /**

@@ -265,6 +265,47 @@ class AiChatDesignedSectionTest extends PackageTestCase
         $this->assertStringNotContainsString('font-size:64px', str_replace(' ', '', $css));
     }
 
+    /**
+     * A build wrote five sections and the page's whole styling came to five
+     * rules — display:flex on the hero, a three-column grid on the cards,
+     * list-style on the topics. The arrangement was right and nothing else
+     * was, so a magazine design came out as the theme's defaults in the
+     * design's running order, which reads as no styling at all.
+     */
+    public function test_a_section_that_is_placed_but_not_designed_is_refused(): void
+    {
+        $page = $this->page();
+
+        $result = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Hero',
+            'html' => $this->hero(),
+            // Verbatim from the run that prompted this.
+            'css' => '.hero{display:flex;align-items:center}'
+                . '.hero-copy{flex:1}'
+                . '.hero-shot{flex:1}',
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertStringContainsString('places the section but does not design it', $result['error']);
+        $this->assertSame(0, $page->rows()->count());
+    }
+
+    public function test_a_stylesheet_that_says_how_the_section_looks_is_accepted(): void
+    {
+        $page = $this->page();
+
+        $result = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Hero',
+            'html' => $this->hero(),
+            'css' => '.hero{display:grid;grid-template-columns:7fr 5fr;padding:96px 32px}'
+                . '.hero-title{font-size:64px;font-weight:800;color:#101828}',
+        ]);
+
+        $this->assertTrue($result['success'], $result['error'] ?? '');
+    }
+
     public function test_it_says_so_when_none_of_the_styling_matched(): void
     {
         $page = $this->page();

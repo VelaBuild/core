@@ -594,7 +594,10 @@ CSS;
     @include('vela::templates._partials.page-rows', ['page' => $page])
 </div>
 
-@if($page->custom_css)<style>{!! $page->custom_css !!}</style>@endif
+{{-- The page's own stylesheet is emitted by the custom-css partial in the
+     layout's head, where it belongs and where a page's rules can still be
+     overruled by the theme. Printing it again here put every written
+     section's styling on the page twice. --}}
 @if($page->custom_js)<script>{!! $page->custom_js !!}</script>@endif
 @endsection
 BLADE;
