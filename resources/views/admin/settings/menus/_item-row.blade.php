@@ -1,14 +1,18 @@
 @php
     // $item is either a MenuItem model or null (template mode).
+    // NOTE: decide per-mode, never per-field: a real item may legitimately have
+    // a NULL ref_id / url (home, url, posts_index…), and `?? '__REF_ID__'`
+    // would leak the JS placeholder into a real row and be posted back.
+    $tpl    = $item === null;
     $i      = $index;
-    $type   = $item->type   ?? '__TYPE__';
-    $refId  = $item->ref_id ?? '__REF_ID__';
-    $label  = $item->label  ?? '__LABEL__';
-    $url    = $item->url    ?? '__URL__';
-    $route  = $item->route_name ?? '';
-    $target = $item->target ?? '_self';
-    $itemId = $item->id     ?? '';
-    $typeLabel = $item ? ucwords(str_replace('_', ' ', $item->type)) : '__TYPE_LABEL__';
+    $type   = $tpl ? '__TYPE__'   : $item->type;
+    $refId  = $tpl ? '__REF_ID__' : ($item->ref_id ?? '');
+    $label  = $tpl ? '__LABEL__'  : ($item->label ?? '');
+    $url    = $tpl ? '__URL__'    : ($item->url ?? '');
+    $route  = $tpl ? ''           : ($item->route_name ?? '');
+    $target = $tpl ? '_self'      : ($item->target ?? '_self');
+    $itemId = $tpl ? ''           : $item->id;
+    $typeLabel = $tpl ? '__TYPE_LABEL__' : ucwords(str_replace('_', ' ', $item->type));
 @endphp
 <div class="menu-item-row d-flex align-items-center p-2 mb-2 border rounded bg-light" data-type="{{ $type }}">
     <span class="drag-handle mr-2 text-muted" style="cursor:grab;"><i class="fas fa-grip-vertical"></i></span>
