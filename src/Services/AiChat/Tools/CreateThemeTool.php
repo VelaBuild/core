@@ -32,7 +32,13 @@ class CreateThemeTool extends BaseTool
                 $name,
                 (string) ($parameters['label'] ?? $name),
                 (string) ($parameters['description'] ?? ''),
-                $kind
+                $kind,
+                // The one theme this may write over: the one a previous build
+                // of this design staged as its preview. A design's name gives
+                // the same theme name every run, so rebuilding has to be able
+                // to reuse its own folder — and must not be able to reuse
+                // anybody else's, which is what it had been doing.
+                app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->theme()
             );
         } catch (\RuntimeException $e) {
             return ['error' => $e->getMessage()];

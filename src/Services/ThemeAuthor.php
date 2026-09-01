@@ -100,8 +100,18 @@ class ThemeAuthor
      * Create an empty theme and its manifest. No views: those are written one
      * at a time, so a failure part-way leaves the rest falling back rather
      * than half a design.
+     *
+     * @param ?string $mayReplace the one theme this caller is allowed to write
+     *                over — its own, from a previous run. A name is generated
+     *                from the design, so it comes out the same every rebuild;
+     *                without this the second build of a design wrote the
+     *                skeleton straight over whatever was in that folder, which
+     *                on a site whose theme had been built the same way meant
+     *                over the theme the site was WEARING. Nothing said so: the
+     *                folder already existed, mkdir was skipped, and every view
+     *                was rewritten in place while a visitor was reading it.
      */
-    public function scaffold(string $name, string $label, string $description = '', string $kind = 'landing'): string
+    public function scaffold(string $name, string $label, string $description = '', string $kind = 'landing', ?string $mayReplace = null): string
     {
         $kind = array_key_exists($kind, ThemeSkeleton::KINDS) ? $kind : 'landing';
         $theme = $this->themeSlug($name);
@@ -115,6 +125,33 @@ class ThemeAuthor
         }
 
         $directory = $this->directory($theme);
+
+        if (is_dir($directory)) {
+            // The theme in use is refused even to the caller that made it. A
+            // build works on a preview and hands the site over at the end; one
+            // that rewrites the live theme's views has changed the site before
+            // anybody has looked at what it did.
+            if ($theme === config('vela.template.active')) {
+                throw new \RuntimeException(
+                    'The site is using a theme called "' . $theme . '", and writing this one would rewrite it while '
+                    . 'people are reading it. Give this theme a different name.'
+                );
+            }
+
+            if ($theme !== $mayReplace) {
+                throw new \RuntimeException(
+                    'A theme called "' . $theme . '" already exists and is not this build\'s to overwrite. Give this '
+                    . 'theme a name of its own, or delete that one first in Settings → Appearance.'
+                );
+            }
+
+            // Its own from a previous run, so it goes — but not without a copy,
+            // the way a deleted theme keeps one.
+            $replaced = storage_path('app/vela-theme-replaced/' . $theme);
+            File::deleteDirectory($replaced);
+            File::ensureDirectoryExists(dirname($replaced));
+            File::copyDirectory($directory, $replaced);
+        }
 
         if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
             throw new \RuntimeException('Could not create the theme folder at ' . $directory);

@@ -134,6 +134,74 @@ class ThemeKindTest extends PackageTestCase
         $this->cleanUp($theme);
     }
 
+    public function test_a_build_will_not_write_over_a_theme_that_is_not_its_own(): void
+    {
+        $author = app(ThemeAuthor::class);
+        $author->scaffold('lighthouse', 'Lighthouse');
+        file_put_contents(resource_path('views/templates/lighthouse/layout.blade.php'), 'HAND WRITTEN');
+
+        try {
+            // A design's name gives the same theme name every run, so the
+            // second build of any design arrives at a folder that already
+            // exists. It used to write the skeleton straight into it.
+            $result = (new CreateThemeTool())->execute(['name' => 'Lighthouse', 'kind' => 'landing']);
+
+            $this->assertArrayHasKey('error', $result);
+            $this->assertStringContainsString('already exists', $result['error']);
+            $this->assertSame('HAND WRITTEN', file_get_contents(resource_path('views/templates/lighthouse/layout.blade.php')));
+        } finally {
+            $this->cleanUp('lighthouse');
+        }
+    }
+
+    public function test_a_build_may_write_over_the_theme_it_staged_last_time(): void
+    {
+        $author = app(ThemeAuthor::class);
+        $author->scaffold('lighthouse', 'Lighthouse');
+        file_put_contents(resource_path('views/templates/lighthouse/layout.blade.php'), 'FROM THE LAST RUN');
+
+        app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->setTheme('lighthouse');
+
+        try {
+            $result = (new CreateThemeTool())->execute(['name' => 'Lighthouse', 'kind' => 'landing']);
+
+            $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+            $this->assertStringContainsString('<!doctype html>', file_get_contents(resource_path('views/templates/lighthouse/layout.blade.php')));
+
+            // And what it replaced is kept, the way a deleted theme is.
+            $this->assertSame(
+                'FROM THE LAST RUN',
+                file_get_contents(storage_path('app/vela-theme-replaced/lighthouse/layout.blade.php'))
+            );
+        } finally {
+            $this->cleanUp('lighthouse');
+            \Illuminate\Support\Facades\File::deleteDirectory(storage_path('app/vela-theme-replaced/lighthouse'));
+        }
+    }
+
+    public function test_the_theme_the_site_is_wearing_is_refused_even_to_its_own_build(): void
+    {
+        $author = app(ThemeAuthor::class);
+        $author->scaffold('lighthouse', 'Lighthouse');
+        file_put_contents(resource_path('views/templates/lighthouse/layout.blade.php'), 'WHAT VISITORS SEE');
+
+        // The build's own theme, and since promoted to the live site.
+        app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->setTheme('lighthouse');
+        config(['vela.template.active' => 'lighthouse']);
+
+        try {
+            $result = (new CreateThemeTool())->execute(['name' => 'Lighthouse', 'kind' => 'landing']);
+
+            // Rewriting it would change the site under whoever is reading it,
+            // which is the one thing a build on a preview page must not do.
+            $this->assertArrayHasKey('error', $result);
+            $this->assertStringContainsString('reading it', $result['error']);
+            $this->assertSame('WHAT VISITORS SEE', file_get_contents(resource_path('views/templates/lighthouse/layout.blade.php')));
+        } finally {
+            $this->cleanUp('lighthouse');
+        }
+    }
+
     public function test_a_kind_that_is_not_one_is_refused_rather_than_guessed(): void
     {
         $result = (new CreateThemeTool())->execute(['name' => 'Kindcheck', 'kind' => 'magazine']);
