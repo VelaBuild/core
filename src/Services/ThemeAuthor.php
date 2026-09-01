@@ -47,14 +47,26 @@ class ThemeAuthor
     /**
      * The folder name a theme gets, from whatever it was called.
      *
-     * Names arrive as the model wrote them, and "ZercurityTheme" slugs to
-     * "zercuritytheme" because slugging does not split words that were only
-     * ever separated by capitals. Saying "theme" in a theme's name adds
-     * nothing either, so it goes.
+     * Names arrive as the model wrote them, so "ZercurityTheme" has to become
+     * "zercurity": slugging alone does not split words separated only by
+     * capitals, and saying "theme" in a theme's name adds nothing.
      */
     private function themeSlug(string $name): string
     {
-        $slug = Str::slug(Str::snake(trim($name), '-'));
+        // Split where one word ends and the next begins, and only there.
+        // Str::snake, which used to do this, separates every capital from the
+        // one before it: "Vela CMS" came out as "vela-c-m-s", which is a real
+        // theme sitting on a real site. The second alternative is what keeps
+        // an acronym together — a run of capitals breaks only before the last
+        // one, and only when a lowercase letter follows it, which is where the
+        // next word starts.
+        $spaced = preg_replace(
+            '/(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])/',
+            '-',
+            trim($name)
+        ) ?? trim($name);
+
+        $slug = Str::slug($spaced);
         $trimmed = preg_replace('/-(theme|template)$/', '', $slug);
 
         // Only if something is left: a theme somebody really did call "theme"
