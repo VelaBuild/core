@@ -38,9 +38,13 @@
     @endforeach
 </div>
 
-@if($page->custom_css)
-<style>{!! $page->custom_css !!}</style>
-@endif
+{{-- The page's own stylesheet is emitted by the custom-css partial in the
+     layout's head, where it belongs and where the theme can still overrule it.
+     Printed again here it landed after the theme's own <style> and won against
+     it, so one `body { font-family: … }` written into one page's CSS restyled
+     every theme the site could be switched to — which reads as every theme
+     being broken. The skeleton's page view had this removed already; this is
+     the same duplicate, on the path the shipped themes use. --}}
 @if($page->custom_js)
 <script>{!! $page->custom_js !!}</script>
 @endif

@@ -64,6 +64,21 @@ class UpdateCustomCssTool extends BaseTool
             ];
         }
 
+        if (!($parameters['force'] ?? false) && $owned = $this->themeOwnedRule($css)) {
+            [$selector, $property] = $owned;
+
+            return [
+                'error' => "This CSS sets {$property} on '{$selector}'. Typography, the ground colour and the site's "
+                    . 'custom properties are what the THEME decides, and a stylesheet reaching the document root '
+                    . 'overrules whichever theme the site is wearing — one such rule left in a page\'s CSS made every '
+                    . 'theme the site could be switched to look the same. Change it with set_theme_tokens, or write '
+                    . 'to the classes the rule is really meant for. Pass force:true only if the site is deliberately '
+                    . 'overriding its own theme.',
+                'blocked_selector' => $selector,
+                'blocked_property' => $property,
+            ];
+        }
+
         if ($scope === 'site') {
             $current = VelaConfig::where('key', 'custom_css_global')->first();
             $previousState = ['scope' => 'site', 'value' => $current?->value];
@@ -256,6 +271,47 @@ class UpdateCustomCssTool extends BaseTool
                 $selector = trim($selector);
                 if (in_array(strtolower($selector), $elements, true)) {
                     return $selector;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * A rule on body/html/:root that sets what the theme is for.
+     *
+     * One `body { font-family: 'Geist', sans-serif; }` written into a page's
+     * stylesheet restyled every theme the site could be switched to, and the
+     * only symptom was that no theme looked like itself any more. Typography,
+     * ground colour and the site's custom properties belong to the theme, which
+     * is what set_theme_tokens changes; a stylesheet reaching past it to the
+     * document root is overruling the choice rather than making one.
+     *
+     * @return ?array{0: string, 1: string} the selector and the property
+     */
+    private function themeOwnedRule(string $css): ?array
+    {
+        $roots = ['body', 'html', ':root', 'html, body', '*'];
+        $owned = ['font-family', 'font-size', 'background', 'background-color', 'color'];
+
+        $css = preg_replace('!/\*.*?\*/!s', '', $css);
+
+        foreach (self::rules($css) as [$selectors, $body]) {
+            foreach (explode(',', $selectors) as $selector) {
+                $selector = strtolower(trim($selector));
+
+                if (!in_array($selector, $roots, true)) {
+                    continue;
+                }
+
+                // Defining a custom property here is fine and useful — a name
+                // of one's own, read by the class rules below it. Only setting
+                // what the theme has already decided is the problem.
+                foreach ($owned as $property) {
+                    if (preg_match('/(^|[;{\s])' . preg_quote($property, '/') . '\s*:/i', $body)) {
+                        return [$selector, $property];
+                    }
                 }
             }
         }

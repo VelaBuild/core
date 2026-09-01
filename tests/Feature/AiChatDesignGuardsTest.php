@@ -145,4 +145,44 @@ class AiChatDesignGuardsTest extends PackageTestCase
 
         $this->assertTrue($result['success']);
     }
+
+    public function test_typography_on_the_document_root_is_refused_because_the_theme_owns_it(): void
+    {
+        // What a build actually left behind, and the reason every theme the
+        // site could be switched to came out looking the same.
+        foreach ([
+            "body { font-family: 'Geist', sans-serif; }",
+            'html { background-color: #0f172a; }',
+            ':root { font-size: 18px; }',
+            'html, body { color: #111; }',
+        ] as $css) {
+            $result = (new UpdateCustomCssTool())->execute(['scope' => 'site', 'css' => $css]);
+
+            $this->assertArrayHasKey('error', $result, $css . ' should be refused');
+            $this->assertStringContainsString('set_theme_tokens', $result['error']);
+        }
+    }
+
+    public function test_a_name_of_its_own_on_the_root_is_still_allowed(): void
+    {
+        // Defining a custom property there is the useful half: a name for the
+        // class rules below it to read. It overrules no theme.
+        $result = (new UpdateCustomCssTool())->execute([
+            'scope' => 'site',
+            'css'   => ':root { --card-radius: 12px; }\n.block-hero { border-radius: var(--card-radius); }',
+        ]);
+
+        $this->assertTrue($result['success'], $result['error'] ?? '');
+    }
+
+    public function test_a_site_may_still_override_its_theme_on_purpose(): void
+    {
+        $result = (new UpdateCustomCssTool())->execute([
+            'scope' => 'site',
+            'css'   => "body { font-family: 'Geist', sans-serif; }",
+            'force' => true,
+        ]);
+
+        $this->assertTrue($result['success'], $result['error'] ?? '');
+    }
 }

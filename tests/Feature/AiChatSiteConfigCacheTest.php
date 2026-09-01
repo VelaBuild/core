@@ -70,9 +70,12 @@ class AiChatSiteConfigCacheTest extends PackageTestCase
     {
         // Same failure, different setting: the stylesheet is read from the
         // cached config, so a visitor saw none of it.
+        // A block class rather than `body`: the ground colour of the document
+        // is the theme's to set, and the tool now says so. What this test is
+        // about is the cache, not which selector was used.
         (new UpdateCustomCssTool())->execute([
             'scope' => 'site',
-            'css'   => 'body { background: #f3eada; }',
+            'css'   => '.block-hero { background: #f3eada; }',
         ]);
 
         $this->assertStringContainsString('#f3eada', $this->cachedConfig()['custom_css_global']);

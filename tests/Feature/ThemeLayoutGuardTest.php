@@ -128,6 +128,29 @@ class ThemeLayoutGuardTest extends PackageTestCase
         $this->assertFalse($vars['__opensWithHero']);
     }
 
+    public function test_a_pages_stylesheet_is_emitted_once_and_only_from_the_head(): void
+    {
+        // Printed a second time in the body it landed after the theme's own
+        // <style> and beat it, so one `body { font-family: … }` in one page's
+        // CSS restyled every theme the site could be switched to — which reads
+        // as every theme being broken rather than as one page's setting.
+        $emits = function (string $view): int {
+            // The printing of it, not every mention: the head partial names
+            // it once more in the @if that guards it.
+            return substr_count(file_get_contents($view), '{!! $page->custom_css !!}');
+        };
+
+        $head = __DIR__ . '/../../resources/views/templates/_partials/custom-css.blade.php';
+        $body = __DIR__ . '/../../resources/views/public/pages/show.blade.php';
+
+        $this->assertSame(1, $emits($head), 'the head partial is where a page stylesheet belongs');
+        $this->assertSame(0, $emits($body), 'and it must not be printed again in the body');
+
+        // The written themes render through their own page view, which had the
+        // same duplicate and must not grow it back.
+        $this->assertStringNotContainsString('{!! $page->custom_css !!}', app(ThemeSkeleton::class)->page());
+    }
+
     public function test_a_real_change_to_the_layout_is_still_allowed(): void
     {
         $changed = str_replace('--accent: #1a1a1a;', '--accent: #C1440E;', $this->skeleton());
