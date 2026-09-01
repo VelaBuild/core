@@ -96,6 +96,13 @@ class ThemeSkeleton
         'ink' => ['#1a1a1a', 'Body text and headings.'],
         'muted' => ['#666666', 'Secondary text: dates, captions, descriptions.'],
         'line' => ['#e2e2e2', 'Borders and rules.'],
+        // The header had no colour of its own: it was painted with --bg, so a
+        // design with a dark header over a light page could not be expressed
+        // at all, and five builds of one in a row produced a white header
+        // whatever else the model did. The default is the page ground, so
+        // every theme written before this looks exactly as it did.
+        'header-bg' => ['var(--bg)', 'The band the site name and navigation sit in. Often the same as the page; set it where the design gives the header a colour of its own.'],
+        'header-ink' => ['var(--ink)', 'The site name and the navigation links. Set it with header-bg, or a dark header keeps dark text on it.'],
         'accent' => ['#1a1a1a', 'Buttons, prices, links, anything that should catch the eye.'],
         'accent-ink' => ['#ffffff', 'Text on top of the accent colour.'],
         'hero-ink' => ['#ffffff', 'Text in the hero. It sits over an image behind a dark film, so white unless the design says otherwise.'],
@@ -213,11 +220,11 @@ class ThemeSkeleton
         .top-bar .wrap::after { content: var(--bar-text-right); }
 
         /* ── header ─────────────────────────────────────────────────── */
-        .site-header { border-bottom: 1px solid var(--line); background: var(--bg); }
+        .site-header { border-bottom: 1px solid var(--line); background: var(--header-bg); color: var(--header-ink); }
         .site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 22px; padding-bottom: 22px; }
-        .site-name { font-size: 28px; margin: 0; text-decoration: none; }
+        .site-name { font-size: 28px; margin: 0; text-decoration: none; color: var(--header-ink); }
         .site-nav { display: flex; gap: 28px; font-size: 13px; letter-spacing: var(--label-tracking); text-transform: var(--label-case); }
-        .site-nav a { text-decoration: none; }
+        .site-nav a { text-decoration: none; color: var(--header-ink); }
         .site-nav a:hover { color: var(--accent); }
 
         /* The actions a design puts at the right-hand end of its header:

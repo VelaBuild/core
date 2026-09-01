@@ -390,6 +390,38 @@ class AiChatPageBuilderToolsTest extends PackageTestCase
         $this->assertSame(0, Page::where('title', 'Plans')->count());
     }
 
+    public function test_the_design_preview_page_keeps_its_address(): void
+    {
+        $page = Page::create([
+            'title'  => 'Design preview',
+            'slug'   => \VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG,
+            'status' => 'unlisted',
+            'locale' => 'en',
+        ]);
+
+        // Told to name the page after the site — which the build prompt does
+        // tell it — a run renamed the slug too, and the page it was building
+        // vanished from under it: the address 404'd, the staged theme stopped
+        // reaching it, and the next run made a fresh empty one.
+        $result = (new UpdatePageTool())->execute([
+            'page_id' => $page->id,
+            'slug'    => 'corporate-theme-design-preview',
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame(\VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG, $page->fresh()->slug);
+
+        // Its title is its own business, and the build sets it every run.
+        $titled = (new UpdatePageTool())->execute([
+            'page_id' => $page->id,
+            'title'   => 'Corporate Theme',
+        ]);
+
+        $this->assertArrayNotHasKey('error', $titled);
+        $this->assertSame('Corporate Theme', $page->fresh()->title);
+        $this->assertSame(\VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG, $page->fresh()->slug);
+    }
+
     public function test_a_listing_block_refuses_content_because_everything_about_it_is_a_setting(): void
     {
         // What a build did: asked posts_grid for a category and a layout under

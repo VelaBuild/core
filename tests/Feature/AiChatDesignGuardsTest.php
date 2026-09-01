@@ -146,6 +146,45 @@ class AiChatDesignGuardsTest extends PackageTestCase
         $this->assertTrue($result['success']);
     }
 
+    /** A theme of the skeleton's shape, cleaned up after the test. */
+    private function aWrittenTheme(): string
+    {
+        $theme = app(\VelaBuild\Core\Services\ThemeAuthor::class)->scaffold('beacon', 'Beacon');
+
+        $this->beforeApplicationDestroyed(function () {
+            \Illuminate\Support\Facades\File::deleteDirectory(resource_path('views/templates/beacon'));
+        });
+
+        return $theme;
+    }
+
+    public function test_a_header_given_a_colour_but_not_an_ink_is_refused(): void
+    {
+        // The header follows the page unless a design gives it a colour of its
+        // own, so header-ink defaults to var(--ink). Set the ground and not the
+        // words and the navigation is navy on navy — 1.1:1 — which is what a
+        // build produced the first time the header could be coloured at all.
+        $theme = $this->aWrittenTheme();
+        $result = (new \VelaBuild\Core\Services\AiChat\Tools\SetThemeTokensTool())->execute([
+            'theme' => $theme,
+            'tokens' => ['ink' => '#202a39', 'bg' => '#fcfdfd', 'header-bg' => '#243442'],
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertStringContainsString('header', strtolower($result['error']));
+    }
+
+    public function test_a_header_given_both_halves_is_accepted(): void
+    {
+        $theme = $this->aWrittenTheme();
+        $result = (new \VelaBuild\Core\Services\AiChat\Tools\SetThemeTokensTool())->execute([
+            'theme' => $theme,
+            'tokens' => ['ink' => '#202a39', 'bg' => '#fcfdfd', 'header-bg' => '#243442', 'header-ink' => '#ffffff'],
+        ]);
+
+        $this->assertArrayNotHasKey('error', $result, $result['error'] ?? '');
+    }
+
     public function test_typography_on_the_document_root_is_refused_because_the_theme_owns_it(): void
     {
         // What a build actually left behind, and the reason every theme the

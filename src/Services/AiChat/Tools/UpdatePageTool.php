@@ -38,6 +38,23 @@ class UpdatePageTool extends BaseTool
         }
 
         if (array_key_exists('slug', $parameters) && $parameters['slug'] !== null && $parameters['slug'] !== '') {
+            // The design preview's address is the handle everything holds it
+            // by: the build finds it to photograph, the preview frame decides
+            // which page wears the staged theme by matching it, and the admin
+            // page links to it. Told to name the page after the site — which
+            // it is told to do — a run renamed the slug with the title, and
+            // the page it was building vanished from under it: 404 on the
+            // address, a new empty one made on the next run, and the theme it
+            // had staged no longer reaching the page it was written for.
+            if ($page->slug === \VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG) {
+                return [
+                    'error' => 'This is the design preview page, and its address is what the build, the preview '
+                        . 'frame and the admin all use to find it — renaming it loses the page. Change its title '
+                        . 'freely; the address becomes the site\'s own when the design is kept.',
+                    'slug' => $page->slug,
+                ];
+            }
+
             $newSlug = Str::slug($parameters['slug']);
             if ($newSlug === '') {
                 return ['error' => "Slug '{$parameters['slug']}' is empty after slugifying."];

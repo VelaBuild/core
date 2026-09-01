@@ -213,6 +213,52 @@ class DesignBuilderServiceTest extends PackageTestCase
         return $out;
     }
 
+    public function test_the_designs_colours_are_measured_rather_than_judged_by_eye(): void
+    {
+        if (!extension_loaded('gd')) {
+            $this->markTestSkipped('gd is required to build the test design');
+        }
+
+        $dir = $this->makeTempDir();
+
+        // Three quarters white, a fifth navy, a twentieth teal — the shape of a
+        // page with a dark header and one band of colour in it.
+        $image = imagecreatetruecolor(400, 400);
+        imagefilledrectangle($image, 0, 0, 399, 399, imagecolorallocate($image, 252, 253, 253));
+        imagefilledrectangle($image, 0, 0, 399, 79, imagecolorallocate($image, 32, 42, 57));
+        imagefilledrectangle($image, 0, 80, 399, 99, imagecolorallocate($image, 38, 93, 104));
+        imagepng($image, $dir . '/design.png');
+        imagedestroy($image);
+
+        $palette = $this->makeService()->readDesignPalette(
+            ['assets' => [['role' => 'design', 'file' => 'design.png']]],
+            $dir
+        );
+
+        $this->assertNotEmpty($palette);
+        $this->assertSame('#fcfdfd', $palette[0]['hex'], 'most of the picture first');
+        $this->assertSame('#202a39', $palette[1]['hex']);
+        $this->assertSame('#265d68', $palette[2]['hex']);
+
+        // The real value, not the bucket it was grouped into: a build told
+        // "#203040" writes a colour the design does not contain.
+        $this->assertGreaterThan(60, $palette[0]['share']);
+        $this->assertEqualsWithDelta(20, $palette[1]['share'], 2.0);
+    }
+
+    public function test_a_design_that_cannot_be_read_costs_nothing(): void
+    {
+        $dir = $this->makeTempDir();
+        file_put_contents($dir . '/design.png', 'not a picture');
+
+        $this->assertSame([], $this->makeService()->readDesignPalette(
+            ['assets' => [['role' => 'design', 'file' => 'design.png']]],
+            $dir
+        ));
+
+        $this->assertSame([], $this->makeService()->readDesignPalette(['assets' => []], $dir));
+    }
+
     public function test_a_short_reading_of_the_design_is_taken_again(): void
     {
         // Read three times, the same design gave four sections, four, then one

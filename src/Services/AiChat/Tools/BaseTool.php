@@ -165,11 +165,16 @@ abstract class BaseTool
             ['band-ink', 'band', 'text on a full-width band'],
             ['bar-ink', 'bar', 'text in the strip above the header'],
             ['accent-ink', 'accent', 'text on an accent-coloured button'],
+            // Giving the header a colour of its own without giving its words
+            // one leaves them at the page's ink: a build set the header to the
+            // design's navy, left the ink navy too, and the navigation came out
+            // at 1.1:1 on it.
+            ['header-ink', 'header-bg', 'the site name and navigation in the header'],
         ];
 
         foreach ($pairs as [$inkToken, $groundToken, $what]) {
-            $ink = $proposed[$inkToken] ?? $current[$inkToken] ?? null;
-            $ground = $proposed[$groundToken] ?? $current[$groundToken] ?? null;
+            $ink = $this->resolveToken($proposed[$inkToken] ?? $current[$inkToken] ?? null, $proposed, $current);
+            $ground = $this->resolveToken($proposed[$groundToken] ?? $current[$groundToken] ?? null, $proposed, $current);
 
             // Only judge a pair this call is actually changing.
             if (!isset($proposed[$inkToken]) && !isset($proposed[$groundToken])) {
@@ -196,6 +201,28 @@ abstract class BaseTool
         }
 
         return null;
+    }
+
+    /**
+     * A token's value, following one step of var(--other) to what it points at.
+     *
+     * Some tokens default to another rather than to a colour — the header
+     * follows the page unless a design gives it one of its own — and read
+     * literally that reads as "not a colour" and the pair goes unchecked. One
+     * step is enough: the skeleton never chains them.
+     *
+     * @param array<string, string> $proposed
+     * @param array<string, string> $current
+     */
+    private function resolveToken(?string $value, array $proposed, array $current): ?string
+    {
+        if ($value === null || !preg_match('/^var\(\s*--([a-z0-9-]+)\s*\)$/i', trim($value), $found)) {
+            return $value;
+        }
+
+        $target = $found[1];
+
+        return $proposed[$target] ?? $current[$target] ?? null;
     }
 
     protected function isHexColour(?string $value): bool

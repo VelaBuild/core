@@ -370,6 +370,103 @@ class DesignBuilderService
     }
 
     /**
+     * The colours actually in the design, measured rather than guessed.
+     *
+     * A build was choosing every colour by eye from a photograph, and it shows:
+     * a navy-and-teal design came back in bright blue, and run after run set
+     * one or two of the theme's dozen colour tokens and left the rest at their
+     * defaults. The picture is on disk and its pixels are exact, so there is no
+     * reason to ask.
+     *
+     * Reported as a palette rather than as "this is the header": the design is
+     * usually a screenshot, so the top of the image is the browser's own
+     * chrome, and anything that guessed by position would name the wrong band.
+     * Which colour belongs where is the model's to decide; what they ARE is
+     * not.
+     *
+     * @return array<int, array{hex: string, share: float}> most of the picture first
+     */
+    public function readDesignPalette(array $context, string $designPath, int $most = 8): array
+    {
+        if (!function_exists('imagecreatefromstring')) {
+            return [];
+        }
+
+        $file = null;
+
+        foreach ($context['assets'] ?? [] as $asset) {
+            if (($asset['role'] ?? '') === 'design' && is_file($designPath . '/' . ($asset['file'] ?? ''))) {
+                $file = $designPath . '/' . $asset['file'];
+                break;
+            }
+        }
+
+        if ($file === null) {
+            return [];
+        }
+
+        $image = @imagecreatefromstring((string) file_get_contents($file));
+
+        if (!$image) {
+            return [];
+        }
+
+        try {
+            $width = imagesx($image);
+            $height = imagesy($image);
+            $step = max(1, (int) round(min($width, $height) / 400));
+
+            // Grouped coarsely so that a gradient or a photograph does not
+            // arrive as five hundred colours, then averaged inside each group
+            // so the answer is the real hex rather than the rounded one.
+            $buckets = [];
+
+            for ($y = 0; $y < $height; $y += $step) {
+                for ($x = 0; $x < $width; $x += $step) {
+                    $rgb = imagecolorat($image, $x, $y);
+                    $r = ($rgb >> 16) & 255;
+                    $g = ($rgb >> 8) & 255;
+                    $b = $rgb & 255;
+                    $key = (intdiv($r, 24) << 16) | (intdiv($g, 24) << 8) | intdiv($b, 24);
+
+                    if (!isset($buckets[$key])) {
+                        $buckets[$key] = ['n' => 0, 'r' => 0, 'g' => 0, 'b' => 0];
+                    }
+
+                    $buckets[$key]['n']++;
+                    $buckets[$key]['r'] += $r;
+                    $buckets[$key]['g'] += $g;
+                    $buckets[$key]['b'] += $b;
+                }
+            }
+        } finally {
+            imagedestroy($image);
+        }
+
+        if ($buckets === []) {
+            return [];
+        }
+
+        uasort($buckets, fn ($a, $b) => $b['n'] <=> $a['n']);
+        $total = array_sum(array_column($buckets, 'n'));
+        $palette = [];
+
+        foreach (array_slice($buckets, 0, $most) as $bucket) {
+            $palette[] = [
+                'hex' => sprintf(
+                    '#%02x%02x%02x',
+                    (int) round($bucket['r'] / $bucket['n']),
+                    (int) round($bucket['g'] / $bucket['n']),
+                    (int) round($bucket['b'] / $bucket['n'])
+                ),
+                'share' => round($bucket['n'] / $total * 100, 1),
+            ];
+        }
+
+        return $palette;
+    }
+
+    /**
      * Read the design once and write down what sections it shows, in order.
      *
      * Everything the QA rounds were told was prose — "the header is wrong",
@@ -630,6 +727,27 @@ class DesignBuilderService
                 . implode("\n", $list)
                 . "\n\nBuild every one of them, in that order. If you disagree with the reading, follow the design "
                 . "rather than the list — but do not finish with fewer sections than it names.";
+        }
+
+        // Measured off the picture rather than judged by eye. A navy and teal
+        // design came back in bright blue, run after run, and one or two of the
+        // theme's dozen colour tokens were set while the rest kept their
+        // defaults — which is how five builds of a design with a dark header
+        // all produced a white one.
+        $palette = $this->readDesignPalette($context, $designPath);
+
+        if ($palette !== []) {
+            $swatches = array_map(
+                fn ($colour) => '  ' . $colour['hex'] . ' — ' . $colour['share'] . '% of the picture',
+                $palette
+            );
+
+            $userContent[0]['text'] .= "\n\nThese are the colours actually in the design, measured from it, "
+                . "most of the picture first:\n" . implode("\n", $swatches)
+                . "\n\nUse these values. Do not judge a colour by eye when it is on this list, and do not settle "
+                . 'for a brighter or flatter version of one. Set every theme token the design has a colour for — a '
+                . 'token left at its default is a decision to look like the skeleton rather than like the design, '
+                . 'and the header, the bands and the cards each have their own.';
         }
 
         $messages = [
