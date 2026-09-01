@@ -23,6 +23,9 @@ class DesignPreviewFrame
 {
     public const THEME_KEY = 'design_preview_template';
 
+    /** Which design the staged theme was written for. */
+    public const DESIGN_KEY = 'design_preview_design';
+
     /**
      * The key that lets a link ask for a page in the design's theme.
      *
@@ -69,13 +72,47 @@ class DesignPreviewFrame
         return $theme !== null && $theme !== '' ? $theme : null;
     }
 
-    public function setTheme(string $theme): void
+    public function setTheme(string $theme, ?string $designKey = null): void
     {
         VelaConfig::updateOrCreate(['key' => self::THEME_KEY], ['value' => $theme]);
+
+        // Which design this theme was written for. A theme name is generated
+        // from the design, but the staged theme outlives the run that made it:
+        // a corporate design handed to a rig still holding an editorial theme
+        // from yesterday adopted it, and every colour and typeface afterwards
+        // was an attempt to bend a magazine into a corporate site.
+        // Left alone when the caller does not know it. The tool that stages a
+        // theme is called by the model and has no idea which design is being
+        // built; the command stamps the key once per run, and this must not
+        // wipe it out from under that.
+        if ($designKey !== null) {
+            VelaConfig::updateOrCreate(['key' => self::DESIGN_KEY], ['value' => $designKey]);
+        }
 
         // A new token per staged theme, so a link handed out for one design
         // does not open the next one.
         VelaConfig::updateOrCreate(['key' => self::TOKEN_KEY], ['value' => bin2hex(random_bytes(16))]);
+    }
+
+    /** The design the staged theme was written for, if it said. */
+    public function designKey(): ?string
+    {
+        $key = VelaConfig::where('key', self::DESIGN_KEY)->value('value');
+
+        return $key !== null && $key !== '' ? $key : null;
+    }
+
+    /**
+     * Forget the staged theme, so a build has to write one of its own.
+     *
+     * Called when the theme on the peg was written for a different design.
+     * Leaving it there is worse than having none: the build reads a theme as
+     * already done and spends its rounds bending it instead of writing one.
+     */
+    public function forgetTheme(): void
+    {
+        VelaConfig::where('key', self::THEME_KEY)->delete();
+        VelaConfig::where('key', self::DESIGN_KEY)->delete();
     }
 
     public function token(): ?string

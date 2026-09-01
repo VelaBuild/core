@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\DesignBuilderService;
+use VelaBuild\Core\Services\DesignPreviewFrame;
 use VelaBuild\Core\Services\ScreenshotService;
 use VelaBuild\Core\Services\DesignBuildStatus;
 use VelaBuild\Core\Services\AssetExtractorService;
@@ -227,6 +228,31 @@ class DesignToSite extends Command
                 @unlink($stale);
             }
 
+            // A theme staged by a previous run stays on the peg, and a build
+            // that finds one there treats the frame as done: a corporate
+            // design handed to a rig still holding an editorial theme from the
+            // day before adopted it, never called create_theme at all, and
+            // spent every round trying to bend a cream-and-serif magazine into
+            // a navy corporate site. A theme belongs to the design it was
+            // written for; anything else is cleared, and the build writes one.
+            $frame = app(DesignPreviewFrame::class);
+            $designKey = $this->designKey($context, $designPath);
+
+            if ($frame->theme() !== null && $frame->designKey() !== $designKey) {
+                $this->line('The staged theme was written for a different design; this build writes its own.');
+                $frame->forgetTheme();
+            }
+
+            // Stamped once, here, for whatever theme this run goes on to stage:
+            // use_theme_for_preview is called by the model and has no way of
+            // knowing which design it is building.
+            VelaConfig::updateOrCreate(
+                ['key' => DesignPreviewFrame::DESIGN_KEY],
+                ['value' => $designKey]
+            );
+
+            $context['design_key'] = $designKey;
+
             $preview = $this->previewPage();
             $context['target_page'] = [
                 'id' => $preview->id,
@@ -442,6 +468,36 @@ class DesignToSite extends Command
             'meta_title' => 'Design preview',
             'meta_description' => 'A design being tried out. Not listed anywhere on the site.',
         ]);
+    }
+
+    /**
+     * What makes this design this design, for telling one build from the next.
+     *
+     * The pictures themselves rather than their names: a design folder is
+     * added to rather than replaced, and the same file re-uploaded under a
+     * download hash would otherwise read as a new design. Content-addressed,
+     * a rebuild of the same picture reuses its theme and a different picture
+     * gets one of its own.
+     */
+    private function designKey(array $context, string $designPath): string
+    {
+        $parts = [];
+
+        foreach ($context['assets'] ?? [] as $asset) {
+            if (($asset['role'] ?? '') !== 'design') {
+                continue;
+            }
+
+            $file = $designPath . '/' . ($asset['file'] ?? '');
+
+            if (is_file($file)) {
+                $parts[] = md5_file($file);
+            }
+        }
+
+        sort($parts);
+
+        return $parts === [] ? '' : substr(md5(implode('|', $parts)), 0, 16);
     }
 
     /**

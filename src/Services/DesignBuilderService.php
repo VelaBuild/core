@@ -385,15 +385,32 @@ class DesignBuilderService
      *
      * @return array<int, array{label:string, what:string}>
      */
-    public function readDesignSections(array $context, string $designPath): array
+    protected function readDesignSectionsOnce(array $context, string $designPath): array
     {
         $content = [[
             'type' => 'text',
             'text' => "List the sections this design shows, from the top of the page to the bottom.\n\n"
                 . "A section is a band of the page that stands on its own: the hero, a row of feature cards, a "
-                . "band of statistics, a list of questions, a strip of logos, the newsletter sign-up. Do not list "
-                . "the header, the navigation or the footer — those are the site's frame, not sections of this "
-                . "page. Do not list parts of a section separately: three cards side by side are ONE section.\n\n"
+                . "band inviting an action, a band of statistics, a list of questions, a strip of logos, a row of "
+                . "article cards, the newsletter sign-up. Do not list the header, the navigation or the footer — "
+                . "those are the site's frame, not sections of this page. Do not list parts of a section "
+                . "separately: three cards side by side are ONE section.\n\n"
+                // Asked only for "bands that stand on their own", a reader
+                // folded a row of cards into the hero they overlapped and
+                // dropped a call-to-action strip entirely, reporting two
+                // sections on a page with five. The build then built two.
+                . "Work down the whole height and leave no band unlisted. Two things decide where one section "
+                . "ends and the next begins:\n"
+                . "- A change of background — a new colour, a photograph, a return to white — starts a new "
+                . "section, even if the band is short.\n"
+                . "- Cards or panels that overlap the edge of the band above are their own section, not part of "
+                . "it. A row of three cards straddling the foot of a hero is a row of three cards.\n\n"
+                . "A hero is the words and the picture at the top, and nothing else. Never describe a hero as "
+                . "containing cards, boxes or panels: if any sit below it or across its lower edge, list them as "
+                . "the section that follows it.\n\n"
+                . "A strip carrying one line of text and a button is a section in its own right, however thin.\n\n"
+                . "If the design is a screenshot of a browser, read the page inside the window and ignore the "
+                . "browser's own chrome. Where the picture is cut off at the bottom, list what is visible.\n\n"
                 . "Answer with JSON and nothing else:\n"
                 . '{"sections":[{"label":"Hero","what":"one line: what it holds and how it is laid out"}]}',
         ]];
@@ -440,6 +457,40 @@ class DesignBuilderService
             }
 
             $sections[] = ['label' => $label, 'what' => trim((string) ($section['what'] ?? ''))];
+        }
+
+        return $sections;
+    }
+
+    /**
+     * How few sections is few enough to be worth asking twice.
+     *
+     * Reading the same design three times gave four sections, four, and then
+     * one — a hero and nothing else, on a page with a row of cards, a
+     * call-to-action strip and a row of articles below it. The build works
+     * down this list, so a short answer is a short site, and the failure is
+     * one-sided: too few sections caps what gets built, while one too many
+     * costs a round of correcting. Below this, ask again.
+     */
+    private const SECTIONS_WORTH_A_SECOND_LOOK = 3;
+
+    /**
+     * The sections a design shows, read once and re-read if the answer looks
+     * too short to be the whole page.
+     *
+     * The second reading is not a tie-break — it is a floor. Whichever answer
+     * saw more of the page is the one the build works from.
+     */
+    public function readDesignSections(array $context, string $designPath): array
+    {
+        $sections = $this->readDesignSectionsOnce($context, $designPath);
+
+        if (count($sections) < self::SECTIONS_WORTH_A_SECOND_LOOK) {
+            $again = $this->readDesignSectionsOnce($context, $designPath);
+
+            if (count($again) > count($sections)) {
+                $sections = $again;
+            }
         }
 
         if ($sections !== []) {
@@ -642,7 +693,8 @@ class DesignBuilderService
             foreach ($response['tool_calls'] as $toolCall) {
                 $this->progress('Executing tool: ' . $toolCall['name']);
 
-                $result = $this->refusePicture($toolCall['name']) ?? $this->keepingTheLook(
+                $result = $this->refuseUntilThereIsAFrame($toolCall['name'])
+                    ?? $this->refusePicture($toolCall['name']) ?? $this->keepingTheLook(
                     $toolCall,
                     $url,
                     fn () => $this->toolExecutor->execute(
@@ -1289,6 +1341,42 @@ PROMPT;
     public function makeNoPictures(): void
     {
         $this->picturesAllowed = false;
+    }
+
+    /**
+     * Hold back the page until the design has a frame to sit in.
+     *
+     * Steps 2 to 4 of the build prompt are create_theme, use_theme_for_preview
+     * and set_menu, in that order and before anything else. A run handed a
+     * corporate design skipped all three, wrote two sections and stopped: the
+     * preview page then wore an editorial theme left over from another design,
+     * and the colours, the typeface and the header were wrong in a way no
+     * amount of correcting a section could reach.
+     *
+     * Asking was not enough, which is the lesson this whole feature keeps
+     * relearning: a rule the tools do not enforce is a rule the model breaks
+     * under pressure. The page cannot be written until the frame exists.
+     */
+    private function refuseUntilThereIsAFrame(string $tool): ?array
+    {
+        $needsAFrame = ['add_designed_section', 'add_block', 'add_row', 'update_custom_css', 'convert_section_to_block'];
+
+        if (!in_array($tool, $needsAFrame, true)) {
+            return null;
+        }
+
+        if (app(DesignPreviewFrame::class)->theme() !== null) {
+            return null;
+        }
+
+        return [
+            'error' => 'There is no theme for this design yet, so there is nothing for this section to sit in — the '
+                . 'page would be dressed in whichever theme the site happens to be wearing, and the header, the '
+                . 'typeface and the colours would all be somebody else\'s. Do the frame first, in order: '
+                . 'create_theme (choose its `kind` from what the design IS), then use_theme_for_preview, then '
+                . 'set_menu with scope "design_preview". Then come back to this.',
+            'do_this_first' => ['create_theme', 'use_theme_for_preview', 'set_menu'],
+        ];
     }
 
     /**

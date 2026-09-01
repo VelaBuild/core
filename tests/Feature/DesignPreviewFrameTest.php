@@ -145,6 +145,79 @@ class DesignPreviewFrameTest extends PackageTestCase
         $this->assertFalse($frame->matches($first));
     }
 
+    public function test_a_theme_staged_for_another_design_is_not_inherited(): void
+    {
+        $frame = app(DesignPreviewFrame::class);
+
+        // Yesterday's build, for a different picture.
+        $frame->setTheme('editorial', 'aaaaaaaaaaaaaaaa');
+
+        $this->assertSame('editorial', $frame->theme());
+        $this->assertSame('aaaaaaaaaaaaaaaa', $frame->designKey());
+
+        // Today's, for this one. A corporate design handed to a rig holding an
+        // editorial theme adopted it, never called create_theme, and spent
+        // every round bending a magazine into a corporate site.
+        if ($frame->designKey() !== 'bbbbbbbbbbbbbbbb') {
+            $frame->forgetTheme();
+        }
+
+        $this->assertNull($frame->theme(), 'a theme written for another design is not this build\'s to use');
+        $this->assertNull($frame->designKey());
+    }
+
+    public function test_a_theme_staged_for_the_same_design_is_kept(): void
+    {
+        $frame = app(DesignPreviewFrame::class);
+        $frame->setTheme('editorial', 'bbbbbbbbbbbbbbbb');
+
+        // Rebuilding the same picture reuses its theme rather than leaving a
+        // near-duplicate behind on every run.
+        if ($frame->designKey() !== 'bbbbbbbbbbbbbbbb') {
+            $frame->forgetTheme();
+        }
+
+        $this->assertSame('editorial', $frame->theme());
+    }
+
+    public function test_staging_a_theme_does_not_wipe_which_design_it_is_for(): void
+    {
+        $frame = app(DesignPreviewFrame::class);
+        VelaConfig::updateOrCreate(['key' => DesignPreviewFrame::DESIGN_KEY], ['value' => 'cccccccccccccccc']);
+
+        // The command stamps the key once per run; the tool the model calls
+        // knows nothing about which design is being built and must not clear it.
+        (new UseThemeForPreviewTool())->execute(['theme' => 'default']);
+
+        $this->assertSame('default', $frame->theme());
+        $this->assertSame('cccccccccccccccc', $frame->designKey());
+    }
+
+    public function test_the_page_cannot_be_written_before_the_frame_exists(): void
+    {
+        $gate = new \ReflectionMethod(DesignBuilderService::class, 'refuseUntilThereIsAFrame');
+        $gate->setAccessible(true);
+        $builder = app(DesignBuilderService::class);
+
+        // Nothing staged: the page would be dressed in whatever theme the site
+        // happens to be wearing.
+        foreach (['add_designed_section', 'add_block', 'add_row', 'update_custom_css'] as $tool) {
+            $refusal = $gate->invoke($builder, $tool);
+            $this->assertIsArray($refusal, $tool . ' must wait for the frame');
+            $this->assertStringContainsString('create_theme', $refusal['error']);
+        }
+
+        // The frame's own steps are never held back, or the build could not
+        // get started at all.
+        foreach (['create_theme', 'use_theme_for_preview', 'set_menu', 'get_theme_contract'] as $tool) {
+            $this->assertNull($gate->invoke($builder, $tool), $tool . ' is how the frame gets made');
+        }
+
+        app(DesignPreviewFrame::class)->setTheme('default');
+
+        $this->assertNull($gate->invoke($builder, 'add_designed_section'), 'and once it exists, sections may go on');
+    }
+
     public function test_the_build_is_not_given_the_tool_that_dresses_the_whole_site(): void
     {
         $all = app(\VelaBuild\Core\Services\AiChat\ChatToolRegistry::class)->all();

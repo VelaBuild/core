@@ -178,6 +178,71 @@ class DesignBuilderServiceTest extends PackageTestCase
         };
     }
 
+    /** A builder whose readings of the design are scripted. */
+    private function makeReadingService(array ...$readings): DesignBuilderService
+    {
+        return new class (
+            Mockery::mock(AiProviderManager::class),
+            app(ChatToolRegistry::class),
+            app(ChatToolExecutor::class),
+            app(SiteContext::class),
+            app(ScreenshotService::class),
+            $readings
+        ) extends DesignBuilderService {
+            public int $reads = 0;
+
+            public function __construct($a, $b, $c, $d, $e, private array $readings)
+            {
+                parent::__construct($a, $b, $c, $d, $e);
+            }
+
+            protected function readDesignSectionsOnce(array $context, string $designPath): array
+            {
+                return $this->readings[$this->reads++] ?? [];
+            }
+        };
+    }
+
+    private function sections(int $count): array
+    {
+        $out = [];
+        for ($i = 1; $i <= $count; $i++) {
+            $out[] = ['label' => 'Section ' . $i, 'what' => ''];
+        }
+
+        return $out;
+    }
+
+    public function test_a_short_reading_of_the_design_is_taken_again(): void
+    {
+        // Read three times, the same design gave four sections, four, then one
+        // — a hero alone, on a page with a row of cards, a call-to-action strip
+        // and a row of articles under it. The build works down this list, so a
+        // short answer is a short site.
+        $service = $this->makeReadingService($this->sections(1), $this->sections(4));
+
+        $this->assertCount(4, $service->readDesignSections([], '/tmp'));
+        $this->assertSame(2, $service->reads);
+    }
+
+    public function test_a_full_reading_is_not_second_guessed(): void
+    {
+        // The re-read is a floor, not a tie-break: an answer that already saw
+        // the page is not paid for twice.
+        $service = $this->makeReadingService($this->sections(3), $this->sections(9));
+
+        $this->assertCount(3, $service->readDesignSections([], '/tmp'));
+        $this->assertSame(1, $service->reads);
+    }
+
+    public function test_the_fuller_of_two_short_readings_wins(): void
+    {
+        $service = $this->makeReadingService($this->sections(2), $this->sections(1));
+
+        $this->assertCount(2, $service->readDesignSections([], '/tmp'));
+        $this->assertSame(2, $service->reads);
+    }
+
     public function test_a_conversion_that_kept_the_look_is_left_alone(): void
     {
         $service = $this->makeCheckingService(['same' => true, 'differences' => 'nothing']);
