@@ -64,6 +64,14 @@ class AddDesignedSectionTool extends BaseTool
             return $error;
         }
 
+        if ($error = $this->refuseLinksToNowhere($html)) {
+            return $error;
+        }
+
+        if ($css !== '' && $error = $this->refuseUnreadableOnItsOwnGround($css)) {
+            return $error;
+        }
+
         if ($css !== '' && $error = $this->refuseUndesigned($css)) {
             return $error;
         }
@@ -295,6 +303,157 @@ class AddDesignedSectionTool extends BaseTool
         if ($page) {
             app(StaticSiteGenerator::class)->removeHtml('page', $page->slug);
         }
+    }
+
+    /**
+     * Refuse a section whose links go nowhere.
+     *
+     * A design is a picture, and the links drawn on it lead nowhere because
+     * there is nothing behind them. Copied out as `href="#"` they are dead on
+     * a real site: a "Latest Insights" section arrived as three cards of lorem
+     * ipsum with three dead links, frozen into markup, in place of the
+     * posts_grid that would have shown the site's actual articles.
+     *
+     * The same fault the site's navigation already refuses, one level down.
+     */
+    private function refuseLinksToNowhere(string $html): ?array
+    {
+        if (!preg_match_all('/<a\b[^>]*>/i', $html, $anchors)) {
+            return null;
+        }
+
+        $dead = 0;
+        $live = 0;
+
+        foreach ($anchors[0] as $tag) {
+            if (!preg_match('/\bhref\s*=\s*"([^"]*)"/i', $tag, $found)) {
+                $dead++;
+                continue;
+            }
+
+            $href = trim($found[1]);
+
+            if ($href === '' || $href === '#') {
+                $dead++;
+                continue;
+            }
+
+            $live++;
+        }
+
+        if ($dead === 0) {
+            return null;
+        }
+
+        return [
+            'error' => 'This section has ' . $dead . ' link(s) that go nowhere — an empty href, or "#". On the '
+                . 'design they lead nowhere because it is a picture; on the page they are dead. Give each one the '
+                . 'address it should go to, or write the words without a link around them. If this section is a '
+                . 'list of the site\'s own articles or topics, it is not markup at all: use add_row with a '
+                . 'posts_grid or categories_grid block, which shows what the site actually holds and keeps up with '
+                . 'it.',
+            'dead_links' => $dead,
+            'working_links' => $live,
+        ];
+    }
+
+    /**
+     * Refuse a section that lays its own dark ground and leaves the headings
+     * to the theme.
+     *
+     * A section can set `color` on its container and reasonably expect the
+     * words inside to follow. They do not: the theme colours h1 to h6 by name,
+     * and a rule on an element beats one inherited from an ancestor however
+     * specific that ancestor is. A hero came out with the theme's #333 ink on
+     * the #1a1a1a ground the section had just laid — 1.28:1, a headline nobody
+     * could see, on a page that otherwise looked finished.
+     *
+     * So: where the section's own ground would leave the theme's ink
+     * unreadable, the section has to say what colour its headings are.
+     */
+    private function refuseUnreadableOnItsOwnGround(string $css): ?array
+    {
+        $ink = $this->themeInk();
+
+        if ($ink === null) {
+            return null;
+        }
+
+        $stripped = preg_replace('!/\*.*?\*/!s', '', $css) ?? $css;
+
+        // Does the section colour a heading of its own anywhere?
+        $colouredAHeading = false;
+        $grounds = [];
+
+        foreach (self::cssRules($stripped) as [$selectors, $body]) {
+            $setsColour = (bool) preg_match('/(^|[;{\s])color\s*:/i', $body);
+
+            if ($setsColour && preg_match('/(^|[\s,>+~])h[1-6](\b|[.:#\[])/i', ' ' . $selectors)) {
+                $colouredAHeading = true;
+            }
+
+            if (preg_match('/(^|[;{\s])background(-color)?\s*:[^;]*?(#[0-9a-f]{3,8})/i', $body, $found)) {
+                $grounds[] = $found[3];
+            }
+        }
+
+        if ($colouredAHeading) {
+            return null;
+        }
+
+        foreach ($grounds as $ground) {
+            if (!$this->isHexColour($ground) || !$this->isHexColour($ink)) {
+                continue;
+            }
+
+            $ratio = $this->contrastRatio($ground, $ink);
+
+            if ($ratio >= 3.0) {
+                continue;
+            }
+
+            return [
+                'error' => "This section lays a {$ground} ground, and the theme writes its headings in {$ink} — "
+                    . number_format($ratio, 2) . ':1, which nobody can read. Setting `color` on the section\'s '
+                    . 'container does not reach them: the theme colours h1 to h6 by name, and a rule on the element '
+                    . 'itself beats anything inherited from around it. Give the section\'s own heading rules a '
+                    . 'colour — `.my-section h1, .my-section h2 { color: … }` — and send it again.',
+                'section_background' => $ground,
+                'theme_heading_colour' => $ink,
+                'contrast_ratio' => round($ratio, 2),
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * What colour the theme this section will be seen in writes its text.
+     *
+     * The preview theme where a build has staged one, since that is the theme
+     * the design preview page renders in; otherwise the site's own.
+     */
+    private function themeInk(): ?string
+    {
+        $theme = app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->theme()
+            ?: (string) config('vela.template.active');
+
+        if ($theme === '') {
+            return null;
+        }
+
+        $tokens = app(\VelaBuild\Core\Services\ThemeAuthor::class)->currentTokens($theme);
+        $ink = trim((string) ($tokens['ink'] ?? ''));
+
+        return $this->isHexColour($ink) ? $ink : null;
+    }
+
+    /** @return array<int, array{0: string, 1: string}> */
+    private static function cssRules(string $css): array
+    {
+        preg_match_all('/([^{}]+)\{([^{}]*)\}/', $css, $matches, PREG_SET_ORDER);
+
+        return array_map(fn ($m) => [trim($m[1]), $m[2]], $matches);
     }
 
     /**

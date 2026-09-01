@@ -390,6 +390,37 @@ class AiChatPageBuilderToolsTest extends PackageTestCase
         $this->assertSame(0, Page::where('title', 'Plans')->count());
     }
 
+    public function test_a_listing_block_refuses_content_because_everything_about_it_is_a_setting(): void
+    {
+        // What a build did: asked posts_grid for a category and a layout under
+        // `content`. A listing declares its content as empty because it HAS
+        // none, and that read as "nothing to check", so both were accepted and
+        // dropped. The grid fell back to max_count 12 and put the site's whole
+        // archive onto a page whose design showed four cards.
+        $result = (new AddBlockTool())->execute([
+            'row_id'  => $this->makeRow()->id,
+            'type'    => 'posts_grid',
+            'content' => ['layout' => 'grid', 'category' => 'insights'],
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertContains('max_count', $result['valid_settings_keys']);
+        $this->assertContains('columns', $result['valid_settings_keys']);
+        $this->assertSame(0, PageBlock::count(), 'the rejected block must not reach the database');
+    }
+
+    public function test_a_listing_block_configured_the_right_way_is_accepted(): void
+    {
+        $result = (new AddBlockTool())->execute([
+            'row_id'   => $this->makeRow()->id,
+            'type'     => 'posts_grid',
+            'settings' => ['max_count' => 4, 'columns' => 4, 'order_by' => 'newest'],
+        ]);
+
+        $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+        $this->assertSame(4, PageBlock::first()->settings['max_count']);
+    }
+
     public function test_contact_form_rejects_a_button_label_written_under_an_invented_key(): void
     {
         $result = (new AddBlockTool())->execute([

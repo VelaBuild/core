@@ -1661,6 +1661,16 @@ HOW TO BUILD, IN ORDER:
    they need different categories, or both show the same articles and the page
    says everything twice.
 
+   COUNT THE CARDS THE DESIGN SHOWS and set max_count and columns to match. A
+   listing left to its own devices shows twelve, so a design showing four came
+   out with the site's whole archive under it — including articles from
+   whatever was built here last. Everything about a listing is a setting;
+   it takes no content at all.
+
+   A listing has no heading of its own. Where the design puts words above it —
+   "Latest Insights" — add the text block FIRST and the listing after it, or
+   the heading comes out underneath the thing it names.
+
 8. update_page — one call, to title the page with the name the design gives
    the site. Read it off the design: the wordmark in the header, the name in
    the footer. This is the name the site takes if the design is kept, so a

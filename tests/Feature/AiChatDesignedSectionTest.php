@@ -205,6 +205,81 @@ class AiChatDesignedSectionTest extends PackageTestCase
         $this->assertDoesNotMatchRegularExpression('/<strong[^>]*\blinkable\b/', $html);
     }
 
+    /**
+     * Stage a theme the build could have written, and clean it up after.
+     *
+     * The check reads the theme's ink token, which only a theme written from
+     * the skeleton declares — the shipped ones compile their colours into a
+     * bundle. That is the case that matters: the preview page a build adds
+     * sections to always wears a theme the build wrote.
+     */
+    private function stageAWrittenTheme(): void
+    {
+        $theme = app(\VelaBuild\Core\Services\ThemeAuthor::class)->scaffold('lantern', 'Lantern');
+        app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->setTheme($theme);
+
+        $this->beforeApplicationDestroyed(function () {
+            \Illuminate\Support\Facades\File::deleteDirectory(resource_path('views/templates/lantern'));
+        });
+    }
+
+    public function test_a_dark_section_that_leaves_its_headings_to_the_theme_is_refused(): void
+    {
+        $this->stageAWrittenTheme();
+        $page = $this->page();
+
+        // What a build wrote: colour on the container, nothing on the heading.
+        // The theme colours h1 by name, and that beats inheritance, so the
+        // headline came out as the theme's ink on the section's own dark
+        // ground — 1.28:1, invisible, on a page that looked finished.
+        $result = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Hero',
+            'html' => '<section class="hero"><h1>Build Your Authority</h1><p>Lorem ipsum dolor sit amet.</p></section>',
+            'css' => '.hero{background-color:#1a1a1a;color:#ffffff;text-align:center;padding:50px;font-size:48px}',
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertStringContainsString('nobody can read', $result['error']);
+        $this->assertSame(0, $page->rows()->count(), 'and the section does not reach the page');
+    }
+
+    public function test_the_same_section_is_accepted_once_it_colours_its_own_headings(): void
+    {
+        $this->stageAWrittenTheme();
+        $page = $this->page();
+
+        $result = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Hero',
+            'html' => '<section class="hero"><h1>Build Your Authority</h1><p>Lorem ipsum dolor sit amet.</p></section>',
+            'css' => '.hero{background-color:#1a1a1a;padding:50px;text-align:center}'
+                . '.hero h1{color:#ffffff;font-size:48px;font-weight:700;letter-spacing:-0.02em}'
+                . '.hero p{color:#d8d8d8;font-size:18px;line-height:1.6}',
+        ]);
+
+        $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+    }
+
+    public function test_a_light_section_is_left_alone(): void
+    {
+        $this->stageAWrittenTheme();
+        $page = $this->page();
+
+        // The theme's ink reads perfectly well on a pale ground; asking for a
+        // heading colour there would be a guard firing on nothing.
+        $result = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Features',
+            'html' => '<section class="feat"><h2>What you get</h2><p>Unlimited pages, backed up nightly.</p></section>',
+            'css' => '.feat{background-color:#f8f4eb;padding:64px 24px}'
+                . '.feat h2{font-size:36px;font-weight:700;margin-bottom:16px}'
+                . '.feat p{font-size:18px;line-height:1.7}',
+        ]);
+
+        $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+    }
+
     public function test_a_section_nobody_could_edit_is_refused(): void
     {
         $page = $this->page();
@@ -271,6 +346,80 @@ class AiChatDesignedSectionTest extends PackageTestCase
      * page rendered as a broken-image icon while the run reported success.
      * A bare filename was refused; anything with a slash in it was not.
      */
+    public function test_a_section_whose_links_go_nowhere_is_refused(): void
+    {
+        $page = $this->page();
+
+        // What a build wrote in place of a posts_grid: three cards of lorem
+        // ipsum with three dead links, a listing frozen into markup on the day
+        // it was built.
+        $result = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Latest Insights',
+            'html' => '<section class="insights"><h2>Latest Insights</h2>'
+                . '<article class="card"><h3>The Future of Digital Workspaces</h3><a href="#">Read More</a></article>'
+                . '<article class="card"><h3>Innovation in Corporate Leadership</h3><a href="#">Read More</a></article>'
+                . '</section>',
+            'css' => '.insights{background:#ffffff;padding:64px}.insights h2{font-size:36px;color:#111}'
+                . '.insights .card{background:#f8f8f8;border-radius:8px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.06)}'
+                . '.insights h3{font-size:20px;color:#222;margin-bottom:8px}',
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame(2, $result['dead_links']);
+        // And it is told what a list of the site's own articles should be.
+        $this->assertStringContainsString('posts_grid', $result['error']);
+        $this->assertSame(0, $page->rows()->count());
+    }
+
+    public function test_a_section_whose_links_have_somewhere_to_go_is_accepted(): void
+    {
+        $page = $this->page();
+
+        $result = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Call to Action',
+            'html' => '<section class="cta"><h2>Ready to start your project?</h2>'
+                . '<a class="cta-btn" href="/contact">Get a free consultation</a></section>',
+            'css' => '.cta{background:#1a6b7a;padding:48px;text-align:center}'
+                . '.cta h2{color:#ffffff;font-size:30px;font-weight:700;margin-bottom:20px}'
+                . '.cta-btn{background:#ffffff;color:#1a6b7a;padding:14px 28px;border-radius:4px;font-weight:600}',
+        ]);
+
+        $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+    }
+
+    public function test_a_placeholder_picture_service_is_refused(): void
+    {
+        $page = $this->page();
+
+        // What a build wrote into all six cards of a page. via.placeholder.com
+        // has stopped answering, so every one of them rendered as a broken
+        // image on a site that otherwise looked finished.
+        foreach ([
+            'https://via.placeholder.com/150',
+            'https://placehold.co/600x400',
+            'https://picsum.photos/600/400',
+            'https://dummyimage.com/600x400',
+        ] as $url) {
+            $result = (new AddDesignedSectionTool())->execute([
+                'page_id' => $page->id,
+                'name' => 'Features',
+                'html' => '<section class="feat"><h2>Business Strategy</h2><img src="' . $url . '" alt="Strategy">'
+                    . '<p>Lorem ipsum dolor sit amet.</p></section>',
+                'css' => '.feat{background:#ffffff;padding:48px}.feat h2{font-size:24px;color:#111}'
+                    . '.feat img{width:100%;border-radius:8px}.feat p{font-size:16px;color:#555;line-height:1.6}',
+            ]);
+
+            $this->assertArrayHasKey('error', $result, $url . ' should be refused');
+            $this->assertStringContainsString('placeholder picture service', $result['error']);
+            // And it is told what this site ships for exactly this.
+            $this->assertSame(\VelaBuild\Core\Services\DesignBuilderService::PLACEHOLDER, $result['use_this_url']);
+        }
+
+        $this->assertSame(0, $page->rows()->count());
+    }
+
     public function test_a_picture_at_an_address_this_site_has_nothing_at_is_refused(): void
     {
         $page = $this->page();

@@ -171,7 +171,14 @@ class DesignToSite extends Command
                     || Content::exists();
 
                 if ($hasCustomizations) {
-                    $this->warn('Existing site content/styling detected. This command will modify your site.');
+                    // What it used to say — that the site would be modified —
+                    // stopped being true when builds moved onto a page of their
+                    // own. It is the loudest sentence anyone sees before
+                    // pressing the button, and it was describing the version
+                    // before last.
+                    $this->warn('This builds onto a page of its own. Your homepage, theme and navigation are left as '
+                        . 'they are until you choose to keep the design. It may add pages and articles the design '
+                        . 'calls for.');
                     // With no terminal to answer, confirm() takes the default
                     // and declines — which used to end the run with a success
                     // code and no word about why nothing happened.

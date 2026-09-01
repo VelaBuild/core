@@ -198,13 +198,13 @@ abstract class BaseTool
         return null;
     }
 
-    private function isHexColour(?string $value): bool
+    protected function isHexColour(?string $value): bool
     {
         return is_string($value) && preg_match('/^#[0-9a-f]{6}$/i', trim($value)) === 1;
     }
 
     /** WCAG relative-luminance contrast, 1:1 (identical) to 21:1 (black on white). */
-    private function contrastRatio(string $a, string $b): float
+    protected function contrastRatio(string $a, string $b): float
     {
         $luminance = function (string $hex): float {
             $hex = ltrim(trim($hex), '#');
@@ -417,6 +417,23 @@ abstract class BaseTool
         $path = parse_url($url, PHP_URL_PATH) ?: '';
         $host = parse_url($url, PHP_URL_HOST);
 
+        // A picture that was never made, wearing an address. These are the
+        // stand-in services, and naming them is not guessing: what they serve
+        // IS a grey box, and via.placeholder.com — which a build wrote into
+        // all six cards of a page — no longer resolves at all, so every one of
+        // them came out as a broken image on a finished-looking site.
+        if ($host !== null && $this->isAPlaceholderService($host)) {
+            return [
+                'error' => "\"{$url}\" is a placeholder picture service, so {$field} would be a grey box on a "
+                    . 'finished page — and several of those services have stopped answering, which makes it a '
+                    . 'broken image instead. Call generate_image and use the url it returns exactly as given, take '
+                    . 'one from list_media, or point at ' . \VelaBuild\Core\Services\DesignBuilderService::PLACEHOLDER
+                    . ', which this site ships for exactly this: it holds the space at the right size and says '
+                    . 'plainly that a picture goes here.',
+                'use_this_url' => \VelaBuild\Core\Services\DesignBuilderService::PLACEHOLDER,
+            ];
+        }
+
         if ($host !== null && $host !== parse_url((string) config('app.url'), PHP_URL_HOST)) {
             // Somewhere else's picture. Other guards decide whether that is
             // allowed; this one cannot check it and must not guess.
@@ -437,6 +454,32 @@ abstract class BaseTool
                 . 'made. Call generate_image and use the url it returns exactly as given, or take one from '
                 . 'list_media, or leave the picture out of the markup.',
         ];
+    }
+
+    /**
+     * Whether a host exists to serve grey boxes.
+     *
+     * Matched on the registrable name so a subdomain — via.placeholder.com,
+     * unsplash.it — is caught along with the bare one.
+     */
+    private function isAPlaceholderService(string $host): bool
+    {
+        $services = [
+            'placeholder.com', 'placehold.it', 'placehold.co', 'placeholder.pics',
+            'placekitten.com', 'placeimg.com', 'dummyimage.com', 'fakeimg.pl',
+            'lorempixel.com', 'loremflickr.com', 'picsum.photos', 'unsplash.it',
+            'baconmockup.com', 'placebear.com', 'placecage.com', 'fillmurray.com',
+        ];
+
+        $host = strtolower(rtrim($host, '.'));
+
+        foreach ($services as $service) {
+            if ($host === $service || str_ends_with($host, '.' . $service)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -640,9 +683,32 @@ abstract class BaseTool
 
         $definition = app(\VelaBuild\Core\Vela::class)->blocks()->all()[$type] ?? null;
         $known = $definition['defaults'][$section] ?? null;
-        // No enumerated shape (e.g. posts_grid, which is driven by settings
-        // alone) — there is nothing to validate against.
-        if (!is_array($known) || $known === []) {
+
+        if (!is_array($known)) {
+            return null;
+        }
+
+        // A listing declares its content as empty because it HAS none: what it
+        // shows is drawn from the site, and everything about it is a setting.
+        // Read as "no shape to check against", anything written here was
+        // accepted and dropped — a build asked posts_grid for a category and a
+        // layout under `content`, got neither, and the grid fell back to its
+        // default of twelve and put the site's whole archive on a page whose
+        // design showed four cards.
+        if ($known === [] && $section === 'content') {
+            $settings = array_keys($definition['defaults']['settings'] ?? []);
+
+            return [
+                'error' => "Block type '{$type}' takes no content — what it shows is drawn from the site itself. "
+                    . 'Everything about it is a setting, and content sent here is dropped when the page renders, '
+                    . 'so the block comes out with its defaults. Resend with these under `settings` instead: '
+                    . implode(', ', $settings) . '.',
+                'valid_settings_keys' => $settings,
+                'unknown_keys' => array_keys($content),
+            ];
+        }
+
+        if ($known === []) {
             return null;
         }
 

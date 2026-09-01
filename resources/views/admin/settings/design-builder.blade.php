@@ -87,10 +87,14 @@
                                         data-name="{{ $file['name'] }}"
                                         data-kind="image"
                                         title="Click to see it full size"
-                                        style="display:block;width:100%;cursor:zoom-in;">
+                                        {{-- height:auto because the admin's .btn is a fixed 40px tall: the
+                                             thumbnail is 70, so it hung out of the bottom of its own button
+                                             and the filename and the role label were printed over the
+                                             picture. --}}
+                                        style="display:block;width:100%;height:auto;padding:0;cursor:zoom-in;">
                                     <img src="{{ route('vela.admin.settings.design-builder.design', $file['name']) }}"
                                          alt="{{ $file['name'] }}"
-                                         style="width:100%;height:70px;object-fit:cover;border-radius:3px;">
+                                         style="display:block;width:100%;height:70px;object-fit:cover;border-radius:3px;">
                                 </button>
                             @else
                                 {{-- A written brief is as much a part of the design as the
@@ -101,7 +105,7 @@
                                         data-name="{{ $file['name'] }}"
                                         data-kind="text"
                                         title="Click to read it"
-                                        style="display:block;width:100%;height:70px;line-height:70px;cursor:zoom-in;">
+                                        style="display:block;width:100%;height:70px;line-height:70px;padding:0;cursor:zoom-in;">
                                     <i class="fas fa-file-alt fa-2x"></i>
                                 </button>
                             @endif
@@ -172,15 +176,22 @@
         <div class="card">
             <div class="card-body">
                 <h5 class="mb-1">3. Build it</h5>
+                {{-- This used to say the build replaced your homepage, styling
+                     and settings. That stopped being true when builds moved
+                     onto a page of their own, and it was the last thing anyone
+                     read before pressing the button — directly contradicting
+                     the explainer at the top of this page, and saying the
+                     frightening half. --}}
                 <p class="text-muted small">
-                    This replaces your homepage, styling and site settings, and adds pages and articles to match
-                    the design. It takes a few minutes. Screenshots of your site are sent to your AI provider so
-                    it can compare them with the design.
+                    The design is built onto a page of its own, so your homepage, theme and navigation stay exactly
+                    as they are — you look at the result first and decide afterwards. It may add pages and articles
+                    the design calls for. It takes a few minutes. Screenshots of your site are sent to your AI
+                    provider so it can compare them with the design.
                 </p>
 
                 @can('config_edit')
                 <form action="{{ route('vela.admin.settings.design-builder.start') }}" method="POST" class="form-inline mb-3"
-                      onsubmit="return confirm('This will change your site\'s content and styling. Continue?');">
+                      onsubmit="return confirm('Build the design onto a page of its own? Your homepage and theme stay as they are.');">
                     @csrf
                     <label class="mr-2 small">Rounds of refinement</label>
                     <select name="max_loops" class="form-control form-control-sm mr-2">
