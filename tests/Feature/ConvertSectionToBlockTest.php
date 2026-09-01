@@ -162,6 +162,37 @@ class ConvertSectionToBlockTest extends PackageTestCase
         $this->assertSame('What is it?', $items[0]['title']);
     }
 
+    public function test_the_cards_of_a_row_do_not_read_as_wording_of_their_own(): void
+    {
+        $page = $this->page();
+
+        $written = $this->section($page, 'Features',
+            '<section class="features"><div class="grid">'
+            . '<div class="card"><h3>Fast</h3><p>Ships in days.</p></div>'
+            . '<div class="card"><h3>Safe</h3><p>Backed up nightly.</p></div>'
+            . '<div class="card"><h3>Simple</h3><p>Nothing to install.</p></div>'
+            . '</div></section>'
+        );
+
+        $result = (new ConvertSectionToBlockTool())->execute([
+            'row_id' => $written['row_id'],
+            'type' => 'icon_box',
+        ]);
+
+        $this->assertTrue($result['success'], $result['error'] ?? '');
+
+        $items = $page->rows()->first()->blocks()->first()->content['items'] ?? [];
+        $this->assertCount(3, $items);
+        $this->assertSame('Fast', $items[0]['title']);
+
+        // Every child of a row is now marked as a card so a link can be put on
+        // it. A card carries no wording of its own — what it reads as is the
+        // words of the fields inside it, each of which is counted already — so
+        // marking one must not add a fourth item reading "FastShips in days."
+        // nor report the three real ones as wording the block would drop.
+        $this->assertSame([], $result['would_be_dropped'] ?? []);
+    }
+
     public function test_a_block_whose_meaning_is_ambiguous_is_not_offered(): void
     {
         $page = $this->page();

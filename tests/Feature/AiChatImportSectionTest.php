@@ -346,10 +346,14 @@ class AiChatImportSectionTest extends PackageTestCase
         // Without these marks the page builder can only offer its owner a
         // textarea of raw HTML, and they cannot change a word of their page.
         $this->assertGreaterThan(0, $result['editable_fields']);
-        $this->assertMatchesRegularExpression('/<h1[^>]+data-vela-field="f\d+"[^>]+data-vela-field-kind="text"/', $html);
-        $this->assertMatchesRegularExpression('/<img[^>]+data-vela-field-kind="image"/', $html);
+        $this->assertMatchesRegularExpression('/<h1[^>]+data-vela-field="f\d+"[^>]+data-vela-field-kind="text\b/', $html);
+        $this->assertMatchesRegularExpression('/<img[^>]+data-vela-field-kind="image\b/', $html);
         // The button is both wording and a destination.
         $this->assertMatchesRegularExpression('/<a[^>]+data-vela-field-kind="link text"/', $html);
+        // Wording and pictures can be given a link; the button already is one.
+        $this->assertMatchesRegularExpression('/<h1[^>]+data-vela-field-kind="[^"]*\blinkable\b/', $html);
+        $this->assertMatchesRegularExpression('/<img[^>]+data-vela-field-kind="[^"]*\blinkable\b/', $html);
+        $this->assertDoesNotMatchRegularExpression('/<a[^>]+\blinkable\b/', $html);
     }
 
     public function test_containers_are_not_marked_as_editable_text(): void
@@ -397,7 +401,7 @@ class AiChatImportSectionTest extends PackageTestCase
         // the page's own headline with no way to edit it at all.
         $this->assertGreaterThan(0, $result['editable_fields']);
         $this->assertMatchesRegularExpression('/<h1[^>]*data-vela-field-multiline="1"[^>]*>/', $html);
-        $this->assertMatchesRegularExpression('/<h1[^>]*data-vela-field-kind="text"[^>]*>/', $html);
+        $this->assertMatchesRegularExpression('/<h1[^>]*data-vela-field-kind="text\b[^"]*"[^>]*>/', $html);
         $this->assertStringContainsString('<br>', $html);
     }
 

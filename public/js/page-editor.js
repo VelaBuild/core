@@ -737,6 +737,14 @@ PageEditor.registerBlockType = function(name, config) {
 
             el.setAttribute('data-vela-grid', 'g' + (++gridIndex));
             el.setAttribute('data-vela-grid-count', String(kids.length));
+
+            // Each child of a row is a card. Naming it is what lets the editor
+            // call it a card, let it be clicked as a whole, and let it be taken
+            // out — before this the only handle on one was whatever happened to
+            // be marked inside it.
+            for (var c = 0; c < kids.length; c++) {
+                kids[c].setAttribute('data-vela-card', 'c' + gridIndex + '-' + (c + 1));
+            }
         });
 
         if (!doc.querySelector('[data-vela-field]')) {
@@ -760,6 +768,8 @@ PageEditor.registerBlockType = function(name, config) {
                     if (breaksOnly) el.setAttribute('data-vela-field-multiline', '1');
                 }
 
+                if (kinds.indexOf('link') === -1 && couldCarryALink(el, kinds)) kinds.push('linkable');
+
                 if (!kinds.length) return;
                 el.setAttribute('data-vela-field', 'f' + (++fieldIndex));
                 el.setAttribute('data-vela-field-kind', kinds.join(' '));
@@ -769,6 +779,27 @@ PageEditor.registerBlockType = function(name, config) {
         wrapLooseText(doc, wrapper);
 
         return doc;
+    }
+
+    /**
+     * Whether a link can be put on this element without breaking the markup.
+     *
+     * The mirror of SectionImporter::couldCarryALink — an <a> inside an <a> is
+     * not repaired by the browser, it closes the outer one early, so anything
+     * already inside a link is left alone. A card or a bullet qualifies as a
+     * whole, because clicking the whole card is what a visitor expects; where
+     * it already holds a link of its own, that link is the answer.
+     */
+    function couldCarryALink(el, kinds) {
+        for (var node = el.parentNode; node && node.tagName; node = node.parentNode) {
+            if (node.tagName.toLowerCase() === 'a') return false;
+        }
+
+        if (el.hasAttribute('data-vela-card') || el.tagName.toLowerCase() === 'li') {
+            return !el.querySelector('a[href]');
+        }
+
+        return kinds.indexOf('text') > -1 || kinds.indexOf('image') > -1;
     }
 
     var LOOSE_TEXT_SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, OPTION: 1, TITLE: 1, NOSCRIPT: 1 };
@@ -1029,6 +1060,11 @@ PageEditor.registerBlockType = function(name, config) {
         if (tag === 'button' || (kinds.indexOf('link') > -1 && kinds.indexOf('text') > -1)) return 'Button / link';
         if (kinds.indexOf('link') > -1) return 'Link';
         if (tag === 'li') return 'List item';
+        // Last, so that a bullet is still called a bullet: every child of a
+        // row is a card, and a plain <ul> is a row like any other. Before the
+        // children of a row were named, a card fell through to "Text" and read
+        // as a stray paragraph among the ones inside it.
+        if (el.hasAttribute('data-vela-card')) return 'Card';
         return 'Text';
     }
 
@@ -1067,6 +1103,17 @@ PageEditor.registerBlockType = function(name, config) {
                     '</div>' +
                     '<button type="button" class="btn btn-outline-info btn-sm vela-field-browse" style="white-space:nowrap;"><i class="fas fa-images"></i> Browse</button>' +
                 '</div>';
+
+                // How big the picture runs. A width in per cent of the space it
+                // sits in rather than in pixels: the same number then means the
+                // same thing on a phone, and a picture cannot be dragged wider
+                // than the column holding it.
+                var width = imageWidth(el);
+                out += '<div class="d-flex align-items-center mt-2" style="gap:8px;">' +
+                    '<i class="fas fa-compress-arrows-alt text-muted" style="font-size:.75rem;"></i>' +
+                    '<input type="range" class="form-range flex-grow-1 vela-field-width" min="10" max="100" step="5" value="' + width + '">' +
+                    '<span class="text-muted vela-field-width-readout" style="font-size:.75rem;min-width:3.2em;text-align:right;">' + width + '%</span>' +
+                '</div>';
             }
 
             if (kinds.indexOf('control') > -1) {
@@ -1083,10 +1130,21 @@ PageEditor.registerBlockType = function(name, config) {
                     : '<input type="text" class="form-control form-control-sm vela-field-text" value="' + escHtml(text) + '">');
             }
 
-            if (kinds.indexOf('link') > -1) {
+            // A link box on everything that can carry one, not only on what was
+            // already an <a>. A card, a bullet, a heading and a picture could
+            // not be made to go anywhere before this.
+            if (kinds.indexOf('link') > -1 || kinds.indexOf('linkable') > -1) {
+                var anchor = linkAnchor(el);
+                var href = anchor ? (anchor.getAttribute('href') || '') : '';
+                var newTab = anchor ? anchor.getAttribute('target') === '_blank' : false;
+
                 out += '<div class="input-group input-group-sm mt-1">' +
                     '<div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-link"></i></span></div>' +
-                    '<input type="text" class="form-control vela-field-href" value="' + escHtml(el.getAttribute('href') || '') + '" placeholder="/contact-us">' +
+                    '<input type="text" class="form-control vela-field-href" value="' + escHtml(href) + '" placeholder="/contact-us">' +
+                    '</div>' +
+                    '<div class="form-check mt-1" style="font-size:.8rem;">' +
+                        '<input type="checkbox" class="form-check-input vela-field-newtab" id="newtab-' + escHtml(id) + '"' + (newTab ? ' checked' : '') + '>' +
+                        '<label class="form-check-label text-muted" for="newtab-' + escHtml(id) + '">Open in a new tab</label>' +
                     '</div>';
             }
 
@@ -1094,6 +1152,104 @@ PageEditor.registerBlockType = function(name, config) {
         });
 
         return out + '</div>';
+    }
+
+    /**
+     * The <a> carrying this element's link, if it has one.
+     *
+     * Either the element IS the link, or it was wrapped in one here — a wrap
+     * this code made is marked, so a card sitting inside somebody else's <a>
+     * is not mistaken for one and unwrapped out from under them.
+     */
+    function linkAnchor(el) {
+        if (el.tagName.toLowerCase() === 'a') return el;
+        var parent = el.parentNode;
+        return parent && parent.tagName && parent.tagName.toLowerCase() === 'a'
+            && parent.hasAttribute('data-vela-link-wrap') ? parent : null;
+    }
+
+    /**
+     * Put a link on an element, take one off, or point it somewhere else.
+     *
+     * Where the element is not already an <a> it is wrapped in one. The wrapper
+     * is display:contents, so it draws no box of its own: a card wrapped this
+     * way stays the grid item it was, which it would not if the anchor sat
+     * between it and the row. Colour and underline are inherited for the same
+     * reason — a whole card turning blue is not what anyone meant by making it
+     * clickable.
+     */
+    function applyLink(el, href, newTab) {
+        var anchor = linkAnchor(el);
+
+        if (!href) {
+            if (!anchor) return;
+            if (anchor === el) {
+                anchor.removeAttribute('href');
+                anchor.removeAttribute('target');
+                anchor.removeAttribute('rel');
+                return;
+            }
+            while (anchor.firstChild) anchor.parentNode.insertBefore(anchor.firstChild, anchor);
+            anchor.parentNode.removeChild(anchor);
+            return;
+        }
+
+        if (!anchor) {
+            // An <a> inside an <a> is not repaired by the browser: it closes
+            // the outer one early and the rest of the card stops responding.
+            // The outer link wins, since it is the one holding this element.
+            for (var node = el.parentNode; node && node.tagName; node = node.parentNode) {
+                if (node.tagName.toLowerCase() === 'a') return;
+            }
+
+            anchor = el.ownerDocument.createElement('a');
+            anchor.setAttribute('data-vela-link-wrap', '1');
+            anchor.setAttribute('style', 'display:contents;color:inherit;text-decoration:inherit;');
+            el.parentNode.insertBefore(anchor, el);
+            anchor.appendChild(el);
+        }
+
+        anchor.setAttribute('href', href);
+
+        if (newTab) {
+            anchor.setAttribute('target', '_blank');
+            // A page opened in a new tab can reach back at the one that opened
+            // it through window.opener unless this says otherwise.
+            anchor.setAttribute('rel', 'noopener noreferrer');
+        } else {
+            anchor.removeAttribute('target');
+            anchor.removeAttribute('rel');
+        }
+    }
+
+    /** The width the slider shows: what was set here, or the full width. */
+    function imageWidth(el) {
+        var found = /(?:^|;)\s*width\s*:\s*(\d+(?:\.\d+)?)%/i.exec(el.getAttribute('style') || '');
+        return found ? Math.round(parseFloat(found[1])) : 100;
+    }
+
+    /**
+     * How wide the picture runs, as a share of the space it sits in.
+     *
+     * Per cent rather than pixels so that the same setting means the same thing
+     * on a phone, and so a picture can never be made wider than the column
+     * holding it. At full width the setting is removed rather than written, so
+     * the section's own stylesheet is back in charge.
+     */
+    function applyImageWidth(el, percent) {
+        if (!(percent >= 10 && percent <= 100)) return;
+
+        var style = (el.getAttribute('style') || '')
+            .replace(/(?:^|;)\s*(?:width|height)\s*:[^;]*/gi, '')
+            .replace(/^\s*;+|;+\s*$/g, '');
+
+        if (percent >= 100) {
+            if (style) el.setAttribute('style', style);
+            else el.removeAttribute('style');
+            return;
+        }
+
+        el.setAttribute('style', (style ? style + ';' : '') + 'width:' + percent + '%;height:auto');
     }
 
     /** Copy what is in the form back into the parsed markup. */
@@ -1127,7 +1283,10 @@ PageEditor.registerBlockType = function(name, config) {
             }
 
             var $href = $row.find('.vela-field-href');
-            if ($href.length) el.setAttribute('href', $href.val());
+            if ($href.length) applyLink(el, $.trim($href.val() || ''), $row.find('.vela-field-newtab').is(':checked'));
+
+            var $width = $row.find('.vela-field-width');
+            if ($width.length) applyImageWidth(el, parseInt($width.val(), 10));
 
             var $placeholder = $row.find('.vela-field-placeholder');
             if ($placeholder.length) {
@@ -2178,7 +2337,19 @@ PageEditor.registerBlockType = function(name, config) {
                 '<div class="form-row">' +
                     '<div class="form-group col-md-6 mb-2">' + designLabel('Arrangement') +
                         '<select class="form-control form-control-sm vela-design" data-design-grid="' + escHtml(g.id) + '">' +
-                        arrange.join('') + '</select></div>' +
+                        arrange.join('') + '</select>' +
+                        // The same choice as a slider. Reading down a list to
+                        // count cards across is the slow way to answer "how
+                        // does four look"; dragging is the fast one, and the
+                        // list stays for saying "keep the original".
+                        '<div class="d-flex align-items-center mt-1" style="gap:8px;">' +
+                            '<input type="range" class="form-range flex-grow-1 vela-grid-slider" ' +
+                                'data-grid="' + escHtml(g.id) + '" min="1" max="6" step="1" ' +
+                                'value="' + (parseInt(columns, 10) || g.count) + '">' +
+                            '<span class="text-muted vela-grid-readout" style="font-size:.75rem;min-width:4.6em;text-align:right;">' +
+                                (parseInt(columns, 10) || g.count) + ' across</span>' +
+                        '</div>' +
+                    '</div>' +
                     '<div class="form-group col-md-6 mb-2">' + designLabel('Widths') +
                         '<select class="form-control form-control-sm vela-layout" data-layout="split" data-grid="' + escHtml(g.id) + '"' +
                             (g.count === 2 ? '' : ' disabled title="Two columns only"') + '>' +
@@ -2363,6 +2534,7 @@ PageEditor.registerBlockType = function(name, config) {
         if (tag === 'ul' || tag === 'ol') return 'List';
         if (tag === 'li') return 'List item';
         if (el.hasAttribute('data-vela-grid')) return 'Row';
+        if (el.hasAttribute('data-vela-card')) return 'Card';
         if (el.querySelector && el.querySelector('[data-vela-field]')) return 'Group';
         return tag === 'section' ? 'Section part' : 'Block';
     }
@@ -2681,6 +2853,15 @@ PageEditor.registerBlockType = function(name, config) {
                 scheduleImportedPreview();
             });
 
+            $('#block-edit-content').on('input.velaImported', '#vela-field-list .vela-field-width', function() {
+                $(this).closest('[data-field]').find('.vela-field-width-readout').text($(this).val() + '%');
+                scheduleImportedPreview();
+            });
+
+            $('#block-edit-content').on('change.velaImported', '#vela-field-list .vela-field-newtab', function() {
+                scheduleImportedPreview();
+            });
+
             $('#block-edit-content').on('click.velaImported', '[data-vela-tab]', function(e) {
                 e.preventDefault();
                 _htmlTab = $(this).data('vela-tab');
@@ -2702,6 +2883,18 @@ PageEditor.registerBlockType = function(name, config) {
             });
 
             $('#block-edit-content').on('change.velaImported', '.vela-layout', function() { scheduleImportedPreview(); });
+
+            // The slider drives the select rather than the design map, so the
+            // two can never disagree about how many columns the row has.
+            $('#block-edit-content').on('input.velaImported', '.vela-grid-slider', function() {
+                var $slider = $(this);
+                var value = String(parseInt($slider.val(), 10));
+                $slider.closest('.form-group').find('.vela-grid-readout')
+                    .text(value + (value === '1' ? ' — stacked' : ' across'));
+                $slider.closest('.form-group')
+                    .find('.vela-design[data-design-grid="' + $slider.data('grid') + '"]')
+                    .val(value).trigger('change');
+            });
 
             $('#block-edit-content').on('change.velaImported input.velaImported', '.vela-design, .vela-design-custom', function() {
                 var $el = $(this);

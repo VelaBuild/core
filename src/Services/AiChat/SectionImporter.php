@@ -510,6 +510,14 @@ class SectionImporter
                 }
             }
 
+            // Anything a visitor would point at can be given a link, whether or
+            // not whoever wrote the markup made it one. A card, a bullet, a
+            // heading and a picture were all unlinkable before this, and the
+            // whole card is what people expect to click.
+            if (!in_array('link', $kinds, true) && $this->couldCarryALink($element, $kinds)) {
+                $kinds[] = 'linkable';
+            }
+
             if ($kinds === []) {
                 continue;
             }
@@ -520,6 +528,37 @@ class SectionImporter
         }
 
         return $index;
+    }
+
+    /**
+     * Whether a link can be put on this element without breaking the markup.
+     *
+     * An <a> inside an <a> is not something a browser repairs — it closes the
+     * outer one early and the second half of the card stops being clickable —
+     * so anything already within a link is left alone.
+     *
+     * A card or a bullet qualifies as a whole even though it is a container,
+     * because a whole card going somewhere is what a visitor expects of one.
+     * Where it already holds a link of its own that link is the answer, and
+     * wrapping the card around it would only give the same destination twice.
+     */
+    private function couldCarryALink(DOMElement $element, array $kinds): bool
+    {
+        for ($node = $element->parentNode; $node instanceof DOMElement; $node = $node->parentNode) {
+            if (strtolower($node->tagName) === 'a') {
+                return false;
+            }
+        }
+
+        $isWhole = $element->hasAttribute('data-vela-card') || strtolower($element->tagName) === 'li';
+
+        if ($isWhole) {
+            $inside = (new DOMXPath($element->ownerDocument))->query('.//a[@href]', $element);
+
+            return $inside === false || $inside->length === 0;
+        }
+
+        return in_array('text', $kinds, true) || in_array('image', $kinds, true);
     }
 
     /**
@@ -573,6 +612,14 @@ class SectionImporter
             $index++;
             $element->setAttribute('data-vela-grid', 'g' . $index);
             $element->setAttribute('data-vela-grid-count', (string) count($children));
+
+            // And each child is a card: the thing a visitor points at. Nothing
+            // named it before, so the editor called it "Block", it could not be
+            // made clickable as a whole, and someone wanting the third card to
+            // go somewhere had to reach past it to the heading inside.
+            foreach ($children as $position => $child) {
+                $child->setAttribute('data-vela-card', 'c' . $index . '-' . ($position + 1));
+            }
         }
     }
 

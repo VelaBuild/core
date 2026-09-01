@@ -225,7 +225,9 @@ class AddDesignedSectionTool extends BaseTool
             'replaced'        => (bool) $replacing,
             'note'            => 'This section is its own markup and styling, not page-builder blocks. Its CSS reaches '
                 . 'nothing outside .' . $section['wrapper_class'] . ', so write the section\'s own class names plainly. '
-                . 'Its wording, pictures and links are editable from the page builder as a plain form. To correct this '
+                . 'Its wording, pictures and links are editable from the page builder as a plain form — including a '
+                . 'link on anything that has none of its own, so do not wrap a card or a bullet in an <a href="#"> to '
+                . 'leave somewhere for one to go. To correct this '
                 . 'section later, call this tool again with replace_row_id ' . $row->id . '.',
         ];
 

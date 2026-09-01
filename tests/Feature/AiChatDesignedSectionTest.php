@@ -133,6 +133,78 @@ class AiChatDesignedSectionTest extends PackageTestCase
         $this->assertMatchesRegularExpression('/<h1[^>]*data-vela-field/', $html);
     }
 
+    public function test_the_cards_of_a_row_are_named_and_can_be_given_a_link(): void
+    {
+        $page = $this->page();
+
+        (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Features',
+            'html' => '<section class="features"><div class="grid">'
+                . '<div class="card"><h3>Fast</h3><p>Ships in days.</p></div>'
+                . '<div class="card"><h3>Safe</h3><p>Backed up nightly.</p></div>'
+                . '<div class="card"><h3>Simple</h3><p>Nothing to install.</p></div>'
+                . '</div></section>',
+        ]);
+
+        $html = $page->rows()->first()->blocks()->first()->content['html'];
+
+        // Nothing named a card before, so the editor called it "Block" and the
+        // only handle on one was whatever happened to be marked inside it.
+        $this->assertSame(3, substr_count($html, 'data-vela-card="c1-'));
+        $this->assertMatchesRegularExpression('/data-vela-grid-count="3"/', $html);
+
+        // And a whole card is what a visitor expects to be able to click.
+        $this->assertSame(3, preg_match_all('/<div class="card" [^>]*data-vela-field-kind="linkable"/', $html));
+    }
+
+    public function test_a_card_that_already_holds_a_link_is_left_alone(): void
+    {
+        $page = $this->page();
+
+        (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Features',
+            'html' => '<section class="features"><div class="grid">'
+                . '<div class="card"><h3>Fast</h3><a href="/fast">Read more</a></div>'
+                . '<div class="card"><h3>Safe</h3><a href="/safe">Read more</a></div>'
+                . '</div></section>',
+        ]);
+
+        $html = $page->rows()->first()->blocks()->first()->content['html'];
+
+        // Wrapping the card would give the same destination twice, and the
+        // second <a> inside the first is not something a browser repairs.
+        $this->assertStringContainsString('data-vela-card=', $html);
+        $this->assertDoesNotMatchRegularExpression('/class="card"[^>]*\blinkable\b/', $html);
+        $this->assertSame(2, substr_count($html, 'data-vela-field-kind="link text"'));
+    }
+
+    public function test_a_bullet_can_be_given_a_link_and_nothing_inside_one_can(): void
+    {
+        $page = $this->page();
+
+        (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Included',
+            'html' => '<section class="included"><h2>What you get</h2><ul>'
+                . '<li>Unlimited pages</li>'
+                . '<li>Nightly backups</li>'
+                . '</ul>'
+                . '<a class="cta" href="/plans"><strong>See the plans</strong></a>'
+                . '</section>',
+        ]);
+
+        $html = $page->rows()->first()->blocks()->first()->content['html'];
+
+        // A bullet is a whole thing people click.
+        $this->assertSame(2, preg_match_all('/<li [^>]*data-vela-field-kind="text linkable"/', $html));
+
+        // But the wording inside a link is not offered one of its own: an <a>
+        // inside an <a> closes the outer one early.
+        $this->assertDoesNotMatchRegularExpression('/<strong[^>]*\blinkable\b/', $html);
+    }
+
     public function test_a_section_nobody_could_edit_is_refused(): void
     {
         $page = $this->page();
