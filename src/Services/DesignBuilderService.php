@@ -20,6 +20,7 @@ class DesignBuilderService
     private AiProviderManager $aiManager;
     private ChatToolRegistry $toolRegistry;
     private ChatToolExecutor $toolExecutor;
+    private ScreenshotService $screenshots;
     private SiteContext $siteContext;
     private ?\Closure $progressCallback = null;
     private ?AiTextProvider $provider = null;
@@ -79,12 +80,14 @@ class DesignBuilderService
         AiProviderManager $aiManager,
         ChatToolRegistry $toolRegistry,
         ChatToolExecutor $toolExecutor,
-        SiteContext $siteContext
+        SiteContext $siteContext,
+        ScreenshotService $screenshots
     ) {
         $this->aiManager = $aiManager;
         $this->toolRegistry = $toolRegistry;
         $this->toolExecutor = $toolExecutor;
         $this->siteContext = $siteContext;
+        $this->screenshots = $screenshots;
     }
 
     public function onProgress(\Closure $callback): void
@@ -639,12 +642,16 @@ class DesignBuilderService
             foreach ($response['tool_calls'] as $toolCall) {
                 $this->progress('Executing tool: ' . $toolCall['name']);
 
-                $result = $this->refusePicture($toolCall['name']) ?? $this->toolExecutor->execute(
-                    $toolCall['name'],
-                    $toolCall['arguments'],
-                    $conversation->id,
-                    $assistantMsg->id,
-                    $user
+                $result = $this->refusePicture($toolCall['name']) ?? $this->keepingTheLook(
+                    $toolCall,
+                    $url,
+                    fn () => $this->toolExecutor->execute(
+                        $toolCall['name'],
+                        $toolCall['arguments'],
+                        $conversation->id,
+                        $assistantMsg->id,
+                        $user
+                    )
                 );
 
                 $context['created_resources'][] = [
@@ -991,12 +998,16 @@ PROMPT;
             foreach ($response['tool_calls'] as $toolCall) {
                 $this->progress('Executing tool: ' . $toolCall['name']);
 
-                $result = $this->refusePicture($toolCall['name']) ?? $this->toolExecutor->execute(
-                    $toolCall['name'],
-                    $toolCall['arguments'],
-                    $conversation->id,
-                    $assistantMsg->id,
-                    $user
+                $result = $this->refusePicture($toolCall['name']) ?? $this->keepingTheLook(
+                    $toolCall,
+                    $url,
+                    fn () => $this->toolExecutor->execute(
+                        $toolCall['name'],
+                        $toolCall['arguments'],
+                        $conversation->id,
+                        $assistantMsg->id,
+                        $user
+                    )
                 );
 
                 $context['created_resources'][] = [
@@ -1035,6 +1046,185 @@ PROMPT;
 
         $this->updateContextFile($designPath, $context);
         $this->progress('Fix loop complete after ' . $iteration . ' tool iterations');
+    }
+
+    /**
+     * Run one tool call, and where it converts a written section into a block,
+     * check by looking that the section still looks the way it did.
+     *
+     * A conversion is the one change in a build that is made for the owner's
+     * benefit rather than the design's: it trades markup that matches the
+     * picture for a form the owner can restructure. Whether that trade cost
+     * anything is a question about appearance, and until now the only answer
+     * came from the whole-page QA comparison a round later — too coarse to
+     * name the section, and too late to put it back cheaply.
+     *
+     * So the row is photographed either side of the call and the two pictures
+     * are compared. A conversion that changed the look is undone, and the model
+     * is told what changed instead of being told it succeeded.
+     *
+     * The check needs a browser and a page it can reach. Where there is
+     * neither, the conversion stands — an unmeasurable change is not a failed
+     * one, and refusing every conversion on a machine with no Chrome would
+     * take the feature away from the sites most likely to be using it.
+     */
+    protected function keepingTheLook(array $toolCall, string $url, \Closure $run): array
+    {
+        $rowId = (int) ($toolCall['arguments']['row_id'] ?? 0);
+
+        if (($toolCall['name'] ?? '') !== 'convert_section_to_block' || $rowId === 0) {
+            return $run();
+        }
+
+        $qaUrl = rtrim($url, '/') . '/' . \VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG;
+        $handle = '#row-' . $rowId;
+        $before = sys_get_temp_dir() . '/vela-row-' . $rowId . '-before.png';
+
+        $shot = $this->safeSectionCapture($qaUrl, $handle, $before);
+
+        $result = $run();
+
+        // Nothing to compare against, or nothing happened worth comparing.
+        if ($shot === null || isset($result['error'])) {
+            return $result;
+        }
+
+        $after = sys_get_temp_dir() . '/vela-row-' . $rowId . '-after.png';
+        if ($this->safeSectionCapture($qaUrl, $handle, $after) === null) {
+            return $result;
+        }
+
+        $verdict = $this->compareSection($before, $after);
+
+        if ($verdict === null || ($verdict['same'] ?? true)) {
+            return $result;
+        }
+
+        $undone = $this->undoLastConversion();
+
+        $this->progress('Conversion of row ' . $rowId . ' changed the look and was '
+            . ($undone ? 'put back' : 'left in place — it could not be undone'));
+
+        return [
+            'error' => 'Converting row ' . $rowId . ' changed how the section looks, so it '
+                . ($undone
+                    ? 'has been put back as it was.'
+                    : 'should be put back by hand — the undo failed.')
+                . ' What changed: ' . ($verdict['differences'] ?? 'the two renderings do not match.')
+                . ' This section is one the design needs as it is; leave it written and convert a different one.',
+            'converted' => false,
+            'row_id' => $rowId,
+        ];
+    }
+
+    /**
+     * A picture of one row, or null if it could not be taken.
+     *
+     * Capturing drives a browser over a network, and a build must not fall over
+     * because one photograph failed — the conversion it guards is optional.
+     */
+    protected function safeSectionCapture(string $url, string $handle, string $path): ?string
+    {
+        if (!$this->screenshots->isAvailable()) {
+            return null;
+        }
+
+        try {
+            $captured = $this->screenshots->captureLiveSection($url, $handle, $path);
+        } catch (\Throwable $e) {
+            Log::warning('DesignBuilder: could not photograph ' . $handle . ': ' . $e->getMessage());
+
+            return null;
+        }
+
+        return $captured !== null && file_exists($captured) && filesize($captured) > 512
+            ? $captured
+            : null;
+    }
+
+    /**
+     * Ask whether the second picture of a section still shows the first one.
+     *
+     * @return array{same:bool, differences:string}|null null when the question
+     *         could not be put or the answer could not be read, which the
+     *         caller treats as "no evidence against".
+     */
+    protected function compareSection(string $before, string $after): ?array
+    {
+        if (!file_exists($before) || !file_exists($after)) {
+            return null;
+        }
+
+        $prompt = 'These are two photographs of the SAME section of a web page: the first before a change, '
+            . 'the second after it. Say whether the section still looks the way it did.'
+            . "\n\nWhat counts as a difference: wording that is gone or altered, a picture that is gone, "
+            . 'a layout that has changed shape (side by side becoming stacked, a grid becoming a list), '
+            . 'a change of typeface, size, weight, colour or background, or spacing that has visibly opened '
+            . "up or closed in.\n\nWhat does not: a difference of a few pixels, antialiasing, or a scrollbar."
+            . "\n\nAnswer with this exact JSON and nothing else:\n"
+            . '{"same": true/false, "differences": "one sentence naming what changed, or \'nothing\'"}';
+
+        $messages = [
+            ['role' => 'system', 'content' => 'You compare two renderings of one page section and report whether they match.'],
+            ['role' => 'user', 'content' => [
+                ['type' => 'text', 'text' => $prompt],
+                ['type' => 'image', 'source' => $this->resizeImageForVision($before), 'media_type' => $this->detectMimeType($before)],
+                ['type' => 'image', 'source' => $this->resizeImageForVision($after), 'media_type' => $this->detectMimeType($after)],
+            ]],
+        ];
+
+        try {
+            $response = $this->provider()->chat($messages, [], 512);
+        } catch (\Throwable $e) {
+            Log::warning('DesignBuilder: section comparison failed: ' . $e->getMessage());
+
+            return null;
+        }
+
+        if (!$response || !($response['content'] ?? null)) {
+            return null;
+        }
+
+        $verdict = $this->parseJsonFromResponse($response['content']);
+
+        if (!is_array($verdict) || !array_key_exists('same', $verdict)) {
+            return null;
+        }
+
+        return [
+            'same' => (bool) $verdict['same'],
+            'differences' => (string) ($verdict['differences'] ?? 'they do not match'),
+        ];
+    }
+
+    /**
+     * Put back the conversion that has just been made.
+     *
+     * The executor does not hand back the log row it wrote, so the conversion
+     * is found the way anything else would find it: the newest completed one
+     * that has not already been undone.
+     */
+    private function undoLastConversion(): bool
+    {
+        $log = \VelaBuild\Core\Models\AiActionLog::where('tool_name', 'convert_section_to_block')
+            ->where('status', 'completed')
+            ->whereNull('undone_at')
+            ->latest('id')
+            ->first();
+
+        if (!$log) {
+            return false;
+        }
+
+        try {
+            $this->toolExecutor->undoAction($log);
+        } catch (\Throwable $e) {
+            Log::warning('DesignBuilder: could not undo a conversion: ' . $e->getMessage());
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -1560,8 +1750,12 @@ WHEN THE PAGE ALREADY MATCHES:
   inviting an action, a row of equal boxes, a quotation, a list of questions.
   It refuses rather than dropping wording the block has nowhere to put, and it
   tells you the row to write again if you change your mind.
+- Each conversion is photographed either side of itself and the two pictures
+  compared. One that changed how the section looks is put back for you and comes
+  back as an error naming what changed — that is an answer, not a failure: it
+  means the design needs that section as it is. Try a different one.
 - Then look at the page against the design one more time. A converted section
-  is painted by the theme, so it will not look identical; if one has moved away
+  is painted by the theme, so it may not look identical; if one has moved away
   from the design, put it back with add_designed_section and its
   replace_row_id. Keep the ones that still match.
 - Never convert a listing, a form, or a section whose arrangement is the design

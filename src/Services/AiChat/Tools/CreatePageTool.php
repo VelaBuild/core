@@ -47,6 +47,39 @@ class CreatePageTool extends BaseTool
             ];
         }
 
+        // A design build is handed the page it is to fill. Asked for the address
+        // that page already holds, this used to hand back "design-preview-1" —
+        // a second, unlisted copy of the same site that nobody ever looks at,
+        // built with the turns the real page needed.
+        if ($slug === \VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG
+            || preg_match('/^' . preg_quote(\VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG, '/') . '-\\d+$/', $slug)) {
+            $preview = Page::where('slug', \VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG)->first();
+
+            return [
+                'error' => 'The design preview page is not created by hand — the build is given it. '
+                    . ($preview
+                        ? "It already exists (id={$preview->id}, slug={$preview->slug}); build onto that page with add_row / add_designed_section."
+                        : 'Run the design build, which creates it.'),
+                'existing_id'   => $preview?->id,
+                'existing_slug' => $preview?->slug,
+            ];
+        }
+
+        // An explicit slug is an address the caller means to use. Quietly moving
+        // it to "pricing-1" leaves a menu item, a button or a following call
+        // pointing at "pricing", which is somebody else's page.
+        if (!empty($parameters['slug'])) {
+            $taken = Page::where('slug', $slug)->first();
+            if ($taken) {
+                return [
+                    'error' => "The URL '{$slug}' already belongs to '{$taken->title}' (id={$taken->id}). "
+                        . 'Use add_row / add_block on that page, or call create_page again with a different slug.',
+                    'existing_id'   => $taken->id,
+                    'existing_slug' => $taken->slug,
+                ];
+            }
+        }
+
         $original = $slug;
         $i = 1;
         // Only a live page owns an address. A deleted one is asked to give it

@@ -353,6 +353,43 @@ class AiChatPageBuilderToolsTest extends PackageTestCase
         $this->assertSame('contact-us', $result['page']['slug']);
     }
 
+    public function test_create_page_refuses_to_make_a_second_design_preview(): void
+    {
+        Page::create([
+            'title'  => 'Design preview',
+            'slug'   => \VelaBuild\Core\Commands\DesignToSite::PREVIEW_SLUG,
+            'status' => 'unlisted',
+            'locale' => 'en',
+        ]);
+
+        // What a build did: asked for the address of the page it had already
+        // been handed, and was quietly given "design-preview-1" to fill instead.
+        foreach ([
+            ['title' => 'Zercurity', 'slug' => 'design-preview'],
+            ['title' => 'Zercurity', 'slug' => 'design-preview-1'],
+            ['title' => 'Design Preview'],
+        ] as $parameters) {
+            $result = (new CreatePageTool())->execute($parameters);
+
+            $this->assertArrayHasKey('error', $result, json_encode($parameters) . ' should be refused');
+        }
+
+        $this->assertSame(1, Page::where('slug', 'like', 'design-preview%')->count());
+    }
+
+    public function test_create_page_refuses_an_explicit_slug_that_is_taken(): void
+    {
+        Page::create(['title' => 'Pricing', 'slug' => 'pricing', 'status' => 'published', 'locale' => 'en']);
+
+        // Silently moving it to "pricing-1" leaves the menu item the model
+        // writes next pointing at somebody else's page.
+        $result = (new CreatePageTool())->execute(['title' => 'Plans', 'slug' => 'pricing']);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame('pricing', $result['existing_slug']);
+        $this->assertSame(0, Page::where('title', 'Plans')->count());
+    }
+
     public function test_contact_form_rejects_a_button_label_written_under_an_invented_key(): void
     {
         $result = (new AddBlockTool())->execute([

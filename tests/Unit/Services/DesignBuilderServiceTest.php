@@ -8,13 +8,13 @@ use VelaBuild\Core\Services\AiChat\ChatToolRegistry;
 use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\DesignBuilderService;
 use VelaBuild\Core\Services\SiteContext;
-use VelaBuild\Core\Tests\TestCase;
+use VelaBuild\Core\Services\ScreenshotService;
+use VelaBuild\Core\Tests\PackageTestCase;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Mockery;
 
-class DesignBuilderServiceTest extends TestCase
+class DesignBuilderServiceTest extends PackageTestCase
 {
-    use DatabaseTransactions;
 
     protected ?string $tempDir = null;
 
@@ -55,7 +55,7 @@ class DesignBuilderServiceTest extends TestCase
         $toolExecutor = app(ChatToolExecutor::class);
         $siteContext = app(SiteContext::class);
 
-        return new DesignBuilderService($aiManager, $toolRegistry, $toolExecutor, $siteContext);
+        return new DesignBuilderService($aiManager, $toolRegistry, $toolExecutor, $siteContext, app(ScreenshotService::class));
     }
 
     private function createMinimalPng(string $path): void
@@ -135,5 +135,119 @@ class DesignBuilderServiceTest extends TestCase
         $service->generateContext($dir);
 
         $this->assertNotEmpty($messages);
+    }
+
+    /**
+     * A builder whose photographing and looking are stubbed, so the decision
+     * the conversion check makes can be tested without a browser or a model.
+     */
+    private function makeCheckingService(?array $verdict, bool $canPhotograph = true): DesignBuilderService
+    {
+        return new class (
+            Mockery::mock(AiProviderManager::class),
+            app(ChatToolRegistry::class),
+            app(ChatToolExecutor::class),
+            app(SiteContext::class),
+            app(ScreenshotService::class),
+            $verdict,
+            $canPhotograph
+        ) extends DesignBuilderService {
+            public array $captured = [];
+
+            public function __construct($a, $b, $c, $d, $e, private ?array $verdict, private bool $canPhotograph)
+            {
+                parent::__construct($a, $b, $c, $d, $e);
+            }
+
+            protected function safeSectionCapture(string $url, string $handle, string $path): ?string
+            {
+                $this->captured[] = $handle;
+
+                return $this->canPhotograph ? $path : null;
+            }
+
+            protected function compareSection(string $before, string $after): ?array
+            {
+                return $this->verdict;
+            }
+
+            public function check(array $toolCall, string $url, \Closure $run): array
+            {
+                return $this->keepingTheLook($toolCall, $url, $run);
+            }
+        };
+    }
+
+    public function test_a_conversion_that_kept_the_look_is_left_alone(): void
+    {
+        $service = $this->makeCheckingService(['same' => true, 'differences' => 'nothing']);
+
+        $result = $service->check(
+            ['name' => 'convert_section_to_block', 'arguments' => ['row_id' => 7, 'type' => 'hero']],
+            'http://localhost',
+            fn () => ['success' => true, 'converted' => true]
+        );
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(['#row-7', '#row-7'], $service->captured, 'before and after, by the row id the theme renders');
+    }
+
+    public function test_a_conversion_that_changed_the_look_comes_back_as_an_error(): void
+    {
+        $service = $this->makeCheckingService(['same' => false, 'differences' => 'the three cards became a list']);
+
+        $result = $service->check(
+            ['name' => 'convert_section_to_block', 'arguments' => ['row_id' => 7, 'type' => 'icon_box']],
+            'http://localhost',
+            fn () => ['success' => true, 'converted' => true]
+        );
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertStringContainsString('three cards became a list', $result['error']);
+        $this->assertFalse($result['converted']);
+    }
+
+    public function test_a_conversion_stands_where_there_is_nothing_to_photograph(): void
+    {
+        // No Chrome, or a page the build cannot reach. An unmeasurable change is
+        // not a failed one; refusing it would take the feature away from exactly
+        // the sites most likely to need it.
+        $service = $this->makeCheckingService(['same' => false, 'differences' => 'everything'], canPhotograph: false);
+
+        $result = $service->check(
+            ['name' => 'convert_section_to_block', 'arguments' => ['row_id' => 7, 'type' => 'hero']],
+            'http://localhost',
+            fn () => ['success' => true, 'converted' => true]
+        );
+
+        $this->assertTrue($result['success']);
+    }
+
+    public function test_a_conversion_that_the_tool_refused_is_not_photographed_afterwards(): void
+    {
+        $service = $this->makeCheckingService(['same' => false, 'differences' => 'x']);
+
+        $result = $service->check(
+            ['name' => 'convert_section_to_block', 'arguments' => ['row_id' => 7, 'type' => 'pricing_tiers']],
+            'http://localhost',
+            fn () => ['error' => 'pricing_tiers is not a shape a section can be read into.']
+        );
+
+        $this->assertSame('pricing_tiers is not a shape a section can be read into.', $result['error']);
+        $this->assertSame(['#row-7'], $service->captured, 'the "after" picture is of a change that never happened');
+    }
+
+    public function test_every_other_tool_call_goes_straight_through(): void
+    {
+        $service = $this->makeCheckingService(['same' => false, 'differences' => 'x']);
+
+        $result = $service->check(
+            ['name' => 'add_designed_section', 'arguments' => ['name' => 'Hero']],
+            'http://localhost',
+            fn () => ['success' => true]
+        );
+
+        $this->assertTrue($result['success']);
+        $this->assertSame([], $service->captured);
     }
 }
