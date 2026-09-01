@@ -79,6 +79,51 @@ class SetMenuToolTest extends PackageTestCase
         $this->assertStringContainsString('no address', $result['error']);
     }
 
+    public function test_a_link_to_a_place_on_the_page_is_refused(): void
+    {
+        // What a build actually put in a live header: a design is one long
+        // page, so its nav links to itself. On a site these scroll nowhere,
+        // and the real About and Services pages sit there unlinked. The bare
+        // "#" was already refused; these walked past that check.
+        foreach (['#about', '#services', '#blog', '#contact'] as $url) {
+            $result = (new SetMenuTool())->execute([
+                'slot' => 'primary',
+                'items' => [['label' => 'About Us', 'type' => 'url', 'url' => $url]],
+            ]);
+
+            $this->assertArrayHasKey('error', $result, $url . ' should be refused');
+            $this->assertStringContainsString('scrolls', $result['error']);
+        }
+
+        $this->assertSame(0, Menu::count(), 'and nothing is written to the site\'s navigation');
+    }
+
+    public function test_a_link_to_the_address_a_design_uses_for_nothing_is_refused(): void
+    {
+        $result = (new SetMenuTool())->execute([
+            'slot' => 'footer_quick_links',
+            'items' => [['label' => 'Privacy Policy', 'type' => 'url', 'url' => 'https://example.com/privacy-policy']],
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertStringContainsString('something goes here', $result['error']);
+    }
+
+    public function test_a_real_path_and_a_real_address_are_still_accepted(): void
+    {
+        $result = (new SetMenuTool())->execute([
+            'slot' => 'primary',
+            'items' => [
+                ['label' => 'Pricing', 'type' => 'url', 'url' => '/pricing'],
+                ['label' => 'Docs', 'type' => 'url', 'url' => 'https://docs.zercurity.com'],
+                // A fragment hanging off a real path still says which page.
+                ['label' => 'Team', 'type' => 'url', 'url' => '/about#team'],
+            ],
+        ]);
+
+        $this->assertTrue($result['success'], $result['error'] ?? '');
+    }
+
     public function test_a_link_to_a_real_page_resolves_to_that_page(): void
     {
         Page::create([

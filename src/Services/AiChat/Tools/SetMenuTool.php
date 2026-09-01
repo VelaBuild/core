@@ -93,6 +93,26 @@ class SetMenuTool extends BaseTool
                         . 'a working site must not.'];
                 }
 
+                // The same fault wearing a name. A design is usually one long
+                // page, so its header links to places on itself — #about,
+                // #services, #contact. Copied onto a site those scroll to
+                // nothing, and the site's real About and Services pages sit
+                // there unlinked. The bare "#" above was refused and these
+                // walked straight past it.
+                if (str_starts_with($url, '#')) {
+                    return ['error' => 'Item "' . $label . '" points at "' . $url . '", a place on the page rather '
+                        . 'than a page. That is how a one-page mockup links to itself; on a site it scrolls '
+                        . 'nowhere. Point it at the real page with type "page" and its page_slug — list_pages says '
+                        . 'which exist — or give a full path if the section really is on the page this menu is for.'];
+                }
+
+                // A design's placeholder, carried onto a live header.
+                if (preg_match('#^https?://(www\.)?example\.(com|org|net)#i', $url)) {
+                    return ['error' => 'Item "' . $label . '" points at ' . $url . ', which is the address a design '
+                        . 'uses when it means "something goes here". Point it at a page of this site with type '
+                        . '"page", or leave the item out until there is somewhere for it to go.'];
+                }
+
                 $row['url'] = $url;
             }
 
