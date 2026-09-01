@@ -513,7 +513,10 @@ return [
     // Settings
     'theme'                          => 'Тема',
     'theme_options'                  => 'Параметры темы',
+    'theme_switch_confirm'           => 'Переключить сайт на тему :theme? Посетители увидят это сразу.',
     'theme_preview'                  => 'Предпросмотр темы',
+    'theme_preview_bar'              => 'Предпросмотр темы :theme — сам сайт не изменён.',
+    'theme_preview_exit'             => 'Выйти из предпросмотра',
     'save_theme_options'             => 'Сохранить параметры темы',
     'custom_css_js'                  => 'Пользовательские CSS & JS',
     'custom_css_js_desc'             => 'Глобальные пользовательские CSS и постраничные переопределения стилей.',

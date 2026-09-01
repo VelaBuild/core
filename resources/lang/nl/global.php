@@ -513,7 +513,10 @@ return [
     // Settings
     'theme'                          => 'Thema',
     'theme_options'                  => 'Thema-opties',
+    'theme_switch_confirm'           => 'De site overzetten naar het thema :theme? Bezoekers zien dit meteen.',
     'theme_preview'                  => 'Themavoorvertoning',
+    'theme_preview_bar'              => 'Voorvertoning van het thema :theme — de site zelf is ongewijzigd.',
+    'theme_preview_exit'             => 'Voorvertoning sluiten',
     'save_theme_options'             => 'Thema-opties opslaan',
     'custom_css_js'                  => 'Aangepaste CSS & JS',
     'custom_css_js_desc'             => 'Globale aangepaste CSS en stijloverschrijvingen per pagina.',

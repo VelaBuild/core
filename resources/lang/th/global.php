@@ -513,7 +513,10 @@ return [
     // Settings
     'theme'                          => 'ธีม',
     'theme_options'                  => 'ตัวเลือกธีม',
+    'theme_switch_confirm'           => 'เปลี่ยนธีมของเว็บจริงเป็น :theme ใช่ไหม ผู้เข้าชมจะเห็นทันที',
     'theme_preview'                  => 'ตัวอย่างธีม',
+    'theme_preview_bar'              => 'กำลังดูตัวอย่างธีม :theme — เว็บไซต์จริงยังไม่เปลี่ยน',
+    'theme_preview_exit'             => 'ออกจากตัวอย่าง',
     'save_theme_options'             => 'บันทึกตัวเลือกธีม',
     'custom_css_js'                  => 'CSS & JS กำหนดเอง',
     'custom_css_js_desc'             => 'CSS กำหนดเองทั่วไปและการแก้ไขสไตล์ต่อหน้า',

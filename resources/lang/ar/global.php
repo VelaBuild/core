@@ -513,7 +513,10 @@ return [
     // Settings
     'theme'                          => 'القالب',
     'theme_options'                  => 'خيارات القالب',
+    'theme_switch_confirm'           => 'تبديل الموقع إلى قالب :theme؟ سيراه الزوار على الفور.',
     'theme_preview'                  => 'معاينة القالب',
+    'theme_preview_bar'              => 'معاينة قالب :theme — الموقع نفسه لم يتغيّر.',
+    'theme_preview_exit'             => 'إنهاء المعاينة',
     'save_theme_options'             => 'حفظ خيارات القالب',
     'custom_css_js'                  => 'CSS & JS مخصص',
     'custom_css_js_desc'             => 'CSS مخصص عام وتجاوزات الأنماط لكل صفحة.',

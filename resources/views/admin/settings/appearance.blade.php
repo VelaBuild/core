@@ -42,7 +42,10 @@
             <div class="row mb-4">
                 @foreach($templates as $slug => $template)
                 <div class="col-md-4 col-lg-3 mb-3">
-                    <div class="card h-100 {{ ($settings['active_template'] ?? 'default') === $slug ? 'border-primary' : '' }}" style="cursor:pointer;" onclick="document.getElementById('theme-{{ $slug }}').checked=true; document.getElementById('theme-form').submit();">
+                    {{-- A click anywhere on the card used to swap the live
+                         site's theme on the spot, which made a near miss on the
+                         Preview button below a real theme switch. Ask first. --}}
+                    <div class="card h-100 {{ ($settings['active_template'] ?? 'default') === $slug ? 'border-primary' : '' }}" style="cursor:pointer;" onclick="velaSwitchTheme('{{ $slug }}', @js(__($template['label'])));">
                         <div class="position-relative">
                             @if(!empty($template['screenshot']) && file_exists(public_path($template['screenshot'])))
                             <img src="{{ asset($template['screenshot']) }}" class="card-img-top" alt="{{ __($template['label']) }}" style="height:180px; object-fit:cover;">
@@ -265,6 +268,19 @@
 @section('scripts')
 <script>
 var themePreviewUrl = '';
+var velaActiveTheme = @js($settings['active_template'] ?? 'default');
+var velaSwitchConfirm = @js(trans('vela::global.theme_switch_confirm', ['theme' => ':theme']));
+
+function velaSwitchTheme(slug, label) {
+    if (slug === velaActiveTheme) {
+        return;
+    }
+    if (! confirm(velaSwitchConfirm.replace(':theme', label))) {
+        return;
+    }
+    document.getElementById('theme-' + slug).checked = true;
+    document.getElementById('theme-form').submit();
+}
 
 function openPreview(url, label, shot) {
     var frame = document.getElementById('themePreviewFrame');

@@ -513,7 +513,10 @@ return [
     // Settings
     'theme'                          => 'Theme',
     'theme_options'                  => 'Theme-Optionen',
+    'theme_switch_confirm'           => 'Die Website auf das Theme :theme umstellen? Besucher sehen es sofort.',
     'theme_preview'                  => 'Theme-Vorschau',
+    'theme_preview_bar'              => 'Vorschau des Themes :theme — die Website selbst ist unverändert.',
+    'theme_preview_exit'             => 'Vorschau beenden',
     'save_theme_options'             => 'Theme-Optionen speichern',
     'custom_css_js'                  => 'Benutzerdefiniertes CSS & JS',
     'custom_css_js_desc'             => 'Globales benutzerdefiniertes CSS und seitenspezifische Stilüberschreibungen.',

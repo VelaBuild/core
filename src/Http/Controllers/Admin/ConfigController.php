@@ -35,6 +35,11 @@ class ConfigController extends Controller
             abort(404);
         }
 
+        // Back on the settings screen the preview is over: leaving it live
+        // would keep showing the previewed theme on the real site in the
+        // next tab, long after the modal was closed.
+        session()->forget('vela_preview_template');
+
         if ($group === 'languages') {
             $allLanguages = config('vela.available_languages', []);
             $activeJson = VelaConfig::where('key', 'active_languages')->value('value');
@@ -439,6 +444,11 @@ class ConfigController extends Controller
             abort(404);
         }
 
+        // Hold the preview for the rest of this admin's browsing, not just for
+        // this one URL: the frame in the modal is meant to be clicked around
+        // in, and every link in it points at the site's real pages.
+        session(['vela_preview_template' => $template]);
+
         config(['vela.template.active' => $template]);
 
         $homePage = Page::where('slug', 'home')
@@ -470,6 +480,16 @@ class ConfigController extends Controller
         $metaTags = MetaTagsHelper::forHome();
 
         return view(vela_template_view('home'), compact('latestPosts', 'categories', 'featuredPosts', 'metaTags'));
+    }
+
+    /**
+     * Leave theme preview and go back to the installed theme.
+     */
+    public function previewExit()
+    {
+        session()->forget('vela_preview_template');
+
+        return redirect()->route('vela.admin.settings.group', 'appearance');
     }
 
     /**

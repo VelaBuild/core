@@ -78,6 +78,7 @@ Route::get('settings/{group}', [Admin\ConfigController::class, 'group'])->name('
 Route::post('settings/{group}', [Admin\ConfigController::class, 'updateGroup'])->name('settings.updateGroup')->where('group', 'general|appearance|pwa|customcss|app|gdpr|visibility|mcp|languages');
 Route::get('settings/mcp/generate-key', [Admin\McpSettingsController::class, 'generateKey'])->name('settings.mcp.generateKey');
 Route::post('settings/pwa/upload-icon', [Admin\ConfigController::class, 'uploadIcon'])->name('settings.uploadIcon');
+Route::get('settings/appearance/preview-exit', [Admin\ConfigController::class, 'previewExit'])->name('settings.appearance.previewExit');
 Route::get('settings/appearance/preview/{template}', [Admin\ConfigController::class, 'previewTemplate'])->name('settings.appearance.preview')->where('template', '[a-z\-]+');
 Route::post('settings/appearance/install-homepage', [Admin\ConfigController::class, 'installHomepage'])->name('settings.appearance.installHomepage');
 Route::post('settings/appearance/delete-theme',    [Admin\ConfigController::class, 'deleteTheme'])->name('settings.appearance.deleteTheme');

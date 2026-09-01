@@ -513,7 +513,10 @@ return [
     // Settings
     'theme'                          => 'Thème',
     'theme_options'                  => 'Options du thème',
+    'theme_switch_confirm'           => 'Basculer le site sur le thème :theme ? Les visiteurs le verront immédiatement.',
     'theme_preview'                  => 'Aperçu du thème',
+    'theme_preview_bar'              => 'Aperçu du thème :theme — le site lui-même est inchangé.',
+    'theme_preview_exit'             => 'Quitter l’aperçu',
     'save_theme_options'             => 'Enregistrer les options du thème',
     'custom_css_js'                  => 'CSS & JS personnalisés',
     'custom_css_js_desc'             => 'CSS personnalisé global et remplacements de style par page.',

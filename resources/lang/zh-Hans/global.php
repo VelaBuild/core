@@ -513,7 +513,10 @@ return [
     // Settings
     'theme'                          => '主题',
     'theme_options'                  => '主题选项',
+    'theme_switch_confirm'           => '将网站切换为 :theme 主题？访客会立即看到。',
     'theme_preview'                  => '主题预览',
+    'theme_preview_bar'              => '正在预览 :theme 主题 — 网站本身未更改。',
+    'theme_preview_exit'             => '退出预览',
     'save_theme_options'             => '保存主题选项',
     'custom_css_js'                  => '自定义 CSS & JS',
     'custom_css_js_desc'             => '全局自定义 CSS 和按页面的样式覆盖。',

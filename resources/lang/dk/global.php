@@ -513,7 +513,10 @@ return [
     // Settings
     'theme'                          => 'Tema',
     'theme_options'                  => 'Temaindstillinger',
+    'theme_switch_confirm'           => 'Skift websitet til temaet :theme? Besøgende ser det med det samme.',
     'theme_preview'                  => 'Temaforhåndsvisning',
+    'theme_preview_bar'              => 'Forhåndsvisning af temaet :theme — selve websitet er uændret.',
+    'theme_preview_exit'             => 'Afslut forhåndsvisning',
     'save_theme_options'             => 'Gem temaindstillinger',
     'custom_css_js'                  => 'Tilpasset CSS & JS',
     'custom_css_js_desc'             => 'Global tilpasset CSS og per-side stiloverstyringer.',

@@ -568,7 +568,10 @@ return [
     // Settings
     'theme'                          => 'Theme',
     'theme_options'                  => 'Theme Options',
+    'theme_switch_confirm'           => 'Switch the live site to the :theme theme? Visitors will see it right away.',
     'theme_preview'                  => 'Theme Preview',
+    'theme_preview_bar'              => 'Previewing the :theme theme — the site itself is unchanged.',
+    'theme_preview_exit'             => 'Exit preview',
     'save_theme_options'             => 'Save Theme Options',
     'custom_css_js'                  => 'Custom CSS & JS',
     'custom_css_js_desc'             => 'Global custom CSS and per-page style overrides.',
