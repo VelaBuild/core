@@ -13,7 +13,13 @@ Go to **Settings → Build from a design**. The page lists what it needs before
 the button will work:
 
 - **An AI provider.** A key from OpenAI, Anthropic or Gemini, added under
-  Settings → AI. Without one there is nothing to read your picture.
+  Settings → AI. Without one there is nothing to read your picture. The line
+  names the provider and the model a build will run on, because that is the
+  largest single difference between a build that comes out well and one that
+  comes out thin — if yours disappoints, read this line before building again.
+  It is set by `AI_CHAT_DESIGN_ANTHROPIC_MODEL` (and its OpenAI and Gemini
+  counterparts) in `.env`, and falls back to the site's everyday chat model
+  when those are empty.
 - **A browser.** The builder photographs your site to check its own work. If
   the machine has no browser it can use, it downloads one the first time you
   build — around 350 MB, and nothing outside your site's own storage changes.

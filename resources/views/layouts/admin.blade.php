@@ -22,7 +22,11 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.5.1/min/dropzone.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.perfect-scrollbar/1.5.0/css/perfect-scrollbar.min.css" rel="stylesheet" />
     <link href="{{ asset('vendor/vela/css/vela-admin.css') }}" rel="stylesheet" />
+    {{-- Guarded: on a fresh install, and in the test app, the published file
+         is not there yet and filemtime() 500s the whole admin. --}}
+    @if(file_exists(public_path('vendor/vela/css/custom.css')))
     <link href="{{ asset('vendor/vela/css/custom.css') }}?v={{ filemtime(public_path('vendor/vela/css/custom.css')) }}" rel="stylesheet" />
+    @endif
     @yield('styles')
 </head>
 

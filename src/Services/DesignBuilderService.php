@@ -149,7 +149,7 @@ class DesignBuilderService
      */
     private function useDesignModel(AiTextProvider $provider): void
     {
-        $wanted = trim((string) (config('vela.ai.chat.design_models.' . $this->providerName($provider)) ?? ''));
+        $wanted = $this->designModelFor($this->providerName($provider));
 
         if ($wanted === '' || !method_exists($provider, 'useModel')) {
             return;
@@ -157,6 +157,52 @@ class DesignBuilderService
 
         $provider->useModel($wanted);
         $this->progress('Building with ' . $wanted . '.');
+    }
+
+    /** The model named for design builds on this provider, if any. */
+    private function designModelFor(string $providerName): string
+    {
+        return trim((string) (config('vela.ai.chat.design_models.' . $providerName) ?? ''));
+    }
+
+    /**
+     * Which provider and model a build would use, asked of nobody.
+     *
+     * The build itself settles this by calling each provider in turn and
+     * taking the first that answers, which costs a request and cannot be done
+     * while a page renders. This reports the same order without asking, so
+     * the page can say what pressing Build will run on. Everything it names is
+     * the first choice; a provider that turns out to be out of credit is
+     * skipped at build time, which is why the rest are named too.
+     *
+     * @return array{provider: string, model: string, fallbacks: array<int, string>}|null
+     */
+    public function plannedProvider(): ?array
+    {
+        try {
+            $candidates = $this->providerCandidates();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if ($candidates === []) {
+            return null;
+        }
+
+        $names = array_keys($candidates);
+        $first = (string) $names[0];
+        $provider = $candidates[$first];
+        $model = $this->designModelFor($first);
+
+        if ($model === '' && method_exists($provider, 'model')) {
+            $model = (string) $provider->model();
+        }
+
+        return [
+            'provider' => $first,
+            'model' => $model,
+            'fallbacks' => array_map('strval', array_slice($names, 1)),
+        ];
     }
 
     /**

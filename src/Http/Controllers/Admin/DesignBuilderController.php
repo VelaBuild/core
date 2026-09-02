@@ -239,7 +239,7 @@ class DesignBuilderController extends Controller
             'ok' => $hasProvider,
             'label' => 'AI provider',
             'detail' => $hasProvider
-                ? 'A key is configured.'
+                ? $this->whatItWillBuildWith()
                 : 'Add an OpenAI, Anthropic or Gemini key under Settings → AI.',
         ];
 
@@ -283,5 +283,37 @@ class DesignBuilderController extends Controller
         ];
 
         return $checks;
+    }
+
+    /**
+     * Which model the build will run on, said plainly.
+     *
+     * This used to read "A key is configured", which is true of a site whose
+     * builds come out thin and of a site whose builds come out well — the
+     * model is the largest single difference between the two, and the page
+     * that offers the button was the one place it could not be seen. When a
+     * build disappoints, "build again" is the wrong advice if the reason is
+     * here.
+     */
+    private function whatItWillBuildWith(): string
+    {
+        $planned = app(\VelaBuild\Core\Services\DesignBuilderService::class)->plannedProvider();
+
+        if (!$planned) {
+            // A key exists, but nothing that can look at a picture. The build
+            // refuses for the same reason, in the same words.
+            return 'A key is configured, but no provider that can read images. '
+                . 'Add an OpenAI, Anthropic or Gemini key under Settings → AI.';
+        }
+
+        $detail = 'Building with ' . $planned['provider']
+            . ($planned['model'] !== '' ? ', ' . $planned['model'] : '') . '.';
+
+        if ($planned['fallbacks'] !== []) {
+            $detail .= ' If it does not answer — no credit left, a revoked key — the build tries '
+                . implode(' then ', $planned['fallbacks']) . '.';
+        }
+
+        return $detail;
     }
 }
