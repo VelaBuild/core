@@ -142,14 +142,32 @@ return [
             // context_limit (the model window). Prevents the whole request from
             // 400ing on length, which otherwise replays the same error reply.
             'max_input_tokens' => env('AI_CHAT_MAX_INPUT_TOKENS', 150000),
-            'context_limit' => env('AI_CHAT_CONTEXT_LIMIT', 200000),
+            // 200000 was every Claude model's window when this was written and
+            // is a fifth of the current one. Left too low it does not fail —
+            // it quietly shrinks max_tokens as a conversation grows, so a long
+            // job's last answers arrive truncated. Lower it for a provider
+            // whose window really is smaller.
+            'context_limit' => env('AI_CHAT_CONTEXT_LIMIT', 1000000),
             // Per-tool-result cap (characters). One huge payload — a fetched
             // page, a file dump, a base64 screenshot — can blow the context
             // window on its own; the model keeps the head + a truncation note.
             'max_tool_result_chars' => env('AI_CHAT_MAX_TOOL_RESULT_CHARS', 24000),
-            // Anthropic chat model id. Override via env when Anthropic retires a
-            // model (use the exact id, no date suffix — e.g. claude-sonnet-4-6).
-            'anthropic_model' => env('AI_CHAT_ANTHROPIC_MODEL', 'claude-sonnet-4-6'),
+            // Chat model id per provider. Override via env when a provider
+            // retires a model (use the exact id, no date suffix).
+            'anthropic_model' => env('AI_CHAT_ANTHROPIC_MODEL', 'claude-sonnet-5'),
+            'openai_model' => env('AI_CHAT_OPENAI_MODEL', 'gpt-4o'),
+            'gemini_model' => env('AI_CHAT_GEMINI_MODEL', 'gemini-2.5-flash'),
+            // What a design build talks to, where that is worth more than the
+            // site's everyday model. A build reads a picture, writes the CSS
+            // for a dozen sections and holds forty tool calls together, and it
+            // is run a handful of times rather than on every chat message.
+            // Keyed by provider, because a model id belongs to one; an empty
+            // value means "whatever this site is set to".
+            'design_models' => [
+                'anthropic' => env('AI_CHAT_DESIGN_ANTHROPIC_MODEL', 'claude-opus-5'),
+                'openai' => env('AI_CHAT_DESIGN_OPENAI_MODEL', ''),
+                'gemini' => env('AI_CHAT_DESIGN_GEMINI_MODEL', ''),
+            ],
             // Anthropic prompt caching: caches the system prompt + tool schemas
             // + conversation prefix (re-sent on every tool-loop call) so repeat
             // reads bill at ~10% instead of full price. Biggest cost lever.

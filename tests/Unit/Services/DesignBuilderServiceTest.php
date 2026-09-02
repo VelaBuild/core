@@ -3,12 +3,15 @@
 namespace VelaBuild\Core\Tests\Unit\Services;
 
 use VelaBuild\Core\Contracts\AiTextProvider;
+use VelaBuild\Core\Models\Page;
+use VelaBuild\Core\Models\PageRow;
 use VelaBuild\Core\Services\AiChat\ChatToolExecutor;
 use VelaBuild\Core\Services\AiChat\ChatToolRegistry;
 use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\DesignBuilderService;
 use VelaBuild\Core\Services\SiteContext;
 use VelaBuild\Core\Services\ScreenshotService;
+use VelaBuild\Core\Services\ClaudeTextService;
 use VelaBuild\Core\Tests\PackageTestCase;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Mockery;
@@ -244,6 +247,169 @@ class DesignBuilderServiceTest extends PackageTestCase
         // "#203040" writes a colour the design does not contain.
         $this->assertGreaterThan(60, $palette[0]['share']);
         $this->assertEqualsWithDelta(20, $palette[1]['share'], 2.0);
+    }
+
+    /** Reach a private method, to read a prompt without driving a whole build. */
+    private function invokePrivate(DesignBuilderService $service, string $method, array $args)
+    {
+        $reflection = new \ReflectionMethod($service, $method);
+        $reflection->setAccessible(true);
+
+        return $reflection->invokeArgs($service, $args);
+    }
+
+    public function test_a_build_with_no_page_of_its_own_is_refused_rather_than_aimed_at_the_homepage(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('needs a page of its own');
+
+        $this->invokePrivate($this->makeService(), 'buildSystemPrompt', [['assets' => []], false]);
+    }
+
+    public function test_the_build_is_told_to_work_on_the_page_it_was_given(): void
+    {
+        $context = ['assets' => [], 'target_page' => ['id' => 42, 'slug' => 'design-preview']];
+
+        $prompt = $this->invokePrivate($this->makeService(), 'buildSystemPrompt', [$context, false]);
+
+        $this->assertStringContainsString('page id 42', $prompt);
+        $this->assertStringContainsString('/design-preview', $prompt);
+        // The instruction that used to stand in for a target page.
+        $this->assertStringNotContainsString('delete every row of it', $prompt);
+    }
+
+    public function test_a_fix_round_is_not_told_that_what_it_does_not_recognise_is_the_installs_own(): void
+    {
+        $context = ['assets' => [], 'target_page' => ['id' => 7, 'slug' => 'design-preview']];
+
+        $prompt = $this->invokePrivate($this->makeService(), 'buildSystemPrompt', [$context, true]);
+
+        $this->assertStringContainsString('page id 7', $prompt);
+        $this->assertStringNotContainsString("install's own homepage", $prompt);
+    }
+
+    public function test_an_answer_is_given_the_room_a_written_section_needs(): void
+    {
+        $service = $this->makeService();
+
+        config(['vela.ai.chat.max_output_tokens' => 16384]);
+        $this->assertSame(16384, $this->invokePrivate($service, 'answerTokens', []));
+
+        // Never below what it used to ask for, however the site is configured:
+        // a section carries its markup and its stylesheet in one answer.
+        config(['vela.ai.chat.max_output_tokens' => 512]);
+        $this->assertSame(4096, $this->invokePrivate($service, 'answerTokens', []));
+    }
+
+    public function test_an_answer_that_ran_out_of_room_is_recognised_whichever_provider_said_so(): void
+    {
+        $service = $this->makeService();
+
+        $this->assertTrue($this->invokePrivate($service, 'wasCutOff', [['finish_reason' => 'max_tokens']]));
+        $this->assertTrue($this->invokePrivate($service, 'wasCutOff', [['finish_reason' => 'length']]));
+        $this->assertTrue($this->invokePrivate($service, 'wasCutOff', [['finish_reason' => 'MAX_TOKENS']]));
+        $this->assertFalse($this->invokePrivate($service, 'wasCutOff', [['finish_reason' => 'end_turn']]));
+        // A provider that says nothing is not a provider reporting truncation.
+        $this->assertFalse($this->invokePrivate($service, 'wasCutOff', [['content' => 'done']]));
+        $this->assertFalse($this->invokePrivate($service, 'wasCutOff', [null]));
+    }
+
+    public function test_a_build_moves_to_the_model_named_for_its_provider(): void
+    {
+        config(['vela.ai.chat.design_models' => ['anthropic' => 'claude-opus-5']]);
+
+        $provider = Mockery::mock(ClaudeTextService::class);
+        $provider->shouldReceive('useModel')->once()->with('claude-opus-5');
+
+        $this->invokePrivate($this->makeService(), 'useDesignModel', [$provider]);
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_a_provider_with_no_design_model_named_is_left_where_it_is(): void
+    {
+        config(['vela.ai.chat.design_models' => ['anthropic' => '']]);
+
+        $provider = Mockery::mock(ClaudeTextService::class);
+        $provider->shouldNotReceive('useModel');
+
+        $this->invokePrivate($this->makeService(), 'useDesignModel', [$provider]);
+        $this->addToAssertionCount(1);
+    }
+
+    /** A page of the site, and the build's own page, to aim tool calls at. */
+    private function twoPages(): array
+    {
+        $target = Page::create([
+            'title' => 'Design preview', 'slug' => 'design-preview',
+            'status' => 'unlisted', 'locale' => config('vela.primary_language', 'en'),
+        ]);
+        $other = Page::create([
+            'title' => 'Design preview 1', 'slug' => 'design-preview-1',
+            'status' => 'draft', 'locale' => config('vela.primary_language', 'en'),
+        ]);
+
+        return [$target, $other];
+    }
+
+    public function test_a_section_written_onto_another_page_is_refused(): void
+    {
+        [$target, $other] = $this->twoPages();
+        $context = ['target_page' => ['id' => $target->id, 'slug' => $target->slug]];
+
+        $refusal = $this->invokePrivate($this->makeService(), 'refuseAnotherPage', [
+            ['name' => 'add_designed_section', 'arguments' => ['page_id' => $other->id, 'html' => '<p>x</p>']],
+            $context,
+        ]);
+
+        $this->assertIsArray($refusal);
+        $this->assertStringContainsString('page id ' . $target->id, $refusal['error']);
+    }
+
+    public function test_a_row_on_another_page_is_refused_through_the_row_it_names(): void
+    {
+        [$target, $other] = $this->twoPages();
+        $row = PageRow::create(['page_id' => $other->id, 'name' => 'Hero', 'css_class' => '', 'order_column' => 0]);
+        $context = ['target_page' => ['id' => $target->id, 'slug' => $target->slug]];
+
+        $refusal = $this->invokePrivate($this->makeService(), 'refuseAnotherPage', [
+            ['name' => 'add_block', 'arguments' => ['row_id' => $row->id, 'type' => 'text']],
+            $context,
+        ]);
+
+        $this->assertIsArray($refusal);
+    }
+
+    public function test_the_page_the_build_was_given_is_let_through(): void
+    {
+        [$target] = $this->twoPages();
+        $row = PageRow::create(['page_id' => $target->id, 'name' => 'Hero', 'css_class' => '', 'order_column' => 0]);
+        $context = ['target_page' => ['id' => $target->id, 'slug' => $target->slug]];
+        $service = $this->makeService();
+
+        $this->assertNull($this->invokePrivate($service, 'refuseAnotherPage', [
+            ['name' => 'add_designed_section', 'arguments' => ['page_slug' => 'design-preview']], $context,
+        ]));
+        $this->assertNull($this->invokePrivate($service, 'refuseAnotherPage', [
+            ['name' => 'add_block', 'arguments' => ['row_id' => $row->id]], $context,
+        ]));
+        // A tool that touches no page at all, and one whose own error is the
+        // better one to return.
+        $this->assertNull($this->invokePrivate($service, 'refuseAnotherPage', [
+            ['name' => 'set_theme_tokens', 'arguments' => ['accent' => '#000']], $context,
+        ]));
+        $this->assertNull($this->invokePrivate($service, 'refuseAnotherPage', [
+            ['name' => 'update_custom_css', 'arguments' => ['scope' => 'site', 'css' => 'a{}']], $context,
+        ]));
+    }
+
+    public function test_a_page_created_for_a_menu_link_is_not_itself_refused(): void
+    {
+        [$target] = $this->twoPages();
+        $context = ['target_page' => ['id' => $target->id, 'slug' => $target->slug]];
+
+        $this->assertNull($this->invokePrivate($this->makeService(), 'refuseAnotherPage', [
+            ['name' => 'create_page', 'arguments' => ['title' => 'Docs', 'slug' => 'docs']], $context,
+        ]));
     }
 
     /** Fill a picture with bands of colour, each a share of its height. */

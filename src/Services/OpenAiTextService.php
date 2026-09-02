@@ -13,16 +13,39 @@ class OpenAiTextService implements AiTextProvider
 {
     use ReportsAiFailure;
 
-    private string $apiKey;
+    // Nullable: a site with no OpenAI key must be able to construct this and
+    // be told there is no key, rather than fatal on the assignment below.
+    private ?string $apiKey;
     private string $baseUrl = 'https://api.openai.com/v1/chat/completions';
+    private string $model;
 
     public function __construct()
     {
         $this->apiKey = app(AiSettingsService::class)->getApiKey('openai');
+        // Was gpt-4o written into seven places, so a site could not move off
+        // it and a retirement would have been a code edit. Config-driven, as
+        // the Anthropic provider already was.
+        $this->model = (string) config('vela.ai.chat.openai_model', 'gpt-4o');
+    }
+
+    /** Run this provider on a different model than the site's default. */
+    public function useModel(string $model): void
+    {
+        $model = trim($model);
+
+        if ($model !== '') {
+            $this->model = $model;
+        }
+    }
+
+    /** The model this provider is currently talking to. */
+    public function model(): string
+    {
+        return $this->model;
     }
 
     /**
-     * Generate text using OpenAI's GPT-4o model (raw response)
+     * Generate text using OpenAI (raw response)
      *
      * @param string $prompt The text prompt for generation
      * @param int $maxTokens Maximum tokens to generate
@@ -42,7 +65,7 @@ class OpenAiTextService implements AiTextProvider
                     'Authorization' => 'Bearer ' . $this->apiKey,
                     'Content-Type' => 'application/json',
                 ])->post($this->baseUrl, [
-                    'model' => 'gpt-4o',
+                    'model' => $this->model,
                     'messages' => [
                         [
                             'role' => 'user',
@@ -57,7 +80,7 @@ class OpenAiTextService implements AiTextProvider
                 $data = $response->json();
                 Log::info('OpenAI text generation successful', [
                     'prompt' => substr($prompt, 0, 100) . '...',
-                    'model' => 'gpt-4o',
+                    'model' => $this->model,
                     'max_tokens' => $maxTokens,
                     'temperature' => $temperature
                 ]);
@@ -67,7 +90,7 @@ class OpenAiTextService implements AiTextProvider
                     'status' => $response->status(),
                     'response' => $response->body(),
                     'prompt' => substr($prompt, 0, 100) . '...',
-                    'model' => 'gpt-4o'
+                    'model' => $this->model
                 ]);
                 $this->recordAiFailure($response->status(), $response->body());
                 return null;
@@ -76,7 +99,7 @@ class OpenAiTextService implements AiTextProvider
             Log::error('OpenAI text generation exception', [
                 'message' => $e->getMessage(),
                 'prompt' => substr($prompt, 0, 100) . '...',
-                'model' => 'gpt-4o',
+                'model' => $this->model,
                 'max_tokens' => $maxTokens,
                 'temperature' => $temperature,
                 'exception_type' => get_class($e)
@@ -87,7 +110,7 @@ class OpenAiTextService implements AiTextProvider
     }
 
     /**
-     * Generate text using OpenAI's GPT-4o model.
+     * Generate text using OpenAI.
      * Implements AiTextProvider::generateText()
      *
      * @return string|null The generated text content, or null on failure.
@@ -119,7 +142,7 @@ class OpenAiTextService implements AiTextProvider
         try {
             $messages = $this->normalizeVisionMessages($messages);
             $body = [
-                'model' => 'gpt-4o',
+                'model' => $this->model,
                 'messages' => $messages,
                 'max_tokens' => $maxTokens,
             ];
@@ -160,6 +183,10 @@ class OpenAiTextService implements AiTextProvider
                 return [
                     'content' => $content,
                     'tool_calls' => $toolCalls,
+                    // "length" means the reply was cut off at max_tokens, so
+                    // whatever it ends with — often a half-written tool call —
+                    // is a fragment. Carried so a caller can tell.
+                    'finish_reason' => $choice['finish_reason'] ?? null,
                     'usage' => [
                         'input' => $data['usage']['prompt_tokens'] ?? 0,
                         'output' => $data['usage']['completion_tokens'] ?? 0,

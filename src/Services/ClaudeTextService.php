@@ -23,7 +23,30 @@ class ClaudeTextService implements AiTextProvider
         // Config-driven so a model retirement is an env change, not a code edit.
         // (claude-sonnet-4-20250514 / Sonnet 4.0 was retired and now 404s; the
         // drop-in replacement is claude-sonnet-4-6.) Use exact ids — no date suffix.
-        $this->model = (string) config('vela.ai.chat.anthropic_model', 'claude-sonnet-4-6');
+        $this->model = (string) config('vela.ai.chat.anthropic_model', 'claude-sonnet-5');
+    }
+
+    /**
+     * Run this provider on a different model than the site's default.
+     *
+     * One job on a site can be worth a better model than the rest: a design
+     * build reads a picture, writes CSS and holds forty tool calls together,
+     * and the difference between tiers shows in what it produces. The caller
+     * decides; nothing here changes the site's setting.
+     */
+    public function useModel(string $model): void
+    {
+        $model = trim($model);
+
+        if ($model !== '') {
+            $this->model = $model;
+        }
+    }
+
+    /** The model this provider is currently talking to. */
+    public function model(): string
+    {
+        return $this->model;
     }
 
     public function generateText(string $prompt, int $maxTokens = 1000, float $temperature = 0.7): ?string
@@ -257,6 +280,11 @@ class ClaudeTextService implements AiTextProvider
                 return [
                     'content' => $content,
                     'tool_calls' => $toolCalls,
+                    // Carried rather than only logged: "max_tokens" means the
+                    // reply was cut off, and the last thing in it — often a
+                    // half-written tool call — cannot be trusted. A caller
+                    // that never sees this acts on the fragment.
+                    'finish_reason' => $data['stop_reason'] ?? null,
                     'usage' => [
                         'input' => $data['usage']['input_tokens'] ?? 0,
                         'output' => $data['usage']['output_tokens'] ?? 0,

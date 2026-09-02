@@ -14,11 +14,38 @@ class GeminiTextService implements AiTextProvider
     use ReportsAiFailure;
 
     private ?string $apiKey;
-    private string $baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    private string $model;
 
     public function __construct()
     {
         $this->apiKey = app(AiSettingsService::class)->getApiKey('gemini');
+        // The model used to be welded into the endpoint, which made it the one
+        // thing about this provider a site could not change — and the one it
+        // was welded to is the cheapest tier Gemini sells.
+        $this->model = (string) config('vela.ai.chat.gemini_model', 'gemini-2.5-flash');
+    }
+
+    /** Run this provider on a different model than the site's default. */
+    public function useModel(string $model): void
+    {
+        $model = trim($model);
+
+        if ($model !== '') {
+            $this->model = $model;
+        }
+    }
+
+    /** The model this provider is currently talking to. */
+    public function model(): string
+    {
+        return $this->model;
+    }
+
+    /** The endpoint for whichever model this provider is set to. */
+    private function endpoint(): string
+    {
+        return 'https://generativelanguage.googleapis.com/v1beta/models/'
+            . rawurlencode($this->model) . ':generateContent';
     }
 
     public function generateText(string $prompt, int $maxTokens = 1000, float $temperature = 0.7): ?string
@@ -32,7 +59,7 @@ class GeminiTextService implements AiTextProvider
             $response = Http::timeout(120)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
-                ])->post($this->baseUrl . '?key=' . $this->apiKey, [
+                ])->post($this->endpoint() . '?key=' . $this->apiKey, [
                     'contents' => [
                         [
                             'parts' => [
@@ -169,7 +196,7 @@ class GeminiTextService implements AiTextProvider
             $response = Http::timeout(120)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
-                ])->post($this->baseUrl . '?key=' . $this->apiKey, $body);
+                ])->post($this->endpoint() . '?key=' . $this->apiKey, $body);
 
             if ($response->successful()) {
                 $data = $response->json();

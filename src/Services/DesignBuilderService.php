@@ -131,7 +131,82 @@ class DesignBuilderService
      */
     public function provider(): AiTextProvider
     {
-        return $this->provider ??= $this->resolveWorkingProvider();
+        if ($this->provider === null) {
+            $this->provider = $this->resolveWorkingProvider();
+            $this->useDesignModel($this->provider);
+        }
+
+        return $this->provider;
+    }
+
+    /**
+     * Put the build on the model a design is worth, where one is named.
+     *
+     * A site's everyday model answers chat messages; this reads a picture and
+     * writes the CSS for a dozen sections, and it runs a handful of times
+     * rather than thousands. Keyed by provider, so a model id is never sent to
+     * the provider it does not belong to.
+     */
+    private function useDesignModel(AiTextProvider $provider): void
+    {
+        $wanted = trim((string) (config('vela.ai.chat.design_models.' . $this->providerName($provider)) ?? ''));
+
+        if ($wanted === '' || !method_exists($provider, 'useModel')) {
+            return;
+        }
+
+        $provider->useModel($wanted);
+        $this->progress('Building with ' . $wanted . '.');
+    }
+
+    /**
+     * How much one answer may be.
+     *
+     * Every call here asked for 4096 tokens, while the admin chat had long
+     * since moved to 16384 with the note that 4096 "cuts off long-form writes
+     * mid-sentence". This is the harder case of the two: one
+     * add_designed_section carries a section's whole markup AND its
+     * stylesheet, and the tool accepts 80KB of the one and 120KB of the other
+     * — none of which fits through a 4096-token answer. A page whose five
+     * sections shared 1,570 bytes of CSS was read as the model declining to
+     * design them.
+     */
+    private function answerTokens(): int
+    {
+        return max(4096, (int) config('vela.ai.chat.max_output_tokens', 16384));
+    }
+
+    /**
+     * Was this answer cut off before the model had finished it?
+     *
+     * Each provider spells it differently, and Claude's was logged and thrown
+     * away. It matters because the thing an answer ends on is the thing that
+     * gets truncated, and here that is usually a tool call: a section arrives
+     * with half its stylesheet, the call succeeds, and nothing says why the
+     * page came out plain.
+     */
+    private function wasCutOff(?array $response): bool
+    {
+        $reason = strtolower((string) ($response['finish_reason'] ?? ''));
+
+        return in_array($reason, ['max_tokens', 'length'], true);
+    }
+
+    /**
+     * The refusal that goes back in place of a call the model never finished.
+     *
+     * Only ever the last call of a cut-off answer: the ones before it were
+     * complete before the ceiling was reached.
+     *
+     * @return array<string, mixed>
+     */
+    private function refuseCutOffCall(): array
+    {
+        return [
+            'error' => 'Your reply was cut off before this call was complete, so it has not been made — what '
+                . 'arrived would have been a section with half its markup or half its stylesheet. Make the call '
+                . 'again on its own, and if it was a long section, send it as it is rather than adding to it.',
+        ];
     }
 
     /**
@@ -731,12 +806,25 @@ class DesignBuilderService
         return implode("\n", $lines);
     }
 
+    /**
+     * The page this build is for, and no other.
+     *
+     * There is no falling back to the homepage. Both places that read the
+     * page used to, which meant a build whose target had gone missing would
+     * quietly report the homepage's rows back as the work it had done — and
+     * then correct them.
+     */
+    private function targetPage(array $context): ?Page
+    {
+        return isset($context['target_page']['id'])
+            ? Page::find((int) $context['target_page']['id'])
+            : null;
+    }
+
     /** @return \Illuminate\Support\Collection<int, \VelaBuild\Core\Models\PageRow> */
     private function pageRows(array $context)
     {
-        $page = isset($context['target_page']['id'])
-            ? Page::find((int) $context['target_page']['id'])
-            : Page::where('slug', 'home')->first();
+        $page = $this->targetPage($context);
 
         return $page ? $page->rows()->orderBy('order_column')->get() : collect();
     }
@@ -841,7 +929,7 @@ class DesignBuilderService
         $formattedTools = $this->getFormattedTools($textProvider, $availableTools);
 
         $this->progress('Calling AI to build site...');
-        $response = $textProvider->chat($messages, $formattedTools, 4096);
+        $response = $textProvider->chat($messages, $formattedTools, $this->answerTokens());
 
         if (!$response) {
             throw new \RuntimeException($this->stageFailure('build', $textProvider));
@@ -889,10 +977,20 @@ class DesignBuilderService
                 }, $response['tool_calls']),
             ];
 
-            foreach ($response['tool_calls'] as $toolCall) {
+            // A cut-off answer breaks off inside its last call, so that one
+            // is refused and every earlier one stands.
+            $cutOffAt = $this->wasCutOff($response) ? array_key_last($response['tool_calls']) : null;
+
+            if ($cutOffAt !== null) {
+                $this->progress('The last answer was cut off — asking for that call again.');
+            }
+
+            foreach ($response['tool_calls'] as $index => $toolCall) {
                 $this->progress('Executing tool: ' . $toolCall['name']);
 
-                $result = $this->refuseUntilThereIsAFrame($toolCall['name'])
+                $result = ($index === $cutOffAt ? $this->refuseCutOffCall() : null)
+                    ?? $this->refuseUntilThereIsAFrame($toolCall['name'])
+                    ?? $this->refuseAnotherPage($toolCall, $context)
                     ?? $this->refusePicture($toolCall['name']) ?? $this->keepingTheLook(
                     $toolCall,
                     $url,
@@ -924,7 +1022,7 @@ class DesignBuilderService
                 ];
             }
 
-            $response = $textProvider->chat($messages, $formattedTools, 4096);
+            $response = $textProvider->chat($messages, $formattedTools, $this->answerTokens());
             if (!$response) {
                 break;
             }
@@ -943,7 +1041,7 @@ class DesignBuilderService
                 'content' => $this->completenessPrompt($context, $designPath),
             ];
 
-            $response = $textProvider->chat($messages, $formattedTools, 4096);
+            $response = $textProvider->chat($messages, $formattedTools, $this->answerTokens());
 
             if (!$response) {
                 break;
@@ -1005,9 +1103,7 @@ class DesignBuilderService
 
     private function pageOutline(array $context): string
     {
-        $page = isset($context['target_page']['id'])
-            ? Page::find((int) $context['target_page']['id'])
-            : Page::where('slug', 'home')->first();
+        $page = $this->targetPage($context);
 
         if (!$page) {
             return '(the page could not be read)';
@@ -1135,7 +1231,7 @@ PROMPT;
         ];
 
         $this->progress('Running visual QA comparison...');
-        $response = $textProvider->chat($messages, [], 4096);
+        $response = $textProvider->chat($messages, [], $this->answerTokens());
 
         if (!$response || !($response['content'] ?? null)) {
             throw new \RuntimeException($this->stageFailure('visual QA', $textProvider));
@@ -1230,7 +1326,7 @@ PROMPT;
         $formattedTools = $this->getFormattedTools($textProvider, $availableTools);
 
         $this->progress('Applying QA fixes...');
-        $response = $textProvider->chat($messages, $formattedTools, 4096);
+        $response = $textProvider->chat($messages, $formattedTools, $this->answerTokens());
 
         if (!$response) {
             throw new \RuntimeException($this->stageFailure('fix', $textProvider));
@@ -1267,10 +1363,18 @@ PROMPT;
                 }, $response['tool_calls']),
             ];
 
-            foreach ($response['tool_calls'] as $toolCall) {
+            $cutOffAt = $this->wasCutOff($response) ? array_key_last($response['tool_calls']) : null;
+
+            if ($cutOffAt !== null) {
+                $this->progress('The last answer was cut off — asking for that call again.');
+            }
+
+            foreach ($response['tool_calls'] as $index => $toolCall) {
                 $this->progress('Executing tool: ' . $toolCall['name']);
 
-                $result = $this->refusePicture($toolCall['name']) ?? $this->keepingTheLook(
+                $result = ($index === $cutOffAt ? $this->refuseCutOffCall() : null)
+                    ?? $this->refuseAnotherPage($toolCall, $context)
+                    ?? $this->refusePicture($toolCall['name']) ?? $this->keepingTheLook(
                     $toolCall,
                     $url,
                     fn () => $this->toolExecutor->execute(
@@ -1301,7 +1405,7 @@ PROMPT;
                 ];
             }
 
-            $response = $textProvider->chat($messages, $formattedTools, 4096);
+            $response = $textProvider->chat($messages, $formattedTools, $this->answerTokens());
             if (!$response) {
                 break;
             }
@@ -1600,6 +1704,105 @@ PROMPT;
     }
 
     /**
+     * The tools that put something on a page, and where each names the page.
+     *
+     * Some name it outright, some name a row and the row knows its page.
+     */
+    private const TOOLS_THAT_CHANGE_A_PAGE = [
+        'add_row'                  => 'page',
+        'add_designed_section'     => 'page',
+        'update_page'              => 'page',
+        'edit_page_content'        => 'page',
+        'import_page_section'      => 'page',
+        'update_custom_css'        => 'page',
+        'add_block'                => 'row',
+        'delete_row'               => 'row',
+        'delete_block'             => 'block',
+        'convert_section_to_block' => 'row',
+    ];
+
+    /**
+     * Keep the build on the page it was given.
+     *
+     * A run that had been handed a page of its own called create_page anyway,
+     * got "design-preview-1", and spent half its turns filling that with a
+     * second copy of the seven sections it had already built — on a page
+     * nobody looks at, that no round of QA photographs, and that the "use this
+     * as my homepage" button does not move. The prompt already said to build
+     * on the page it was given and no other; this makes the page it was given
+     * the only one a build can write to.
+     *
+     * create_page itself stays available: a menu link to a page the site does
+     * not have needs one, and a page created that way now stays empty, which
+     * is what a nav link wants.
+     *
+     * @param  array<string, mixed> $toolCall
+     * @return array<string, mixed>|null a refusal, or null to let the call run
+     */
+    private function refuseAnotherPage(array $toolCall, array $context): ?array
+    {
+        $tool = (string) ($toolCall['name'] ?? '');
+        $how = self::TOOLS_THAT_CHANGE_A_PAGE[$tool] ?? null;
+        $targetId = (int) ($context['target_page']['id'] ?? 0);
+        $targetSlug = (string) ($context['target_page']['slug'] ?? '');
+
+        if ($how === null || $targetId === 0) {
+            return null;
+        }
+
+        $arguments = $toolCall['arguments'] ?? [];
+
+        if (is_string($arguments)) {
+            $arguments = json_decode($arguments, true) ?: [];
+        }
+
+        $pageId = $this->pageAToolCallAimsAt($how, (array) $arguments);
+
+        // Nothing to compare against: the site-wide scope of
+        // update_custom_css, a row id that no longer exists, an argument the
+        // tool will reject itself. Its own error is the better one.
+        if ($pageId === null || $pageId === $targetId) {
+            return null;
+        }
+
+        return [
+            'error' => 'This build works on page id ' . $targetId . ' ("/' . $targetSlug . '") and no other, and '
+                . 'that call names page ' . $pageId . '. That page belongs to the site already, or is one this '
+                . 'build made for a menu link to point at; either way what is built there is seen by nobody — the '
+                . 'result shown at the end is page ' . $targetId . '. Make the change there instead.',
+        ];
+    }
+
+    /** Which page a call would land on, or null where that cannot be told. */
+    private function pageAToolCallAimsAt(string $how, array $arguments): ?int
+    {
+        if ($how === 'row') {
+            $row = \VelaBuild\Core\Models\PageRow::find((int) ($arguments['row_id'] ?? 0));
+
+            return $row ? (int) $row->page_id : null;
+        }
+
+        if ($how === 'block') {
+            $block = \VelaBuild\Core\Models\PageBlock::find((int) ($arguments['block_id'] ?? 0));
+            $row = $block ? \VelaBuild\Core\Models\PageRow::find((int) $block->page_row_id) : null;
+
+            return $row ? (int) $row->page_id : null;
+        }
+
+        if (!empty($arguments['page_id'])) {
+            return (int) $arguments['page_id'];
+        }
+
+        if (!empty($arguments['page_slug'])) {
+            $page = Page::where('slug', (string) $arguments['page_slug'])->first();
+
+            return $page ? (int) $page->id : null;
+        }
+
+        return null;
+    }
+
+    /**
      * @return array<string, mixed>|null a refusal, or null to let the call run
      */
     private function refusePicture(string $tool): ?array
@@ -1726,6 +1929,16 @@ PROMPT;
         $steps = self::MAX_TOOL_ITERATIONS;
         $target = $context['target_page'] ?? null;
 
+        // A build without a page of its own is the architecture this feature
+        // was rebuilt to leave behind, and the fallbacks that used to stand in
+        // for one both aimed at the live homepage: the build was told to
+        // delete every row of it, and a fix round was told that any section it
+        // did not recognise was a leftover to remove. Missing this now is a
+        // fault in the caller, not a case to carry on from.
+        if (!isset($target['id'], $target['slug'])) {
+            throw new \RuntimeException('A design build needs a page of its own to build on. None was given, and the homepage is not it.');
+        }
+
         $task = $correcting
             ? $this->correctingInstructions($steps, $target)
             : $this->buildingInstructions($steps, $target);
@@ -1752,14 +1965,8 @@ PROMPT;
      * the old site shows through. Named explicitly, and told to leave the rest
      * alone, it builds what the design shows.
      */
-    private function wherePagePart(?array $target): string
+    private function wherePagePart(array $target): string
     {
-        if (!$target) {
-            return 'delete_row — a fresh install ships a homepage of its own: a welcome hero,' . "\n"
-                . '   an article listing, a call to action. Call get_page_blocks on the home page' . "\n"
-                . '   and delete every row of it. What you build next replaces it.';
-        }
-
         $id = (int) ($target['id'] ?? 0);
         $slug = (string) ($target['slug'] ?? '');
 
@@ -1767,14 +1974,16 @@ PROMPT;
 Build on page id {$id} ("/{$slug}") and on no other. It has been emptied for
    you, so there is nothing to delete first. Do not touch the homepage or any
    other page: this one is what will be shown as the result, and the site's
-   own pages are not yours to rewrite. Call update_page once to title it with
+   own pages are not yours to rewrite. Anything that puts a section on another
+   page is refused, this one included if you make a second page for it — a
+   page created so a menu link has somewhere to go stays empty. Call update_page once to title it with
    the name the design gives the site — that name is taken up as the site's
    own if this design is the one they keep. Do not call update_site_config
    for the site's name: nothing here is theirs yet.
 PART;
     }
 
-    private function buildingInstructions(int $steps, ?array $target = null): string
+    private function buildingInstructions(int $steps, array $target): string
     {
         $blockClasses = $this->blockClassReference();
         $editableBlocks = implode(', ', app(\VelaBuild\Core\Vela::class)->blocks()->editableNames());
@@ -2018,13 +2227,10 @@ PROMPT;
         return implode("\n", $lines);
     }
 
-    private function correctingInstructions(int $steps, ?array $target = null): string
+    private function correctingInstructions(int $steps, array $target): string
     {
-        $onlyPage = $target
-            ? 'Everything you change on a page belongs to page id ' . (int) $target['id']
-                . ' ("/' . $target['slug'] . '"). Leave every other page alone.'
-            : 'A section on the page that you did not design is a leftover row from the'
-                . ' install\'s own homepage: find it with get_page_blocks and delete_row it.';
+        $onlyPage = 'Everything you change on a page belongs to page id ' . (int) $target['id']
+            . ' ("/' . $target['slug'] . '"). Leave every other page alone.';
 
         return <<<PROMPT
 The site is already built and has a theme written for it. Your job is to
