@@ -175,7 +175,7 @@ class DesignBuilderService
      * the first choice; a provider that turns out to be out of credit is
      * skipped at build time, which is why the rest are named too.
      *
-     * @return array{provider: string, model: string, fallbacks: array<int, string>}|null
+     * @return array{provider: string, model: string, fallbacks: array<int, string>, concern: string|null}|null
      */
     public function plannedProvider(): ?array
     {
@@ -202,7 +202,66 @@ class DesignBuilderService
             'provider' => $first,
             'model' => $model,
             'fallbacks' => array_map('strval', array_slice($names, 1)),
+            'concern' => $this->modelConcern($model),
         ];
+    }
+
+    /**
+     * Models known not to be up to this job, and what was seen.
+     *
+     * A DENY-list of what has been measured, deliberately, rather than an
+     * allow-list of what is good. Vela is installed by other people and this
+     * file ages in place: an allow-list starts warning about every model
+     * released after it was written, which is both wrong and a nuisance, while
+     * a list of old ones stays right — a newer model is simply not on it.
+     *
+     * The bar for adding an entry is a measurement, not an opinion. gpt-4o is
+     * here because the same design, the same brief and the same three QA
+     * rounds produced 1,570 bytes of section styling on it and 45,421 on a
+     * current model. The others in its lineage are older than the one that was
+     * measured. Gemini has no entry because none of its models have been put
+     * through this, and guessing would be exactly the mistake above.
+     *
+     * Matched on the front of the model id, so a dated snapshot
+     * (gpt-4o-2024-08-06) is caught with the family.
+     */
+    public const MODELS_MEASURED_TOO_WEAK = [
+        // Measured: the same design, brief and three QA rounds gave 1,570
+        // bytes of section styling on gpt-4o and 45,421 on a current model.
+        'gpt-4o' => 'an old model, and builds come out thin',
+        'gpt-4-' => 'older than gpt-4o, which builds thin',
+        'gpt-3' => 'too old to read a design closely',
+        'claude-3' => 'several Claude generations behind',
+        'claude-2' => 'several Claude generations behind',
+    ];
+
+    /**
+     * What is known against this model, or null where there is nothing.
+     *
+     * Note gpt-4.1 and gpt-5 are NOT caught by the gpt-4 entries and must not
+     * be: both came after gpt-4o. A prefix here has to be one no later model
+     * can begin with, which is why "gpt-4" is matched whole and "gpt-4-" (the
+     * turbo snapshots) by its front.
+     */
+    public function modelConcern(string $model): ?string
+    {
+        $model = strtolower(trim($model));
+
+        if ($model === '') {
+            return null;
+        }
+
+        if ($model === 'gpt-4') {
+            return self::MODELS_MEASURED_TOO_WEAK['gpt-4-'];
+        }
+
+        foreach (self::MODELS_MEASURED_TOO_WEAK as $prefix => $concern) {
+            if (str_starts_with($model, $prefix)) {
+                return $concern;
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -35,11 +35,16 @@
                 with your picture, and corrects the differences. Three rounds suits most designs. You
                 can close this page while it runs.
             </p>
+            {{-- "Build again" used to be the whole of this advice, and it is the
+                 wrong advice when the cause is the model: the same model gives
+                 the same thin result and the second build costs what the first
+                 did. Measured — one design, three rounds: 1,570 bytes of
+                 styling on an old model against 45,421 on a current one. --}}
             <p class="mb-0 text-muted">
                 It reads the words, prices and numbers off your picture accurately, and gives the site
                 your colours and typeface. It does not trace the design pixel for pixel, and it cannot
                 use photographs it does not have. Two runs of the same picture differ in detail — if
-                one comes out thin, build again.
+                one comes out thin, build again. If they all do, check the AI provider below.
             </p>
         </div>
     </div>

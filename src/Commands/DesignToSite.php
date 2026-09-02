@@ -571,7 +571,10 @@ class DesignToSite extends Command
 
         $serving = $this->themeBeingServed($qaUrl);
 
-        if ($serving === $expected) {
+        // Compared without case, because a theme name is a folder name and the
+        // two are the same theme. Belt and braces: use_theme_for_preview now
+        // stores the name the theme is really filed under.
+        if ($serving !== null && strcasecmp($serving, $expected) === 0) {
             return null;
         }
 
@@ -587,7 +590,7 @@ class DesignToSite extends Command
 
         $serving = $this->themeBeingServed($qaUrl);
 
-        if ($serving === $expected) {
+        if ($serving !== null && strcasecmp($serving, $expected) === 0) {
             $this->line('The preview page was still being served an older theme; its config cache has been rebuilt.');
 
             return null;

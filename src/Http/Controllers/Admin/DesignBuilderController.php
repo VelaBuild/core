@@ -235,11 +235,20 @@ class DesignBuilderController extends Controller
         $checks = [];
 
         $hasProvider = $this->ai->hasTextProvider();
+        $planned = $hasProvider
+            ? app(\VelaBuild\Core\Services\DesignBuilderService::class)->plannedProvider()
+            : null;
+
         $checks[] = [
-            'ok' => $hasProvider,
+            // A tick here used to mean only "a key exists", which is true of a
+            // site whose builds come out well and one whose builds come out
+            // thin. The model is the largest difference between those two, and
+            // this row is the one place it can be said before the button is
+            // pressed rather than after the disappointment.
+            'ok' => $hasProvider && ($planned['concern'] ?? null) === null,
             'label' => 'AI provider',
             'detail' => $hasProvider
-                ? $this->whatItWillBuildWith()
+                ? $this->whatItWillBuildWith($planned)
                 : 'Add an OpenAI, Anthropic or Gemini key under Settings → AI.',
         ];
 
@@ -286,34 +295,40 @@ class DesignBuilderController extends Controller
     }
 
     /**
-     * Which model the build will run on, said plainly.
+     * Which model the build will run on, in the one line this box gives it.
      *
-     * This used to read "A key is configured", which is true of a site whose
-     * builds come out thin and of a site whose builds come out well — the
-     * model is the largest single difference between the two, and the page
-     * that offers the button was the one place it could not be seen. When a
-     * build disappoints, "build again" is the wrong advice if the reason is
-     * here.
+     * Every other row here is a single short sentence, and this one grew into
+     * a paragraph nobody would read. What matters is the name, and — when
+     * there is one — the fault and who can fix it. The measurement behind the
+     * verdict lives in the code, not on the screen.
      */
-    private function whatItWillBuildWith(): string
+    private function whatItWillBuildWith(?array $planned): string
     {
-        $planned = app(\VelaBuild\Core\Services\DesignBuilderService::class)->plannedProvider();
-
         if (!$planned) {
             // A key exists, but nothing that can look at a picture. The build
-            // refuses for the same reason, in the same words.
-            return 'A key is configured, but no provider that can read images. '
-                . 'Add an OpenAI, Anthropic or Gemini key under Settings → AI.';
+            // refuses for the same reason.
+            return 'No provider here can read images. Add an OpenAI, Anthropic or Gemini key under Settings → AI.';
         }
 
-        $detail = 'Building with ' . $planned['provider']
-            . ($planned['model'] !== '' ? ', ' . $planned['model'] : '') . '.';
+        $name = $this->providerName($planned['provider']);
+        $model = $planned['model'] !== '' ? ' (' . $planned['model'] . ')' : '';
 
-        if ($planned['fallbacks'] !== []) {
-            $detail .= ' If it does not answer — no credit left, a revoked key — the build tries '
-                . implode(' then ', $planned['fallbacks']) . '.';
+        if (($planned['concern'] ?? null) !== null) {
+            return $name . $model . ' — ' . $planned['concern']
+                . '. Ask whoever set up your site to change it.';
         }
 
-        return $detail;
+        return 'Building with ' . $name . $model . '.';
+    }
+
+    /** The provider as people write it, rather than as the code keys it. */
+    private function providerName(string $key): string
+    {
+        return [
+            'openai' => 'OpenAI',
+            'anthropic' => 'Anthropic',
+            'gemini' => 'Gemini',
+            'vela gateway' => 'the Vela gateway',
+        ][$key] ?? $key;
     }
 }

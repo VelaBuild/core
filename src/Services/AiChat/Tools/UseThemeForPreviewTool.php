@@ -27,14 +27,14 @@ class UseThemeForPreviewTool extends BaseTool
             return ['error' => 'theme is required — the name create_theme returned.'];
         }
 
-        if (!is_dir(resource_path('views/templates/' . $theme))) {
-            $registry = app(\VelaBuild\Core\Vela::class)->templates();
+        $canonical = $this->canonicalName($theme);
 
-            if (!array_key_exists($theme, $registry->all())) {
-                return ['error' => 'There is no theme called "' . $theme . '". Call create_theme first, or '
-                    . 'list_templates for the ones that exist.'];
-            }
+        if ($canonical === null) {
+            return ['error' => 'There is no theme called "' . $theme . '". Call create_theme first, or '
+                . 'list_templates for the ones that exist.'];
         }
+
+        $theme = $canonical;
 
         $frame = app(DesignPreviewFrame::class);
 
@@ -73,5 +73,34 @@ class UseThemeForPreviewTool extends BaseTool
         }
 
         app(DesignPreviewFrame::class)->setTheme($state['theme']);
+    }
+
+    /**
+     * The name the theme is really filed under, or null if there is no such theme.
+     *
+     * A build asked for "Zercurity" while its folder was `zercurity`, and on a
+     * Mac `is_dir()` said yes — the filesystem does not care about case. The
+     * name was then stored as typed, the page rendered stamped `zercurity`,
+     * and the check that the preview page is wearing the theme the build wrote
+     * compared two spellings of the same theme and threw the whole run away at
+     * the last step. Store what the theme is called, not what was typed.
+     */
+    private function canonicalName(string $theme): ?string
+    {
+        $registry = app(\VelaBuild\Core\Vela::class)->templates()->all();
+
+        foreach (array_keys($registry) as $name) {
+            if (strcasecmp((string) $name, $theme) === 0) {
+                return (string) $name;
+            }
+        }
+
+        foreach (glob(resource_path('views/templates/*'), GLOB_ONLYDIR) ?: [] as $path) {
+            if (strcasecmp(basename($path), $theme) === 0) {
+                return basename($path);
+            }
+        }
+
+        return null;
     }
 }

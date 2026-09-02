@@ -63,6 +63,56 @@ class DesignBuilderReadinessTest extends PackageTestCase
         $this->assertContains('gemini', $planned['fallbacks']);
     }
 
+    public function test_a_model_measured_as_not_up_to_this_is_flagged(): void
+    {
+        $service = app(DesignBuilderService::class);
+
+        $this->assertNotNull($service->modelConcern('gpt-4o'));
+        // A dated snapshot is the same model.
+        $this->assertNotNull($service->modelConcern('gpt-4o-2024-08-06'));
+        $this->assertNotNull($service->modelConcern('gpt-4'));
+        $this->assertNotNull($service->modelConcern('gpt-4-turbo'));
+        $this->assertNotNull($service->modelConcern('gpt-3.5-turbo'));
+        $this->assertNotNull($service->modelConcern('claude-3-opus'));
+    }
+
+    /**
+     * The list is of models measured as too weak, never of models believed to
+     * be good — so anything released after it was written passes. A version
+     * number that merely looks similar to a listed one is not the listed one.
+     */
+    public function test_nothing_newer_is_caught_by_the_list(): void
+    {
+        $service = app(DesignBuilderService::class);
+
+        foreach ([
+            'gpt-5.2', 'gpt-5', 'gpt-4.1', 'gpt-4.1-mini', 'o3',
+            'claude-opus-5', 'claude-sonnet-5', 'claude-sonnet-4-6',
+            'gemini-2.5-flash', 'some-model-nobody-has-heard-of', '',
+        ] as $model) {
+            $this->assertNull($service->modelConcern($model), $model);
+        }
+    }
+
+    public function test_the_page_says_so_and_does_not_show_a_tick(): void
+    {
+        $this->setKey('openai', 'sk-openai-test');
+        config(['vela.ai.chat.openai_model' => 'gpt-4o', 'vela.ai.chat.design_models' => []]);
+        app(AiSettingsService::class)->set('chat_provider', 'openai');
+        $this->signIn();
+        Gate::define('config_access', fn () => true);
+        Gate::define('config_edit', fn () => true);
+
+        $response = $this->get(route('vela.admin.settings.design-builder.index'));
+
+        $response->assertOk();
+        $response->assertSee('gpt-4o');
+        $response->assertSee('an old model, and builds come out thin', false);
+        $response->assertSee('Ask whoever set up your site to change it.', false);
+        // The warning triangle, not the tick.
+        $response->assertSee('fa-exclamation-circle', false);
+    }
+
     public function test_with_no_key_at_all_nothing_is_claimed(): void
     {
         $this->assertNull(app(DesignBuilderService::class)->plannedProvider());
