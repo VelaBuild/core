@@ -60,6 +60,28 @@ class ProviderModelChoiceTest extends PackageTestCase
         );
     }
 
+    /**
+     * OpenAI renamed the output cap for its reasoning models, and refuses the
+     * old name outright — so a site that moved to a current model got no
+     * answer at all, on the very first call.
+     */
+    public function test_the_output_cap_is_called_what_each_model_family_calls_it(): void
+    {
+        $provider = new OpenAiTextService;
+        $key = new \ReflectionMethod($provider, 'tokenLimitKey');
+        $key->setAccessible(true);
+
+        foreach (['gpt-4o', 'gpt-4.1', 'gpt-4-turbo', 'gpt-3.5-turbo'] as $model) {
+            $provider->useModel($model);
+            $this->assertSame('max_tokens', $key->invoke($provider), $model);
+        }
+
+        foreach (['gpt-5.2', 'gpt-5.1', 'gpt-5', 'gpt-5-pro', 'o1', 'o3-mini', 'gpt-10'] as $model) {
+            $provider->useModel($model);
+            $this->assertSame('max_completion_tokens', $key->invoke($provider), $model);
+        }
+    }
+
     public function test_the_context_window_is_not_capped_at_a_fifth_of_the_real_one(): void
     {
         // Too low does not fail — it quietly shrinks max_tokens as the

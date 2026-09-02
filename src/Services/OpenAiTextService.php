@@ -45,6 +45,63 @@ class OpenAiTextService implements AiTextProvider
     }
 
     /**
+     * What OpenAI calls the output cap on this model.
+     *
+     * `max_tokens` was the name for years and is refused outright by the
+     * reasoning models — "Unsupported parameter: 'max_tokens' is not supported
+     * with this model. Use 'max_completion_tokens' instead." — which is an
+     * error on the FIRST call, so a site that changed its model to a current
+     * one got no answer at all and the reason sat in the log.
+     *
+     * Read off the model id, because that is what decides it: the o-series and
+     * everything from gpt-5 onwards. `sendingTo()` below then retries on the
+     * provider's own complaint, so a family named something else does not
+     * break the same way again.
+     */
+    private function tokenLimitKey(): string
+    {
+        return preg_match('/^(o\d|gpt-[5-9]|gpt-\d{2,})/', $this->model) === 1
+            ? 'max_completion_tokens'
+            : 'max_tokens';
+    }
+
+    /**
+     * Post a request, correcting the output-cap parameter if OpenAI objects.
+     *
+     * The name of that one parameter is the only thing that has ever differed
+     * between model families here, and OpenAI says exactly which name it wants.
+     * Taking it at its word costs one retry the first time a site moves to a
+     * family this code has not seen.
+     */
+    private function sendingTo(array $body): \Illuminate\Http\Client\Response
+    {
+        $request = fn (array $payload) => Http::timeout(120)
+            ->withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Content-Type' => 'application/json',
+            ])->post($this->baseUrl, $payload);
+
+        $response = $request($body);
+
+        foreach (['max_tokens' => 'max_completion_tokens', 'max_completion_tokens' => 'max_tokens'] as $sent => $wanted) {
+            if (
+                !$response->successful()
+                && isset($body[$sent])
+                && str_contains((string) $response->body(), "'" . $sent . "' is not supported")
+                && str_contains((string) $response->body(), $wanted)
+            ) {
+                Log::info('Vela: OpenAI wants ' . $wanted . ' on this model, retrying', ['model' => $this->model]);
+                $body[$wanted] = $body[$sent];
+                unset($body[$sent]);
+
+                return $request($body);
+            }
+        }
+
+        return $response;
+    }
+
+    /**
      * Generate text using OpenAI (raw response)
      *
      * @param string $prompt The text prompt for generation
@@ -60,21 +117,17 @@ class OpenAiTextService implements AiTextProvider
         }
 
         try {
-            $response = Http::timeout(120) // 2 minutes timeout
-                ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
-                    'Content-Type' => 'application/json',
-                ])->post($this->baseUrl, [
-                    'model' => $this->model,
-                    'messages' => [
-                        [
-                            'role' => 'user',
-                            'content' => $prompt
-                        ]
-                    ],
-                    'max_tokens' => $maxTokens,
-                    'temperature' => $temperature
-                ]);
+            $response = $this->sendingTo([
+                'model' => $this->model,
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => $prompt
+                    ]
+                ],
+                $this->tokenLimitKey() => $maxTokens,
+                'temperature' => $temperature
+            ]);
 
             if ($response->successful()) {
                 $data = $response->json();
@@ -144,18 +197,14 @@ class OpenAiTextService implements AiTextProvider
             $body = [
                 'model' => $this->model,
                 'messages' => $messages,
-                'max_tokens' => $maxTokens,
+                $this->tokenLimitKey() => $maxTokens,
             ];
 
             if (!empty($tools)) {
                 $body['tools'] = $tools;
             }
 
-            $response = Http::timeout(120)
-                ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
-                    'Content-Type' => 'application/json',
-                ])->post($this->baseUrl, $body);
+            $response = $this->sendingTo($body);
 
             if ($response->successful()) {
                 $data = $response->json();
