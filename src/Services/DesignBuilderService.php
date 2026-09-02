@@ -401,7 +401,22 @@ class DesignBuilderService
             }
         }
 
-        if ($file === null) {
+        return $file === null ? [] : $this->paletteOf($file, $most);
+    }
+
+    /**
+     * The colours in one picture, most of it first.
+     *
+     * Taken out of readDesignPalette so the same measurement can be made of a
+     * photograph of the built page: "the design is a fifth navy and the page
+     * has none of it" is a fault someone can act on, where "the colours differ"
+     * is not.
+     *
+     * @return array<int, array{hex: string, share: float}>
+     */
+    public function paletteOf(string $file, int $most = 8): array
+    {
+        if (!function_exists('imagecreatefromstring') || !is_file($file)) {
             return [];
         }
 
@@ -464,6 +479,72 @@ class DesignBuilderService
         }
 
         return $palette;
+    }
+
+    /**
+     * Where the built page's colour differs from the design's, in numbers.
+     *
+     * A visual comparison reports "the colour scheme differs" round after
+     * round, which names nothing to change. This says which colour the design
+     * gives a fifth of its area to and the page gives none, and that is a
+     * sentence with an action in it.
+     *
+     * Matched by nearness rather than equality: a design's navy rendered
+     * through a screenshot is never the same number twice, and demanding it be
+     * would report every colour as missing.
+     *
+     * @return string the differences, or '' where there is nothing worth saying
+     */
+    public function compareColour(string $designFile, string $screenshotFile): string
+    {
+        $wanted = $this->paletteOf($designFile, 6);
+        $got = $this->paletteOf($screenshotFile, 10);
+
+        if ($wanted === [] || $got === []) {
+            return '';
+        }
+
+        $missing = [];
+
+        foreach ($wanted as $colour) {
+            // Anything under a twentieth of the picture is detail, not a
+            // decision about how the page looks.
+            if ($colour['share'] < 5.0) {
+                continue;
+            }
+
+            $closest = null;
+
+            foreach ($got as $onPage) {
+                $distance = $this->colourDistance($colour['hex'], $onPage['hex']);
+
+                if ($closest === null || $distance < $closest['distance']) {
+                    $closest = ['distance' => $distance, 'share' => $onPage['share']];
+                }
+            }
+
+            // Roughly the difference a person would call "a different colour"
+            // rather than "the same colour, printed differently".
+            if ($closest !== null && $closest['distance'] > 60) {
+                $missing[] = $colour['hex'] . ' (' . $colour['share'] . '% of the design, and nothing like it on the page)';
+                continue;
+            }
+
+            if ($closest !== null && $colour['share'] - $closest['share'] > 8.0) {
+                $missing[] = $colour['hex'] . ' (' . $colour['share'] . '% of the design, ' . $closest['share'] . '% of the page)';
+            }
+        }
+
+        return $missing === [] ? '' : implode('; ', $missing);
+    }
+
+    /** How far apart two colours are, straight through the RGB cube. */
+    private function colourDistance(string $a, string $b): float
+    {
+        [$ar, $ag, $ab] = sscanf($a, '#%02x%02x%02x');
+        [$br, $bg, $bb] = sscanf($b, '#%02x%02x%02x');
+
+        return sqrt((($ar - $br) ** 2) + (($ag - $bg) ** 2) + (($ab - $bb) ** 2));
     }
 
     /**
@@ -995,6 +1076,27 @@ PROMPT;
                 . ". Check the screenshot for each one. A section of the design that is not on the page is a fix in "
                 . 'its own right — report it with area "missing section" — and "passed" cannot be true while one is '
                 . 'absent.';
+        }
+
+        // Measured, not judged. Round after round reported "the colour scheme
+        // differs" and named nothing to change; the header stayed white on a
+        // design with a navy one through five builds. Both pictures are on
+        // disk, so the difference can be counted.
+        foreach ($context['assets'] ?? [] as $asset) {
+            if (($asset['role'] ?? '') !== 'design') {
+                continue;
+            }
+
+            $difference = $this->compareColour($designPath . '/' . ($asset['file'] ?? ''), $screenshotPath);
+
+            if ($difference !== '') {
+                $prompt .= "\n\nMeasured from the two pictures, the design uses colour the page does not: "
+                    . $difference . ". Report this under area \"colors\" with the hex values named here, and say "
+                    . 'which band of the page should be carrying each — the header, a full-width band, the cards. '
+                    . 'A theme token left at its default is the usual reason a colour never reaches the page.';
+            }
+
+            break;
         }
 
         $userContent = [

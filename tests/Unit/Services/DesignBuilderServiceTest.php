@@ -246,6 +246,55 @@ class DesignBuilderServiceTest extends PackageTestCase
         $this->assertEqualsWithDelta(20, $palette[1]['share'], 2.0);
     }
 
+    /** Fill a picture with bands of colour, each a share of its height. */
+    private function bandedImage(string $path, array $bands): void
+    {
+        $image = imagecreatetruecolor(200, 200);
+        $y = 0;
+
+        foreach ($bands as $hex => $share) {
+            [$r, $g, $b] = sscanf($hex, '#%02x%02x%02x');
+            $height = (int) round(200 * $share);
+            imagefilledrectangle($image, 0, $y, 199, min(199, $y + $height - 1), imagecolorallocate($image, $r, $g, $b));
+            $y += $height;
+        }
+
+        imagepng($image, $path);
+        imagedestroy($image);
+    }
+
+    public function test_a_colour_the_design_has_and_the_page_has_not_is_counted(): void
+    {
+        if (!extension_loaded('gd')) {
+            $this->markTestSkipped('gd is required to build the test pictures');
+        }
+
+        $dir = $this->makeTempDir();
+        $this->bandedImage($dir . '/design.png', ['#fcfdfd' => 0.7, '#202a39' => 0.3]);
+        // What five builds produced: near-black and bright blue where the
+        // design is navy.
+        $this->bandedImage($dir . '/page.png', ['#fcfdfd' => 0.7, '#1b1b1b' => 0.2, '#3399ff' => 0.1]);
+
+        $difference = $this->makeService()->compareColour($dir . '/design.png', $dir . '/page.png');
+
+        $this->assertStringContainsString('#202a39', $difference);
+        $this->assertStringContainsString('% of the design', $difference);
+    }
+
+    public function test_a_page_that_carries_the_designs_colour_is_not_complained_about(): void
+    {
+        if (!extension_loaded('gd')) {
+            $this->markTestSkipped('gd is required to build the test pictures');
+        }
+
+        $dir = $this->makeTempDir();
+        $this->bandedImage($dir . '/design.png', ['#fcfdfd' => 0.7, '#202a39' => 0.3]);
+        // The same colours, a shade off, as a screenshot always is.
+        $this->bandedImage($dir . '/page.png', ['#fbfcfc' => 0.7, '#222c3b' => 0.3]);
+
+        $this->assertSame('', $this->makeService()->compareColour($dir . '/design.png', $dir . '/page.png'));
+    }
+
     public function test_a_design_that_cannot_be_read_costs_nothing(): void
     {
         $dir = $this->makeTempDir();
