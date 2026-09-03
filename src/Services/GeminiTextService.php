@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Services;
 
 use VelaBuild\Core\Services\Concerns\ReportsAiFailure;
+use VelaBuild\Core\Services\Concerns\ReadsTheConfiguredModel;
 
 use VelaBuild\Core\Contracts\AiTextProvider;
 use Illuminate\Support\Facades\Http;
@@ -12,6 +13,7 @@ use VelaBuild\Core\Services\AiSettingsService;
 class GeminiTextService implements AiTextProvider
 {
     use ReportsAiFailure;
+    use ReadsTheConfiguredModel;
 
     private ?string $apiKey;
     private string $model;
@@ -22,7 +24,7 @@ class GeminiTextService implements AiTextProvider
         // The model used to be welded into the endpoint, which made it the one
         // thing about this provider a site could not change — and the one it
         // was welded to is the cheapest tier Gemini sells.
-        $this->model = (string) config('vela.ai.chat.gemini_model', 'gemini-2.5-flash');
+        $this->model = $this->configuredModel('gemini');
     }
 
     /** Run this provider on a different model than the site's default. */

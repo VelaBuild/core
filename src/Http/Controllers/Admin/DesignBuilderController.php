@@ -314,8 +314,10 @@ class DesignBuilderController extends Controller
         $model = $planned['model'] !== '' ? ' (' . $planned['model'] . ')' : '';
 
         if (($planned['concern'] ?? null) !== null) {
+            // There is a field for this now, so the advice names it rather
+            // than naming a person the reader may not have.
             return $name . $model . ' — ' . $planned['concern']
-                . '. Ask whoever set up your site to change it.';
+                . '. Change it under Settings → AI.';
         }
 
         return 'Building with ' . $name . $model . '.';

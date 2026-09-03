@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Services;
 
 use VelaBuild\Core\Services\Concerns\ReportsAiFailure;
+use VelaBuild\Core\Services\Concerns\ReadsTheConfiguredModel;
 
 use VelaBuild\Core\Contracts\AiTextProvider;
 use Illuminate\Support\Facades\Http;
@@ -12,6 +13,7 @@ use VelaBuild\Core\Services\AiSettingsService;
 class ClaudeTextService implements AiTextProvider
 {
     use ReportsAiFailure;
+    use ReadsTheConfiguredModel;
 
     private ?string $apiKey;
     private string $baseUrl = 'https://api.anthropic.com/v1/messages';
@@ -23,7 +25,7 @@ class ClaudeTextService implements AiTextProvider
         // Config-driven so a model retirement is an env change, not a code edit.
         // (claude-sonnet-4-20250514 / Sonnet 4.0 was retired and now 404s; the
         // drop-in replacement is claude-sonnet-4-6.) Use exact ids — no date suffix.
-        $this->model = (string) config('vela.ai.chat.anthropic_model', 'claude-sonnet-5');
+        $this->model = $this->configuredModel('anthropic');
     }
 
     /**
@@ -49,6 +51,35 @@ class ClaudeTextService implements AiTextProvider
         return $this->model;
     }
 
+    /**
+     * The headers every call carries.
+     *
+     * `anthropic-workspace-id` is sent only when the site has one. Anthropic
+     * requires it for an identity-linked key and refuses every request without
+     * it — "anthropic-workspace-id is required when authenticating with an
+     * identity-linked API key" — including GET /v1/models, so such a key looks
+     * simply dead rather than misconfigured. A plain API key needs no
+     * workspace and must not be sent one.
+     *
+     * @return array<string, string>
+     */
+    private function headers(): array
+    {
+        $headers = [
+            'x-api-key' => (string) $this->apiKey,
+            'anthropic-version' => '2023-06-01',
+            'Content-Type' => 'application/json',
+        ];
+
+        $workspace = trim((string) app(AiSettingsService::class)->get('anthropic_workspace_id', ''));
+
+        if ($workspace !== '') {
+            $headers['anthropic-workspace-id'] = $workspace;
+        }
+
+        return $headers;
+    }
+
     public function generateText(string $prompt, int $maxTokens = 1000, float $temperature = 0.7): ?string
     {
         if (!$this->apiKey) {
@@ -58,11 +89,7 @@ class ClaudeTextService implements AiTextProvider
 
         try {
             $response = Http::timeout(120)
-                ->withHeaders([
-                    'x-api-key' => $this->apiKey,
-                    'anthropic-version' => '2023-06-01',
-                    'Content-Type' => 'application/json',
-                ])->post($this->baseUrl, [
+                ->withHeaders($this->headers())->post($this->baseUrl, [
                     'model' => $this->model,
                     'max_tokens' => $maxTokens,
                     'messages' => [
@@ -248,11 +275,7 @@ class ClaudeTextService implements AiTextProvider
             }
 
             $response = Http::timeout(120)
-                ->withHeaders([
-                    'x-api-key' => $this->apiKey,
-                    'anthropic-version' => '2023-06-01',
-                    'Content-Type' => 'application/json',
-                ])->post($this->baseUrl, $body);
+                ->withHeaders($this->headers())->post($this->baseUrl, $body);
 
             if ($response->successful()) {
                 $data = $response->json();

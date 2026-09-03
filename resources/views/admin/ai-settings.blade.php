@@ -46,6 +46,84 @@
                                 <small class="text-muted">{{ trans('vela::ai.no_key_set') }}</small>
                             @endif
                         @endif
+
+                        {{-- Anthropic only. Without it an identity-linked key is
+                             refused on every call, including the one that would
+                             have reported the key as working — so the provider
+                             reads as dead rather than as needing one more field. --}}
+                        @if($provider === 'anthropic')
+                            <div class="mt-2">
+                                @if($status['anthropic_workspace_id_locked'])
+                                    <input type="text" class="form-control form-control-sm"
+                                           value="{{ $status['anthropic_workspace_id'] }} (set via .env)" disabled>
+                                @else
+                                    <input type="text"
+                                           class="form-control form-control-sm {{ $errors->has('anthropic_workspace_id') ? 'is-invalid' : '' }}"
+                                           name="anthropic_workspace_id"
+                                           value="{{ old('anthropic_workspace_id', $status['anthropic_workspace_id']) }}"
+                                           placeholder="{{ trans('vela::ai.workspace_id_placeholder') }}"
+                                           autocomplete="off" spellcheck="false">
+                                    @if($errors->has('anthropic_workspace_id'))
+                                        <div class="invalid-feedback d-block">{{ $errors->first('anthropic_workspace_id') }}</div>
+                                    @endif
+                                    <small class="text-muted">{{ trans('vela::ai.workspace_id_help') }}</small>
+                                @endif
+                            </div>
+                        @endif
+
+                        {{-- The model, beside the key it is used with. This page
+                             let you pick a provider and never a model, which is
+                             the larger of the two decisions: on one design an
+                             old model wrote a fifteenth of the styling a current
+                             one did.
+
+                             A menu, because the person this admin is built for
+                             does not know model ids and should not have to — but
+                             with "Other", because a list baked into a release
+                             cannot name the model that comes out after it, and
+                             without that escape this field would go stale and
+                             have to be edited in .env again. A value already set
+                             that is not on the list is added to it, so a choice
+                             made before this version is never silently lost. --}}
+                        @php
+                            $model = $status['providers'][$provider]['model'] ?? '';
+                            $chosen = old($provider . '_model', $model);
+                            $shipped = $status['providers'][$provider]['model_default'] ?? '';
+                            $options = $status['providers'][$provider]['model_suggestions'] ?? [];
+                            if ($chosen !== '' && !in_array($chosen, $options, true)) {
+                                array_unshift($options, $chosen);
+                            }
+                            $inUse = $chosen !== '' ? $chosen : $shipped;
+                            $concern = $inUse !== '' ? app(\VelaBuild\Core\Services\DesignBuilderService::class)->modelConcern($inUse) : null;
+                        @endphp
+                        <div class="mt-2">
+                            @if($status['providers'][$provider]['model_locked'])
+                                <input type="text" class="form-control form-control-sm" value="{{ $inUse }} (set via .env)" disabled>
+                            @else
+                                <select name="{{ $provider }}_model" class="form-control form-control-sm vela-model-select"
+                                        data-other="#{{ $provider }}-model-other">
+                                    <option value="">{{ trans('vela::ai.model_default', ['model' => $shipped]) }}</option>
+                                    @foreach($options as $option)
+                                        <option value="{{ $option }}" {{ $chosen === $option ? 'selected' : '' }}>{{ $option }}</option>
+                                    @endforeach
+                                    <option value="__other">{{ trans('vela::ai.model_other') }}</option>
+                                </select>
+                                {{-- Shown by the select above. Left visible where
+                                     scripts do not run, so the escape hatch is
+                                     never the thing that breaks. --}}
+                                <input type="text" id="{{ $provider }}-model-other" name="{{ $provider }}_model_other"
+                                       class="form-control form-control-sm mt-1 vela-model-other {{ $errors->has($provider . '_model') ? 'is-invalid' : '' }}"
+                                       value="{{ old($provider . '_model_other') }}"
+                                       placeholder="{{ trans('vela::ai.model_other_placeholder') }}"
+                                       autocomplete="off" spellcheck="false">
+                                @if($errors->has($provider . '_model'))
+                                    <div class="invalid-feedback d-block">{{ $errors->first($provider . '_model') }}</div>
+                                @endif
+                            @endif
+                            @if($concern)
+                                <small class="text-warning d-block mt-1"><i class="fas fa-exclamation-triangle"></i> {{ $inUse }} — {{ $concern }}</small>
+                            @endif
+                        </div>
                     </div>
                 </div>
             @endforeach
@@ -131,5 +209,27 @@
         </form>
     </div>
 </div>
+
+@push('scripts')
+<script>
+// "Other" reveals the box beside it; every other choice hides it. Hidden means
+// hidden, not disabled — the server reads the text box only when the menu says
+// to, so a stale value left in it cannot leak into the save.
+document.querySelectorAll('.vela-model-select').forEach(function (select) {
+    var other = document.querySelector(select.dataset.other);
+    if (!other) { return; }
+
+    function sync() {
+        other.style.display = select.value === '__other' ? '' : 'none';
+    }
+
+    select.addEventListener('change', function () {
+        sync();
+        if (select.value === '__other') { other.focus(); }
+    });
+    sync();
+});
+</script>
+@endpush
 
 @endsection

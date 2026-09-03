@@ -55,6 +55,56 @@ class AiSettingsController extends Controller
             }
         }
 
+        // Anthropic only, and only for an identity-linked key: without it every
+        // call is refused, including the one that would have told the operator
+        // the key works.
+        if (!$settings->isEnvLocked('anthropic_workspace_id') && $request->has('anthropic_workspace_id')) {
+            $workspace = trim((string) $request->input('anthropic_workspace_id'));
+
+            if ($workspace !== '' && !preg_match('/^[A-Za-z0-9_-]{1,100}$/', $workspace)) {
+                return redirect()->back()->withErrors([
+                    'anthropic_workspace_id' => 'A workspace id looks like wrkspc_0123abc. Copy it from the '
+                        . 'workspace page in the Anthropic console.',
+                ]);
+            }
+
+            $settings->set('anthropic_workspace_id', $workspace === '' ? null : $workspace);
+        }
+
+        // The model each provider thinks with. Free text rather than a menu:
+        // a list baked into a release cannot name the model that comes out
+        // after it. Blank clears the choice and puts the provider back on
+        // whatever this Vela ships with.
+        foreach (['openai', 'anthropic', 'gemini'] as $provider) {
+            $field = $provider . '_model';
+
+            if ($settings->isEnvLocked($field) || !$request->has($field)) {
+                continue;
+            }
+
+            $model = trim((string) $request->input($field));
+
+            // The menu's escape hatch. Read only when the menu asks for it, so
+            // a value left in the box by an earlier choice cannot leak into
+            // the save, and "Other" with nothing typed clears the setting
+            // rather than storing the marker.
+            if ($model === '__other') {
+                $model = trim((string) $request->input($field . '_other'));
+            }
+
+            // Model ids are a narrow shape, and anything else here would be
+            // sent straight to the provider as part of a URL or a request body.
+
+            if ($model !== '' && !preg_match('/^[A-Za-z0-9][A-Za-z0-9._:\/-]{0,99}$/', $model)) {
+                return redirect()->back()->withErrors([
+                    $field => 'That does not look like a model id. Use the name the provider gives it, such as '
+                        . implode(' or ', array_slice(AiSettingsService::MODEL_SUGGESTIONS[$provider] ?? [], 0, 2)) . '.',
+                ]);
+            }
+
+            $settings->set($field, $model === '' ? null : $model);
+        }
+
         // Native web search toggle. Hidden 0 + checkbox 1 pattern means a
         // valid submit ALWAYS carries native_search. We only write when the
         // field is actually present so a partial-form / API update doesn't

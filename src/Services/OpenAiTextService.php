@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Services;
 
 use VelaBuild\Core\Services\Concerns\ReportsAiFailure;
+use VelaBuild\Core\Services\Concerns\ReadsTheConfiguredModel;
 
 use VelaBuild\Core\Contracts\AiTextProvider;
 use Illuminate\Support\Facades\Http;
@@ -12,6 +13,7 @@ use VelaBuild\Core\Services\AiSettingsService;
 class OpenAiTextService implements AiTextProvider
 {
     use ReportsAiFailure;
+    use ReadsTheConfiguredModel;
 
     // Nullable: a site with no OpenAI key must be able to construct this and
     // be told there is no key, rather than fatal on the assignment below.
@@ -25,7 +27,7 @@ class OpenAiTextService implements AiTextProvider
         // Was gpt-4o written into seven places, so a site could not move off
         // it and a retirement would have been a code edit. Config-driven, as
         // the Anthropic provider already was.
-        $this->model = (string) config('vela.ai.chat.openai_model', 'gpt-4o');
+        $this->model = $this->configuredModel('openai');
     }
 
     /** Run this provider on a different model than the site's default. */

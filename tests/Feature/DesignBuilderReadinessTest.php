@@ -108,7 +108,7 @@ class DesignBuilderReadinessTest extends PackageTestCase
         $response->assertOk();
         $response->assertSee('gpt-4o');
         $response->assertSee('an old model, and builds come out thin', false);
-        $response->assertSee('Ask whoever set up your site to change it.', false);
+        $response->assertSee('Change it under Settings → AI.', false);
         // The warning triangle, not the tick.
         $response->assertSee('fa-exclamation-circle', false);
     }
