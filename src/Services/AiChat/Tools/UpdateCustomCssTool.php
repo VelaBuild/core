@@ -17,6 +17,17 @@ class UpdateCustomCssTool extends BaseTool
             return ['error' => 'CSS content is required'];
         }
 
+        if ($scope !== 'site' && !($parameters['force'] ?? false) && $furniture = $this->furnitureRule($css)) {
+            return [
+                'error' => "This CSS styles '{$furniture}', which the THEME draws on every page. A page's stylesheet "
+                    . 'is loaded on that page alone, so the site\'s header, footer and navigation would change shape '
+                    . 'as somebody moves between pages — and stay changed after the sections this CSS was written '
+                    . 'for have been replaced. Style the section\'s own classes, or set the theme\'s tokens if the '
+                    . 'frame itself is wrong.',
+                'blocked_selector' => $furniture,
+            ];
+        }
+
         // Not behind force: a picture that cannot load is a mistake in any
         // stylesheet, not a judgement call about which selectors are real.
         if ($error = $this->validateCssImageUrls($css)) {
@@ -292,7 +303,6 @@ class UpdateCustomCssTool extends BaseTool
      */
     private function themeOwnedRule(string $css): ?array
     {
-        $roots = ['body', 'html', ':root', 'html, body', '*'];
         $owned = ['font-family', 'font-size', 'background', 'background-color', 'color'];
 
         $css = preg_replace('!/\*.*?\*/!s', '', $css);
@@ -301,7 +311,7 @@ class UpdateCustomCssTool extends BaseTool
             foreach (explode(',', $selectors) as $selector) {
                 $selector = strtolower(trim($selector));
 
-                if (!in_array($selector, $roots, true)) {
+                if (!self::reachesTheDocumentRoot($selector)) {
                     continue;
                 }
 
@@ -311,6 +321,58 @@ class UpdateCustomCssTool extends BaseTool
                 foreach ($owned as $property) {
                     if (preg_match('/(^|[;{\s])' . preg_quote($property, '/') . '\s*:/i', $body)) {
                         return [$selector, $property];
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Does this selector start at the document rather than inside the page?
+     *
+     * Matched on where the selector BEGINS, not on the whole string. The list
+     * used to be exact — `body`, `html`, `:root` — and a build walked around
+     * it with `html:has(.page-id-26)`, which is the same rule wearing a
+     * pseudo-class: it painted the document's ground, hung two decorative
+     * blobs off ::before/::after, and boxed the header, the content and the
+     * footer to 1000px inside 24px black borders. The page then kept that
+     * frame after its own sections had been deleted and replaced by a theme's
+     * example homepage, so a plain corporate layout came up squeezed inside
+     * somebody else's mockup with no way to tell why.
+     */
+    private static function reachesTheDocumentRoot(string $selector): bool
+    {
+        if ($selector === '*' || str_starts_with($selector, '* ')) {
+            return true;
+        }
+
+        // "html", "html:has(...)", "body > x", ":root[data-x]" — anything
+        // whose first simple selector is the document itself.
+        return (bool) preg_match('/^(html|body|:root)\b/i', $selector);
+    }
+
+    /**
+     * Parts of the page a THEME draws, which a single page's stylesheet has no
+     * business reaching: it is loaded on that page only, so styling the header
+     * from there means the site's furniture changes shape as a visitor moves
+     * between pages.
+     */
+    private const THEME_FURNITURE = [
+        '.site-header', '.site-footer', '.site-nav', '.site-actions', '.page-content', '.site-branding',
+    ];
+
+    /** The first furniture class a page's stylesheet tries to style, if any. */
+    private function furnitureRule(string $css): ?string
+    {
+        $css = preg_replace('!/\*.*?\*/!s', '', $css);
+
+        foreach (self::rules($css) as [$selectors, $body]) {
+            foreach (explode(',', $selectors) as $selector) {
+                foreach (self::THEME_FURNITURE as $class) {
+                    if (str_contains(strtolower($selector), $class)) {
+                        return trim($selector);
                     }
                 }
             }

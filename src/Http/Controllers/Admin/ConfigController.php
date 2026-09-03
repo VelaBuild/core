@@ -563,7 +563,18 @@ class ConfigController extends Controller
                         $row->blocks()->delete();
                     }
                     $page->rows()->delete();
-                    $page->update(['title' => 'Home', 'status' => 'published']);
+                    // The stylesheet belonged to the rows just deleted. Left
+                    // behind, a design build's CSS went on framing the page
+                    // after its sections were gone — a theme's plain example
+                    // homepage came up boxed inside the previous design's
+                    // mockup, black borders and decorative blobs and all, with
+                    // nothing on the screen to say where it was coming from.
+                    $page->update([
+                        'title' => 'Home',
+                        'status' => 'published',
+                        'custom_css' => null,
+                        'custom_js' => null,
+                    ]);
                 } else {
                     $page = Page::create([
                         'title'        => 'Home',
