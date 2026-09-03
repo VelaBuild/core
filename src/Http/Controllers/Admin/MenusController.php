@@ -10,6 +10,7 @@ use VelaBuild\Core\Http\Controllers\Controller;
 use VelaBuild\Core\Models\Category;
 use VelaBuild\Core\Models\Content;
 use VelaBuild\Core\Models\Menu;
+use VelaBuild\Core\Services\ThemeMenus;
 use VelaBuild\Core\Models\MenuItem;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Services\AiProviderManager;
@@ -34,13 +35,22 @@ class MenusController extends Controller
                 'label'     => $config['label'],
                 'description' => $config['description'] ?? '',
                 'auto_add_pages' => (bool) ($config['auto_add_pages'] ?? false),
-                'item_count'   => $persisted[$slot] ?? null
-                    ? Menu::find($persisted[$slot])->items()->count()
+                'item_count'   => $persisted[$this->storageSlot($slot)] ?? null
+                    ? Menu::find($persisted[$this->storageSlot($slot)])->items()->count()
                     : null,
                 'orphaned' => false,
+                // Whether the theme in use keeps this one to itself.
+                'own_menu' => ThemeMenus::has(ThemeMenus::currentTheme(), $slot),
             ];
         }
         foreach ($persisted as $slot => $id) {
+            // Another theme's own navigation is not an orphan on this one —
+            // it is in use, just not here, and listing it as something to
+            // clean up would invite deleting a theme's header.
+            if (str_contains($slot, ThemeMenus::SEPARATOR)) {
+                continue;
+            }
+
             if (! isset($rows[$slot])) {
                 $rows[$slot] = [
                     'slot'      => $slot,
@@ -49,6 +59,7 @@ class MenusController extends Controller
                     'auto_add_pages' => (bool) Menu::find($id)?->auto_add_pages,
                     'item_count' => Menu::find($id)?->items()->count(),
                     'orphaned' => true,
+                    'own_menu' => false,
                 ];
             }
         }
@@ -59,6 +70,48 @@ class MenusController extends Controller
         ]);
     }
 
+    /**
+     * Where this slot's menu is really stored for the theme in use.
+     *
+     * A theme may keep navigation of its own — a design build writes its
+     * header into the theme it wrote, so the site's own menu survives being
+     * shown a design. Everything in this screen edits what the CURRENT theme
+     * shows, which is that menu where it exists and the shared one otherwise.
+     */
+    private function storageSlot(string $slot): string
+    {
+        $theme = ThemeMenus::currentTheme();
+
+        return ThemeMenus::has($theme, $slot) ? ThemeMenus::slot($theme, $slot) : $slot;
+    }
+
+    /**
+     * Give this theme navigation of its own for one slot, or put it back on
+     * the site's.
+     */
+    public function scope(Request $request, string $slot)
+    {
+        abort_if(Gate::denies('config_edit'), Response::HTTP_FORBIDDEN);
+
+        $theme = ThemeMenus::currentTheme();
+
+        if ($theme === '') {
+            return back()->withErrors(['menu' => 'There is no theme in use to give a menu to.']);
+        }
+
+        if ($request->input('scope') === 'own') {
+            // Copied from what the theme shows now, so pressing this never
+            // empties a header.
+            ThemeMenus::claim($theme, $slot);
+
+            return back()->with('status', __('This theme now has its own menu for that slot.'));
+        }
+
+        ThemeMenus::release($theme, $slot);
+
+        return back()->with('status', __('That slot is back on the menu shared with every theme.'));
+    }
+
     public function edit(string $slot)
     {
         abort_if(Gate::denies('config_access'), Response::HTTP_FORBIDDEN);
@@ -67,7 +120,7 @@ class MenusController extends Controller
         $config   = $registry->get($slot);
 
         $menu = Menu::firstOrCreate(
-            ['slot' => $slot],
+            ['slot' => $this->storageSlot($slot)],
             [
                 'label'          => $config['label'] ?? ucwords(str_replace(['-', '_'], ' ', $slot)),
                 'auto_add_pages' => (bool) ($config['auto_add_pages'] ?? false),
@@ -87,7 +140,7 @@ class MenusController extends Controller
     {
         abort_if(Gate::denies('config_edit'), Response::HTTP_FORBIDDEN);
 
-        $menu = Menu::where('slot', $slot)->firstOrFail();
+        $menu = Menu::where('slot', $this->storageSlot($slot))->firstOrFail();
 
         $data = Validator::make($request->all(), [
             'label'          => 'nullable|string|max:120',
@@ -146,7 +199,7 @@ class MenusController extends Controller
     {
         abort_if(Gate::denies('config_edit'), Response::HTTP_FORBIDDEN);
 
-        Menu::where('slot', $slot)->delete();
+        Menu::where('slot', $this->storageSlot($slot))->delete();
 
         return redirect()->route('vela.admin.settings.menus.index')
             ->with('status', __('Menu reset.'));

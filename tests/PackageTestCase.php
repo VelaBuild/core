@@ -55,6 +55,21 @@ abstract class PackageTestCase extends TestbenchTestCase
         return $user;
     }
 
+    /**
+     * Anything that writes the site config writes a REAL file into the test
+     * app's storage, and a test app boots by reading it. Left behind by one
+     * test, it decides which theme is active for every test after it — and
+     * for every later RUN, so a suite that passed can start failing on a
+     * machine where nothing changed. Cleared here rather than in each test
+     * that happens to touch it.
+     */
+    protected function tearDown(): void
+    {
+        @unlink(storage_path('app/vela-site.php'));
+
+        parent::tearDown();
+    }
+
     protected function defineEnvironment($app): void
     {
         // Sessions, cookies and the CSRF middleware all need an encryption key,

@@ -7,6 +7,7 @@ use VelaBuild\Core\Models\Menu;
 use VelaBuild\Core\Models\MenuItem;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Services\DesignPreviewFrame;
+use VelaBuild\Core\Services\ThemeMenus;
 use VelaBuild\Core\Services\StaticSiteGenerator;
 
 /**
@@ -131,7 +132,25 @@ class SetMenuTool extends BaseTool
                 . '(staged for the page a design build writes onto, applied only if that design is kept).'];
         }
 
-        $storedSlot = $scope === 'design_preview' ? DesignPreviewFrame::slot($slot) : $slot;
+        // Written into the design's OWN theme, not staged beside the site's.
+        // Staging needed somewhere to keep a menu that was going to replace
+        // the site's; a theme that carries its own navigation replaces
+        // nothing — switching to it shows its words, switching away shows the
+        // site's, and keeping the design is just a change of theme.
+        $previewTheme = app(DesignPreviewFrame::class)->theme();
+
+        if ($scope === 'design_preview' && !$previewTheme) {
+            // Without a theme to write it into there is nowhere for this to go
+            // but the site's own menu, which is the one thing this scope
+            // exists to protect. Refused rather than quietly written there.
+            return ['error' => 'There is no theme for this design yet, so its navigation has nowhere to live but '
+                . 'the site\'s own. Call create_theme and use_theme_for_preview first; the menu then belongs to '
+                . 'that theme and shows wherever it does.'];
+        }
+
+        $storedSlot = $scope === 'design_preview'
+            ? ThemeMenus::slot($previewTheme, $slot)
+            : $slot;
 
         $menu = Menu::firstOrCreate(['slot' => $storedSlot], ['name' => ucfirst(str_replace('_', ' ', $storedSlot))]);
 
@@ -164,8 +183,9 @@ class SetMenuTool extends BaseTool
             'scope' => $scope,
             'items' => count($resolved),
             'note' => $scope === 'design_preview'
-                ? 'Staged for the design preview page only — the site\'s own navigation is untouched, and this '
-                    . 'replaces it if the design is kept.'
+                ? 'This belongs to the theme you are writing, so it shows wherever that theme does — the preview '
+                    . 'page now, and the whole site if the design is kept. The site\'s own navigation is untouched '
+                    . 'either way, and comes back the moment somebody switches theme.'
                 : 'The theme renders this slot on every page, and the site\'s owner can change it in '
                     . 'Appearance → Menus.',
         ];

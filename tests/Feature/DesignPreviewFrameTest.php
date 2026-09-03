@@ -34,6 +34,12 @@ class DesignPreviewFrameTest extends PackageTestCase
 
     private function buildMenu(): void
     {
+        // A design's navigation lives in the theme the build wrote, so there
+        // has to be one before it can be set.
+        if (!app(DesignPreviewFrame::class)->theme()) {
+            app(DesignPreviewFrame::class)->setTheme('zercurity');
+        }
+
         (new SetMenuTool())->execute([
             'slot' => 'primary',
             'scope' => 'design_preview',
@@ -44,7 +50,7 @@ class DesignPreviewFrameTest extends PackageTestCase
         ]);
     }
 
-    public function test_a_staged_menu_leaves_the_sites_own_alone(): void
+    public function test_a_designs_menu_leaves_the_sites_own_alone(): void
     {
         $this->siteMenu();
         $this->buildMenu();
@@ -57,6 +63,20 @@ class DesignPreviewFrameTest extends PackageTestCase
         // On the page the design is being looked at: the design's.
         app(DesignPreviewFrame::class)->activate();
         $this->assertSame(['About', 'Docs'], $renderer->items('primary')->pluck('label')->all());
+    }
+
+    public function test_a_menu_with_no_theme_to_live_in_is_refused_rather_than_written_over_the_sites(): void
+    {
+        $this->siteMenu();
+
+        $result = (new SetMenuTool())->execute([
+            'slot' => 'primary',
+            'scope' => 'design_preview',
+            'items' => [['label' => 'About', 'type' => 'url', 'url' => '/about']],
+        ]);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame(['Our shop'], app(MenuRenderer::class)->items('primary')->pluck('label')->all());
     }
 
     public function test_a_staged_theme_is_not_the_sites_theme(): void
@@ -81,30 +101,48 @@ class DesignPreviewFrameTest extends PackageTestCase
     {
         VelaConfig::updateOrCreate(['key' => 'active_template'], ['value' => 'modern']);
         $this->siteMenu();
-        $this->buildMenu();
+        // The order a build works in: a theme first, then the navigation that
+        // belongs to it.
         (new UseThemeForPreviewTool())->execute(['theme' => 'default']);
+        $this->buildMenu();
 
         app(DesignPreviewFrame::class)->promote();
 
         $this->assertSame('default', VelaConfig::where('key', 'active_template')->value('value'));
+
+        // The site shows the design's navigation because it is now wearing the
+        // theme that owns it — not because anything was written over the
+        // site's, which is still there and comes back with a change of theme.
+        $this->assertSame(['About', 'Docs'], app(MenuRenderer::class)->items('primary')->pluck('label')->all());
         $this->assertSame(
-            ['About', 'Docs'],
+            ['Our shop'],
             Menu::where('slot', 'primary')->first()->items()->orderBy('order_column')->pluck('label')->all()
         );
     }
 
-    public function test_what_the_design_replaced_is_kept(): void
+    /**
+     * Nothing is replaced any more, so nothing has to be kept. Keeping a
+     * design moves the THEME over, and the design's navigation comes with it
+     * because it belongs to that theme; the site's own menu is never touched,
+     * and switching theme shows it again.
+     */
+    public function test_keeping_a_design_does_not_touch_the_sites_menu(): void
     {
         $this->siteMenu();
         $this->buildMenu();
 
         app(DesignPreviewFrame::class)->promote();
 
-        // Changing your mind about a design should not cost you the navigation
-        // you wrote before it.
         $this->assertSame(
             ['Our shop'],
-            Menu::where('slot', 'superseded_primary')->first()->items()->pluck('label')->all()
+            Menu::where('slot', 'primary')->first()->items()->pluck('label')->all()
+        );
+
+        // And the design's is what the site now shows, because the site is now
+        // wearing the theme that owns it.
+        $this->assertSame(
+            ['About', 'Docs'],
+            app(MenuRenderer::class)->items('primary')->pluck('label')->all()
         );
     }
 

@@ -131,6 +131,7 @@ Route::get('settings/menus',                    [Admin\MenusController::class, '
 Route::get('settings/menus/{slot}',             [Admin\MenusController::class, 'edit'])->name('settings.menus.edit')->where('slot', '[a-z0-9_\-]+');
 Route::put('settings/menus/{slot}',             [Admin\MenusController::class, 'update'])->name('settings.menus.update')->where('slot', '[a-z0-9_\-]+');
 Route::delete('settings/menus/{slot}',          [Admin\MenusController::class, 'destroy'])->name('settings.menus.destroy')->where('slot', '[a-z0-9_\-]+');
+Route::post('settings/menus/{slot}/scope',      [Admin\MenusController::class, 'scope'])->name('settings.menus.scope')->where('slot', '[a-z0-9_\-]+');
 Route::post('settings/menus/{slot}/ai-suggest', [Admin\MenusController::class, 'aiSuggest'])->name('settings.menus.ai-suggest')->where('slot', '[a-z0-9_\-]+');
 
 // Backward compat redirect

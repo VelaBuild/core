@@ -21,18 +21,6 @@ use VelaBuild\Core\Tests\PackageTestCase;
  */
 class DesignRestoreTest extends PackageTestCase
 {
-    /**
-     * The site config this writes is a real file in the test app's storage.
-     * Left behind, every later boot reads it and comes up wearing a theme a
-     * test invented — which had ThemeNamingTest counting up to zercurity-4
-     * because the name it expected was "in use".
-     */
-    protected function tearDown(): void
-    {
-        @unlink(storage_path('app/vela-site.php'));
-        parent::tearDown();
-    }
-
     private function signInAsAdmin(): void
     {
         $this->signIn();

@@ -39,6 +39,16 @@
                                         @else
                                             <span class="badge badge-info">{{ trans_choice(':count item|:count items', $row['item_count'], ['count' => $row['item_count']]) }}</span>
                                         @endif
+                                        {{-- Whose menu you are looking at. A design build writes
+                                             its header into the theme it wrote, so the site's own
+                                             menu is not replaced by trying a design out — but then
+                                             "the menu" means two different things depending on
+                                             which theme is on, and that has to be visible. --}}
+                                        @if($row['own_menu'] ?? false)
+                                            <div class="small text-muted mt-1">
+                                                <i class="fas fa-palette"></i> {{ __('This theme only') }}
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
 
@@ -59,6 +69,26 @@
                                             <button type="submit" class="btn btn-link btn-sm text-danger">{{ __('Reset to defaults') }}</button>
                                         </form>
                                     @endif
+
+                                    @unless($row['orphaned'])
+                                    @can('config_edit')
+                                    <form action="{{ route('vela.admin.settings.menus.scope', $row['slot']) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        @if($row['own_menu'] ?? false)
+                                            <input type="hidden" name="scope" value="shared">
+                                            <button type="submit" class="btn btn-link btn-sm text-muted"
+                                                    onsubmit="return confirm('{{ __('Use the shared menu here? This theme’s own menu is removed.') }}')">
+                                                {{ __('Use the menu shared with every theme') }}
+                                            </button>
+                                        @else
+                                            <input type="hidden" name="scope" value="own">
+                                            <button type="submit" class="btn btn-link btn-sm text-muted">
+                                                {{ __('Give this theme its own') }}
+                                            </button>
+                                        @endif
+                                    </form>
+                                    @endcan
+                                    @endunless
                                 </div>
                             </div>
                         </div>
@@ -66,6 +96,11 @@
                 @endforeach
             </div>
         @endif
+
+        <div class="alert alert-light border mt-3 mb-0">
+            <i class="fas fa-info-circle text-primary mr-2"></i>
+            {{ __('You are editing what the :theme theme shows. A menu marked “this theme only” belongs to it alone; every other menu here is shared with every theme.', ['theme' => $activeTheme]) }}
+        </div>
 
         <div class="alert alert-light border mt-3 mb-0">
             <i class="fas fa-info-circle text-primary mr-2"></i>

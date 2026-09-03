@@ -6,6 +6,7 @@ use Illuminate\Support\Collection;
 use VelaBuild\Core\Models\Menu;
 use VelaBuild\Core\Models\MenuItem;
 use VelaBuild\Core\Models\Page;
+use VelaBuild\Core\Services\ThemeMenus;
 use VelaBuild\Core\Vela;
 
 /**
@@ -34,7 +35,16 @@ class MenuRenderer
                 }
             }
 
-            $menu = Menu::where('slot', $slot)->with('items')->first();
+            // A theme's own navigation first. A design brings its own words
+            // for the header, and writing them into the site's only menu used
+            // to leave every other theme wearing them — with the site's own
+            // gone, because a slot holds one menu. Falls through to the shared
+            // one, which is all a site that has never used this has.
+            $ownTheme = Menu::where('slot', ThemeMenus::slot(ThemeMenus::currentTheme(), $slot))
+                ->with('items')
+                ->first();
+
+            $menu = $ownTheme ?: Menu::where('slot', $slot)->with('items')->first();
         } catch (\Throwable $e) {
             // No DB on static-cache deploys — fall back to defaults.
             return $this->defaultItems($slot);

@@ -178,33 +178,21 @@ class DesignPreviewFrame
             }
 
             VelaConfig::updateOrCreate(['key' => 'active_template'], ['value' => $theme]);
+
+            // Applied to the request doing the promoting as well as written
+            // down for the next one. The config cache below is rebuilt inside
+            // a try/catch, so without this the page that redirects away from
+            // "use this as my homepage" could still render the theme before.
+            config(['vela.template.active' => $theme]);
         }
 
-        foreach (self::SLOTS as $slot) {
-            $staged = Menu::where('slot', self::slot($slot))->with('items')->first();
-
-            if (!$staged || $staged->items->isEmpty()) {
-                continue;
-            }
-
-            $live = Menu::firstOrCreate(['slot' => $slot], ['name' => ucfirst(str_replace('_', ' ', $slot))]);
-
-            $superseded = Menu::firstOrCreate(
-                ['slot' => 'superseded_' . $slot],
-                ['name' => 'Superseded ' . str_replace('_', ' ', $slot)]
-            );
-            $superseded->items()->delete();
-
-            foreach ($live->items()->orderBy('order_column')->get() as $item) {
-                $superseded->items()->create($this->copyable($item));
-            }
-
-            $live->items()->delete();
-
-            foreach ($staged->items()->orderBy('order_column')->get() as $item) {
-                $live->items()->create($this->copyable($item));
-            }
-        }
+        // Menus are not moved any more: a design's navigation is written into
+        // its own theme, so switching to that theme brings it and switching
+        // away takes it back. What used to happen here — copying the site's
+        // menu into superseded_<slot> and the design's over the top — is how a
+        // site ended up with "About / Osquery / Docs" in every theme's header
+        // and its own menu gone. Sites that were left mid-flight keep their
+        // superseded_ rows; demote() still reads them.
 
         try {
             app(SiteConfigWriter::class)->write();
