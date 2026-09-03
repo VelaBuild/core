@@ -35,6 +35,30 @@
             </div>
         @endif
 
+        {{-- The same offer, but standing still. The alert above appears once,
+             in the request that switched the theme; a reload loses it and
+             there is then no way to a theme's own homepage at all, because you
+             cannot switch to the theme you are already using. Somebody looking
+             for "the default layout" has to be able to find it. --}}
+        @if($hasHomeTemplate && !session('theme_switched_to'))
+        @can('config_edit')
+        <div class="alert alert-light border d-flex align-items-center justify-content-between flex-wrap">
+            <div class="mr-3">
+                {{ trans('vela::global.home_template_available', ['theme' => __($templates[$activeTemplate]['label'] ?? $activeTemplate)]) }}
+            </div>
+            <form action="{{ route('vela.admin.settings.appearance.installHomepage') }}" method="POST" class="d-inline"
+                  onsubmit="return confirm('{{ trans('vela::global.install_homepage_confirm_replace') }}');">
+                @csrf
+                <input type="hidden" name="template" value="{{ $activeTemplate }}">
+                <input type="hidden" name="mode" value="replace">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-home"></i> {{ trans('vela::global.install_as_homepage') }}
+                </button>
+            </form>
+        </div>
+        @endcan
+        @endif
+
         <!-- Theme Picker -->
         <h5 class="mb-3">{{ trans('vela::global.theme') }}</h5>
         <form action="{{ route('vela.admin.settings.updateGroup', 'appearance') }}" method="POST" id="theme-form">

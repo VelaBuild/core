@@ -102,7 +102,17 @@ class ConfigController extends Controller
             $themeOptions = $templateDef['options'] ?? [];
             $themeValues = VelaConfig::where('key', 'like', 'theme_%')->pluck('value', 'key')->toArray();
 
-            return view("vela::admin.settings.{$group}", compact('settings', 'templates', 'themeOptions', 'themeValues'));
+            // Whether this theme ships an example homepage. The offer to
+            // install it used to live in a flash message shown once, straight
+            // after a switch: reload the page and the only way to a theme's
+            // own layout was gone until you switched themes again — and you
+            // cannot switch to the theme you are already on. Now it is here
+            // for as long as the theme is.
+            $hasHomeTemplate = is_file(($templateDef['path'] ?? '') . '/home-template.json');
+
+            return view("vela::admin.settings.{$group}", compact(
+                'settings', 'templates', 'themeOptions', 'themeValues', 'activeTemplate', 'hasHomeTemplate'
+            ));
         } elseif ($group === 'customcss') {
             $globalCss = VelaConfig::where('key', 'custom_css_global')->value('value') ?? '';
             $pagesWithCss = Page::where(function ($q) {

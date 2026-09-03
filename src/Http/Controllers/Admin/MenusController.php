@@ -119,16 +119,33 @@ class MenusController extends Controller
         $registry = app(Vela::class)->frontMenus();
         $config   = $registry->get($slot);
 
-        $menu = Menu::firstOrCreate(
-            ['slot' => $this->storageSlot($slot)],
-            [
+        // Opening this screen used to firstOrCreate the menu, which made a GET
+        // change the site: a slot that had just been reset to defaults got an
+        // empty stored menu the moment somebody looked at it, and an empty
+        // stored menu is a deliberate customisation as far as the renderer is
+        // concerned — so the header emptied on the public site without anybody
+        // saving anything. It also turned "add new pages automatically" on by
+        // itself, from whatever the theme declares for the slot.
+        $menu = Menu::where('slot', $this->storageSlot($slot))->with('items')->first();
+
+        if (!$menu) {
+            // Nothing stored: show what visitors are seeing, unsaved, so the
+            // editor opens on the truth and Save is what makes it stored.
+            $menu = new Menu([
+                'slot'           => $slot,
                 'label'          => $config['label'] ?? ucwords(str_replace(['-', '_'], ' ', $slot)),
                 'auto_add_pages' => (bool) ($config['auto_add_pages'] ?? false),
-            ]
-        );
+            ]);
+            $menu->slot = $slot;
+            $menu->setRelation('items', app(\VelaBuild\Core\Services\MenuRenderer::class)->items($slot));
+        }
 
         return view('vela::admin.settings.menus.edit', [
-            'menu'   => $menu->load('items'),
+            'menu'   => $menu,
+            // The slot as the URL spells it. $menu->slot may be scoped to a
+            // theme ("zercurity::primary"), which no route here accepts.
+            'slot'   => $slot,
+            'stored' => $menu->exists,
             'config' => $config,
             'pages'  => Page::orderBy('title')->get(['id', 'title', 'slug']),
             'posts'  => Content::orderBy('title')->limit(500)->get(['id', 'title', 'slug']),
@@ -140,7 +157,17 @@ class MenusController extends Controller
     {
         abort_if(Gate::denies('config_edit'), Response::HTTP_FORBIDDEN);
 
-        $menu = Menu::where('slot', $this->storageSlot($slot))->firstOrFail();
+        // Created here rather than when the screen was opened: saving is what
+        // says "this menu is mine now".
+        $config = app(Vela::class)->frontMenus()->get($slot);
+
+        $menu = Menu::firstOrCreate(
+            ['slot' => $this->storageSlot($slot)],
+            [
+                'label'          => $config['label'] ?? ucwords(str_replace(['-', '_'], ' ', $slot)),
+                'auto_add_pages' => (bool) ($config['auto_add_pages'] ?? false),
+            ]
+        );
 
         $data = Validator::make($request->all(), [
             'label'          => 'nullable|string|max:120',

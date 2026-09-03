@@ -557,6 +557,7 @@ return [
     'install_homepage'               => 'Install Homepage',
     'theme_switched_layout_only'     => 'Switched to :theme. The layout and styling have changed; the homepage still uses the rows and blocks it already had. Install this theme\'s homepage to use its design instead.',
     'install_homepage_desc'          => 'Install a template homepage into the page builder. This creates page builder rows and blocks from the template\'s homepage design.',
+    'home_template_available'            => 'This theme comes with an example homepage — a hero, a list of articles, the sections it was designed around. Installing it replaces the rows and blocks your homepage has now.',
     'install_as_homepage'            => 'Install as Homepage',
     'install_as_new_page'            => 'Install as New Page',
     'install_homepage_confirm_replace' => 'This will replace your current homepage content. Continue?',

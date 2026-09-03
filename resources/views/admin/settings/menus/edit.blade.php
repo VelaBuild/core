@@ -21,7 +21,7 @@
                     {{ __('Items in this menu') }}
                 </h5>
 
-                <form id="menu-form" action="{{ route('vela.admin.settings.menus.update', $menu->slot) }}" method="POST">
+                <form id="menu-form" action="{{ route('vela.admin.settings.menus.update', $slot) }}" method="POST">
                     @csrf
                     @method('PUT')
 
@@ -30,7 +30,7 @@
                         <input type="text" name="label" id="label" class="form-control" value="{{ old('label', $menu->label) }}" maxlength="120">
                     </div>
 
-                    @if($menu->slot === 'primary')
+                    @if($slot === 'primary')
                         <div class="form-group">
                             <div class="custom-control custom-switch">
                                 <input type="checkbox" name="auto_add_pages" id="auto_add_pages" value="1" class="custom-control-input" {{ $menu->auto_add_pages ? 'checked' : '' }}>
@@ -260,7 +260,7 @@
         btn.disabled = true;
         out.innerHTML = '<div class="text-muted small"><i class="fas fa-spinner fa-spin"></i> {{ __('Asking the AI…') }}</div>';
         try {
-            const res = await fetch('{{ route('vela.admin.settings.menus.ai-suggest', $menu->slot) }}', {
+            const res = await fetch('{{ route('vela.admin.settings.menus.ai-suggest', $slot) }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
