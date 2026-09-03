@@ -4,6 +4,7 @@ namespace VelaBuild\Core\Services;
 
 use VelaBuild\Core\Contracts\AiTextProvider;
 use VelaBuild\Core\Services\AiProviderManager;
+use VelaBuild\Core\Services\AiSettingsService;
 use VelaBuild\Core\Services\PermissionGates;
 use VelaBuild\Core\Services\ThemeAuthor;
 use VelaBuild\Core\Services\AiChat\ChatToolRegistry;
@@ -159,9 +160,58 @@ class DesignBuilderService
         $this->progress('Building with ' . $wanted . '.');
     }
 
+    /**
+     * The models known to be able to run a build, per provider.
+     *
+     * An allow-list, unlike the deny-list of models known to build badly — and
+     * the difference is that this is not a question of taste. A build needs
+     * two things: to read a picture, and to call a tool. Every id here has been
+     * asked to do both against a real key and done both.
+     *
+     * The trap this exists to prevent: OpenAI's gpt-5.6 family reads a design
+     * better than anything else on the list and CANNOT call a function on
+     * /v1/chat/completions at all — "Function tools with reasoning_effort are
+     * not supported" — so a build on it dies at its first step, five minutes
+     * after somebody pressed the button. A newer, stronger model is not
+     * automatically a model this can use, which is why the choice here is a
+     * closed list and Settings → AI's is not.
+     *
+     * A model already chosen that is not on this list is still offered as the
+     * current choice rather than dropped; see the build page.
+     */
+    public const MODELS_FOR_BUILDING = [
+        'openai' => ['gpt-5.5', 'gpt-5.4', 'gpt-5.2'],
+        'anthropic' => ['claude-opus-5', 'claude-sonnet-5'],
+        'gemini' => ['gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-2.5-flash'],
+    ];
+
+    /**
+     * The provider a build should use, where the site has named one.
+     *
+     * Empty means "whichever the site uses for everything else", which is what
+     * this did before there was a choice.
+     */
+    public function chosenProvider(): string
+    {
+        $wanted = trim((string) app(AiSettingsService::class)->get('design_provider', ''));
+
+        return isset(self::MODELS_FOR_BUILDING[$wanted]) ? $wanted : '';
+    }
+
     /** The model named for design builds on this provider, if any. */
     private function designModelFor(string $providerName): string
     {
+        // What the owner chose on the build page, but only for the provider
+        // they chose it with: a model id belongs to one provider, and carrying
+        // it across would send an OpenAI id to Anthropic.
+        if ($this->chosenProvider() === $providerName) {
+            $chosen = trim((string) app(AiSettingsService::class)->get('design_model', ''));
+
+            if ($chosen !== '') {
+                return $chosen;
+            }
+        }
+
         return trim((string) (config('vela.ai.chat.design_models.' . $providerName) ?? ''));
     }
 
@@ -363,7 +413,24 @@ class DesignBuilderService
         }
 
         $candidates = [];
-        if ($primary->supportsVision()) {
+
+        // The provider chosen for builds goes first, ahead of the one the site
+        // chats with — that is the whole point of choosing it. The others stay
+        // behind it, so a key that has run out still falls through to
+        // something rather than stopping the build.
+        if (($wanted = $this->chosenProvider()) !== '') {
+            try {
+                $chosen = $this->aiManager->resolveTextProvider($wanted);
+
+                if ($chosen->supportsVision() && $this->providerName($chosen) === $wanted) {
+                    $candidates[$wanted] = $chosen;
+                }
+            } catch (\Throwable $e) {
+                // No key for it. The list below still has the site's own.
+            }
+        }
+
+        if ($primary->supportsVision() && !isset($candidates[$this->providerName($primary)])) {
             $candidates[$this->providerName($primary)] = $primary;
         }
 

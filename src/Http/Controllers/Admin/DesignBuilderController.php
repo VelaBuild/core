@@ -42,6 +42,7 @@ class DesignBuilderController extends Controller
             'results' => $this->runner->results(),
             'readiness' => $this->readiness(),
             'preview' => $this->previewPage(),
+            'buildWith' => $this->choiceOfModel(),
         ]);
     }
 
@@ -165,6 +166,10 @@ class DesignBuilderController extends Controller
         abort_if(Gate::denies('config_edit'), Response::HTTP_FORBIDDEN);
 
         $request->validate(['max_loops' => 'nullable|integer|min:1|max:10']);
+
+        if ($error = $this->rememberTheChoiceOfModel($request)) {
+            return back()->withErrors(['build' => $error]);
+        }
 
         try {
             $this->runner->start(
@@ -292,6 +297,86 @@ class DesignBuilderController extends Controller
         ];
 
         return $checks;
+    }
+
+    /**
+     * What the two menus beside the Build button are made of.
+     *
+     * Only providers this site holds a key for: naming one it cannot use is an
+     * invitation to pick it and wait for the failure.
+     *
+     * @return array{provider: string, model: string, options: array<string, array<int, string>>}
+     */
+    private function choiceOfModel(): array
+    {
+        $settings = app(\VelaBuild\Core\Services\AiSettingsService::class);
+        $options = [];
+
+        foreach (\VelaBuild\Core\Services\DesignBuilderService::MODELS_FOR_BUILDING as $provider => $models) {
+            if ($settings->hasApiKey($provider)) {
+                $options[$provider] = $models;
+            }
+        }
+
+        $provider = (string) $settings->get('design_provider', '');
+        $model = (string) $settings->get('design_model', '');
+
+        // A model set in .env, or by a newer Vela than this one, is shown as
+        // the current choice instead of quietly reverting to something else.
+        if ($provider !== '' && $model !== '' && isset($options[$provider]) && !in_array($model, $options[$provider], true)) {
+            array_unshift($options[$provider], $model);
+        }
+
+        return ['provider' => $provider, 'model' => $model, 'options' => $options];
+    }
+
+    /**
+     * Keep the provider and model chosen beside the Build button.
+     *
+     * Saved as part of pressing Build rather than behind a Save of its own:
+     * the choice and the build are one action, and a setting that needed
+     * saving separately would be the thing everyone forgets.
+     *
+     * @return string|null a reason it was not saved, or null
+     */
+    private function rememberTheChoiceOfModel(Request $request): ?string
+    {
+        if (!$request->has('design_provider')) {
+            return null;
+        }
+
+        $settings = app(\VelaBuild\Core\Services\AiSettingsService::class);
+        $provider = trim((string) $request->input('design_provider'));
+        $model = trim((string) $request->input('design_model'));
+
+        if ($provider === '') {
+            $settings->set('design_provider', null);
+            $settings->set('design_model', null);
+
+            return null;
+        }
+
+        $allowed = \VelaBuild\Core\Services\DesignBuilderService::MODELS_FOR_BUILDING;
+
+        if (!isset($allowed[$provider])) {
+            return 'There is no provider called "' . $provider . '".';
+        }
+
+        // A model already in use that this release has not heard of stays
+        // choosable — it may have been set in .env, or by a later Vela — but
+        // anything else has to be one that has been shown to read a design and
+        // call a tool. A model that cannot do the second dies at the build's
+        // first step, minutes after the button is pressed.
+        $inUse = (string) $settings->get('design_model', '');
+
+        if ($model !== '' && $model !== $inUse && !in_array($model, $allowed[$provider], true)) {
+            return 'That model is not one this can build with. Pick one of: ' . implode(', ', $allowed[$provider]) . '.';
+        }
+
+        $settings->set('design_provider', $provider);
+        $settings->set('design_model', $model === '' ? null : $model);
+
+        return null;
     }
 
     /**

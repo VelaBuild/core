@@ -219,6 +219,42 @@
                     <button type="submit" class="btn btn-primary" id="vela-build-btn" @if($running) disabled @endif>
                         <i class="fas fa-magic mr-1"></i> {{ $running ? 'Building…' : 'Build my site' }}
                     </button>
+
+                    {{-- A build needs a model that can do two things: read a
+                         picture and call a tool. Those are not the same models
+                         a site chats with, and a newer model is not
+                         automatically one of them — OpenAI's gpt-5.6 family
+                         reads a design better than anything on this list and
+                         cannot call a tool at all, so a build on it dies at its
+                         first step. That is why this menu is closed while the
+                         one in Settings → AI can be typed into.
+
+                         Kept in the same form as the button: choosing a model
+                         and building is one action, and a Save of its own would
+                         be the step everyone forgets. --}}
+                    @if(!empty($buildWith['options']))
+                    <div class="w-100 mt-3 d-flex align-items-center flex-wrap" style="gap:8px;">
+                        <label class="small mb-0">Build with</label>
+                        <select name="design_provider" id="vela-build-provider" class="form-control form-control-sm" style="width:auto;">
+                            <option value="">The site's own AI</option>
+                            @foreach($buildWith['options'] as $provider => $models)
+                                <option value="{{ $provider }}" {{ $buildWith['provider'] === $provider ? 'selected' : '' }}>
+                                    {{ ['openai' => 'OpenAI', 'anthropic' => 'Anthropic', 'gemini' => 'Gemini'][$provider] ?? $provider }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <select name="design_model" id="vela-build-model" class="form-control form-control-sm" style="width:auto;">
+                            <option value="">Recommended</option>
+                            @foreach($buildWith['options'] as $provider => $models)
+                                @foreach($models as $model)
+                                    <option value="{{ $model }}" data-provider="{{ $provider }}"
+                                            {{ $buildWith['model'] === $model ? 'selected' : '' }}>{{ $model }}</option>
+                                @endforeach
+                            @endforeach
+                        </select>
+                        <span class="small text-muted">A build is worth a better model than everyday chat is.</span>
+                    </div>
+                    @endif
                 </form>
                 @endcan
 
@@ -432,6 +468,37 @@
 
     poll();
     timer = setInterval(poll, 3000);
+})();
+</script>
+
+<script>
+(function () {
+    var provider = document.getElementById('vela-build-provider');
+    var model = document.getElementById('vela-build-model');
+    if (!provider || !model) { return; }
+
+    // A model id belongs to one provider, so the menu only ever offers the
+    // ones that go with the provider beside it — and switching provider drops
+    // a model that no longer applies rather than sending an OpenAI id to
+    // Anthropic.
+    function sync(keepChoice) {
+        var chosen = keepChoice ? model.value : '';
+        var stillThere = false;
+
+        Array.prototype.forEach.call(model.options, function (option) {
+            var mine = !option.value || option.dataset.provider === provider.value;
+            option.hidden = !mine;
+            option.disabled = !mine;
+            if (mine && option.value && option.value === chosen) { stillThere = true; }
+        });
+
+        model.value = stillThere ? chosen : '';
+        // Nothing to choose between when the site's own AI is in charge.
+        model.disabled = provider.value === '';
+    }
+
+    provider.addEventListener('change', function () { sync(false); });
+    sync(true);
 })();
 </script>
 @endsection
