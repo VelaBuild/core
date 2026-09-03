@@ -216,9 +216,7 @@
                             <span class="text-muted">— leave off if you will add your own</span>
                         </label>
                     </div>
-                    <button type="submit" class="btn btn-primary" id="vela-build-btn" @if($running) disabled @endif>
-                        <i class="fas fa-magic mr-1"></i> {{ $running ? 'Building…' : 'Build my site' }}
-                    </button>
+                   
 
                     {{-- A build needs a model that can do two things: read a
                          picture and call a tool. Those are not the same models
@@ -233,7 +231,7 @@
                          and building is one action, and a Save of its own would
                          be the step everyone forgets. --}}
                     @if(!empty($buildWith['options']))
-                    <div class="w-100 mt-3 d-flex align-items-center flex-wrap" style="gap:8px;">
+                    <div class="w-100 mt-3 d-flex align-items-center flex-wrap mb-2" style="gap:8px;">
                         <label class="small mb-0">Build with</label>
                         <select name="design_provider" id="vela-build-provider" class="form-control form-control-sm" style="width:auto;">
                             <option value="">The site's own AI</option>
@@ -255,6 +253,9 @@
                         <span class="small text-muted">A build is worth a better model than everyday chat is.</span>
                     </div>
                     @endif
+                    <button type="submit" class="btn btn-primary" id="vela-build-btn" @if($running) disabled @endif>
+                        <i class="fas fa-magic mr-1"></i> {{ $running ? 'Building…' : 'Build my site' }}
+                    </button>
                 </form>
                 @endcan
 

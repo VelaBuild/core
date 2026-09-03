@@ -65,7 +65,7 @@ class ThemeNamingTest extends PackageTestCase
         app(ThemeAuthor::class)->scaffold('ร้านกาแฟ', 'ร้านกาแฟ');
     }
 
-    public function test_a_build_will_not_write_over_a_theme_that_is_not_its_own(): void
+    public function test_a_build_takes_the_next_free_name_rather_than_a_theme_that_is_not_its_own(): void
     {
         $author = app(ThemeAuthor::class);
         $author->scaffold('lighthouse', 'Lighthouse');
@@ -73,15 +73,35 @@ class ThemeNamingTest extends PackageTestCase
 
         try {
             // A design's name gives the same theme name every run, so the
-            // second build of any design arrives at a folder that already
-            // exists. It used to write the skeleton straight into it.
+            // second design for one company arrives at a folder that already
+            // exists. It used to write the skeleton straight into it; then it
+            // was refused, which was right about the danger and useless about
+            // the fix — the model invented worse names, or reached for the
+            // theme that was already there and built onto somebody else's.
             $result = (new CreateThemeTool())->execute(['name' => 'Lighthouse', 'kind' => 'landing']);
 
-            $this->assertArrayHasKey('error', $result);
-            $this->assertStringContainsString('already exists', $result['error']);
+            $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+            $this->assertSame('lighthouse-2', $result['theme']);
             $this->assertSame('HAND WRITTEN', file_get_contents(resource_path('views/templates/lighthouse/layout.blade.php')));
+            $this->assertStringContainsString('<!doctype html>', file_get_contents(resource_path('views/templates/lighthouse-2/layout.blade.php')));
         } finally {
             $this->cleanUp('lighthouse');
+            $this->cleanUp('lighthouse-2');
+        }
+    }
+
+    public function test_it_keeps_counting_past_a_name_that_is_also_taken(): void
+    {
+        $author = app(ThemeAuthor::class);
+        $author->scaffold('lighthouse', 'Lighthouse');
+        $author->scaffold('lighthouse-2', 'Lighthouse 2');
+
+        try {
+            $this->assertSame('lighthouse-3', $author->scaffold('Lighthouse', 'Lighthouse'));
+        } finally {
+            foreach (['lighthouse', 'lighthouse-2', 'lighthouse-3'] as $theme) {
+                $this->cleanUp($theme);
+            }
         }
     }
 
@@ -110,7 +130,7 @@ class ThemeNamingTest extends PackageTestCase
         }
     }
 
-    public function test_the_theme_the_site_is_wearing_is_refused_even_to_its_own_build(): void
+    public function test_the_theme_the_site_is_wearing_is_never_written_over(): void
     {
         $author = app(ThemeAuthor::class);
         $author->scaffold('lighthouse', 'Lighthouse');
@@ -124,12 +144,14 @@ class ThemeNamingTest extends PackageTestCase
             $result = (new CreateThemeTool())->execute(['name' => 'Lighthouse', 'kind' => 'landing']);
 
             // Rewriting it would change the site under whoever is reading it,
-            // which is the one thing a build on a preview page must not do.
-            $this->assertArrayHasKey('error', $result);
-            $this->assertStringContainsString('reading it', $result['error']);
+            // which is the one thing a build on a preview page must not do —
+            // so even its own name is given up when the site is wearing it.
+            $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+            $this->assertSame('lighthouse-2', $result['theme']);
             $this->assertSame('WHAT VISITORS SEE', file_get_contents(resource_path('views/templates/lighthouse/layout.blade.php')));
         } finally {
             $this->cleanUp('lighthouse');
+            $this->cleanUp('lighthouse-2');
         }
     }
 

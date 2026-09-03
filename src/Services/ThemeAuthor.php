@@ -109,6 +109,61 @@ class ThemeAuthor
     }
 
     /**
+     * The same name, moved along until it belongs to nobody else.
+     *
+     * A build names its theme after the site the design is for, so the second
+     * design for the same company — and every rebuild after the first has been
+     * kept as the site's theme — arrives at a name already taken. That used to
+     * be refused, which is correct about the danger and useless about the fix:
+     * the model was told to pick another name and would either invent a worse
+     * one ("zercurity-landing", "project_theme") or reach for the theme that
+     * was already there and build onto somebody else's.
+     *
+     * Taken means: a folder exists that this caller may not write over, or the
+     * site is wearing it. Its own theme from a previous run of the SAME design
+     * is not taken — that one is reused, or a rebuild would leave -2, -3, -4
+     * behind it.
+     */
+    private function nameNobodyElseIsUsing(string $theme, ?string $mayReplace): string
+    {
+        $taken = function (string $candidate) use ($mayReplace): bool {
+            // Checked BEFORE its own name, and that order is the point: a
+            // build's theme becomes the live one the moment somebody presses
+            // "use this as my homepage", and the next build of that same
+            // design would then rewrite the views a visitor is reading. It
+            // gives up its own name instead.
+            if ($candidate === config('vela.template.active')) {
+                return true;
+            }
+
+            if ($candidate === $mayReplace) {
+                return false;
+            }
+
+            return is_dir($this->directory($candidate));
+        };
+
+        if (!$taken($theme)) {
+            return $theme;
+        }
+
+        // Two is where a person would start counting, and fifty is far past
+        // where something has gone wrong.
+        for ($suffix = 2; $suffix <= 50; $suffix++) {
+            $candidate = $theme . '-' . $suffix;
+
+            if (!$taken($candidate) && $this->rejectUnusableName($candidate) === null) {
+                return $candidate;
+            }
+        }
+
+        throw new \RuntimeException(
+            'There are already fifty themes called "' . $theme . '" or something close to it. Delete some in '
+            . 'Settings → Appearance before building again.'
+        );
+    }
+
+    /**
      * Create an empty theme and its manifest. No views: those are written one
      * at a time, so a failure part-way leaves the rest falling back rather
      * than half a design.
@@ -136,29 +191,13 @@ class ThemeAuthor
             throw new \RuntimeException($error);
         }
 
+        $theme = $this->nameNobodyElseIsUsing($theme, $mayReplace);
         $directory = $this->directory($theme);
 
+        // Only ever its own from a previous run of the same design: anything
+        // else was moved along to a free name above. It goes, but not without
+        // a copy, the way a deleted theme keeps one.
         if (is_dir($directory)) {
-            // The theme in use is refused even to the caller that made it. A
-            // build works on a preview and hands the site over at the end; one
-            // that rewrites the live theme's views has changed the site before
-            // anybody has looked at what it did.
-            if ($theme === config('vela.template.active')) {
-                throw new \RuntimeException(
-                    'The site is using a theme called "' . $theme . '", and writing this one would rewrite it while '
-                    . 'people are reading it. Give this theme a different name.'
-                );
-            }
-
-            if ($theme !== $mayReplace) {
-                throw new \RuntimeException(
-                    'A theme called "' . $theme . '" already exists and is not this build\'s to overwrite. Give this '
-                    . 'theme a name of its own, or delete that one first in Settings → Appearance.'
-                );
-            }
-
-            // Its own from a previous run, so it goes — but not without a copy,
-            // the way a deleted theme keeps one.
             $replaced = storage_path('app/vela-theme-replaced/' . $theme);
             File::deleteDirectory($replaced);
             File::ensureDirectoryExists(dirname($replaced));
