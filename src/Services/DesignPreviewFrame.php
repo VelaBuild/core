@@ -27,6 +27,16 @@ class DesignPreviewFrame
     public const DESIGN_KEY = 'design_preview_design';
 
     /**
+     * The theme the site was wearing before a design was kept.
+     *
+     * Written by promote() and read by demote(). Without it, changing your mind
+     * about a design meant knowing which of a dozen themes had been yours and
+     * picking it out of a list by hand — the homepage and the menus could be
+     * put back and the theme could not, so the site came back half restored.
+     */
+    public const SUPERSEDED_THEME_KEY = 'design_superseded_template';
+
+    /**
      * The key that lets a link ask for a page in the design's theme.
      *
      * The build has to fetch those pages itself, over HTTP and without a
@@ -154,6 +164,19 @@ class DesignPreviewFrame
         $theme = $this->theme();
 
         if ($theme !== null) {
+            // Noted before it is replaced, and only when it is really changing:
+            // pressing "use this as my homepage" twice must not record the
+            // design's own theme as the thing to go back to.
+            $before = (string) (VelaConfig::where('key', 'active_template')->value('value')
+                ?: config('vela.template.active', ''));
+
+            if ($before !== '' && $before !== $theme) {
+                VelaConfig::updateOrCreate(
+                    ['key' => self::SUPERSEDED_THEME_KEY],
+                    ['value' => $before]
+                );
+            }
+
             VelaConfig::updateOrCreate(['key' => 'active_template'], ['value' => $theme]);
         }
 
@@ -190,6 +213,62 @@ class DesignPreviewFrame
         } catch (\Throwable $e) {
             // The frame is moved either way; the caches rebuild on their own.
         }
+    }
+
+    /**
+     * Put back the theme and navigation a kept design replaced.
+     *
+     * The mirror of promote(), and it exists because "try a design" is only
+     * safe if it can be untried. What it restores is the FRAME; the homepage
+     * itself is a page, and the caller swaps that back.
+     *
+     * @return bool false when there is nothing to go back to
+     */
+    public function demote(): bool
+    {
+        $previous = trim((string) VelaConfig::where('key', self::SUPERSEDED_THEME_KEY)->value('value'));
+
+        if ($previous === '') {
+            return false;
+        }
+
+        VelaConfig::updateOrCreate(['key' => 'active_template'], ['value' => $previous]);
+        VelaConfig::where('key', self::SUPERSEDED_THEME_KEY)->delete();
+
+        foreach (self::SLOTS as $slot) {
+            $superseded = Menu::where('slot', 'superseded_' . $slot)->with('items')->first();
+
+            if (!$superseded || $superseded->items->isEmpty()) {
+                continue;
+            }
+
+            $live = Menu::firstOrCreate(['slot' => $slot], ['name' => ucfirst(str_replace('_', ' ', $slot))]);
+            $live->items()->delete();
+
+            foreach ($superseded->items()->orderBy('order_column')->get() as $item) {
+                $live->items()->create($this->copyable($item));
+            }
+
+            // Emptied rather than kept: going back twice would otherwise put
+            // the same old menu back over something else.
+            $superseded->items()->delete();
+        }
+
+        try {
+            app(SiteConfigWriter::class)->write();
+            SiteConfigWriter::apply();
+            app(StaticSiteGenerator::class)->purgeHtml();
+        } catch (\Throwable $e) {
+            // The frame is moved either way; the caches rebuild on their own.
+        }
+
+        return true;
+    }
+
+    /** Is there a theme and navigation to go back to? */
+    public function canDemote(): bool
+    {
+        return trim((string) VelaConfig::where('key', self::SUPERSEDED_THEME_KEY)->value('value')) !== '';
     }
 
     /** @return array<string, mixed> */

@@ -113,6 +113,7 @@ Route::post('settings/design-builder/brief',      [Admin\DesignBuilderController
 Route::post('settings/design-builder/start',      [Admin\DesignBuilderController::class, 'start'])->name('settings.design-builder.start');
 Route::get('settings/design-builder/status',      [Admin\DesignBuilderController::class, 'status'])->name('settings.design-builder.status');
 Route::post('settings/design-builder/use',        [Admin\DesignBuilderController::class, 'useAsHomepage'])->name('settings.design-builder.use');
+Route::post('settings/design-builder/restore',    [Admin\DesignBuilderController::class, 'restore'])->name('settings.design-builder.restore');
 Route::get('settings/design-builder/capture/{name}', [Admin\DesignBuilderController::class, 'capture'])->name('settings.design-builder.capture')->where('name', '[a-zA-Z0-9._\-]+');
 Route::get('settings/design-builder/design/{name}',  [Admin\DesignBuilderController::class, 'design'])->name('settings.design-builder.design')->where('name', '[a-zA-Z0-9._\-]+');
 

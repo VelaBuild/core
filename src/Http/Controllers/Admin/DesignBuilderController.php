@@ -24,6 +24,15 @@ use VelaBuild\Core\Services\ScreenshotService;
  */
 class DesignBuilderController extends Controller
 {
+    /**
+     * What keeping a design replaced, so it can be put back.
+     *
+     * The page's own slug is not enough on its own: it has to come back
+     * published or unlisted as it was, and the site's name has to come back
+     * with it.
+     */
+    private const SUPERSEDED_HOME_KEY = 'design_superseded_home';
+
     public function __construct(
         protected DesignBuildRunner $runner,
         protected ScreenshotService $screenshots,
@@ -43,6 +52,8 @@ class DesignBuilderController extends Controller
             'readiness' => $this->readiness(),
             'preview' => $this->previewPage(),
             'buildWith' => $this->choiceOfModel(),
+            'canRestore' => VelaConfig::where('key', self::SUPERSEDED_HOME_KEY)->exists()
+                || app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->canDemote(),
         ]);
     }
 
@@ -75,10 +86,23 @@ class DesignBuilderController extends Controller
             $current = Page::where('slug', 'home')->first();
 
             if ($current) {
+                $archived = $this->slugToParkTheHomepageUnder();
+
                 $current->update([
-                    'slug' => 'home-' . now()->format('Y-m-d-His'),
+                    'slug' => $archived,
                     'status' => 'unlisted',
                 ]);
+
+                // Which one to bring back, and what it was called. Kept as a
+                // note rather than found by guessing: "the newest page whose
+                // slug starts with home-" is a rule that picks the wrong page
+                // the moment a design is kept twice, and the site name has to
+                // go back with it or the header keeps the design's.
+                VelaConfig::updateOrCreate(['key' => self::SUPERSEDED_HOME_KEY], ['value' => json_encode([
+                    'slug' => $archived,
+                    'status' => 'published',
+                    'site_name' => (string) (VelaConfig::where('key', 'site_name')->value('value') ?? ''),
+                ])]);
             }
 
             $preview->update([
@@ -103,7 +127,83 @@ class DesignBuilderController extends Controller
             app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->promote();
         });
 
-        return back()->with('message', 'That design is now your homepage. The one it replaced is still there, unlisted.');
+        return back()->with('message', 'That design is now your homepage. The one it replaced is still there, unlisted, '
+            . 'and "Put back the site I had" brings it back.');
+    }
+
+    /**
+     * A slug to park the current homepage under, free of anybody else's.
+     *
+     * Seconds are not fine enough: keeping a design and putting it back inside
+     * the same second produced the same slug twice, and pages are unique on
+     * (locale, slug) — so the second swap threw and rolled the whole thing
+     * back, in the one place where a person is most likely to press twice.
+     */
+    private function slugToParkTheHomepageUnder(): string
+    {
+        $base = 'home-' . now()->format('Y-m-d-His');
+        $slug = $base;
+
+        for ($n = 2; Page::withTrashed()->where('slug', $slug)->exists(); $n++) {
+            $slug = $base . '-' . $n;
+        }
+
+        return $slug;
+    }
+
+    /**
+     * Undo keeping a design: the homepage, the theme and the navigation.
+     *
+     * Trying a design is only safe if it can be untried, and until now only
+     * two of the three could be. The homepage was parked under a timestamped
+     * slug and the menus under superseded_ ones, both findable by somebody who
+     * knew where to look; the theme was simply overwritten, so a person who
+     * switched back in Settings → Appearance got the old clothes on the new
+     * content and reasonably concluded the theme had eaten their pages.
+     *
+     * Nothing is deleted here either — what this replaces is parked the same
+     * way, so pressing it does not cost the design.
+     */
+    public function restore(Request $request)
+    {
+        abort_if(Gate::denies('config_edit'), Response::HTTP_FORBIDDEN);
+
+        $note = json_decode((string) VelaConfig::where('key', self::SUPERSEDED_HOME_KEY)->value('value'), true);
+        $frame = app(\VelaBuild\Core\Services\DesignPreviewFrame::class);
+
+        if (!is_array($note) && !$frame->canDemote()) {
+            return back()->withErrors(['build' => 'There is no earlier site to go back to.']);
+        }
+
+        DB::transaction(function () use ($note, $frame) {
+            if (is_array($note) && ($previous = Page::where('slug', $note['slug'] ?? '')->first())) {
+                // The design goes where the old homepage was, so this can be
+                // undone as many times as somebody changes their mind.
+                if ($kept = Page::where('slug', 'home')->first()) {
+                    $kept->update([
+                        'slug' => $this->slugToParkTheHomepageUnder(),
+                        'status' => 'unlisted',
+                    ]);
+                }
+
+                $previous->update([
+                    'slug' => 'home',
+                    'status' => $note['status'] ?? 'published',
+                ]);
+
+                if (($name = trim((string) ($note['site_name'] ?? ''))) !== '') {
+                    VelaConfig::updateOrCreate(['key' => 'site_name'], ['value' => $name]);
+                }
+            }
+
+            VelaConfig::where('key', self::SUPERSEDED_HOME_KEY)->delete();
+            $frame->demote();
+
+            app(SiteConfigWriter::class)->write();
+        });
+
+        return back()->with('message', 'Your site is back as it was — homepage, theme and navigation. '
+            . 'The design is still there, unlisted.');
     }
 
     public function upload(Request $request)

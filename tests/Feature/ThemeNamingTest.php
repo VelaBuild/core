@@ -50,6 +50,12 @@ class ThemeNamingTest extends PackageTestCase
         ];
 
         foreach ($cases as $name => $expected) {
+            // Cleared before as well as after: two of these names slug to the
+            // same folder on purpose, and a name that is taken now counts up
+            // to -2 rather than being refused — so the second case would be
+            // testing the counter instead of the slug.
+            $this->cleanUp($expected);
+
             try {
                 $this->assertSame($expected, $author->scaffold($name, $name), $name);
             } finally {

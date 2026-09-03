@@ -270,11 +270,42 @@
             </div>
         </div>
 
+        {{-- Keeping a design swaps the homepage, the theme and the navigation
+             in one press. Two of those could always be found again by somebody
+             who knew where to look — the old homepage under a timestamped
+             slug, the menus under superseded_ ones — and the theme could not,
+             so switching back in Settings → Appearance gave the old clothes on
+             the new content and read as the theme having eaten the pages. This
+             puts all three back together.
+
+             Its own card, outside "What it produced", because the wish to go
+             back outlives the screenshots: clearing the design folder empties
+             that card and must not take the way back with it. --}}
+        @if($canRestore)
+        @can('config_edit')
+        <div class="card">
+            <div class="card-body">
+                <h5 class="mb-1">Changed your mind?</h5>
+                <p class="text-muted small">
+                    Keeping a design moved three things at once — your homepage, your theme and your navigation.
+                    This puts all three back as they were. The design is kept, unlisted, so you can go forward again.
+                </p>
+                <form action="{{ route('vela.admin.settings.design-builder.restore') }}" method="POST"
+                      onsubmit="return confirm('Put your site back as it was — homepage, theme and navigation? The design is kept, unlisted.');">
+                    @csrf
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-undo mr-1"></i> Put back the site I had
+                    </button>
+                </form>
+            </div>
+        </div>
+        @endcan
+        @endif
+
         @if(!empty($results))
         <div class="card">
             <div class="card-body">
                 <h5 class="mb-1">What it produced</h5>
-
                 @if($preview)
                     <p class="text-muted small">
                         A build makes its own page and leaves your site alone, so you can look
