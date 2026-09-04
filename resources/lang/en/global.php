@@ -428,7 +428,7 @@ return [
     'cache'                          => 'Cache',
     'repeat_new_password'            => 'Repeat new password',
     'block_type_not_available'       => 'Block type \':type\' is not available.',
-    'page_has_no_content'            => 'This page has no content yet. Add some in Pages → Edit. Only you can see this note.',
+    'page_has_no_content'            => 'This page has no content.',
     'contact_name'                   => 'Name',
     'contact_email'                  => 'Email',
     'contact_phone'                  => 'Phone',

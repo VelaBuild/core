@@ -124,6 +124,171 @@ PageEditor.registerBlockType = function(name, config) {
             : '/admin/media/media';
     }
 
+    function getLinkSuggestUrl() {
+        return (window.PageEditorConfig && window.PageEditorConfig.linkSuggestUrl)
+            ? window.PageEditorConfig.linkSuggestUrl
+            : '/admin/link-suggest';
+    }
+
+    // --- Link boxes -------------------------------------------------------
+    //
+    // Every box that takes a link took a typed address and nothing else, so
+    // pointing a button at a page of your own meant knowing its slug by heart.
+    // Getting it wrong is invisible: the editor shows the address you typed
+    // and the visitor gets a 404.
+    //
+    // So: type a few letters of the TITLE and the pages, articles and topics
+    // that match are offered. It suggests, it does not constrain — the box is
+    // an ordinary text input the whole time, because most of what goes in one
+    // (another site, an anchor, a mailto:) is not something this could list.
+    var _linkSuggest = { box: null, input: null, items: [], active: -1, timer: null, seq: 0 };
+
+    function closeLinkSuggest() {
+        if (_linkSuggest.box) { _linkSuggest.box.remove(); }
+        _linkSuggest.box = null;
+        _linkSuggest.input = null;
+        _linkSuggest.items = [];
+        _linkSuggest.active = -1;
+    }
+
+    function linkSuggestKindLabel(kind) {
+        return { page: 'Page', article: 'Article', topic: 'Topic', 'built-in': '' }[kind] || '';
+    }
+
+    function drawLinkSuggest(input, results) {
+        closeLinkSuggest();
+        if (!results.length) return;
+
+        var rect = input.getBoundingClientRect();
+        var box = document.createElement('div');
+        box.className = 'vela-link-suggest';
+        // Fixed and on the body: these boxes live inside a modal that scrolls
+        // and clips, and a list positioned inside it was cut off at the edge
+        // of the panel it was helping with.
+        box.style.cssText = 'position:fixed;z-index:2147483000;background:#fff;' +
+            'border:1px solid #dee2e6;border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,.14);' +
+            'max-height:260px;overflow:auto;font-size:.85rem;' +
+            'left:' + Math.round(rect.left) + 'px;top:' + Math.round(rect.bottom + 4) + 'px;' +
+            'width:' + Math.round(Math.max(rect.width, 240)) + 'px;';
+
+        results.forEach(function (r, i) {
+            var row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'vela-link-suggest-item';
+            row.dataset.index = String(i);
+            row.style.cssText = 'display:block;width:100%;text-align:left;border:0;background:none;' +
+                'padding:7px 10px;cursor:pointer;';
+            var kind = linkSuggestKindLabel(r.kind);
+            row.innerHTML =
+                '<div style="display:flex;align-items:baseline;gap:6px;">' +
+                    '<span style="font-weight:500;">' + escHtml(r.label) + '</span>' +
+                    (kind ? '<span style="font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;color:#adb5bd;">' + escHtml(kind) + '</span>' : '') +
+                    (r.note ? '<span style="font-size:.7rem;color:#e8a53a;">' + escHtml(r.note) + '</span>' : '') +
+                '</div>' +
+                '<div style="color:#868e96;font-size:.75rem;overflow:hidden;text-overflow:ellipsis;">' + escHtml(r.url) + '</div>';
+            box.appendChild(row);
+        });
+
+        document.body.appendChild(box);
+        _linkSuggest.box = box;
+        _linkSuggest.input = input;
+        _linkSuggest.items = results;
+        _linkSuggest.active = -1;
+    }
+
+    function highlightLinkSuggest(next) {
+        if (!_linkSuggest.box) return;
+        var rows = _linkSuggest.box.children;
+        if (!rows.length) return;
+        if (_linkSuggest.active > -1 && rows[_linkSuggest.active]) {
+            rows[_linkSuggest.active].style.background = 'none';
+        }
+        _linkSuggest.active = (next + rows.length) % rows.length;
+        rows[_linkSuggest.active].style.background = '#eef1f7';
+        rows[_linkSuggest.active].scrollIntoView({ block: 'nearest' });
+    }
+
+    function takeLinkSuggestion(index) {
+        var chosen = _linkSuggest.items[index];
+        var input = _linkSuggest.input;
+        if (!chosen || !input) return;
+
+        input.value = chosen.url;
+        closeLinkSuggest();
+        // The field's own listeners are what write the value into the block,
+        // and setting .value fires none of them.
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.focus();
+    }
+
+    function askForLinkSuggestions(input) {
+        var query = (input.value || '').trim();
+
+        // Something already addressed is not a title being looked up. Nobody
+        // types "https://" hoping for a list of their own pages.
+        if (/^(https?:)?\/\//i.test(query) || /^(mailto|tel):/i.test(query) || query.charAt(0) === '#') {
+            closeLinkSuggest();
+            return;
+        }
+
+        var mine = ++_linkSuggest.seq;
+
+        fetch(getLinkSuggestUrl() + '?q=' + encodeURIComponent(query), {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
+        })
+            .then(function (r) { return r.ok ? r.json() : { results: [] }; })
+            .then(function (data) {
+                // An answer to a query two keystrokes ago must not replace the
+                // list for the one being typed now.
+                if (mine !== _linkSuggest.seq) return;
+                if (document.activeElement !== input) return;
+                drawLinkSuggest(input, (data && data.results) || []);
+            })
+            .catch(function () { /* no suggestions is a fine outcome; the box still takes typing */ });
+    }
+
+    var LINK_INPUT_SELECTOR = '.vela-field-href, .vela-link-input';
+
+    function bindLinkSuggest() {
+        $(document)
+            .on('focus input', LINK_INPUT_SELECTOR, function () {
+                var input = this;
+                clearTimeout(_linkSuggest.timer);
+                _linkSuggest.timer = setTimeout(function () { askForLinkSuggestions(input); }, 180);
+            })
+
+            // mousedown, not click: the input blurs first and a blur that
+            // closed the list took the row out from under the pointer.
+            .on('mousedown', '.vela-link-suggest-item', function (e) {
+                e.preventDefault();
+                takeLinkSuggestion(parseInt(this.dataset.index, 10));
+            })
+            .on('blur', LINK_INPUT_SELECTOR, function () {
+                setTimeout(closeLinkSuggest, 120);
+            });
+
+        // Capture phase, natively, rather than a delegated keydown on the
+        // document: these boxes live inside a modal that stops Enter and the
+        // arrow keys before they get that far, so a delegated handler saw
+        // neither and the list could only be used with the mouse.
+        document.addEventListener('keydown', function (e) {
+            if (!_linkSuggest.box || !_linkSuggest.input) return;
+            if (e.target !== _linkSuggest.input) return;
+
+            if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); highlightLinkSuggest(_linkSuggest.active + 1); }
+            else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); highlightLinkSuggest(_linkSuggest.active - 1); }
+            else if (e.key === 'Enter' && _linkSuggest.active > -1) { e.preventDefault(); e.stopPropagation(); takeLinkSuggestion(_linkSuggest.active); }
+            else if (e.key === 'Escape') { e.stopPropagation(); closeLinkSuggest(); }
+        }, true);
+
+        // The list is on the body at fixed coordinates, so it does not travel
+        // with whatever it was anchored to.
+        window.addEventListener('scroll', closeLinkSuggest, true);
+        window.addEventListener('resize', closeLinkSuggest);
+    }
+
     // --- Helper ---
     // Image URL field with a media-library picker, live thumbnail and a clear button.
     function imageField(id, label, value) {
@@ -363,7 +528,7 @@ PageEditor.registerBlockType = function(name, config) {
             '<input type="hidden" class="slide-image" value="' + escHtml(slide.image_url || '') + '">' +
             '<div style="flex:1;min-width:0;">' +
                 '<input type="text" class="form-control form-control-sm mb-1 slide-caption" placeholder="Caption (optional)" value="' + escHtml(slide.caption || '') + '">' +
-                '<input type="text" class="form-control form-control-sm slide-link" placeholder="Link URL (optional)" value="' + escHtml(slide.link || '') + '">' +
+                '<input type="text" class="form-control form-control-sm slide-link vela-link-input" placeholder="Link URL (optional)" value="' + escHtml(slide.link || '') + '">' +
             '</div>' +
             '<button type="button" class="btn btn-sm btn-outline-danger remove-carousel-slide" title="Remove"><i class="fas fa-times"></i></button>' +
         '</div>';
@@ -601,7 +766,7 @@ PageEditor.registerBlockType = function(name, config) {
                 '</div>' +
                 '<div class="form-group"><label>Alt Text</label><input type="text" class="form-control" id="img-alt" value="' + escHtml(alt) + '"></div>' +
                 '<div class="form-group"><label>Caption</label><input type="text" class="form-control" id="img-caption" value="' + escHtml(caption) + '"></div>' +
-                '<div class="form-group"><label>Link URL (optional)</label><input type="text" class="form-control" id="img-link" value="' + escHtml(link) + '"></div>' +
+                '<div class="form-group"><label>Link URL (optional)</label><input type="text" class="form-control vela-link-input" id="img-link" value="' + escHtml(link) + '"></div>' +
                 '<div class="form-group"><label>Max Width</label><input type="text" class="form-control" id="img-maxwidth" value="' + escHtml(maxWidth) + '" placeholder="100%"></div>';
         },
         initEditor: function(block) {
@@ -1068,6 +1233,28 @@ PageEditor.registerBlockType = function(name, config) {
         return 'Text';
     }
 
+    /**
+     * What the folded-away list of fields should call itself.
+     *
+     * It said "All wording in this section", and the pictures are in there
+     * too — so somebody looking for the hero's background read the label,
+     * concluded pictures were not on offer, and never opened it. Saying what
+     * is actually inside costs one count.
+     */
+    function everythingInHereLabel(doc) {
+        var els = fieldElements(doc);
+        var pictures = els.filter(function(el) {
+            return (el.getAttribute('data-vela-field-kind') || '').split(/\s+/).indexOf('image') > -1;
+        }).length;
+        var words = els.length - pictures;
+
+        if (!pictures) return 'All wording in this section (' + words + ')';
+        if (!words) return pictures === 1 ? 'The picture in this section' : 'The ' + pictures + ' pictures in this section';
+
+        return 'All wording and pictures in this section (' + words + ' + ' +
+            pictures + (pictures === 1 ? ' picture' : ' pictures') + ')';
+    }
+
     function renderImportedFields(doc, root) {
         var els = fieldElements(doc);
         if (root && !root.hasAttribute('data-vela-block')) {
@@ -1408,6 +1595,10 @@ PageEditor.registerBlockType = function(name, config) {
                 'background:rgba(50,31,219,.05)}' +
             '[data-vela-pick-image]{cursor:pointer}' +
             '[data-vela-pick-image]:hover{outline:2px solid #321fdb;outline-offset:-2px}' +
+            // A picture lying under the section's own words gets no :hover of
+            // its own — the pointer is over the heading, not over it — so the
+            // one it can be reached through is marked from script instead.
+            '[data-vela-pick-under]{outline:2px solid #321fdb;outline-offset:-2px;cursor:pointer}' +
             // Dashed while merely pointed at, solid once held, so it is clear
             // which one a drag or a delete would act on.
             '[data-vela-hot]{outline:2px dashed #0d6efd !important;outline-offset:-2px}' +
@@ -1442,6 +1633,29 @@ PageEditor.registerBlockType = function(name, config) {
             '<script>(function(){' +
                 'var root=document.querySelector("[data-vela-block]");if(!root)return;' +
                 'var picked=' + JSON.stringify(_htmlSelected) + ';' +
+
+                // "Click a picture to swap it" is a listener ON the <img>, and
+                // a hero's background picture is an absolutely positioned
+                // <img> UNDER the heading, the overlay and the buttons — so
+                // there is no point on it where a click reaches it, and the
+                // one picture on the page that most wants changing was the one
+                // that could not be. Every AI-built hero is shaped this way.
+                //
+                // So anywhere a click lands on nothing editable, the stack at
+                // that point is searched for a picture. Defined before the
+                // part helpers because they consult it too: clicking the sky
+                // should select the picture, not the box it happens to be in.
+                'function pictureUnder(x,y){' +
+                    'var stack=document.elementsFromPoint?document.elementsFromPoint(x,y):[];' +
+                    'for(var i=0;i<stack.length;i++){' +
+                        'if(stack[i].hasAttribute&&stack[i].hasAttribute("data-vela-pick-image"))return stack[i];}' +
+                    'return null;}' +
+                'function pictureBehind(e){' +
+                    'var t=e.target;' +
+                    'if(!t||!t.closest)return null;' +
+                    'if(t.closest("[data-vela-ui]")||t.closest("[data-vela-field]"))return null;' +
+                    'return pictureUnder(e.clientX,e.clientY);}' +
+
                 PREVIEW_PART_HELPERS +
 
                 // --- the wording ------------------------------------------
@@ -1500,6 +1714,27 @@ PageEditor.registerBlockType = function(name, config) {
                     'var a=e.target&&e.target.closest?e.target.closest("a"):null;' +
                     'if(a)e.preventDefault();' +
                 '},true);' +
+
+                // A click that landed on nothing editable but has a picture
+                // under it asks to change that picture — see pictureUnder.
+                'document.addEventListener("click",function(e){' +
+                    'var img=pictureBehind(e);' +
+                    'if(!img)return;' +
+                    'e.preventDefault();' +
+                    'window.parent.postMessage({velaImage:{' +
+                        'field:img.getAttribute("data-vela-field")}},"*");' +
+                '});' +
+                // And say so before the click: without this the picture gives
+                // no sign it can be reached, which is indistinguishable from
+                // it not being reachable at all.
+                'var under=null;' +
+                'document.addEventListener("mousemove",function(e){' +
+                    'var img=pictureBehind(e);' +
+                    'if(img===under)return;' +
+                    'if(under)under.removeAttribute("data-vela-pick-under");' +
+                    'under=img;' +
+                    'if(under)under.setAttribute("data-vela-pick-under","");' +
+                '});' +
 
                 // --- formatting the selected words ------------------------
                 //
@@ -1716,7 +1951,12 @@ PageEditor.registerBlockType = function(name, config) {
                 'document.addEventListener("click",function(e){' +
                     'if(dragging)return;' +
                     'if(e.target&&e.target.closest&&e.target.closest("[data-vela-ui]"))return;' +
-                    'focusPart(partAt(e.target),true);' +
+                    // A picture lying under the click is what the click was
+                    // for; holding the box it happens to sit in instead left
+                    // the panel saying "nothing in this part is wording, a
+                    // picture or a link" over the very picture being changed.
+                    'var behind=pictureBehind(e);' +
+                    'focusPart(behind||partAt(e.target),true);' +
                 '},false);' +
                 // Escape steps out to whatever holds the current part, and only
                 // lets go once there is nothing further out. Selecting the
@@ -2452,7 +2692,7 @@ PageEditor.registerBlockType = function(name, config) {
                       '</div>' +
                       (fields
                         ? '<details><summary style="cursor:pointer;font-size:.85rem;">' +
-                            'All wording in this section (' + fieldElements(doc).length + ')</summary>' +
+                            everythingInHereLabel(doc) + '</summary>' +
                             '<div class="mt-2">' + fields + '</div></details>'
                         : emptyContent + '<div id="vela-field-list"></div>')) +
             '</div>' +
@@ -3758,9 +3998,9 @@ PageEditor.registerBlockType = function(name, config) {
                 '<div class="form-group"><label>Subtitle</label><textarea class="form-control" id="hero-subtitle" rows="2">' + escHtml(c.subtitle || '') + '</textarea></div>' +
                 '<hr><strong>Buttons</strong>' +
                 '<div class="form-row mt-2"><div class="form-group col-md-6"><label>Primary Button Text</label><input type="text" class="form-control" id="hero-btn1-text" value="' + escHtml(c.primary_button_text || '') + '"></div>' +
-                '<div class="form-group col-md-6"><label>Primary Button URL</label><input type="text" class="form-control" id="hero-btn1-url" value="' + escHtml(c.primary_button_url || '') + '"></div></div>' +
+                '<div class="form-group col-md-6"><label>Primary Button URL</label><input type="text" class="form-control vela-link-input" id="hero-btn1-url" value="' + escHtml(c.primary_button_url || '') + '"></div></div>' +
                 '<div class="form-row"><div class="form-group col-md-6"><label>Secondary Button Text</label><input type="text" class="form-control" id="hero-btn2-text" value="' + escHtml(c.secondary_button_text || '') + '"></div>' +
-                '<div class="form-group col-md-6"><label>Secondary Button URL</label><input type="text" class="form-control" id="hero-btn2-url" value="' + escHtml(c.secondary_button_url || '') + '"></div></div>' +
+                '<div class="form-group col-md-6"><label>Secondary Button URL</label><input type="text" class="form-control vela-link-input" id="hero-btn2-url" value="' + escHtml(c.secondary_button_url || '') + '"></div></div>' +
                 '<hr><strong>Settings</strong>' +
                 '<div class="form-row mt-2"><div class="form-group col-md-4"><label>Overlay Color</label><input type="text" class="form-control" id="hero-overlay" value="' + escHtml(s.background_overlay || 'rgba(0,0,0,0.4)') + '" placeholder="rgba(0,0,0,0.4)"></div>' +
                 '<div class="form-group col-md-4"><label>Text Alignment</label><select class="form-control" id="hero-align">' +
@@ -3815,9 +4055,9 @@ PageEditor.registerBlockType = function(name, config) {
                 '<div class="form-group"><label>Description</label><textarea class="form-control" id="cta-description" rows="2">' + escHtml(c.description || '') + '</textarea></div>' +
                 '<hr><strong>Buttons</strong>' +
                 '<div class="form-row mt-2"><div class="form-group col-md-6"><label>Primary Button Text</label><input type="text" class="form-control" id="cta-btn1-text" value="' + escHtml(c.primary_button_text || '') + '"></div>' +
-                '<div class="form-group col-md-6"><label>Primary Button URL</label><input type="text" class="form-control" id="cta-btn1-url" value="' + escHtml(c.primary_button_url || '') + '"></div></div>' +
+                '<div class="form-group col-md-6"><label>Primary Button URL</label><input type="text" class="form-control vela-link-input" id="cta-btn1-url" value="' + escHtml(c.primary_button_url || '') + '"></div></div>' +
                 '<div class="form-row"><div class="form-group col-md-6"><label>Secondary Button Text</label><input type="text" class="form-control" id="cta-btn2-text" value="' + escHtml(c.secondary_button_text || '') + '"></div>' +
-                '<div class="form-group col-md-6"><label>Secondary Button URL</label><input type="text" class="form-control" id="cta-btn2-url" value="' + escHtml(c.secondary_button_url || '') + '"></div></div>' +
+                '<div class="form-group col-md-6"><label>Secondary Button URL</label><input type="text" class="form-control vela-link-input" id="cta-btn2-url" value="' + escHtml(c.secondary_button_url || '') + '"></div></div>' +
                 '<hr>' +
                 '<div class="form-group"><label>Text Alignment</label><select class="form-control" id="cta-align">' +
                     '<option value="left"' + (s.text_alignment === 'left' ? ' selected' : '') + '>Left</option>' +
@@ -3854,6 +4094,7 @@ PageEditor.registerBlockType = function(name, config) {
         renderRows();
         initRowSortable();
         bindFormEvents();
+        bindLinkSuggest();
     }
 
     function parseExistingRows(data) {

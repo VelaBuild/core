@@ -188,6 +188,9 @@ window.PageEditorConfig = {
     uploadUrl: '{{ route("vela.admin.pages.storeCKEditorImages") }}',
     mediaUrl: '{{ route("vela.admin.media.index") }}',
     mediaUploadUrl: '{{ route("vela.admin.media.storeMedia") }}',
+    {{-- Where a link box goes to turn a title somebody remembers into the
+         slug the link needs. --}}
+    linkSuggestUrl: '{{ route("vela.admin.link-suggest") }}',
     categories: @json(\VelaBuild\Core\Models\Category::orderBy('order_by')->orderBy('name')->get(['id', 'name'])),
     i18n: {
         discardBlockChanges: @json(trans('vela::global.discard_block_changes'))

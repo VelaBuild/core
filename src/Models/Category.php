@@ -72,6 +72,25 @@ class Category extends Model implements HasMedia
         return $this->belongsToMany(Content::class, 'vela_article_category', 'category_id', 'article_id');
     }
 
+    /**
+     * The address this category is reached at.
+     *
+     * A category has no slug column: CategoryController::show() finds one by
+     * slugifying every name and comparing, so the slug is a reading of the
+     * name rather than a stored value. Everything else assumed the column was
+     * there — `MenuItem::resolveUrl()` built
+     * `route('categories.show', $category->slug)` with null, which throws and
+     * is caught, so **every category menu item resolved to "#"**. Reading it
+     * here fixes that and anything else that asks.
+     *
+     * Not in $appends: this is for code that asks, not a new field in every
+     * serialised category.
+     */
+    public function getSlugAttribute(): string
+    {
+        return \Illuminate\Support\Str::slug((string) $this->name);
+    }
+
     public function getTranslatedNameAttribute()
     {
         $locale = app()->getLocale();

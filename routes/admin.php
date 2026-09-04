@@ -6,6 +6,9 @@ use VelaBuild\Core\Http\Controllers\Admin;
 Route::get('/', [Admin\HomeController::class, 'index'])->name('home');
 Route::post('dashboard/preferences', [Admin\HomeController::class, 'savePreferences'])->name('dashboard.preferences');
 
+// What a link in the editor could point at, by title rather than by slug.
+Route::get('link-suggest', Admin\LinkSuggestController::class)->name('link-suggest');
+
 // Permissions
 Route::delete('permissions/destroy', [Admin\PermissionsController::class, 'massDestroy'])->name('permissions.massDestroy');
 Route::resource('permissions', Admin\PermissionsController::class);
