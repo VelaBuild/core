@@ -919,6 +919,16 @@ class VelaServiceProvider extends ServiceProvider
             'label'       => __('vela::menus.slot_footer_quick_links'),
             'description' => __('vela::menus.slot_footer_quick_links_description'),
         ]);
+        // The third slot every written theme renders — ThemeSkeleton draws
+        // @velaMenu('header_actions'), DesignPreviewFrame stages it and
+        // set_menu writes into it — and the one nobody had declared. A design
+        // showing "Account" at the right-hand end of its header therefore
+        // produced a menu that rendered on the site and appeared nowhere in
+        // Settings → Menus, because this registry is what that screen lists.
+        $vela->registerFrontMenuSlot('header_actions', [
+            'label'       => __('vela::menus.slot_header_actions'),
+            'description' => __('vela::menus.slot_header_actions_description'),
+        ]);
 
         // Pull theme-declared slots from each template.json's `menus` key.
         foreach ($vela->templates()->all() as $tplName => $tpl) {

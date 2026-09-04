@@ -51,6 +51,14 @@ class MenusController extends Controller
                 continue;
             }
 
+            // Nor is the design builder's bookkeeping. A design staged for
+            // preview and the menus a kept one displaced are held in slots of
+            // their own, and all six of them were listed here as menus to
+            // tidy away — the "Changed your mind?" button is what reads them.
+            if (\VelaBuild\Core\Services\DesignPreviewFrame::isPrivateSlot($slot)) {
+                continue;
+            }
+
             if (! isset($rows[$slot])) {
                 $rows[$slot] = [
                     'slot'      => $slot,
@@ -138,6 +146,13 @@ class MenusController extends Controller
             ]);
             $menu->slot = $slot;
             $menu->setRelation('items', app(\VelaBuild\Core\Services\MenuRenderer::class)->items($slot));
+        }
+
+        // A menu written by a design build carries no label — set_menu has no
+        // reason to invent one — and the heading then read: Edit menu items
+        // for the “” slot. The slot's own name is what it is called.
+        if (trim((string) $menu->label) === '') {
+            $menu->label = $config['label'] ?? ucwords(str_replace(['-', '_'], ' ', $slot));
         }
 
         return view('vela::admin.settings.menus.edit', [

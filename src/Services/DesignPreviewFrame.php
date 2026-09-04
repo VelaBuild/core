@@ -77,6 +77,27 @@ class DesignPreviewFrame
         return $this->active;
     }
 
+    /**
+     * Prefixes on menu slots that are this class's bookkeeping, not menus.
+     *
+     * A design being tried out stages its navigation under the first, and
+     * keeping one parks what it replaced under the second. Neither is a menu
+     * anybody edits, and Settings → Menus listed all six of them as orphaned
+     * slots to clean up — beside the one real menu the build had written.
+     */
+    public const PRIVATE_SLOT_PREFIXES = ['design_preview_', 'superseded_'];
+
+    public static function isPrivateSlot(string $slot): bool
+    {
+        foreach (self::PRIVATE_SLOT_PREFIXES as $prefix) {
+            if (str_starts_with($slot, $prefix)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** The staged slot name for a slot a theme asks for. */
     public static function slot(string $slot): string
     {
