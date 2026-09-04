@@ -423,6 +423,7 @@ return [
     'cache'                          => 'Cache',
     'repeat_new_password'            => 'Répéter le nouveau mot de passe',
     'block_type_not_available'       => 'Le type de bloc « :type » n\'est pas disponible.',
+    'page_has_no_content'            => 'Cette page n’a pas encore de contenu. Ajoutez-en dans Pages → Modifier. Vous seul voyez cette note.',
     'contact_name'                   => 'Nom',
     'contact_email'                  => 'E-mail',
     'contact_phone'                  => 'Téléphone',

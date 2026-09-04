@@ -24,6 +24,7 @@ class DesignBuilderService
     private ScreenshotService $screenshots;
     private SiteContext $siteContext;
     private ?\Closure $progressCallback = null;
+    private ?\Closure $stepCallback = null;
     private ?AiTextProvider $provider = null;
 
     /**
@@ -126,6 +127,26 @@ class DesignBuilderService
     public function onProgress(\Closure $callback): void
     {
         $this->progressCallback = $callback;
+    }
+
+    /**
+     * Told how far into the tool loop this is, for whoever is watching.
+     *
+     * The build is the longest phase of a run and the only countable thing in
+     * it is the tool call being made. Reported as a pair rather than a
+     * percentage: what a share of the wait this phase is worth is the caller's
+     * business, not this class's.
+     */
+    public function onStep(\Closure $callback): void
+    {
+        $this->stepCallback = $callback;
+    }
+
+    private function step(int $done, int $total): void
+    {
+        if ($this->stepCallback) {
+            ($this->stepCallback)($done, $total);
+        }
     }
 
     private function progress(string $message): void
@@ -1155,6 +1176,11 @@ class DesignBuilderService
 
         while ($iteration < $maxToolIterations && !empty($response['tool_calls'])) {
             $iteration++;
+            // The only countable thing in the longest phase of a run. The
+            // build usually stops well short of the ceiling, so this walks up
+            // and then the next phase carries it forward — which is honest:
+            // nobody knows in advance how many calls a design will take.
+            $this->step($iteration, $maxToolIterations);
 
             $assistantMsg = AiMessage::create([
                 'conversation_id' => $conversation->id,
@@ -2564,6 +2590,14 @@ PROMPT;
 WRITING A SECTION:
 - Never a header, a navigation bar or a footer. The theme draws those on every
   page; a second set in a section sits underneath them, dead, and is refused.
+- If you take the theme's header out of the flow so it lies over a full-bleed
+  hero — position:absolute, position:fixed — write the rule for the OTHER
+  pages in the same breath. The design shows you one page; the theme dresses
+  About, Privacy, Contact and every article, and none of them opens with a
+  hero to reserve that space. Left unwritten, the header lands on top of the
+  first thing on those pages: an About page printed its own heading directly
+  under the wordmark. `.page-content:not(:has(> .page-row-public.row-full:first-child))
+  { padding-top: <the header's height>; }` is the whole fix.
 - No <script> and no <style> — both are stripped. The stylesheet goes in css,
   where it can be scoped to the section.
 - You do not need script for the things that usually need it. A section is put

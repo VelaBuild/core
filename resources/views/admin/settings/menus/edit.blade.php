@@ -2,7 +2,6 @@
 
 @section('content')
 @include('vela::admin.settings._page-head', ['subtitle' => __('Edit menu items for the “:slot” slot.', ['slot' => $menu->label])])
-
 <div class="card">
     <div class="card-body">
         @if(session('status'))
@@ -79,9 +78,26 @@
                     <div class="tab-pane fade show active" id="tab-pages">
                         <input type="search" class="form-control form-control-sm mb-2" placeholder="{{ __('Filter pages…') }}" data-filter="#picker-pages">
                         <ul class="list-unstyled mb-0" id="picker-pages" style="max-height:300px; overflow:auto;">
+                            {{-- The address, not just the name. A title does not
+                                 identify a page: keeping a design parks the
+                                 homepage it replaced under a timestamped slug
+                                 and leaves its title alone, so a site that has
+                                 tried a few designs offers several pages called
+                                 "Home" and only the address tells them apart.
+                                 Somebody added one and got /home-2026-09-04-082328
+                                 in their live header.
+
+                                 To link the front page, use Built-in → Home:
+                                 that follows the homepage wherever it moves. --}}
                             @foreach($pages as $p)
                                 <li class="d-flex align-items-center py-1 border-bottom">
-                                    <span class="flex-grow-1 small">{{ $p->title }}</span>
+                                    <span class="flex-grow-1 small">
+                                        {{ $p->title }}
+                                        <span class="text-muted">/{{ $p->slug }}</span>
+                                        @if($p->status !== 'published')
+                                            <span class="badge badge-light border ml-1">{{ $p->status }}</span>
+                                        @endif
+                                    </span>
                                     <button type="button" class="btn btn-link btn-sm py-0" data-add="page" data-id="{{ $p->id }}" data-label="{{ $p->title }}">
                                         <i class="fas fa-plus"></i>
                                     </button>

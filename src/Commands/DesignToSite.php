@@ -202,6 +202,9 @@ class DesignToSite extends Command
             }
 
             // Step 8: Generate context
+            // The checks are behind us; what follows is looking at the design.
+            $this->status?->stage('reading');
+
             $context = $this->builder->generateContext($designPath);
             $this->info('Design context generated: ' . count($context['assets']) . ' assets, ' . count($context['instructions']) . ' instruction files');
 
@@ -290,6 +293,12 @@ class DesignToSite extends Command
                 ? 'Building the sections of this design onto "' . $preview->slug . '" — the theme, the navigation '
                     . 'and the site name are left as they are.'
                 : 'Building onto "' . $preview->slug . '" — the homepage is left as it is.');
+            // The build reports its own progress from inside: it is the
+            // longest phase and the only countable thing in it is the tool
+            // call being made.
+            $this->status?->stage('building');
+            $this->builder->onStep(fn (int $done, int $total) => $this->status?->stage('building', $done, $total));
+
             $this->builder->runBuildLoop($context, $designPath, $url);
 
             if (!$this->siteStillWorks($url)) {
@@ -342,6 +351,10 @@ class DesignToSite extends Command
 
             for ($loop = 1; $loop <= $maxLoops; $loop++) {
                 $loopsRun = $loop;
+                // Rounds COMPLETED, not the one starting: the round under way
+                // is not progress until it is over, and a bar that counts it
+                // early arrives at the last round claiming to be finished.
+                $this->status?->stage('qa', $loop - 1, $maxLoops);
                 $this->info("QA Loop {$loop}/{$maxLoops}...");
 
                 // Photographing a page that is not there produces a picture of
@@ -425,6 +438,7 @@ class DesignToSite extends Command
             }
 
             // Step 13: Summary output
+            $this->status?->stage('finishing');
             $this->info("Design builder complete. {$loopsRun} QA loops executed.");
             $this->info("Screenshots and reports saved to: {$outputPath}");
 

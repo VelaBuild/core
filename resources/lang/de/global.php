@@ -423,6 +423,7 @@ return [
     'cache'                          => 'Cache',
     'repeat_new_password'            => 'Neues Passwort wiederholen',
     'block_type_not_available'       => 'Blocktyp \':type\' ist nicht verfügbar.',
+    'page_has_no_content'            => 'Diese Seite hat noch keinen Inhalt. Füge ihn unter Seiten → Bearbeiten hinzu. Nur du siehst diesen Hinweis.',
     'contact_name'                   => 'Name',
     'contact_email'                  => 'E-Mail',
     'contact_phone'                  => 'Telefon',

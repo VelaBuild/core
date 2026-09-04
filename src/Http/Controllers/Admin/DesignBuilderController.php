@@ -48,7 +48,7 @@ class DesignBuilderController extends Controller
         return view('vela::admin.settings.design-builder', [
             'files' => $this->runner->designFiles(),
             'brief' => $this->brief(),
-            'status' => $this->runner->status()->read(),
+            'status' => $this->runner->status()->read(true),
             'running' => $this->runner->status()->isRunning(),
             'results' => $this->runner->results(),
             'readiness' => $this->readiness(),
@@ -446,7 +446,7 @@ class DesignBuilderController extends Controller
 
         return response()->json([
             'running' => $this->runner->status()->isRunning(),
-            'status' => $this->runner->status()->read(),
+            'status' => $this->runner->status()->read(true),
         ]);
     }
 

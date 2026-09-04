@@ -1,5 +1,10 @@
-@foreach($page->rows as $row)
-@if($row->blocks->count() > 0)
+@php
+// A row with no blocks draws nothing, so "has rows" is not the same question
+// as "has anything to show". Both are asked here, once, because the answer is
+// needed again at the foot of this file.
+$__rowsWithSomethingIn = $page->rows->filter(fn ($r) => $r->blocks->count() > 0);
+@endphp
+@foreach($__rowsWithSomethingIn as $row)
 @php
 $rowStyle = '';
 if ($row->background_color) $rowStyle .= 'background-color:' . e($row->background_color) . ';';
@@ -78,5 +83,27 @@ $blockImported = $block->type === 'html'
 @endforeach
     </div>
 </div>
-@endif
 @endforeach
+
+{{-- A page with nothing on it put the footer directly under the navigation,
+     which reads as a broken theme rather than as an empty page — and it is
+     the normal state of the About, Privacy, Terms and Contact pages every
+     install ships, so it is the first thing somebody sees after switching
+     theme. No theme has ever had a rule for it: none of the six shipped ones
+     nor the skeleton gives the page area a minimum height.
+
+     Fixed here rather than in seven layouts because every theme includes this
+     partial, and inline rather than in page-blocks.css so it works on a site
+     that has not republished the package's assets. --}}
+@if($__rowsWithSomethingIn->isEmpty())
+<div class="page-empty" style="min-height:42vh;display:flex;align-items:center;justify-content:center;padding:64px 20px;text-align:center;">
+    @auth('vela')
+        {{-- Only whoever can do something about it is told. A visitor gets the
+             space and nothing else; a notice addressed to the owner, printed
+             on the live site, is worse than the blank. --}}
+        <div style="max-width:34em;opacity:.6;font-size:.95em;">
+            {{ trans('vela::global.page_has_no_content') }}
+        </div>
+    @endauth
+</div>
+@endif

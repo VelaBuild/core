@@ -423,6 +423,7 @@ return [
     'cache'                          => '缓存',
     'repeat_new_password'            => '重复新密码',
     'block_type_not_available'       => '块类型":type"不可用。',
+    'page_has_no_content'            => '此页面还没有内容。请在"页面 → 编辑"中添加。此提示仅你可见。',
     'contact_name'                   => '姓名',
     'contact_email'                  => '电子邮箱',
     'contact_phone'                  => '电话',

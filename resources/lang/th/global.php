@@ -423,6 +423,7 @@ return [
     'cache'                          => 'แคช',
     'repeat_new_password'            => 'ยืนยันรหัสผ่านใหม่',
     'block_type_not_available'       => 'บล็อกประเภท \':type\' ไม่พร้อมใช้งาน',
+    'page_has_no_content'            => 'หน้านี้ยังไม่มีเนื้อหา เพิ่มได้ที่ หน้าเพจ → แก้ไข ข้อความนี้เห็นเฉพาะคุณ',
     'contact_name'                   => 'ชื่อ',
     'contact_email'                  => 'อีเมล',
     'contact_phone'                  => 'โทรศัพท์',

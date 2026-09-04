@@ -147,7 +147,13 @@ class MenusController extends Controller
             'slot'   => $slot,
             'stored' => $menu->exists,
             'config' => $config,
-            'pages'  => Page::orderBy('title')->get(['id', 'title', 'slug']),
+            // The status travels with the page because the picker shows it.
+            // Two pages can share a title and routinely do: keeping a design
+            // parks the homepage it replaced, unlisted, under a timestamped
+            // slug and with its title untouched — so a site that has kept a
+            // few designs offers several pages called "Home", and picking the
+            // wrong one puts a link to a parked page in the live header.
+            'pages'  => Page::orderBy('title')->get(['id', 'title', 'slug', 'status']),
             'posts'  => Content::orderBy('title')->limit(500)->get(['id', 'title', 'slug']),
             'categories' => Category::orderBy('name')->get(['id', 'name']),
         ]);

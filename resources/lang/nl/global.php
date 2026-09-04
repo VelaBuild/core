@@ -423,6 +423,7 @@ return [
     'cache'                          => 'Cache',
     'repeat_new_password'            => 'Herhaal nieuw wachtwoord',
     'block_type_not_available'       => 'Bloktype \':type\' is niet beschikbaar.',
+    'page_has_no_content'            => 'Deze pagina heeft nog geen inhoud. Voeg die toe via Pagina’s → Bewerken. Alleen jij ziet deze melding.',
     'contact_name'                   => 'Naam',
     'contact_email'                  => 'E-mail',
     'contact_phone'                  => 'Telefoon',

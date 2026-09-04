@@ -423,6 +423,7 @@ return [
     'cache'                          => 'Cache',
     'repeat_new_password'            => 'Gentag ny adgangskode',
     'block_type_not_available'       => 'Bloktypen \':type\' er ikke tilgængelig.',
+    'page_has_no_content'            => 'Denne side har endnu intet indhold. Tilføj det under Sider → Rediger. Kun du kan se denne note.',
     'contact_name'                   => 'Navn',
     'contact_email'                  => 'E-mail',
     'contact_phone'                  => 'Telefon',

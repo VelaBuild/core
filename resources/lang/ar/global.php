@@ -423,6 +423,7 @@ return [
     'cache'                          => 'الذاكرة المؤقتة',
     'repeat_new_password'            => 'تكرار كلمة المرور الجديدة',
     'block_type_not_available'       => 'نوع الكتلة \':type\' غير متاح.',
+    'page_has_no_content'            => 'لا يوجد محتوى في هذه الصفحة بعد. أضِفه من الصفحات ← تعديل. هذه الملاحظة تظهر لك وحدك.',
     'contact_name'                   => 'الاسم',
     'contact_email'                  => 'البريد الإلكتروني',
     'contact_phone'                  => 'الهاتف',

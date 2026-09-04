@@ -120,6 +120,68 @@ body.vela-admin .vela-build__label {
     margin: .5rem 0 0; font-size: .75rem; line-height: 1.5;
     color: var(--fg-muted, #4D5569);
 }
+
+.vela-progress__track {
+    height: 8px; border-radius: 999px; overflow: hidden;
+    background: var(--surface-sunken, #F6F7F9);
+    box-shadow: inset 0 0 0 1px var(--border, #DCE0E9);
+}
+.vela-progress__fill {
+    height: 100%; border-radius: 999px;
+    background: var(--accent, #22A2AB);
+    /* Eased, because the phases are not the same size and a bar that jumps
+       reads as broken. */
+    transition: width 600ms cubic-bezier(.22, 1, .36, 1);
+}
+/* While it is moving, the fill carries a slow sheen — the one honest signal
+   that work is happening during a phase whose count sits still for a minute. */
+.vela-progress__fill.is-live {
+    background-image: linear-gradient(90deg,
+        transparent 0%, rgba(255, 255, 255, .38) 50%, transparent 100%);
+    background-size: 180px 100%; background-repeat: no-repeat;
+    animation: vela-progress-sheen 1.6s linear infinite;
+}
+@keyframes vela-progress-sheen {
+    from { background-position: -180px 0; }
+    to { background-position: calc(100% + 180px) 0; }
+}
+
+/* The finish. A build is minutes of waiting and it used to end with a page
+   reload and no word of congratulation — the moment it works is the moment
+   worth marking. */
+.vela-done { position: fixed; inset: 0; z-index: 2100; display: flex;
+    align-items: center; justify-content: center; padding: 24px;
+    background: rgba(10, 16, 32, .62); }
+.vela-done[hidden] { display: none; }
+.vela-done__card {
+    position: relative; z-index: 1; width: 100%; max-width: 520px;
+    background: var(--surface, #fff); color: var(--fg, #151A28);
+    border-radius: var(--r-lg, 14px); padding: 32px 28px 24px; text-align: center;
+    box-shadow: var(--shadow-xl, 0 8px 16px rgba(18, 27, 46, .08), 0 32px 64px rgba(18, 27, 46, .14));
+    animation: vela-done-in 420ms cubic-bezier(.34, 1.56, .64, 1) both;
+}
+@keyframes vela-done-in {
+    from { opacity: 0; transform: translateY(14px) scale(.96); }
+    to { opacity: 1; transform: none; }
+}
+.vela-done__burst { font-size: 44px; line-height: 1; }
+.vela-done__title { margin: .5rem 0 .25rem; font-size: 1.375rem; font-weight: 600; }
+.vela-done__sub { margin: 0 0 1.25rem; font-size: .8125rem; color: var(--fg-muted, #4D5569); }
+.vela-done__shot {
+    display: block; width: 100%; max-height: 190px; object-fit: cover; object-position: top;
+    border-radius: var(--r-sm, 6px); border: 1px solid var(--border, #DCE0E9);
+    margin-bottom: 1.25rem;
+}
+.vela-done__actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
+.vela-done__actions form { margin: 0; }
+#vela-confetti { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+/* Anybody who has asked for less movement gets the moment without the motion. */
+@media (prefers-reduced-motion: reduce) {
+    .vela-progress__fill { transition: none; }
+    .vela-progress__fill.is-live { animation: none; background-image: none; }
+    .vela-done__card { animation: none; }
+    #vela-confetti { display: none; }
+}
 </style>
 
 <div class="row">
@@ -445,6 +507,25 @@ body.vela-admin .vela-build__label {
                         <span class="badge badge-secondary mr-2" id="vela-build-state">…</span>
                         <span class="small text-muted" id="vela-build-hint"></span>
                     </div>
+
+                    {{-- A build takes minutes with nothing to look at but a log
+                         of tool names, so "is this going anywhere" had no
+                         answer. The bar is driven by the phase the command
+                         reports, weighted by how long each phase really takes —
+                         see DesignBuildStatus::PHASES. It can sit in a phase;
+                         what it never does is go backwards or reach 100 before
+                         the work is done. --}}
+                    <div class="vela-progress mb-2">
+                        <div class="d-flex justify-content-between align-items-baseline mb-1">
+                            <span class="small" id="vela-build-phase">Starting…</span>
+                            <span class="small text-muted" id="vela-build-percent">0%</span>
+                        </div>
+                        <div class="vela-progress__track" role="progressbar" id="vela-build-bar-track"
+                             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                            <div class="vela-progress__fill" id="vela-build-bar" style="width:0%"></div>
+                        </div>
+                    </div>
+
                     <pre id="vela-build-log" class="bg-dark border rounded p-2 small mb-0"
                          style="max-height:280px;overflow:auto;white-space:pre-wrap;"></pre>
                 </div>
@@ -531,6 +612,69 @@ body.vela-admin .vela-build__label {
 
     </div>
 </div>
+
+{{-- Shown once, when a build this browser was watching has just finished. The
+     page reloads on completion — the captures and the keep button are rendered
+     by the server — so the moment is remembered across that reload in
+     sessionStorage, keyed by the build's own start time. Keyed, and not a bare
+     flag, so opening this page later or in another tab does not re-congratulate
+     somebody for a build they already looked at. --}}
+@if(!empty($results) && $preview && ($status['state'] ?? '') === 'done')
+<div class="vela-done" id="vela-done" hidden
+     data-build="{{ $status['started_at'] ?? '' }}"
+     aria-labelledby="vela-done-title" role="dialog" aria-modal="true">
+    <canvas id="vela-confetti" aria-hidden="true"></canvas>
+    <div class="vela-done__card">
+        <div class="vela-done__burst" aria-hidden="true">🎉</div>
+        <h2 class="vela-done__title" id="vela-done-title">Your design is built</h2>
+        <p class="vela-done__sub">
+            {{-- One assignment per shorthand, rather than a raw PHP block, and
+                 that is not a style preference. Blade lifts raw PHP out of a
+                 template before it does anything else, with a regex that pairs
+                 an opening marker with the NEXT closing one anywhere in the
+                 file — and it does not care that the opening one it found was
+                 a shorthand. A block here therefore swallowed the shorthand
+                 that sets the build button's label, 130 lines above, along with
+                 everything between the two, and the page died on a PHP parse
+                 error pointing at innocent markup. The closing marker must not
+                 appear in this file at all — not even inside a comment like
+                 this one, because comments are stripped afterwards. --}}
+            @php($__rounds = count($results))
+            @php($__from = $status['started_at'] ?? null)
+            @php($__to = $status['finished_at'] ?? null)
+            @php($__took = ($__from && $__to) ? \Carbon\Carbon::parse($__from)->diffForHumans(\Carbon\Carbon::parse($__to), true) : null)
+            {{-- Written as one echo rather than a conditional glued to the
+                 word before it: Blade will not compile a directive that sits
+                 directly against a word character, so "refinement" followed by
+                 an @@if left the directive in the page as text and its closing
+                 half as a stray statement. --}}
+            {{ $__rounds }} {{ $__rounds === 1 ? 'round' : 'rounds' }} of refinement{{ $__took ? ', ' . $__took : '' }}.
+            Have a look — nothing is on your site until you say so.
+        </p>
+
+        <a href="{{ url($preview->slug) }}" target="_blank">
+            <img class="vela-done__shot" alt="What the build produced"
+                 src="{{ route('vela.admin.settings.design-builder.capture', $results[0]['screenshot']) }}">
+        </a>
+
+        <div class="vela-done__actions">
+            <a href="{{ url($preview->slug) }}" target="_blank" class="btn btn-secondary btn-sm">
+                <i class="fas fa-external-link-alt mr-1"></i> Open it
+            </a>
+            @can('config_edit')
+            <form action="{{ route('vela.admin.settings.design-builder.use') }}" method="POST"
+                  onsubmit="return confirm('Put this design on your site? Whatever is there now is kept, unlisted, so you can go back to it.');">
+                @csrf
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-check mr-1"></i> {{ $keepLabel }}
+                </button>
+            </form>
+            @endcan
+            <button type="button" class="btn btn-link btn-sm" id="vela-done-close">Not yet</button>
+        </div>
+    </div>
+</div>
+@endif
 
 <div id="vela-lightbox" class="d-none"
      style="position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.9);
@@ -639,10 +783,16 @@ body.vela-admin .vela-build__label {
     var btn   = document.getElementById('vela-build-btn');
     if (!box) return;
 
+    var bar   = document.getElementById('vela-build-bar');
+    var track = document.getElementById('vela-build-bar-track');
+    var phase = document.getElementById('vela-build-phase');
+    var pct   = document.getElementById('vela-build-percent');
+
     var url = @json(route('vela.admin.settings.design-builder.status'));
     var running = @json((bool) $running);
     var idleLabel = (btn && btn.dataset.idleLabel) || 'Build';
     var timer = null;
+    var highest = 0;
 
     function render(payload) {
         var s = payload.status;
@@ -660,6 +810,21 @@ body.vela-admin .vela-build__label {
             ? 'This takes a few minutes. You can leave this page — the build keeps going.'
             : (s.error || '');
 
+        if (bar) {
+            // Never backwards. The server's number cannot fall on its own, but
+            // two polls can arrive out of order, and a bar that retreats is
+            // read as the build having gone wrong.
+            var percent = typeof s.percent === 'number' ? s.percent : 0;
+            if (!live && s.state === 'done') { percent = 100; }
+            highest = Math.max(highest, percent);
+
+            bar.style.width = highest + '%';
+            bar.classList.toggle('is-live', !!live);
+            if (track) { track.setAttribute('aria-valuenow', String(highest)); }
+            if (pct) { pct.textContent = highest + '%'; }
+            if (phase) { phase.textContent = s.phase_label || (live ? 'Working' : ''); }
+        }
+
         if (btn) {
             btn.disabled = live;
             btn.innerHTML = '<i class="fas fa-magic mr-1"></i> ' + (live ? 'Building…' : idleLabel);
@@ -669,6 +834,13 @@ body.vela-admin .vela-build__label {
         // rendered server-side — so once it is over, go and get them.
         if (running && !live) {
             clearInterval(timer);
+
+            // Remembered across the reload, so the page that comes back knows
+            // it is the one that just finished and can say so.
+            if (s.state === 'done' && s.started_at) {
+                try { sessionStorage.setItem('vela.build.celebrate', s.started_at); } catch (e) {}
+            }
+
             window.location.reload();
         }
         running = live;
@@ -750,6 +922,107 @@ body.vela-admin .vela-build__label {
 
     choices.forEach(function (choice) { choice.addEventListener('change', sync); });
     sync();
+})();
+</script>
+
+<script>
+(function () {
+    var box = document.getElementById('vela-done');
+    if (!box) { return; }
+
+    var key = 'vela.build.celebrate';
+    var mine = box.dataset.build || '';
+    var stored = null;
+
+    // A private window, or site data the browser will not hand over, is not a
+    // reason to break the page — it just means no fanfare.
+    try { stored = sessionStorage.getItem(key); } catch (e) { return; }
+    if (!stored || !mine || stored !== mine) { return; }
+    try { sessionStorage.removeItem(key); } catch (e) {}
+
+    var opener = document.activeElement;
+
+    function close() {
+        box.hidden = true;
+        document.body.style.overflow = '';
+        if (opener && opener.focus) { opener.focus(); }
+    }
+
+    box.hidden = false;
+    document.body.style.overflow = 'hidden';
+    document.getElementById('vela-done-close').addEventListener('click', close);
+    box.addEventListener('click', function (e) { if (e.target === box) { close(); } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !box.hidden) { close(); } });
+    document.getElementById('vela-done-close').focus();
+
+    // Confetti, drawn rather than fetched: the admin's stylesheet is served
+    // from this site and a celebration is not worth a script from somebody
+    // else's CDN. About 90 pieces, gone in three seconds, then the canvas
+    // stops painting entirely.
+    var canvas = document.getElementById('vela-confetti');
+    if (!canvas || !canvas.getContext) { return; }
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { return; }
+
+    var ctx = canvas.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+
+    function size() {
+        canvas.width = window.innerWidth * dpr;
+        canvas.height = window.innerHeight * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    size();
+    window.addEventListener('resize', size);
+
+    var colours = ['#22A2AB', '#E8A53A', '#3D7DDB', '#16A374', '#D94A42', '#8291B5'];
+    var pieces = [];
+
+    for (var i = 0; i < 90; i++) {
+        pieces.push({
+            x: window.innerWidth * (0.5 + (Math.random() - 0.5) * 0.5),
+            y: window.innerHeight * 0.45,
+            vx: (Math.random() - 0.5) * 11,
+            vy: -6 - Math.random() * 11,
+            size: 5 + Math.random() * 6,
+            spin: (Math.random() - 0.5) * 0.34,
+            angle: Math.random() * Math.PI,
+            colour: colours[i % colours.length],
+        });
+    }
+
+    var started = null;
+
+    function frame(now) {
+        if (started === null) { started = now; }
+        var life = (now - started) / 3000;
+
+        if (life >= 1 || box.hidden) {
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            return;
+        }
+
+        ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        ctx.globalAlpha = life > 0.75 ? (1 - life) * 4 : 1;
+
+        pieces.forEach(function (p) {
+            p.vy += 0.32;          // gravity
+            p.vx *= 0.995;         // air
+            p.x += p.vx;
+            p.y += p.vy;
+            p.angle += p.spin;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle);
+            ctx.fillStyle = p.colour;
+            ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+            ctx.restore();
+        });
+
+        requestAnimationFrame(frame);
+    }
+
+    requestAnimationFrame(frame);
 })();
 </script>
 @endsection

@@ -30,6 +30,17 @@
         {{-- URL field: visible only for `url` type. JS toggles `display`
              based on the row's `data-type` attribute on the wrapper. --}}
         <input type="text" name="items[{{ $i }}][url]" class="form-control form-control-sm mt-1 js-menu-url" value="{{ $url }}" placeholder="https://… or /path" data-show-for="url">
+
+        {{-- Where this item actually goes. A row said "Page" and carried a
+             label, and nothing on the screen said WHICH page — so an item
+             pointing at a parked homepage (/home-2026-09-04-082328) looked
+             exactly like one pointing at the front page, before saving and
+             after. The label is what a visitor reads; this is what they get. --}}
+        @if(!$tpl && $type !== 'url')
+            <div class="small text-muted mt-1 text-truncate" title="{{ $item->resolveUrl() }}">
+                <i class="fas fa-link mr-1" style="font-size:.7em;"></i>{{ $item->resolveUrl() }}
+            </div>
+        @endif
     </div>
 
     <select name="items[{{ $i }}][target]" class="form-control form-control-sm ml-2" style="width:auto;">
