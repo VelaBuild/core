@@ -27,9 +27,15 @@
             <p class="mb-2"><strong>Your site is not touched while it works.</strong> The build makes a
                 page of its own, and the theme and navigation it writes belong to that page alone —
                 visitors go on seeing the site exactly as it is. When it is done you can look at it,
-                and only then decide whether to make it your homepage. At that point the design's
-                theme and menu become the site's; the homepage and navigation you have now are both
-                kept, so you can go back.</p>
+                and only then decide whether to put it in place. Whatever it replaces is kept, so you
+                can go back.</p>
+            <p class="mb-2">Say what the design is for before you build. <strong>A homepage</strong> is the
+                whole site: the build writes the theme, the navigation and the front page, and keeping it
+                dresses every page in the design. <strong>A page</strong> — one you have or a new one — is
+                content only: the build writes the sections of your picture into the theme you already
+                have, and leaves your theme, your navigation and your site name alone. That is the
+                distinction that matters, because a theme belongs to the whole site: a mockup of one
+                inside page cannot be allowed to redress the rest of it.</p>
             <p class="mb-2">
                 A build takes a few minutes per round. It photographs what it has made, compares it
                 with your picture, and corrects the differences. Three rounds suits most designs. You
@@ -49,6 +55,72 @@
         </div>
     </div>
 </details>
+
+{{-- Furniture for the destination choice on this page. Written against the
+     admin design system's tokens, each with a literal fallback, so it still
+     reads correctly where a site has not republished the stylesheet. --}}
+<style>
+.vela-dest { width: 100%; border: 0; padding: 0; margin: 1.25rem 0; }
+/* Prefixed with body.vela-admin: the design system styles bare `label`, which
+   beats a lone class and made these read as headings rather than as the quiet
+   labels the legend beside them is. */
+.vela-dest__legend,
+body.vela-admin .vela-build__label {
+    display: block; width: auto; float: none; margin: 0 0 .375rem; padding: 0;
+    font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--fg-subtle, #6B7388);
+}
+/* One label over one control, and two controls that belong together on one
+   row — the same shape as the choice above, so the card reads as a sequence
+   of decisions rather than a wrapped line of widgets. */
+.vela-build__row { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; margin-bottom: 1rem; }
+.vela-build__group { flex: 0 1 auto; min-width: 0; }
+.vela-build__hint {
+    margin: .375rem 0 0; font-size: .75rem; line-height: 1.4;
+    color: var(--fg-muted, #4D5569);
+}
+.vela-dest__options {
+    display: grid; gap: .5rem;
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+}
+.vela-dest__option { position: relative; display: block; margin: 0; cursor: pointer; }
+/* Hidden, not removed: the keyboard and the screen reader still get a plain
+   radio group, and the cards are only how it is drawn. */
+.vela-dest__option > input { position: absolute; width: 1px; height: 1px; opacity: 0; margin: 0; }
+.vela-dest__card {
+    display: block; height: 100%; padding: .7rem .8rem;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #DCE0E9);
+    border-radius: var(--r-md, 10px);
+    transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+.vela-dest__option:hover .vela-dest__card { border-color: var(--border-strong, #BFC5D3); }
+.vela-dest__option > input:checked + .vela-dest__card {
+    background: var(--accent-muted, #E7F7F8);
+    border-color: var(--accent, #22A2AB);
+    box-shadow: inset 0 0 0 1px var(--accent, #22A2AB);
+}
+.vela-dest__option > input:focus-visible + .vela-dest__card {
+    box-shadow: var(--shadow-ring, 0 0 0 3px rgba(64, 182, 189, .28));
+}
+.vela-dest__title {
+    display: flex; align-items: center; gap: .4rem;
+    font-size: .8125rem; font-weight: 600; line-height: 1.2;
+    color: var(--fg, #151A28);
+}
+.vela-dest__title i { width: 1em; text-align: center; color: var(--fg-subtle, #6B7388); }
+.vela-dest__option > input:checked + .vela-dest__card .vela-dest__title i { color: var(--fg-accent, #0F8B9E); }
+.vela-dest__hint {
+    display: block; margin-top: .25rem;
+    font-size: .75rem; line-height: 1.4; color: var(--fg-muted, #4D5569);
+}
+.vela-dest__field { margin-top: .625rem; max-width: 340px; }
+.vela-dest__field[hidden] { display: none; }
+.vela-dest__note {
+    margin: .5rem 0 0; font-size: .75rem; line-height: 1.5;
+    color: var(--fg-muted, #4D5569);
+}
+</style>
 
 <div class="row">
     <div class="col-lg-5">
@@ -195,20 +267,159 @@
                 </p>
 
                 @can('config_edit')
-                <form action="{{ route('vela.admin.settings.design-builder.start') }}" method="POST" class="form-inline mb-3"
+                <form action="{{ route('vela.admin.settings.design-builder.start') }}" method="POST" class="vela-build mb-3"
                       onsubmit="return confirm('Build the design onto a page of its own? Your homepage and theme stay as they are.');">
                     @csrf
-                    <label class="mr-2 small">Rounds of refinement</label>
-                    <select name="max_loops" class="form-control form-control-sm mr-2">
-                        <option value="1">1 — quickest</option>
-                        <option value="3" selected>3 — recommended</option>
-                        <option value="5">5 — most thorough</option>
-                    </select>
+                    {{-- A design has always made a homepage, because the
+                         first one a site is given is a homepage. The second
+                         is usually not, and until now there was nowhere to
+                         say so: the result could only go to the front page,
+                         and a build for an inside page would have written a
+                         second theme over the site's own on the way. The two
+                         answers are genuinely different jobs, which is why
+                         the choice is here rather than after the build.
+
+                         Drawn as three cards rather than a stack of radios:
+                         this is the most consequential choice on the page —
+                         it decides what the build may touch, not only where
+                         the result lands — and bare radios inside a
+                         form-inline scattered across the row and read as an
+                         afterthought. The native radio is still there,
+                         visually hidden, so the keyboard and the screen
+                         reader get a plain radio group. --}}
+                    <fieldset class="vela-dest">
+                        <legend class="vela-dest__legend">This design is for</legend>
+
+                        <div class="vela-dest__options">
+                            <label class="vela-dest__option">
+                                <input type="radio" name="destination" value="homepage" data-vela-dest
+                                       {{ ($destination['mode'] ?? 'homepage') === 'homepage' ? 'checked' : '' }}>
+                                <span class="vela-dest__card">
+                                    <span class="vela-dest__title"><i class="fas fa-home"></i> My homepage</span>
+                                    <span class="vela-dest__hint">The whole site — theme, navigation and front page.</span>
+                                </span>
+                            </label>
+
+                            <label class="vela-dest__option">
+                                <input type="radio" name="destination" value="existing" data-vela-dest
+                                       {{ ($destination['mode'] ?? '') === 'page' && ($destination['existing'] ?? false) ? 'checked' : '' }}>
+                                <span class="vela-dest__card">
+                                    <span class="vela-dest__title"><i class="fas fa-file-alt"></i> A page I have</span>
+                                    <span class="vela-dest__hint">Its content only. Your theme stays as it is.</span>
+                                </span>
+                            </label>
+
+                            <label class="vela-dest__option">
+                                <input type="radio" name="destination" value="new" data-vela-dest
+                                       {{ ($destination['mode'] ?? '') === 'page' && !($destination['existing'] ?? false) ? 'checked' : '' }}>
+                                <span class="vela-dest__card">
+                                    <span class="vela-dest__title"><i class="fas fa-plus"></i> A new page</span>
+                                    <span class="vela-dest__hint">Added to your site. Your theme stays as it is.</span>
+                                </span>
+                            </label>
+                        </div>
+
+                        {{-- One field area under the cards rather than a field
+                             hanging off each: the two never both apply, and
+                             inside a label the select would have toggled the
+                             radio it sits in every time it was used. --}}
+                        <div class="vela-dest__field" data-vela-dest-field="existing" hidden>
+                            <select name="destination_page" class="form-control form-control-sm">
+                                {{-- The homepage is the card above, not one of
+                                     these: offering it in both places lets
+                                     somebody choose "a page I have" and get a
+                                     whole-site build. --}}
+                                @foreach($pages->where('slug', '!=', 'home') as $page)
+                                    <option value="{{ $page->id }}"
+                                            {{ ($destination['mode'] ?? '') === 'page' && $destination['slug'] === $page->slug ? 'selected' : '' }}>
+                                        {{ $page->title }} (/{{ $page->slug }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="vela-dest__field" data-vela-dest-field="new" hidden>
+                            <input type="text" name="destination_title" class="form-control form-control-sm"
+                                   placeholder="What it is called, e.g. Pricing"
+                                   value="{{ ($destination['mode'] ?? '') === 'page' && !($destination['existing'] ?? false) ? $destination['title'] : '' }}">
+                        </div>
+
+                        {{-- Written by the server as well as by the script:
+                             the line explaining the choice should be right on
+                             the first paint, not after JavaScript arrives. --}}
+                        <p class="vela-dest__note" data-vela-dest-note>
+                            @if(($destination['mode'] ?? 'homepage') === 'homepage')
+                                This writes a theme, the navigation and a front page from your design. Nothing
+                                reaches your site until you say so.
+                            @else
+                                A page build writes the sections of the design and leaves your theme, your
+                                navigation and your site name exactly as they are — one design cannot redress a
+                                site it is only one page of.
+                            @endif
+                        </p>
+                    </fieldset>
+
+                    {{-- The rest of the form is laid out the same way as the
+                         choice above it: a small label over its control, in
+                         one row where two controls belong together. It used to
+                         be a form-inline, which put a label, a select, a
+                         checkbox and two more selects in one wrapping line and
+                         read as a pile rather than a set of decisions. --}}
+                    <div class="vela-build__row">
+                        <div class="vela-build__group" style="max-width:220px;">
+                            <label class="vela-build__label" for="vela-build-loops">Rounds of refinement</label>
+                            <select name="max_loops" id="vela-build-loops" class="form-control form-control-sm">
+                                <option value="1">1 — quickest</option>
+                                <option value="3" selected>3 — recommended</option>
+                                <option value="5">5 — most thorough</option>
+                            </select>
+                        </div>
+
+                        {{-- A build needs a model that can do two things: read a
+                             picture and call a tool. Those are not the same
+                             models a site chats with, and a newer model is not
+                             automatically one of them — OpenAI's gpt-5.6 family
+                             reads a design better than anything on this list
+                             and cannot call a tool at all, so a build on it
+                             dies at its first step. That is why this menu is
+                             closed while the one in Settings → AI can be typed
+                             into.
+
+                             Kept in the same form as the button: choosing a
+                             model and building is one action, and a Save of its
+                             own would be the step everyone forgets. --}}
+                        @if(!empty($buildWith['options']))
+                        <div class="vela-build__group">
+                            <label class="vela-build__label" for="vela-build-provider">Build with</label>
+                            <div class="d-flex" style="gap:.5rem;">
+                                <select name="design_provider" id="vela-build-provider" class="form-control form-control-sm" style="width:auto;">
+                                    <option value="">The site's own AI</option>
+                                    @foreach($buildWith['options'] as $provider => $models)
+                                        <option value="{{ $provider }}" {{ $buildWith['provider'] === $provider ? 'selected' : '' }}>
+                                            {{ ['openai' => 'OpenAI', 'anthropic' => 'Anthropic', 'gemini' => 'Gemini'][$provider] ?? $provider }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <select name="design_model" id="vela-build-model" class="form-control form-control-sm" style="width:auto;">
+                                    <option value="">Recommended</option>
+                                    @foreach($buildWith['options'] as $provider => $models)
+                                        @foreach($models as $model)
+                                            <option value="{{ $model }}" data-provider="{{ $provider }}"
+                                                    {{ $buildWith['model'] === $model ? 'selected' : '' }}>{{ $model }}</option>
+                                        @endforeach
+                                    @endforeach
+                                </select>
+                            </div>
+                            <p class="vela-build__hint">A build is worth a better model than everyday chat is.</p>
+                        </div>
+                        @endif
+                    </div>
+
                     {{-- Off for anyone who already has their own photographs:
                          a generated picture in the right place is worth
                          waiting for, and one in the wrong style makes the page
                          read as a different site. --}}
-                    <div class="form-check mr-3">
+                    <div class="form-check mb-3">
                         <input type="checkbox" name="generate_images" value="1" class="form-check-input"
                                id="vela-generate-images" checked>
                         <label class="form-check-label small" for="vela-generate-images">
@@ -216,45 +427,15 @@
                             <span class="text-muted">— leave off if you will add your own</span>
                         </label>
                     </div>
-                   
 
-                    {{-- A build needs a model that can do two things: read a
-                         picture and call a tool. Those are not the same models
-                         a site chats with, and a newer model is not
-                         automatically one of them — OpenAI's gpt-5.6 family
-                         reads a design better than anything on this list and
-                         cannot call a tool at all, so a build on it dies at its
-                         first step. That is why this menu is closed while the
-                         one in Settings → AI can be typed into.
-
-                         Kept in the same form as the button: choosing a model
-                         and building is one action, and a Save of its own would
-                         be the step everyone forgets. --}}
-                    @if(!empty($buildWith['options']))
-                    <div class="w-100 mt-3 d-flex align-items-center flex-wrap mb-2" style="gap:8px;">
-                        <label class="small mb-0">Build with</label>
-                        <select name="design_provider" id="vela-build-provider" class="form-control form-control-sm" style="width:auto;">
-                            <option value="">The site's own AI</option>
-                            @foreach($buildWith['options'] as $provider => $models)
-                                <option value="{{ $provider }}" {{ $buildWith['provider'] === $provider ? 'selected' : '' }}>
-                                    {{ ['openai' => 'OpenAI', 'anthropic' => 'Anthropic', 'gemini' => 'Gemini'][$provider] ?? $provider }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <select name="design_model" id="vela-build-model" class="form-control form-control-sm" style="width:auto;">
-                            <option value="">Recommended</option>
-                            @foreach($buildWith['options'] as $provider => $models)
-                                @foreach($models as $model)
-                                    <option value="{{ $model }}" data-provider="{{ $provider }}"
-                                            {{ $buildWith['model'] === $model ? 'selected' : '' }}>{{ $model }}</option>
-                                @endforeach
-                            @endforeach
-                        </select>
-                        <span class="small text-muted">A build is worth a better model than everyday chat is.</span>
-                    </div>
-                    @endif
-                    <button type="submit" class="btn btn-primary" id="vela-build-btn" @if($running) disabled @endif>
-                        <i class="fas fa-magic mr-1"></i> {{ $running ? 'Building…' : 'Build my site' }}
+                    {{-- The idle wording is carried on the button rather than
+                         repeated in the poller's script, which used to hold a
+                         copy of it and quietly wrote an older one back over
+                         this on the first poll. --}}
+                    @php($buildLabel = 'Build it')
+                    <button type="submit" class="btn btn-primary" id="vela-build-btn"
+                            data-idle-label="{{ $buildLabel }}" @if($running) disabled @endif>
+                        <i class="fas fa-magic mr-1"></i> {{ $running ? 'Building…' : $buildLabel }}
                     </button>
                 </form>
                 @endcan
@@ -287,11 +468,12 @@
             <div class="card-body">
                 <h5 class="mb-1">Changed your mind?</h5>
                 <p class="text-muted small">
-                    Keeping a design moved three things at once — your homepage, your theme and your navigation.
-                    This puts all three back as they were. The design is kept, unlisted, so you can go forward again.
+                    Keeping a design replaced a page — and where that page was your homepage, your theme and your
+                    navigation with it. This puts back whatever it moved. The design is kept, unlisted, so you can
+                    go forward again.
                 </p>
                 <form action="{{ route('vela.admin.settings.design-builder.restore') }}" method="POST"
-                      onsubmit="return confirm('Put your site back as it was — homepage, theme and navigation? The design is kept, unlisted.');">
+                      onsubmit="return confirm('Put your site back as it was? The design is kept, unlisted.');">
                     @csrf
                     <button type="submit" class="btn btn-outline-secondary btn-sm">
                         <i class="fas fa-undo mr-1"></i> Put back the site I had
@@ -317,10 +499,10 @@
                         </a>
                         @can('config_edit')
                         <form action="{{ route('vela.admin.settings.design-builder.use') }}" method="POST"
-                              onsubmit="return confirm('Make this your homepage? The one you have now is kept, unlisted, so you can go back to it.');">
+                              onsubmit="return confirm('Put this design on your site? Whatever is there now is kept, unlisted, so you can go back to it.');">
                             @csrf
                             <button type="submit" class="btn btn-primary btn-sm">
-                                <i class="fas fa-check mr-1"></i> Use this as my homepage
+                                <i class="fas fa-check mr-1"></i> {{ $keepLabel }}
                             </button>
                         </form>
                         @endcan
@@ -459,6 +641,7 @@
 
     var url = @json(route('vela.admin.settings.design-builder.status'));
     var running = @json((bool) $running);
+    var idleLabel = (btn && btn.dataset.idleLabel) || 'Build';
     var timer = null;
 
     function render(payload) {
@@ -479,7 +662,7 @@
 
         if (btn) {
             btn.disabled = live;
-            btn.innerHTML = '<i class="fas fa-magic mr-1"></i> ' + (live ? 'Building…' : 'Build my site');
+            btn.innerHTML = '<i class="fas fa-magic mr-1"></i> ' + (live ? 'Building…' : idleLabel);
         }
 
         // The finished page carries the captures and reports, which are only
@@ -531,6 +714,42 @@
 
     provider.addEventListener('change', function () { sync(false); });
     sync(true);
+})();
+</script>
+
+<script>
+(function () {
+    var choices = document.querySelectorAll('[data-vela-dest]');
+    var note = document.querySelector('[data-vela-dest-note]');
+    if (!choices.length) { return; }
+
+    var forHomepage = 'This writes a theme, the navigation and a front page from your design. Nothing reaches your '
+        + 'site until you say so.';
+    var forAPage = 'A page build writes the sections of the design and leaves your theme, your navigation and your '
+        + 'site name exactly as they are — one design cannot redress a site it is only one page of.';
+
+    function sync() {
+        var chosen = document.querySelector('[data-vela-dest]:checked');
+        var mode = chosen ? chosen.value : 'homepage';
+
+        document.querySelectorAll('[data-vela-dest-field]').forEach(function (field) {
+            var mine = field.dataset.velaDestField === mode;
+            field.hidden = !mine;
+
+            // Hidden is not enough: a hidden select still posts its value, and
+            // a page id arriving with "my homepage" chosen is a build sent
+            // somewhere nobody asked for. The wrapper is a div, so it is the
+            // control inside it that has to be disabled.
+            field.querySelectorAll('input, select, textarea').forEach(function (control) {
+                control.disabled = !mine;
+            });
+        });
+
+        if (note) { note.textContent = mode === 'homepage' ? forHomepage : forAPage; }
+    }
+
+    choices.forEach(function (choice) { choice.addEventListener('change', sync); });
+    sync();
 })();
 </script>
 @endsection

@@ -13,6 +13,7 @@ use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Services\SiteConfigWriter;
 use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\DesignBuildRunner;
+use VelaBuild\Core\Services\DesignDestination;
 use VelaBuild\Core\Services\ScreenshotService;
 
 /**
@@ -37,6 +38,7 @@ class DesignBuilderController extends Controller
         protected DesignBuildRunner $runner,
         protected ScreenshotService $screenshots,
         protected AiProviderManager $ai,
+        protected DesignDestination $destination,
     ) {}
 
     public function index()
@@ -52,6 +54,14 @@ class DesignBuilderController extends Controller
             'readiness' => $this->readiness(),
             'preview' => $this->previewPage(),
             'buildWith' => $this->choiceOfModel(),
+            'destination' => $this->destination->read(),
+            'keepLabel' => $this->destination->keepLabel(),
+            // Somewhere to send a second design. Drafts included: a page
+            // written and never published is exactly the kind somebody
+            // reaches for a mockup to finish.
+            'pages' => Page::orderBy('title')->get(['id', 'title', 'slug', 'status'])
+                ->reject(fn ($page) => $page->slug === DesignToSite::PREVIEW_SLUG)
+                ->values(),
             'canRestore' => VelaConfig::where('key', self::SUPERSEDED_HOME_KEY)->exists()
                 || app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->canDemote(),
         ]);
@@ -66,11 +76,18 @@ class DesignBuilderController extends Controller
     }
 
     /**
-     * Make what the build produced the site's front page.
+     * Put what the build produced where it was destined for.
      *
-     * The homepage that was there is kept, unlisted, rather than overwritten:
-     * someone trying a design out should be able to change their mind, and a
-     * page they spent time on is not ours to throw away.
+     * The homepage was the only answer this ever had, which was right for the
+     * first design a site is given and wrong for the second: somebody who
+     * likes their front page and wanted an About page out of a mockup had
+     * nowhere to put it. The destination is chosen before the build now, and
+     * this is the other half of that choice.
+     *
+     * Whatever is standing where the design is going is kept, unlisted,
+     * rather than overwritten: someone trying a design out should be able to
+     * change their mind, and a page they spent time on is not ours to throw
+     * away.
      */
     public function useAsHomepage(Request $request)
     {
@@ -82,11 +99,17 @@ class DesignBuilderController extends Controller
             return back()->withErrors(['build' => 'There is no design to use yet. Run a build first.']);
         }
 
-        DB::transaction(function () use ($preview) {
-            $current = Page::where('slug', 'home')->first();
+        $destination = $this->destination->read();
+        $slug = $destination['slug'];
+        $isHomepage = $destination['mode'] === DesignDestination::HOMEPAGE;
+
+        DB::transaction(function () use ($preview, $destination, $slug, $isHomepage) {
+            $current = Page::where('slug', $slug)->first();
 
             if ($current) {
-                $archived = $this->slugToParkTheHomepageUnder();
+                $archived = $this->slugToParkPageUnder($slug);
+                $wasStatus = (string) $current->status;
+                $wasTitle = (string) $current->title;
 
                 $current->update([
                     'slug' => $archived,
@@ -98,17 +121,31 @@ class DesignBuilderController extends Controller
                 // slug starts with home-" is a rule that picks the wrong page
                 // the moment a design is kept twice, and the site name has to
                 // go back with it or the header keeps the design's.
-                VelaConfig::updateOrCreate(['key' => self::SUPERSEDED_HOME_KEY], ['value' => json_encode([
-                    'slug' => $archived,
-                    'status' => 'published',
-                    'site_name' => (string) (VelaConfig::where('key', 'site_name')->value('value') ?? ''),
-                ])]);
+                $this->rememberWhatWasReplaced($slug, $archived, $wasStatus);
+
+                // An inside page is known by its name in the navigation and in
+                // every link to it. The design supplies the words on the page,
+                // not what the page is called, so a build that titled itself
+                // after the mockup would quietly rename About to something
+                // else everywhere it appears.
+                if (!$isHomepage && $wasTitle !== '') {
+                    $preview->title = $wasTitle;
+                }
+            } else {
+                $this->rememberWhatWasReplaced($slug, null, null);
+
+                if (!$isHomepage && ($destination['title'] ?? '') !== '') {
+                    $preview->title = $destination['title'];
+                }
             }
 
-            $preview->update([
-                'slug' => 'home',
-                'status' => 'published',
-            ]);
+            $preview->slug = $slug;
+            $preview->status = 'published';
+            $preview->save();
+
+            if (!$isHomepage) {
+                return;
+            }
 
             // The build names its page after the site the design is for, and
             // renames nothing while it is only being looked at. This is the
@@ -124,35 +161,58 @@ class DesignBuilderController extends Controller
             // page being looked at. This is the moment they become the site's
             // — and what they replace is kept, so changing your mind about a
             // design does not cost you the navigation you wrote before it.
+            // Only a homepage build stages either; a page build was never
+            // given the tools.
             app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->promote();
         });
 
-        return back()->with('message', 'That design is now your homepage. The one it replaced is still there, unlisted, '
-            . 'and "Put back the site I had" brings it back.');
+        return back()->with('message', $isHomepage
+            ? 'That design is now your homepage. The one it replaced is still there, unlisted, '
+                . 'and "Put back the site I had" brings it back.'
+            : 'That design is now "/' . $slug . '". Anything that was there is still there, unlisted, '
+                . 'and "Put back the site I had" brings it back.');
     }
 
     /**
-     * A slug to park the current homepage under, free of anybody else's.
+     * What keeping a design displaced, so it can be put back.
+     *
+     * `slug` is null where the design went somewhere nothing stood; the way
+     * back from that is to take the page off the site again, not to restore
+     * something that never existed.
+     */
+    private function rememberWhatWasReplaced(string $target, ?string $archived, ?string $status): void
+    {
+        VelaConfig::updateOrCreate(['key' => self::SUPERSEDED_HOME_KEY], ['value' => json_encode([
+            'target_slug' => $target,
+            'slug' => $archived,
+            'status' => $status,
+            'site_name' => (string) (VelaConfig::where('key', 'site_name')->value('value') ?? ''),
+        ])]);
+    }
+
+    /**
+     * A slug to park a displaced page under, free of anybody else's.
      *
      * Seconds are not fine enough: keeping a design and putting it back inside
      * the same second produced the same slug twice, and pages are unique on
      * (locale, slug) — so the second swap threw and rolled the whole thing
      * back, in the one place where a person is most likely to press twice.
      */
-    private function slugToParkTheHomepageUnder(): string
+    private function slugToParkPageUnder(string $slug = 'home'): string
     {
-        $base = 'home-' . now()->format('Y-m-d-His');
-        $slug = $base;
+        $base = $slug . '-' . now()->format('Y-m-d-His');
+        $parked = $base;
 
-        for ($n = 2; Page::withTrashed()->where('slug', $slug)->exists(); $n++) {
-            $slug = $base . '-' . $n;
+        for ($n = 2; Page::withTrashed()->where('slug', $parked)->exists(); $n++) {
+            $parked = $base . '-' . $n;
         }
 
-        return $slug;
+        return $parked;
     }
 
     /**
-     * Undo keeping a design: the homepage, the theme and the navigation.
+     * Undo keeping a design: the page, and where it was a homepage the theme
+     * and the navigation with it.
      *
      * Trying a design is only safe if it can be untried, and until now only
      * two of the three could be. The homepage was parked under a timestamped
@@ -176,20 +236,26 @@ class DesignBuilderController extends Controller
         }
 
         DB::transaction(function () use ($note, $frame) {
-            if (is_array($note) && ($previous = Page::where('slug', $note['slug'] ?? '')->first())) {
-                // The design goes where the old homepage was, so this can be
-                // undone as many times as somebody changes their mind.
-                if ($kept = Page::where('slug', 'home')->first()) {
+            if (is_array($note)) {
+                // Notes written before a design could go anywhere but the
+                // front page name no target; theirs was always the homepage.
+                $target = (string) ($note['target_slug'] ?? 'home');
+
+                // The design goes where the page it replaced was, so this can
+                // be undone as many times as somebody changes their mind.
+                if ($kept = Page::where('slug', $target)->first()) {
                     $kept->update([
-                        'slug' => $this->slugToParkTheHomepageUnder(),
+                        'slug' => $this->slugToParkPageUnder($target),
                         'status' => 'unlisted',
                     ]);
                 }
 
-                $previous->update([
-                    'slug' => 'home',
-                    'status' => $note['status'] ?? 'published',
-                ]);
+                if ($previous = Page::where('slug', (string) ($note['slug'] ?? ''))->first()) {
+                    $previous->update([
+                        'slug' => $target,
+                        'status' => $note['status'] ?: 'published',
+                    ]);
+                }
 
                 if (($name = trim((string) ($note['site_name'] ?? ''))) !== '') {
                     VelaConfig::updateOrCreate(['key' => 'site_name'], ['value' => $name]);
@@ -202,8 +268,7 @@ class DesignBuilderController extends Controller
             app(SiteConfigWriter::class)->write();
         });
 
-        return back()->with('message', 'Your site is back as it was — homepage, theme and navigation. '
-            . 'The design is still there, unlisted.');
+        return back()->with('message', 'Your site is back as it was. The design is still there, unlisted.');
     }
 
     public function upload(Request $request)
@@ -265,9 +330,18 @@ class DesignBuilderController extends Controller
     {
         abort_if(Gate::denies('config_edit'), Response::HTTP_FORBIDDEN);
 
-        $request->validate(['max_loops' => 'nullable|integer|min:1|max:10']);
+        $request->validate([
+            'max_loops' => 'nullable|integer|min:1|max:10',
+            'destination' => 'nullable|in:homepage,existing,new',
+            'destination_page' => 'nullable|integer',
+            'destination_title' => 'nullable|string|max:120',
+        ]);
 
         if ($error = $this->rememberTheChoiceOfModel($request)) {
+            return back()->withErrors(['build' => $error]);
+        }
+
+        if ($error = $this->rememberWhereItIsGoing($request)) {
             return back()->withErrors(['build' => $error]);
         }
 
@@ -275,13 +349,92 @@ class DesignBuilderController extends Controller
             $this->runner->start(
                 config('app.url'),
                 (int) ($request->input('max_loops') ?: 3),
-                $request->boolean('generate_images')
+                $request->boolean('generate_images'),
+                $this->destination->isSectionsOnly()
             );
         } catch (\RuntimeException $e) {
             return back()->withErrors(['build' => $e->getMessage()]);
         }
 
         return back()->with('message', 'Building. This takes a few minutes.');
+    }
+
+    /**
+     * Where this build is headed, decided before it starts.
+     *
+     * Saved when Build is pressed rather than behind a Save of its own:
+     * choosing the destination and building are one action, and a separate
+     * Save is the step everyone forgets. It has to be settled up front
+     * because it decides what the build is allowed to touch, not only where
+     * the result lands.
+     *
+     * @return string|null  the reason it could not be, if it could not be
+     */
+    private function rememberWhereItIsGoing(Request $request): ?string
+    {
+        $choice = (string) $request->input('destination', DesignDestination::HOMEPAGE);
+
+        if ($choice === 'existing') {
+            $page = Page::find((int) $request->input('destination_page'));
+
+            if (!$page) {
+                return 'Choose which page this design is for, or build a homepage.';
+            }
+
+            if ($page->slug === DesignToSite::PREVIEW_SLUG) {
+                return 'That is the page a build works on. Choose one of your own.';
+            }
+
+            if ($page->slug === 'home') {
+                $this->destination->setHomepage();
+
+                return null;
+            }
+
+            $this->destination->setPage($page->slug, (string) $page->title);
+
+            return null;
+        }
+
+        if ($choice === 'new') {
+            $title = trim((string) $request->input('destination_title'));
+
+            if ($title === '') {
+                return 'Give the new page a name — it is what the design will be filed under.';
+            }
+
+            $slug = $this->slugForANewPage($title);
+
+            if ($slug === null) {
+                return 'That name does not make a web address. Try one with some letters or numbers in it.';
+            }
+
+            $this->destination->setPage($slug, $title);
+
+            return null;
+        }
+
+        $this->destination->setHomepage();
+
+        return null;
+    }
+
+    /**
+     * A free address for a page that does not exist yet.
+     *
+     * A taken one is not an error: the design is going there, and whatever
+     * stands there is parked rather than overwritten — which is the same deal
+     * as choosing an existing page, arrived at by typing its name.
+     */
+    private function slugForANewPage(string $title): ?string
+    {
+        $slug = \Illuminate\Support\Str::slug($title);
+
+        if ($slug === '' || $slug === DesignToSite::PREVIEW_SLUG) {
+            return null;
+        }
+
+        return $slug;
     }
 
     /**

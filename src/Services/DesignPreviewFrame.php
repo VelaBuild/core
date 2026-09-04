@@ -57,9 +57,17 @@ class DesignPreviewFrame
     {
         $theme = $this->theme();
 
-        if ($theme !== null) {
-            config(['vela.template.active' => $theme]);
+        // With no theme staged there is no frame to stand in, and standing in
+        // anyway is worse than doing nothing: a build for one page of an
+        // existing site stages no theme deliberately, and the menus a
+        // PREVIOUS design left on the peg would then be the header it is
+        // judged against — somebody else's navigation on a page that has to
+        // look like it belongs to this site.
+        if ($theme === null) {
+            return;
         }
+
+        config(['vela.template.active' => $theme]);
 
         $this->active = true;
     }

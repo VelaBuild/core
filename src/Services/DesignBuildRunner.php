@@ -42,7 +42,7 @@ class DesignBuildRunner
     /**
      * Begin a build. Returns immediately; follow it through status().
      */
-    public function start(string $url, int $maxLoops, bool $generateImages = true): void
+    public function start(string $url, int $maxLoops, bool $generateImages = true, bool $sectionsOnly = false): void
     {
         if ($this->status()->isRunning()) {
             throw new \RuntimeException('A build is already running.');
@@ -59,13 +59,14 @@ class DesignBuildRunner
         $this->status()->start($maxLoops);
 
         $command = sprintf(
-            '%s %s vela:design-to-site --url=%s --design-path=%s --max-loops=%d --force%s',
+            '%s %s vela:design-to-site --url=%s --design-path=%s --max-loops=%d --force%s%s',
             escapeshellarg(PHP_BINARY),
             escapeshellarg(base_path('artisan')),
             escapeshellarg($url),
             escapeshellarg($this->designPath()),
             $maxLoops,
-            $generateImages ? '' : ' --no-images'
+            $generateImages ? '' : ' --no-images',
+            $sectionsOnly ? ' --sections-only' : ''
         );
 
         $this->spawn($command);

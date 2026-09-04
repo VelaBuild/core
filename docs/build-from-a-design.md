@@ -44,7 +44,25 @@ anything the picture does not show. "A wood-fired restaurant on the Wellington
 harbour" is enough. This matters more than it looks — it is how the builder
 knows what the words in your picture mean.
 
-**3. Build it.** Choose how many rounds and press the button.
+**3. Say where it goes.** A design is either your **homepage** or **a page**,
+and the two are genuinely different jobs.
+
+- **My homepage** — the whole site. The build writes a theme, sets the
+  navigation and builds the front page. This is the right answer for the first
+  design you give a site.
+- **A page I already have** / **A new page** — content only. The build writes
+  the sections of your picture into the theme you already have, and does not
+  touch your theme, your navigation or your site's name. Use this for an About
+  page, a pricing page, a landing page for a campaign.
+
+The reason a page build cannot write a theme is that a theme belongs to the
+whole site. A mockup of one inside page, allowed to write one, would redress
+every other page on the site — which is the last thing anybody asking for an
+About page wants. So those tools are not given to it at all, and its header and
+footer come from the site rather than from the picture. A design's own header
+being different from yours is not a fault the build will chase.
+
+**4. Build it.** Choose how many rounds and press the button.
 
 | Rounds | Roughly | Good for |
 |---|---|---|
@@ -61,19 +79,22 @@ when you return.
 
 ## What you get
 
-The build makes **its own page**, at `/design-preview`. Your site is not
-touched while it works: the theme it writes and the navigation it sets belong
-to that page alone, so visitors go on seeing your site exactly as it is, header
-and all.
+The build makes **its own page**, at `/design-preview`, whichever destination
+you chose. Your site is not touched while it works, so visitors go on seeing it
+exactly as it is; a homepage build's theme and navigation belong to that one
+page until you say otherwise.
 
 When it finishes you get:
 
 - **Open it** — see the result as a visitor would.
-- **Use this as my homepage** — put it in place. This is the moment the
-  design's theme and its navigation become your site's, and not before. Your
-  old homepage is kept, unlisted, and so is the navigation it replaces, so you
-  can go back to either. The name the design gave the site becomes your site's
-  name at this point too.
+- **Use this as…** — put it in place, at the destination you chose. Whatever
+  was standing there is kept, unlisted, so you can go back to it. For a
+  homepage this is also the moment the design's theme and navigation become
+  your site's, and the name the design gave the site becomes your site's name.
+  For a page, only the page moves: an existing page keeps its own title, so
+  every link and menu item pointing at it still reads right.
+- **Put back the site I had** — undoes all of that, and keeps the design so you
+  can go forward again.
 
 If you do not like it, do nothing. Change the brief, or the picture, and build
 again.

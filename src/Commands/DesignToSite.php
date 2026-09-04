@@ -25,7 +25,8 @@ class DesignToSite extends Command
         {--force : Overwrite existing site content}
         {--dry-run : Show build plan without executing}
         {--figma-url= : Figma file URL to export assets from}
-        {--no-images : Do not make any pictures; leave the design\'s image slots to be filled by hand}';
+        {--no-images : Do not make any pictures; leave the design\'s image slots to be filled by hand}
+        {--sections-only : The design is one page of an existing site: write its sections and leave the theme, the navigation and the site name alone}';
 
     /** Where a build puts what it makes, until someone says to use it. */
     public const PREVIEW_SLUG = 'design-preview';
@@ -61,6 +62,10 @@ class DesignToSite extends Command
             $force = (bool) $this->option('force');
             $dryRun = (bool) $this->option('dry-run');
             $figmaUrl = $this->option('figma-url') ?: null;
+            // A design for an inside page arrives at a site that already
+            // has a frame. Writing another one would redress every page on
+            // the site from a mockup of one of them.
+            $sectionsOnly = (bool) $this->option('sections-only');
 
             // Everything printed from here is also recorded, so the admin page
             // that started this in a process of its own can follow along.
@@ -245,7 +250,17 @@ class DesignToSite extends Command
             $frame = app(DesignPreviewFrame::class);
             $designKey = $this->designKey($context, $designPath);
 
-            if ($frame->theme() !== null && $frame->designKey() !== $designKey) {
+            // What the build is allowed to touch, carried in the context so
+            // both tool loops and both prompts read it from one place.
+            $context['build_scope'] = $sectionsOnly ? 'sections' : 'full';
+
+            if ($sectionsOnly) {
+                // A theme staged by an earlier build would otherwise dress the
+                // preview page in it, and the sections being written here have
+                // to be judged inside the frame they will actually land in —
+                // the site's own.
+                $frame->forgetTheme();
+            } elseif ($frame->theme() !== null && $frame->designKey() !== $designKey) {
                 $this->line('The staged theme was written for a different design; this build writes its own.');
                 $frame->forgetTheme();
             }
@@ -271,7 +286,10 @@ class DesignToSite extends Command
             // and without appearing anywhere a visitor would find it.
             $qaUrl = rtrim($url, '/') . '/' . $preview->slug;
 
-            $this->info('Building onto "' . $preview->slug . '" — the homepage is left as it is.');
+            $this->info($sectionsOnly
+                ? 'Building the sections of this design onto "' . $preview->slug . '" — the theme, the navigation '
+                    . 'and the site name are left as they are.'
+                : 'Building onto "' . $preview->slug . '" — the homepage is left as it is.');
             $this->builder->runBuildLoop($context, $designPath, $url);
 
             if (!$this->siteStillWorks($url)) {
@@ -290,7 +308,10 @@ class DesignToSite extends Command
             // theme, found the header wrong — of course it was, it was somebody
             // else's — and spent every turn they had rewriting a layout nobody
             // was being served. Nothing said so, because both halves worked.
-            if ($problem = $this->themeMismatch($qaUrl)) {
+            // Only a build that wrote a theme can be served the wrong one.
+            // A page build stages none, so the page is served the site's, and
+            // that is the right answer rather than a mismatch.
+            if (!$sectionsOnly && ($problem = $this->themeMismatch($qaUrl))) {
                 $this->error($problem);
                 $this->status?->finish(false, $problem);
 

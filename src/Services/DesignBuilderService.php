@@ -77,6 +77,38 @@ class DesignBuilderService
         'git',
     ];
 
+    /**
+     * Tools a build for a PAGE is not given — theme, navigation, site name.
+     *
+     * The first design a site is given writes its frame. Every one after it
+     * arrives at a site that already has one, and a second design's idea of
+     * the header is not an improvement on the first's — it is the first
+     * design's header gone. A theme and a menu are site-wide: written from a
+     * mockup of one inside page they would redress every page on the site,
+     * which is exactly the surprise this whole feature was rebuilt to avoid.
+     *
+     * So a page build writes sections into the frame that is already there,
+     * and reads the theme's tokens rather than setting them. What comes out
+     * looks like the rest of the site, which for an inside page is the point.
+     *
+     * @var array<int, string>
+     */
+    public const TOOLS_A_SECTIONS_BUILD_MAY_NOT_USE = [
+        'create_theme',
+        'switch_template',
+        'use_theme_for_preview',
+        'set_theme_tokens',
+        'set_menu',
+        'write_theme_file',
+        'edit_template_file',
+        'update_site_config',
+        'delete_page',
+        'edit_file',
+        'write_file',
+        'run_command',
+        'git',
+    ];
+
     public function __construct(
         AiProviderManager $aiManager,
         ChatToolRegistry $toolRegistry,
@@ -1097,7 +1129,7 @@ class DesignBuilderService
         ];
 
         // Get formatted tools for this provider
-        $availableTools = $this->toolsForBuilding($this->toolRegistry->forUser($user));
+        $availableTools = $this->toolsForBuilding($this->toolRegistry->forUser($user), $context);
         $formattedTools = $this->getFormattedTools($textProvider, $availableTools);
 
         $this->progress('Calling AI to build site...');
@@ -1335,6 +1367,18 @@ Set "passed" to true ONLY if the screenshot is a close visual match to the desig
 Be specific about what needs fixing. Each fix should be actionable.
 PROMPT;
 
+        // A page built into a site's existing frame is wearing a header and a
+        // footer the design never showed, and they are the two bands a
+        // comparison notices first. Left unsaid, every round reported them as
+        // the largest difference and asked for a fix no tool in that round's
+        // list could make.
+        if ($this->sectionsOnly($context)) {
+            $prompt .= "\n\nThis design is for ONE PAGE of a site that already exists, and the site's own header, "
+                . 'navigation and footer are drawn around it. Judge the content between them and nothing else: the '
+                . 'frame differing from the design is correct and is not a fix. Do not report the header, the '
+                . 'navigation, the footer or the site name, and do not let any of them hold "passed" back.';
+        }
+
         // A screenshot comparison judges what is on the screen, and a section
         // that was never built is not on it to be judged. Naming them here is
         // what lets "passed" mean the page is finished rather than tidy.
@@ -1494,7 +1538,7 @@ PROMPT;
         // back answering 200 on every page in the browser's own serif, with
         // the design gone. What a correction may not do is taken away from it
         // here rather than asked for.
-        $availableTools = $this->toolsForCorrecting($this->toolRegistry->forUser($user));
+        $availableTools = $this->toolsForCorrecting($this->toolRegistry->forUser($user), $context);
         $formattedTools = $this->getFormattedTools($textProvider, $availableTools);
 
         $this->progress('Applying QA fixes...');
@@ -1776,17 +1820,26 @@ PROMPT;
     }
 
     /**
+     * Whether this build writes sections into a frame somebody else made.
+     *
+     * Set by the command from the destination chosen before the build, and
+     * carried in the context so both tool loops and both prompts read it from
+     * one place.
+     */
+    public function sectionsOnly(array $context): bool
+    {
+        return ($context['build_scope'] ?? '') === 'sections';
+    }
+
+    /**
      * The tool list a round of corrections is given.
      *
      * @param  array<int, array<string, mixed>> $tools
      * @return array<int, array<string, mixed>>
      */
-    public function toolsForCorrecting(array $tools): array
+    public function toolsForCorrecting(array $tools, array $context = []): array
     {
-        return array_values(array_filter(
-            $tools,
-            fn ($tool) => !in_array($tool['name'] ?? '', self::TOOLS_A_FIX_MAY_NOT_USE, true)
-        ));
+        return $this->without($tools, self::TOOLS_A_FIX_MAY_NOT_USE, $context);
     }
 
     /**
@@ -1795,11 +1848,32 @@ PROMPT;
      * @param  array<int, array<string, mixed>> $tools
      * @return array<int, array<string, mixed>>
      */
-    public function toolsForBuilding(array $tools): array
+    public function toolsForBuilding(array $tools, array $context = []): array
     {
+        return $this->without($tools, self::TOOLS_A_BUILD_MAY_NOT_USE, $context);
+    }
+
+    /**
+     * Withhold a list of tools, and the frame's as well on a page build.
+     *
+     * The withholding is what makes a page build a page build. Stated only in
+     * the prompt it would hold until the run went badly, which is the lesson
+     * every guard in this file was written down after: a rule the tools do
+     * not enforce is a rule the model breaks under pressure.
+     *
+     * @param  array<int, array<string, mixed>> $tools
+     * @param  array<int, string> $withheld
+     * @return array<int, array<string, mixed>>
+     */
+    private function without(array $tools, array $withheld, array $context): array
+    {
+        if ($this->sectionsOnly($context)) {
+            $withheld = array_unique(array_merge($withheld, self::TOOLS_A_SECTIONS_BUILD_MAY_NOT_USE));
+        }
+
         return array_values(array_filter(
             $tools,
-            fn ($tool) => !in_array($tool['name'] ?? '', self::TOOLS_A_BUILD_MAY_NOT_USE, true)
+            fn ($tool) => !in_array($tool['name'] ?? '', $withheld, true)
         ));
     }
 
@@ -2111,9 +2185,16 @@ PROMPT;
             throw new \RuntimeException('A design build needs a page of its own to build on. None was given, and the homepage is not it.');
         }
 
+        // A build for a page inside a site the design did not write is a
+        // different job, not a smaller one: the frame is settled, and what is
+        // being asked for is sections that sit inside it.
+        $forAPage = $this->sectionsOnly($context);
+
         $task = $correcting
-            ? $this->correctingInstructions($steps, $target)
-            : $this->buildingInstructions($steps, $target);
+            ? $this->correctingInstructions($steps, $target, $forAPage)
+            : ($forAPage
+                ? $this->buildingInstructionsForAPage($steps, $target)
+                : $this->buildingInstructions($steps, $target));
 
         return <<<PROMPT
 You are a site builder AI for {$siteDesc}.
@@ -2155,11 +2236,145 @@ Build on page id {$id} ("/{$slug}") and on no other. It has been emptied for
 PART;
     }
 
+    /**
+     * The build prompt for a design that is one page of an existing site.
+     *
+     * Shorter than the other one because most of that one is the frame, and
+     * the frame here belongs to somebody else. What is left is the part that
+     * carries a design anyway: read the picture section by section and write
+     * each section.
+     *
+     * The theme's own tokens go in verbatim. Without them a page build writes
+     * its own hex values off the picture and the page lands beside the rest
+     * of the site looking like a different site — which for an inside page is
+     * the whole failure, and the one thing a homepage build cannot teach us
+     * because there it is the theme that follows the design.
+     */
+    private function buildingInstructionsForAPage(int $steps, array $target): string
+    {
+        $id = (int) ($target['id'] ?? 0);
+        $slug = (string) ($target['slug'] ?? '');
+        $editableBlocks = implode(', ', app(\VelaBuild\Core\Vela::class)->blocks()->editableNames());
+        $blockClasses = $this->blockClassReference();
+        $sectionRules = $this->sectionWritingRules();
+        $pictures = self::MAX_PICTURES;
+        $theme = $this->frameInWords();
+
+        return <<<PROMPT
+This design is for ONE PAGE of a site that already exists. The site has its
+theme, its header, its navigation and its footer, and those are not yours to
+change: another page's mockup is not a reason to redress every page on the
+site, and the tools that would do it are not in your list. What is being asked
+for is the CONTENT of this page, written to look like the design and to belong
+to the site it is landing in.
+
+{$theme}
+
+HOW TO BUILD, IN ORDER:
+1. Build on page id {$id} ("/{$slug}") and on no other. It has been emptied for
+   you, so there is nothing to delete first. Anything that puts a section on
+   another page is refused. The page is not listed anywhere while you work; it
+   is put where it belongs once its owner has looked at it.
+2. Go through the design section by section, top to bottom, and write each one
+   with add_designed_section. Send:
+     html — the section's markup, with the design's REAL words in it: its
+       headings, its sentences, its prices, its button labels. Pictures go in
+       as <img>. What you put in as text and images is exactly what the site's
+       owner will be offered as a form to edit, so a section written with
+       placeholder words is a section they have to rewrite by hand.
+     css — that section's stylesheet, written against class names you used in
+       the html. It is rewritten on the way in so it reaches nothing outside
+       the section; a selector naming a class that is not in your markup
+       matches nothing and is dropped, and you are told how many were.
+     name — what the section is: "Hero", "Features", "FAQ". Required.
+   Do NOT write the design's header, navigation or footer. The site draws
+   those on every page and a second set is refused. A design is a whole page
+   as a picture, so the top and bottom bands of it are usually the site's own
+   furniture, not sections you are being asked for.
+3. THE ONE EXCEPTION, and it is not a judgement call: a section that has to
+   keep up with what the site holds is a BLOCK, always. A grid of articles is
+   posts_grid, a grid of topics is categories_grid, a form someone fills in
+   and sends is contact_form. Written as markup they freeze into a picture of
+   the site on the day it was built and never change again. Put those in with
+   add_row and add_block, each block carrying its own column_index (0, 1, 2)
+   and column_width out of twelve where the design puts them side by side.
+   Count the cards the design shows and set max_count and columns to match.
+   A listing has no heading of its own: where the design puts words above one,
+   add the text block first. Only these block types can be edited in the
+   admin: {$editableBlocks}.
+4. update_page — one call, to title the page what the design says this page
+   is: the words at the top of it, or the navigation item it belongs under.
+   Not the name of the site — the site has one, and it is not yours to change.
+5. generate_image — for PHOTOGRAPHS and ILLUSTRATIONS the design shows that no
+   supplied asset covers, and for nothing else. At most {$pictures} in a build.
+   Say what the picture is AND what kind of picture it is, read off the
+   design: a flat vector illustration, an isometric drawing, a photograph —
+   and the palette it is drawn in. NOT for icons: an icon is a shape, drawn in
+   the section's own CSS or as inline SVG. NEVER for a logo, and the tool
+   refuses them — a strip of company logos in a design marks where the site's
+   own partners go, and drawn it becomes a row of approximated trademarks.
+   Use the url a picture tool returns exactly as given; an address you invent
+   is a broken picture, and is refused.
+6. create_category and create_article only where the design shows a listing
+   and the site has nothing to fill it with. An empty listing matches nothing.
+
+{$sectionRules}
+
+THE CLASS NAMES THE BLOCKS RENDER WITH:
+For the listing sections you build from blocks. A section you write yourself
+has its own class names and does not need any of these.
+{$blockClasses}
+
+RULES:
+- The theme, the navigation and the site's name are not part of this job, and
+  the tools for them are not in your list. If the design's header differs from
+  this site's, that is the design showing you a site it imagined; the real one
+  wins.
+- Use the theme's tokens above in your section CSS — var(--accent),
+  var(--font-display), var(--page-width) — wherever the design's value and the
+  site's agree. Write your own value where the design is genuinely saying
+  something the site does not: a section's own band colour, a card's shadow.
+  A page whose every colour is its own reads as pasted in from elsewhere.
+- update_custom_css is for a small adjustment afterwards, not for the design.
+  A written section's styling belongs in the call that adds the section.
+- A design is not missing anything by not having a hero, a call to action or a
+  quotation. Add nothing it does not show.
+- You have about {$steps} turns. Spend them changing the page, not surveying
+  it: read a thing only when you cannot act without knowing it.
+PROMPT;
+    }
+
+    /**
+     * The frame this page is landing in, said in the model's own terms.
+     */
+    private function frameInWords(): string
+    {
+        $theme = (string) (config('vela.template.active') ?: 'default');
+        $tokens = app(ThemeAuthor::class)->currentTokens($theme);
+
+        if ($tokens === []) {
+            return 'THE SITE\'S FRAME: theme "' . $theme . '". Its stylesheet does not declare tokens you can '
+                . 'read, so match it by eye from the design and keep your values consistent across sections.';
+        }
+
+        $lines = [];
+
+        foreach ($tokens as $name => $value) {
+            $lines[] = '  --' . $name . ': ' . $value;
+        }
+
+        return "THE SITE'S FRAME: theme \"" . $theme . "\", built on these values. Every page on the site
+"
+            . "already reads from them, and your sections can too:
+" . implode("\n", $lines);
+    }
+
     private function buildingInstructions(int $steps, array $target): string
     {
         $blockClasses = $this->blockClassReference();
         $editableBlocks = implode(', ', app(\VelaBuild\Core\Vela::class)->blocks()->editableNames());
         $where = $this->wherePagePart($target);
+        $sectionRules = $this->sectionWritingRules();
         $pictures = self::MAX_PICTURES;
 
         return <<<PROMPT
@@ -2310,6 +2525,42 @@ HOW TO BUILD, IN ORDER:
     "categories_show", styled to match. Anything you leave out falls back to a
     plain built-in view: the site still works, it just is not your design.
 
+{$sectionRules}
+
+THE CLASS NAMES THE BLOCKS RENDER WITH:
+For the listing sections you build from blocks, and for the inside-page views
+written in the last step. A section you write yourself has its own class names
+and does not need any of these.
+{$blockClasses}
+
+RULES:
+- update_custom_css is for a small adjustment afterwards, not for the design.
+  A written section's styling belongs in the call that adds the section.
+- A section written as markup in the THEME is a section the owner cannot edit.
+  Sections go on the page, never into a theme view.
+- Blade that would not compile is refused with the reason. Fix it and write
+  again; nothing broken reaches a visitor.
+- Adding another empty listing block does not add content. Only
+  create_article and create_category do.
+- A design is not missing anything by not having a hero, a call to action or a
+  quotation. Add nothing it does not show: a section invented to fill a gap
+  the design does not have is a section its owner has to find and delete.
+- You have about {$steps} turns. Spend them changing the site, not surveying
+  it: read a thing only when you cannot act without knowing it.
+PROMPT;
+    }
+
+    /**
+     * How to write a section, for whichever prompt is asking.
+     *
+     * Identical for a build that makes the frame and one that writes into a
+     * frame already there: the difference between those two is what they may
+     * touch, never how a section is written. Kept in one place so a lesson
+     * learned about section markup does not have to be learned twice.
+     */
+    private function sectionWritingRules(): string
+    {
+        return <<<'RULES'
 WRITING A SECTION:
 - Never a header, a navigation bar or a footer. The theme draws those on every
   page; a second set in a section sits underneath them, dead, and is refused.
@@ -2351,28 +2602,7 @@ WRITING A SECTION:
   refused.
 - A section that is nothing but shapes, with no wording, no picture and no
   link, is refused: there would be nothing for its owner to edit.
-
-THE CLASS NAMES THE BLOCKS RENDER WITH:
-For the listing sections you build from blocks, and for the inside-page views
-written in the last step. A section you write yourself has its own class names
-and does not need any of these.
-{$blockClasses}
-
-RULES:
-- update_custom_css is for a small adjustment afterwards, not for the design.
-  A written section's styling belongs in the call that adds the section.
-- A section written as markup in the THEME is a section the owner cannot edit.
-  Sections go on the page, never into a theme view.
-- Blade that would not compile is refused with the reason. Fix it and write
-  again; nothing broken reaches a visitor.
-- Adding another empty listing block does not add content. Only
-  create_article and create_category do.
-- A design is not missing anything by not having a hero, a call to action or a
-  quotation. Add nothing it does not show: a section invented to fill a gap
-  the design does not have is a section its owner has to find and delete.
-- You have about {$steps} turns. Spend them changing the site, not surveying
-  it: read a thing only when you cannot act without knowing it.
-PROMPT;
+RULES;
     }
 
     /**
@@ -2399,10 +2629,67 @@ PROMPT;
         return implode("\n", $lines);
     }
 
-    private function correctingInstructions(int $steps, array $target): string
+    /**
+     * Correcting a page built into somebody else's frame.
+     *
+     * The other correcting prompt spends half its length on the theme and the
+     * menus, which is right when the build wrote them and actively harmful
+     * here: told the header is wrong, a round with no way to fix a header
+     * goes looking for one, and the ways it finds are the ones that break
+     * things. So this says plainly that the frame is not a fault to fix.
+     */
+    private function correctingInstructionsForAPage(int $steps, string $onlyPage): string
+    {
+        return <<<PROMPT
+The page is built and the site's own theme is drawing the frame around it.
+Your job is to correct the SECTIONS so they match the design more closely —
+not to build the page again, and not to touch the frame.
+
+HOW TO CORRECT:
+- {$onlyPage}
+- Start with get_page_blocks. It gives you each row's id, and a row holding one
+  html block is a section you wrote: markup and stylesheet of its own.
+- To correct such a section — its arrangement, its spacing, its type, its
+  wording, any of it — call add_designed_section again with replace_row_id set
+  to that row. It rewrites the section and its stylesheet in place. Never add a
+  second section for something the page already has: two heroes are a worse
+  mismatch than the one you were fixing.
+- Listings, articles and topics are blocks and content: update_block,
+  update_row, edit_article_content, create_article.
+- Remove what the design does not have: delete_block, delete_row.
+
+WHAT IS NOT A FAULT:
+- The header, the navigation, the footer and the site's name. They are the
+  site's, they are on every page, and the design showing something different
+  is the design showing a site it imagined. There are no tools here for them
+  and there is nothing to work around: leave them.
+- The typeface and the palette where the site's differ mildly from the
+  design's. A page that matches its mockup exactly and matches nothing else on
+  the site has failed at the thing it was for.
+- Report either of these in your final message if it matters. Do not spend
+  rounds on them.
+
+RULES:
+- A section appearing twice on the page is a worse mismatch than the fault you
+  were fixing. When something looks wrong, ask whether to change or delete it
+  before you ask whether to add anything.
+- A screenshot much taller than the design usually means repeated sections, or
+  empty space to remove.
+- Never move a section's words into the theme to make it look right — that
+  takes them away from the person who owns the site.
+- You have about {$steps} turns. Spend them on the largest visual differences
+  first.
+PROMPT;
+    }
+
+    private function correctingInstructions(int $steps, array $target, bool $forAPage = false): string
     {
         $onlyPage = 'Everything you change on a page belongs to page id ' . (int) $target['id']
             . ' ("/' . $target['slug'] . '"). Leave every other page alone.';
+
+        if ($forAPage) {
+            return $this->correctingInstructionsForAPage($steps, $onlyPage);
+        }
 
         return <<<PROMPT
 The site is already built and has a theme written for it. Your job is to
