@@ -159,7 +159,6 @@ PageEditor.registerBlockType = function(name, config) {
         closeLinkSuggest();
         if (!results.length) return;
 
-        var rect = input.getBoundingClientRect();
         var box = document.createElement('div');
         box.className = 'vela-link-suggest';
         // Fixed and on the body: these boxes live inside a modal that scrolls
@@ -167,9 +166,13 @@ PageEditor.registerBlockType = function(name, config) {
         // of the panel it was helping with.
         box.style.cssText = 'position:fixed;z-index:2147483000;background:#fff;' +
             'border:1px solid #dee2e6;border-radius:6px;box-shadow:0 6px 24px rgba(0,0,0,.14);' +
-            'max-height:260px;overflow:auto;font-size:.85rem;' +
-            'left:' + Math.round(rect.left) + 'px;top:' + Math.round(rect.bottom + 4) + 'px;' +
-            'width:' + Math.round(Math.max(rect.width, 240)) + 'px;';
+            'max-height:260px;overflow:auto;overscroll-behavior:contain;font-size:.85rem;';
+
+        // Pressing anywhere in the list — its scrollbar included — must not
+        // take the focus off the input, because losing it closes the list.
+        // Dragging the scrollbar was therefore a way to dismiss the thing you
+        // were trying to scroll.
+        box.addEventListener('mousedown', function (e) { e.preventDefault(); });
 
         results.forEach(function (r, i) {
             var row = document.createElement('button');
@@ -194,6 +197,42 @@ PageEditor.registerBlockType = function(name, config) {
         _linkSuggest.input = input;
         _linkSuggest.items = results;
         _linkSuggest.active = -1;
+        positionLinkSuggest();
+    }
+
+    /**
+     * Put the list under its input, or drop it if the input has gone.
+     *
+     * Worked out each time rather than once: the panel it sits in scrolls, and
+     * a fixed box that stays where it was drawn ends up over something else.
+     * Flips above the input where there is no room below, so a link box near
+     * the foot of the dialog still gets a usable list.
+     */
+    function positionLinkSuggest() {
+        var box = _linkSuggest.box;
+        var input = _linkSuggest.input;
+        if (!box || !input) return;
+
+        var rect = input.getBoundingClientRect();
+
+        // Scrolled out of the panel altogether: there is nothing left for the
+        // list to belong to.
+        if (rect.bottom < 0 || rect.top > window.innerHeight) {
+            closeLinkSuggest();
+            return;
+        }
+
+        var height = box.offsetHeight;
+        var below = window.innerHeight - rect.bottom - 8;
+        var above = rect.top - 8;
+        var flip = below < Math.min(height, 160) && above > below;
+
+        box.style.width = Math.round(Math.max(rect.width, 240)) + 'px';
+        box.style.left = Math.round(rect.left) + 'px';
+        box.style.maxHeight = Math.round(Math.max(120, Math.min(260, flip ? above : below))) + 'px';
+        box.style.top = flip
+            ? Math.round(Math.max(4, rect.top - Math.min(height, above) - 4)) + 'px'
+            : Math.round(rect.bottom + 4) + 'px';
     }
 
     function highlightLinkSuggest(next) {
@@ -284,9 +323,19 @@ PageEditor.registerBlockType = function(name, config) {
         }, true);
 
         // The list is on the body at fixed coordinates, so it does not travel
-        // with whatever it was anchored to.
-        window.addEventListener('scroll', closeLinkSuggest, true);
-        window.addEventListener('resize', closeLinkSuggest);
+        // with whatever it was anchored to — it is moved back under its input
+        // instead of being thrown away, which is what a scroll used to do.
+        //
+        // Capture phase, because the scrolling happens inside the dialog and
+        // never reaches the window by bubbling. That is also why the list's
+        // OWN scrolling has to be excluded: a wheel over the list is a scroll
+        // event like any other, so scrolling the suggestions dismissed them —
+        // which is exactly what somebody reaching for the fourth one does.
+        window.addEventListener('scroll', function (e) {
+            if (_linkSuggest.box && e.target instanceof Node && _linkSuggest.box.contains(e.target)) return;
+            positionLinkSuggest();
+        }, true);
+        window.addEventListener('resize', positionLinkSuggest);
     }
 
     // --- Helper ---
