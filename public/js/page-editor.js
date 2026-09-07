@@ -1712,6 +1712,36 @@ PageEditor.registerBlockType = function(name, config) {
                 'var root=document.querySelector("[data-vela-block]");if(!root)return;' +
                 'var picked=' + JSON.stringify(_htmlSelected) + ';' +
 
+                // A link put on a part wraps it in an <a style="display:contents">
+                // so the part keeps its own place in the grid. An element with
+                // display:contents HAS NO BOX — getBoundingClientRect() is all
+                // zeros — and Sortable decides where a drop lands by comparing
+                // the boxes of the list's children.
+                //
+                // Measured: six cards in a three-column grid. Plain, dragging
+                // the first onto the fourth gives 234156, which is where it was
+                // dropped. With each card wrapped in that anchor it gives
+                // 234561 — the card goes to the END of the list wherever it is
+                // released. In a two-card row "the end" and "swapped" are the
+                // same thing, which is why sideways looked like it worked and
+                // moving to another row never did.
+                //
+                // So the wrapper is given back a box, in the preview only: the
+                // parent's own display, which measures pixel-identical to
+                // display:contents inside a grid or a flex row, and block where
+                // what it wraps is not inline. The saved markup is untouched.
+                'function boxWrappers(){' +
+                    'Array.prototype.forEach.call(root.querySelectorAll("[data-vela-link-wrap]"),function(a){' +
+                        'if(!a.parentElement||!a.firstElementChild)return;' +
+                        'var pd=getComputedStyle(a.parentElement).display;' +
+                        'var cd=getComputedStyle(a.firstElementChild).display;' +
+                        'var d=(pd==="grid"||pd==="inline-grid")?"grid":' +
+                            '((pd==="flex"||pd==="inline-flex")?"flex":' +
+                            '((cd==="inline"||cd==="inline-block")?"":"block"));' +
+                        'if(d)a.style.display=d;' +
+                    '});}' +
+                'boxWrappers();' +
+
                 // "Click a picture to swap it" is a listener ON the <img>, and
                 // a hero's background picture is an absolutely positioned
                 // <img> UNDER the heading, the overlay and the buttons — so
