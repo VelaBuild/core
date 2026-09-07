@@ -2598,7 +2598,60 @@ PageEditor.registerBlockType = function(name, config) {
 
         var $root = $('#vela-design-root');
         if (!$root.length) return;
+
+        // Where the caret was, so a redraw that lands mid-word puts it back.
+        // The value survives on its own — it went into the document on the
+        // line above — but the box holding it does not: it is a different
+        // element afterwards, and typing carried on into nothing.
+        var typing = keepTyping($root[0]);
+
         $root.replaceWith(renderDesignPanel(_htmlDoc));
+
+        restoreTyping(typing);
+    }
+
+    /**
+     * The box being typed in, if it is one of the panel's own.
+     *
+     * @return {{field: string, cls: string, start: number, end: number}|null}
+     */
+    function keepTyping(root) {
+        var active = document.activeElement;
+
+        if (!active || !root.contains(active) || !('selectionStart' in active)) {
+            return null;
+        }
+
+        var field = $(active).closest('[data-field]').attr('data-field');
+        var cls = (active.className || '').split(/\s+/).filter(function(name) {
+            return name.indexOf('vela-field-') === 0;
+        })[0];
+
+        if (!field || !cls) {
+            return null;
+        }
+
+        // selectionStart throws on an input whose type does not carry one —
+        // a colour, a range — which is why this is wrapped rather than read.
+        try {
+            return { field: field, cls: cls, start: active.selectionStart, end: active.selectionEnd };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /** Put the caret back where the redraw found it. */
+    function restoreTyping(typing) {
+        if (!typing) return;
+
+        var box = document.querySelector('#vela-design-root [data-field="' + typing.field + '"] .' + typing.cls);
+        if (!box) return;
+
+        box.focus();
+
+        try {
+            box.setSelectionRange(typing.start, typing.end);
+        } catch (e) {}
     }
 
     /**
@@ -3337,6 +3390,16 @@ PageEditor.registerBlockType = function(name, config) {
                 // Remembered out here, because the preview it was chosen in is
                 // thrown away and rebuilt on the next change.
                 if ('velaSelect' in data) {
+                    // The preview re-pins whatever it was told was selected
+                    // every time it reloads, and it reloads 350ms after every
+                    // keystroke — so most of these arrive saying nothing has
+                    // changed, and the redraw they used to cause replaced the
+                    // box being typed into. Measured in Chrome: type a URL
+                    // into a card's link, pause for a third of a second, and
+                    // the input is a different element with the focus gone.
+                    // Which is why a link could not be typed at all.
+                    if (data.velaSelect === _htmlSelected) return;
+
                     _htmlSelected = data.velaSelect;
                     redrawPartPanel();
                     return;
