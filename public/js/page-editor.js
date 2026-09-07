@@ -1669,6 +1669,17 @@ PageEditor.registerBlockType = function(name, config) {
             // Dashed while merely pointed at, solid once held, so it is clear
             // which one a drag or a delete would act on.
             '[data-vela-hot]{outline:2px dashed #0d6efd !important;outline-offset:-2px}' +
+            // And it must hold still while it is being worked on. A design
+            // that lifts a card on hover — `transform:translateY(-4px)`, which
+            // is on half the sections here — moves the very thing the pointer
+            // is reaching for, and worse: a transformed element becomes the
+            // containing block for a `position:fixed` child, so the bar below,
+            // which lives INSIDE the part, stopped being placed against the
+            // page at all. Measured in Chrome on a 4px lift: the bar landed
+            // 100px right and 96px down, nowhere near the card, so it could
+            // not be pointed at and nothing could be dragged.
+            '[data-vela-hot],[data-vela-pinned]{transform:none !important;' +
+                'transition:none !important;animation-play-state:paused !important}' +
             '[data-vela-pinned]{outline:2px solid #0d6efd !important;outline-offset:-2px;' +
                 'background:rgba(13,110,253,.04)}' +
             '.vela-drag-ghost{opacity:.35}' +
@@ -1899,12 +1910,22 @@ PageEditor.registerBlockType = function(name, config) {
                 // it, and the choice outlives the redraw a drag causes, so the
                 // same part can be moved twice without hunting for it again.
                 'var hot=null,list=null,sortable=null,dragging=false,pinned=null;' +
+                // The CSS above stops the part under the pointer from moving,
+                // which covers the common case. This covers the rest: ANY
+                // transformed ancestor — a card rotated by the design, a
+                // parent mid-animation — makes a fixed child position against
+                // that ancestor rather than the page, and the bar is a fixed
+                // child several levels down. So rather than trust that fixed
+                // means fixed, put the bar at its own origin, see where the
+                // browser actually placed it, and correct by the difference.
                 'function place(){' +
                     'if(!hot){bar.style.display="none";return;}' +
                     'var r=hot.getBoundingClientRect();' +
                     'bar.style.display="flex";' +
-                    'bar.style.left=Math.max(2,r.left)+"px";' +
-                    'bar.style.top=Math.max(2,r.top-24)+"px";}' +
+                    'bar.style.left="0px";bar.style.top="0px";' +
+                    'var o=bar.getBoundingClientRect();' +
+                    'bar.style.left=(Math.max(2,r.left)-o.left)+"px";' +
+                    'bar.style.top=(Math.max(2,r.top-24)-o.top)+"px";}' +
 
                 // One list is live at a time — whichever the pointer is in.
                 // Binding every run of siblings at once puts a drop target
