@@ -23,6 +23,8 @@ the button will work:
 - **A browser.** The builder photographs your site to check its own work. If
   the machine has no browser it can use, it downloads one the first time you
   build — around 350 MB, and nothing outside your site's own storage changes.
+  Measured on macOS: thirteen seconds to fetch and three to unpack. There is
+  nothing to approve and nothing to install by hand.
 - **Background builds.** Most servers allow this. If yours does not, the page
   says so and tells you the command to run instead.
 
@@ -148,6 +150,36 @@ given two designs, or no explanation, has to guess.
 **A section is in the wrong words.** Edit it. **Pages → your page → Edit** puts
 every piece of wording in the section in front of you as a form, and changing
 one takes ten seconds where rebuilding takes ten minutes.
+
+## Taking the photographs somewhere else
+
+Almost nobody needs this. The browser above is the default and the recommended
+route: it is fetched automatically, it costs nothing, and no page of your site
+leaves the machine it runs on.
+
+The exception is a host that will not let a browser run at all — some shared
+hosting, some locked-down containers. For those, `CLOUDFLARE_BROWSER_RENDERING_URL`
+in `.env` points the builder at a rendering service instead, and it is used in
+preference to downloading anything.
+
+**Be clear about what that setting is, because the name overpromises.** It is
+not Cloudflare's Browser Rendering REST API and Vela does not send an API token
+anywhere. It is the address of a service *you* run, and Vela speaks one shape to
+it:
+
+    POST <your url>/screenshot
+    {"url": "…", "viewport": {"width": 1920, "height": 1080},
+     "format": "png", "fullPage": false}
+
+    → the image itself, as bytes (not JSON, not base64)
+
+A Cloudflare Worker with a browser binding is the usual way to answer that, and
+writing one is a couple of dozen lines — but it is a deployment you own, on an
+account with Workers enabled. Vela does not ship one.
+
+So this is an escape hatch for somebody who already runs infrastructure, not a
+shortcut past the browser download. If you are setting up a site and wondering
+which to choose: choose neither, and let the build fetch its own browser.
 
 ## Where things are afterwards
 
