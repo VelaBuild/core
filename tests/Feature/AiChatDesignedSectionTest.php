@@ -158,6 +158,92 @@ class AiChatDesignedSectionTest extends PackageTestCase
         $this->assertSame(3, preg_match_all('/<div class="card" [^>]*data-vela-field-kind="linkable"/', $html));
     }
 
+    /**
+     * The placeholder this site ships, put where a bare Testbench app has no
+     * published assets — a picture that does not resolve is refused before the
+     * section is ever marked up, which is a different guard than the one under
+     * test here.
+     */
+    private function stageThePlaceholderPicture(): string
+    {
+        $url = \VelaBuild\Core\Services\DesignBuilderService::PLACEHOLDER;
+        $path = public_path(ltrim($url, '/'));
+
+        \Illuminate\Support\Facades\File::ensureDirectoryExists(dirname($path));
+        file_put_contents($path, '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"></svg>');
+
+        $this->beforeApplicationDestroyed(fn () => @unlink($path));
+
+        return $url;
+    }
+
+    /**
+     * Cards that differ by one class are still cards.
+     *
+     * Found by the user on a real build: a link they put on a feature card
+     * landed on the <img> inside it, so only the photograph was clickable and
+     * the rest of the card did nothing. The cards were
+     * `fb-feature-card fb-card-chat` and `fb-feature-card fb-card-task` — the
+     * commonest shape there is, a base class plus a modifier — and the old
+     * rule wanted the class LISTS to match, so they were not a repeated set,
+     * so neither was marked a card, so neither could carry a link. The only
+     * linkable thing left inside was the picture.
+     */
+    public function test_cards_that_share_a_base_class_and_differ_by_a_modifier_are_a_set(): void
+    {
+        $page = $this->page();
+        $this->stageThePlaceholderPicture();
+
+        $r = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Features',
+            'html' => '<section class="fb-features"><div class="fb-features-row">'
+                . '<div class="fb-feature-card fb-card-chat">'
+                . '<img src="' . \VelaBuild\Core\Services\DesignBuilderService::PLACEHOLDER . '" alt="Team chat"><h3>Built-In Team Chat</h3>'
+                . '<p>Communicate instantly within projects.</p></div>'
+                . '<div class="fb-feature-card fb-card-task">'
+                . '<h3>Task Assignment</h3><p>Create, assign and track tasks.</p></div>'
+                . '</div></section>',
+        ]);
+
+        $this->assertTrue($r['success'] ?? false, json_encode($r));
+        $html = $page->rows()->first()->blocks()->first()->content['html'];
+
+        $this->assertSame(2, substr_count($html, 'data-vela-card="c1-'));
+        $this->assertMatchesRegularExpression('/data-vela-grid-count="2"/', $html);
+
+        // Both cards can be given a link as a whole — the picture inside the
+        // first one is still its own field, but it is no longer the only
+        // handle anybody has on that card.
+        $this->assertSame(2, preg_match_all('/<div class="fb-feature-card [^"]*"[^>]*data-vela-field-kind="linkable"/', $html));
+        $this->assertMatchesRegularExpression('/<img[^>]*data-vela-field-kind="image linkable"/', $html);
+    }
+
+    /**
+     * Sharing nothing is not a set. Two children of a hero that happen to sit
+     * side by side are a heading and a picture, not two of the same thing, and
+     * offering a "columns" control for them is offering to break the hero.
+     */
+    public function test_children_with_nothing_in_common_are_not_a_set(): void
+    {
+        $page = $this->page();
+        $this->stageThePlaceholderPicture();
+
+        (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Hero',
+            'html' => '<section class="hero"><div class="hero-inner">'
+                . '<div class="hero-words"><h1>Work together</h1><p>From anywhere.</p></div>'
+                . '<div class="hero-shot"><img src="' . \VelaBuild\Core\Services\DesignBuilderService::PLACEHOLDER . '" alt="The app"></div>'
+                . '</div></section>',
+        ]);
+
+        $html = $page->rows()->first()->blocks()->first()->content['html'];
+
+        $this->assertStringNotContainsString('data-vela-card=', $html);
+        $this->assertStringNotContainsString('data-vela-grid=', $html);
+    }
+
     public function test_a_card_that_already_holds_a_link_is_left_alone(): void
     {
         $page = $this->page();

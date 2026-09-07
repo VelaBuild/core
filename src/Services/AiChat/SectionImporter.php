@@ -590,22 +590,44 @@ class SectionImporter
                 continue;
             }
 
-            // Siblings that share a tag and a class list are a repeated set,
+            // Siblings that share a tag and a class are a repeated set,
             // whatever the framework calls them.
-            $signature = null;
+            //
+            // A class each of them CARRIES, not a class list they all match.
+            // Requiring the lists to be identical missed the commonest shape
+            // there is — a base class plus a modifier per card:
+            //
+            //   <div class="fb-feature-card fb-card-chat">
+            //   <div class="fb-feature-card fb-card-task">
+            //
+            // Those were not a set, so neither was marked a card, so neither
+            // could be given a link as a whole — and someone who wanted the
+            // card to go somewhere had to reach past it to the picture inside
+            // and link that instead. Which is what happened: a link landed on
+            // an <img> and only the photograph was clickable.
+            $shared = null;
+            $tag = null;
+
             foreach ($children as $child) {
-                $classes = preg_split('/\s+/', trim($child->getAttribute('class'))) ?: [];
-                sort($classes);
-                $current = strtolower($child->tagName) . '|' . implode(' ', array_slice(array_filter($classes), 0, 4));
-                if ($signature === null) {
-                    $signature = $current;
-                } elseif ($signature !== $current) {
-                    $signature = false;
+                $classes = array_values(array_filter(preg_split('/\s+/', trim($child->getAttribute('class'))) ?: []));
+
+                if ($tag === null) {
+                    $tag = strtolower($child->tagName);
+                    $shared = $classes;
+                    continue;
+                }
+
+                if ($tag !== strtolower($child->tagName)) {
+                    $shared = false;
                     break;
                 }
+
+                $shared = array_values(array_intersect($shared, $classes));
             }
 
-            if ($signature === false || $signature === null || $signature === '') {
+            // Children carrying no classes at all are still a set — the tag
+            // they share is all there is to go on, and that was true before.
+            if ($shared === false || ($shared === [] && $children[0]->getAttribute('class') !== '')) {
                 continue;
             }
 
