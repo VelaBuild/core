@@ -936,18 +936,36 @@ PageEditor.registerBlockType = function(name, config) {
             var kids = el.children;
             if (kids.length < 2) return;
 
-            var signature = null;
+            // A class they all CARRY, not a class list they all match. The
+            // mirror of SectionImporter::markGrids, and it had the same fault:
+            // `card card-chat` and `card card-task` are the commonest shape a
+            // set of cards takes and they do not match each other, so the row
+            // was not a row, no child was a card, and the only handle anyone
+            // had on a card was whatever happened to be marked inside it.
+            var tag = null;
+            var shared = null;
             var same = true;
             var columns = 0;
+
             for (var i = 0; i < kids.length; i++) {
-                var current = kids[i].tagName + '|' + Array.prototype.slice.call(kids[i].classList).sort().slice(0, 4).join(' ');
-                if (signature === null) signature = current;
-                else if (signature !== current) same = false;
+                var classes = Array.prototype.slice.call(kids[i].classList);
+
+                if (tag === null) {
+                    tag = kids[i].tagName;
+                    shared = classes;
+                } else if (tag !== kids[i].tagName) {
+                    same = false;
+                } else {
+                    shared = shared.filter(function(name) { return classes.indexOf(name) > -1; });
+                }
 
                 if (COLUMN_CLASS.test(kids[i].className || '')) columns++;
             }
 
-            if (!((same && signature) || columns >= 2)) return;
+            // Children with no classes at all are still a set: the tag they
+            // share is all there is to go on.
+            var classless = !kids[0].className;
+            if (!((same && (shared.length || classless)) || columns >= 2)) return;
 
             el.setAttribute('data-vela-grid', 'g' + (++gridIndex));
             el.setAttribute('data-vela-grid-count', String(kids.length));

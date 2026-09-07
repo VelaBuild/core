@@ -26,8 +26,12 @@ function extract(name) {
   throw new Error('unbalanced: ' + name);
 }
 
-const names = ['couldCarryALink', 'linkAnchor', 'applyLink', 'imageWidth', 'applyImageWidth'];
-eval(names.map(extract).join('\n'));
+const names = ['couldCarryALink', 'linkAnchor', 'applyLink', 'imageWidth', 'applyImageWidth',
+  'upgradeImportedBlock', 'hashString', 'wrapLooseText'];
+// Vars rather than functions, so they are lifted by name too.
+const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/];
+eval(vars.map(function (pattern) { return pattern.exec(src)[0]; }).join('\n')
+  + '\n' + names.map(extract).join('\n'));
 
 let failures = 0;
 function check(label, actual, expected) {
@@ -100,6 +104,32 @@ applyImageWidth(sized, 100);
 check('full width keeps the rest', sized.getAttribute('style'), 'border-radius:8px');
 applyImageWidth(sized, 5);
 check('a width outside the range is ignored', sized.getAttribute('style'), 'border-radius:8px');
+
+// --- upgradeImportedBlock: what counts as a row of cards ---
+// The editor keeps its own copy of SectionImporter::markGrids, for a section
+// pasted in or copied before the marks existed, and it had the same fault: it
+// wanted the class LISTS to match, so a base class plus a modifier per card —
+// the commonest shape there is — was not a set. The user found it the hard
+// way: a link meant for a feature card landed on the <img> inside it.
+doc = docFrom('<div data-vela-block="b1"><div class="row">'
+  + '<div class="feature-card card-chat"><h3>Chat</h3></div>'
+  + '<div class="feature-card card-task"><h3>Tasks</h3></div>'
+  + '</div></div>');
+upgradeImportedBlock(doc);
+check('cards differing by a modifier are a set', doc.querySelectorAll('[data-vela-card]').length, '2');
+check('and their row is the grid', doc.querySelector('.row').getAttribute('data-vela-grid-count'), '2');
+check('so a whole card can carry a link',
+  couldCarryALink(doc.querySelector('.card-chat'), []), 'true');
+
+doc = docFrom('<div data-vela-block="b2"><div class="hero-inner">'
+  + '<div class="hero-words"><h1>Hi</h1></div><div class="hero-shot"><img src="/a.png"></div>'
+  + '</div></div>');
+upgradeImportedBlock(doc);
+check('children sharing no class are not a set', doc.querySelectorAll('[data-vela-card]').length, '0');
+
+doc = docFrom('<div data-vela-block="b3"><ul><li>One</li><li>Two</li></ul></div>');
+upgradeImportedBlock(doc);
+check('children with no classes at all still are', doc.querySelectorAll('[data-vela-card]').length, '2');
 
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);
