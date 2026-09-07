@@ -94,6 +94,48 @@ class DesignBuilderReadinessTest extends PackageTestCase
         }
     }
 
+    /**
+     * What Vela ships with must not be what Vela warns about.
+     *
+     * Until 2026-09 the shipped OpenAI model WAS gpt-4o, the one entry on the
+     * deny-list that was measured rather than inherited — so a site that had
+     * chosen nothing opened the build page on a warning about Vela's own
+     * default. This walks every shipped default (config, and the last-resort
+     * fallback behind it) past the same guard the page uses.
+     */
+    public function test_no_model_vela_ships_with_is_one_it_warns_about(): void
+    {
+        $service = app(DesignBuilderService::class);
+
+        foreach (['openai', 'anthropic', 'gemini'] as $provider) {
+            foreach ([
+                (string) config('vela.ai.chat.' . $provider . '_model'),
+                (string) config('vela.ai.chat.design_models.' . $provider),
+                AiSettingsService::FALLBACK_MODELS[$provider],
+            ] as $model) {
+                $this->assertNull($service->modelConcern($model), $provider . ': ' . $model);
+            }
+        }
+    }
+
+    /**
+     * A design build needs to read a picture AND call a tool, and the models
+     * that do both are a measured, closed list. Shipping a design default that
+     * is not on it would be shipping a build that dies at its first step.
+     */
+    public function test_the_shipped_design_model_is_one_measured_able_to_build(): void
+    {
+        foreach (DesignBuilderService::MODELS_FOR_BUILDING as $provider => $measured) {
+            $shipped = trim((string) config('vela.ai.chat.design_models.' . $provider));
+
+            if ($shipped === '') {
+                continue; // "whatever this site is set to" is a valid answer.
+            }
+
+            $this->assertContains($shipped, $measured, $provider);
+        }
+    }
+
     public function test_the_page_says_so_and_does_not_show_a_tick(): void
     {
         $this->setKey('openai', 'sk-openai-test');

@@ -223,7 +223,7 @@ class AiChatDesignedSectionTest extends PackageTestCase
         });
     }
 
-    public function test_a_dark_section_that_leaves_its_headings_to_the_theme_is_refused(): void
+    public function test_a_dark_section_that_leaves_its_headings_to_the_theme_is_repaired(): void
     {
         $this->stageAWrittenTheme();
         $page = $this->page();
@@ -232,6 +232,10 @@ class AiChatDesignedSectionTest extends PackageTestCase
         // The theme colours h1 by name, and that beats inheritance, so the
         // headline came out as the theme's ink on the section's own dark
         // ground — 1.28:1, invisible, on a page that looked finished.
+        //
+        // This was a refusal until it was measured: one build spent twelve
+        // turns being sent back for it, always the same correction. Now the
+        // heading rule is written here and the model is told.
         $result = (new AddDesignedSectionTool())->execute([
             'page_id' => $page->id,
             'name' => 'Hero',
@@ -239,9 +243,43 @@ class AiChatDesignedSectionTest extends PackageTestCase
             'css' => '.hero{background-color:#1a1a1a;color:#ffffff;text-align:center;padding:50px;font-size:48px}',
         ]);
 
-        $this->assertArrayHasKey('error', $result);
-        $this->assertStringContainsString('nobody can read', $result['error']);
-        $this->assertSame(0, $page->rows()->count(), 'and the section does not reach the page');
+        $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+        $this->assertArrayHasKey('headings_recoloured', $result);
+        $this->assertStringContainsString('a heading rule was appended for you', $result['headings_recoloured']);
+
+        // And the rule is really on the page, readable, and scoped to the
+        // section — a note about a repair that did not happen is worse than
+        // the refusal it replaced.
+        $css = (string) $page->fresh()->custom_css;
+        $this->assertMatchesRegularExpression('/\.hero h1[^{]*\{\s*color:\s*#/i', $css);
+
+        preg_match('/\.hero h1[^{]*\{\s*color:\s*(#[0-9a-f]{6})/i', $css, $found);
+        $ink = $found[1];
+        $tool = new AddDesignedSectionTool();
+        $ratio = (new \ReflectionMethod($tool, 'contrastRatio'))->invoke($tool, '#1a1a1a', $ink);
+        $this->assertGreaterThanOrEqual(4.5, $ratio, "headings came out at {$ratio}:1 on the section's own ground");
+    }
+
+    /**
+     * A section with a heading colour of its own keeps it, wherever it put it
+     * — including a colour that is itself a poor choice. The repair is for
+     * the section that said nothing, not a second opinion on one that did.
+     */
+    public function test_a_section_that_has_an_opinion_about_its_headings_keeps_it(): void
+    {
+        $this->stageAWrittenTheme();
+        $page = $this->page();
+
+        $result = (new AddDesignedSectionTool())->execute([
+            'page_id' => $page->id,
+            'name' => 'Hero',
+            'html' => '<section class="hero"><h1>Build Your Authority</h1><p>Lorem ipsum dolor sit amet.</p></section>',
+            'css' => '.hero{background-color:#1a1a1a;padding:50px}.hero h1{color:#e5c07b;font-size:48px}',
+        ]);
+
+        $this->assertTrue($result['success'] ?? false, $result['error'] ?? '');
+        $this->assertArrayNotHasKey('headings_recoloured', $result);
+        $this->assertStringNotContainsString('Added by Vela', (string) $page->fresh()->custom_css);
     }
 
     public function test_the_same_section_is_accepted_once_it_colours_its_own_headings(): void

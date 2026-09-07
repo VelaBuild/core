@@ -80,8 +80,12 @@ class DesignBuildModelChoiceTest extends PackageTestCase
         $method->setAccessible(true);
 
         $this->assertSame('gemini-3.8-flash', $method->invoke($service, 'gemini'));
-        // Never carried across: a model id belongs to one provider.
-        $this->assertSame('', $method->invoke($service, 'openai'));
+        // Never carried across: a model id belongs to one provider. Asked
+        // about another one, the answer is what Vela ships for THAT provider
+        // (or nothing, where it ships nothing) — never the id chosen here.
+        $openai = $method->invoke($service, 'openai');
+        $this->assertNotSame('gemini-3.8-flash', $openai);
+        $this->assertSame(trim((string) config('vela.ai.chat.design_models.openai')), $openai);
     }
 
     public function test_clearing_the_choice_puts_the_build_back_on_the_sites_own_ai(): void

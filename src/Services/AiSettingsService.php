@@ -46,7 +46,7 @@ class AiSettingsService
      * `"model": ""` and fails on its first call.
      */
     public const FALLBACK_MODELS = [
-        'openai' => 'gpt-4o',
+        'openai' => 'gpt-5.2',
         'anthropic' => 'claude-sonnet-5',
         'gemini' => 'gemini-2.5-flash',
     ];
@@ -60,7 +60,7 @@ class AiSettingsService
      * that have actually been seen to answer are listed.
      */
     public const MODEL_SUGGESTIONS = [
-        'openai' => ['gpt-5.2', 'gpt-5.1', 'gpt-5', 'gpt-4.1', 'gpt-4o'],
+        'openai' => ['gpt-5.5', 'gpt-5.4', 'gpt-5.2', 'gpt-5.1', 'gpt-5', 'gpt-4.1'],
         'anthropic' => ['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5'],
         'gemini' => ['gemini-2.5-flash'],
     ];

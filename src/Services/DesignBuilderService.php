@@ -2630,6 +2630,15 @@ WRITING A SECTION:
   shadow, a corner — and how large its pictures run.
 - Keep the words legible on what is behind them. A pale heading on a pale band
   passes every check here and is unreadable on the page.
+- A section that lays its own ground has to say what colour its HEADINGS are,
+  in the same stylesheet. `color` on the container does not reach them: the
+  theme colours h1 to h6 by name, and a rule on the element beats anything
+  inherited from around it. This is the mistake that repeats — the theme's ink
+  is usually the brand's dark colour, so every dark band you write is that
+  colour's words on that colour. Write `.your-section h1, .your-section h2 {
+  color: … }` alongside the background, every time. Left out, a readable
+  colour is written in for you and reported back, and it will be plain rather
+  than the one the design shows.
 - One section per call, so each can be checked and corrected on its own. To
   correct a section afterwards, call the tool again with its replace_row_id —
   adding a second one leaves both, and a second section of the same name is

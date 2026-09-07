@@ -155,7 +155,14 @@ return [
             // Chat model id per provider. Override via env when a provider
             // retires a model (use the exact id, no date suffix).
             'anthropic_model' => env('AI_CHAT_ANTHROPIC_MODEL', 'claude-sonnet-5'),
-            'openai_model' => env('AI_CHAT_OPENAI_MODEL', 'gpt-4o'),
+            // gpt-4o until 2026-09: a new site started on the one model the
+            // design builder warns about by name (MODELS_MEASURED_TOO_WEAK),
+            // so the first thing an owner saw was Vela complaining about a
+            // choice Vela had made for them. gpt-5.2 is the OLDEST OpenAI model
+            // measured to do both things this CMS asks of one — read a picture
+            // and call a tool — which makes it the conservative pick of the
+            // three that pass, not the fanciest.
+            'openai_model' => env('AI_CHAT_OPENAI_MODEL', 'gpt-5.2'),
             'gemini_model' => env('AI_CHAT_GEMINI_MODEL', 'gemini-2.5-flash'),
             // What a design build talks to, where that is worth more than the
             // site's everyday model. A build reads a picture, writes the CSS
@@ -165,7 +172,11 @@ return [
             // value means "whatever this site is set to".
             'design_models' => [
                 'anthropic' => env('AI_CHAT_DESIGN_ANTHROPIC_MODEL', 'claude-opus-5'),
-                'openai' => env('AI_CHAT_DESIGN_OPENAI_MODEL', ''),
+                // gpt-5.5 rather than '' (= the site's chat model): a build
+                // is a handful of runs, not every message, and 5.5 is the best
+                // OpenAI model measured at it. gpt-5.6 is newer and cannot
+                // call a tool on /v1/chat/completions at all.
+                'openai' => env('AI_CHAT_DESIGN_OPENAI_MODEL', 'gpt-5.5'),
                 'gemini' => env('AI_CHAT_DESIGN_GEMINI_MODEL', ''),
             ],
             // Anthropic prompt caching: caches the system prompt + tool schemas

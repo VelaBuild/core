@@ -68,8 +68,13 @@ class AddDesignedSectionTool extends BaseTool
             return $error;
         }
 
-        if ($css !== '' && $error = $this->refuseUnreadableOnItsOwnGround($css)) {
-            return $error;
+        // Not a refusal: the fix is mechanical, and refusing it cost a
+        // measured twelve turns of one build. See readableOnItsOwnGround().
+        $headingsRecoloured = null;
+        if ($css !== '') {
+            $repair = $this->readableOnItsOwnGround($css);
+            $css = $repair['css'];
+            $headingsRecoloured = $repair['note'];
         }
 
         if ($css !== '' && $error = $this->refuseUndesigned($css)) {
@@ -239,6 +244,10 @@ class AddDesignedSectionTool extends BaseTool
                 . 'section later, call this tool again with replace_row_id ' . $row->id . '.',
         ];
 
+        if ($headingsRecoloured !== null) {
+            $result['headings_recoloured'] = $headingsRecoloured;
+        }
+
         if ($css !== '' && $scoped !== null) {
             $result += array_filter([
                 'css_bytes'         => $cssResult['bytes'] ?? 0,
@@ -358,8 +367,8 @@ class AddDesignedSectionTool extends BaseTool
     }
 
     /**
-     * Refuse a section that lays its own dark ground and leaves the headings
-     * to the theme.
+     * Give a section that lays its own dark ground the heading colour it
+     * forgot, instead of sending it back to be written again.
      *
      * A section can set `color` on its container and reasonably expect the
      * words inside to follow. They do not: the theme colours h1 to h6 by name,
@@ -368,63 +377,132 @@ class AddDesignedSectionTool extends BaseTool
      * the #1a1a1a ground the section had just laid — 1.28:1, a headline nobody
      * could see, on a page that otherwise looked finished.
      *
-     * So: where the section's own ground would leave the theme's ink
-     * unreadable, the section has to say what colour its headings are.
+     * This used to be a refusal, and the refusal was measured: one build spent
+     * TWELVE turns on it, all from a single root cause — the model sets the
+     * theme's `ink` token to the brand's dark colour, then writes full-width
+     * bands in that same colour, so every band it writes trips the same guard.
+     * It recovered each time, which is the point: the correction was never in
+     * doubt, only expensive. The ground is known, the readable colour follows
+     * from it arithmetically, and the selector that laid the ground is the
+     * container the headings sit in — so the fix is written here and the model
+     * is told what was added rather than asked to add it.
+     *
+     * Only a section that colours no heading of its own ANYWHERE is touched:
+     * one that has an opinion keeps it, wherever it put it.
+     *
+     * @return array{css: string, note: string|null}
      */
-    private function refuseUnreadableOnItsOwnGround(string $css): ?array
+    private function readableOnItsOwnGround(string $css): array
     {
         $ink = $this->themeInk();
 
-        if ($ink === null) {
-            return null;
+        if ($ink === null || !$this->isHexColour($ink)) {
+            return ['css' => $css, 'note' => null];
         }
 
         $stripped = preg_replace('!/\*.*?\*/!s', '', $css) ?? $css;
 
         // Does the section colour a heading of its own anywhere?
-        $colouredAHeading = false;
         $grounds = [];
 
         foreach (self::cssRules($stripped) as [$selectors, $body]) {
             $setsColour = (bool) preg_match('/(^|[;{\s])color\s*:/i', $body);
 
             if ($setsColour && preg_match('/(^|[\s,>+~])h[1-6](\b|[.:#\[])/i', ' ' . $selectors)) {
-                $colouredAHeading = true;
+                return ['css' => $css, 'note' => null];
             }
 
             if (preg_match('/(^|[;{\s])background(-color)?\s*:[^;]*?(#[0-9a-f]{3,8})/i', $body, $found)) {
-                $grounds[] = $found[3];
+                $grounds[$selectors] = $found[3];
             }
         }
 
-        if ($colouredAHeading) {
-            return null;
-        }
+        $added = [];
+        $reported = [];
 
-        foreach ($grounds as $ground) {
-            if (!$this->isHexColour($ground) || !$this->isHexColour($ink)) {
+        foreach ($grounds as $selectors => $ground) {
+            if (!$this->isHexColour($ground) || $this->contrastRatio($ground, $ink) >= 3.0) {
                 continue;
             }
 
-            $ratio = $this->contrastRatio($ground, $ink);
+            $headings = $this->headingSelectorsFor($selectors);
 
-            if ($ratio >= 3.0) {
+            if ($headings === '') {
                 continue;
             }
 
-            return [
-                'error' => "This section lays a {$ground} ground, and the theme writes its headings in {$ink} — "
-                    . number_format($ratio, 2) . ':1, which nobody can read. Setting `color` on the section\'s '
-                    . 'container does not reach them: the theme colours h1 to h6 by name, and a rule on the element '
-                    . 'itself beats anything inherited from around it. Give the section\'s own heading rules a '
-                    . 'colour — `.my-section h1, .my-section h2 { color: … }` — and send it again.',
-                'section_background' => $ground,
-                'theme_heading_colour' => $ink,
-                'contrast_ratio' => round($ratio, 2),
-            ];
+            $readable = $this->readableInkOn($ground);
+            $added[] = $headings . " { color: {$readable}; }";
+            $reported[] = "{$ground} → {$readable}";
         }
 
-        return null;
+        if ($added === []) {
+            return ['css' => $css, 'note' => null];
+        }
+
+        $note = 'This section lays a ground the theme\'s heading colour (' . $ink . ') vanishes into, and it set no '
+            . 'heading colour of its own — setting `color` on the container does not reach h1 to h6, which the theme '
+            . 'colours by name. Rather than send the section back, a heading rule was appended for you: '
+            . implode(', ', $reported) . '. Write those rules yourself next time, in the same call as the ground, '
+            . 'and check the colour suits the design — this one is only the readable one.';
+
+        return [
+            'css' => rtrim($css) . "\n\n/* Added by Vela: headings on this section's own ground. */\n"
+                . implode("\n", $added) . "\n",
+            'note' => $note,
+        ];
+    }
+
+    /**
+     * `.hero h1, .hero h2, …` for the selector that laid a ground.
+     *
+     * Each comma-separated part is expanded on its own, because a heading has
+     * to be a descendant of the thing that is dark and a list shares no
+     * ancestor. Parts that cannot own a heading are dropped: a pseudo-element
+     * (`::before`) is a decorative shape with nothing inside it, and an at-rule
+     * prelude is not a selector at all — cssRules() is a regex and hands back
+     * whatever sat in front of a brace.
+     */
+    private function headingSelectorsFor(string $selectors): string
+    {
+        $parts = [];
+
+        foreach (explode(',', $selectors) as $part) {
+            $part = trim($part);
+
+            if ($part === '' || str_contains($part, '::') || str_starts_with($part, '@')) {
+                continue;
+            }
+
+            foreach (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'] as $heading) {
+                $parts[] = $part . ' ' . $heading;
+            }
+        }
+
+        return implode(', ', $parts);
+    }
+
+    /**
+     * A heading colour that can be read on this ground.
+     *
+     * The theme's `paper` first, since it is the colour the design already
+     * chose to put against its dark, and only where it clears 4.5:1 — the
+     * floor for text rather than the 3:1 this guard trips at, because what is
+     * written here is not a near miss anybody will look at again. Plain white
+     * or near-black behind it, whichever the ground is further from.
+     */
+    private function readableInkOn(string $ground): string
+    {
+        $tokens = $this->themeTokens();
+        $paper = trim((string) ($tokens['paper'] ?? ''));
+
+        if ($this->isHexColour($paper) && $this->contrastRatio($ground, $paper) >= 4.5) {
+            return strtolower($paper);
+        }
+
+        return $this->contrastRatio($ground, '#ffffff') >= $this->contrastRatio($ground, '#111111')
+            ? '#ffffff'
+            : '#111111';
     }
 
     /**
@@ -435,17 +513,29 @@ class AddDesignedSectionTool extends BaseTool
      */
     private function themeInk(): ?string
     {
+        $ink = trim((string) ($this->themeTokens()['ink'] ?? ''));
+
+        return $this->isHexColour($ink) ? $ink : null;
+    }
+
+    /**
+     * The tokens of the theme this section will be seen in.
+     *
+     * The preview theme where a build has staged one, since that is the theme
+     * the design preview page renders in; otherwise the site's own.
+     *
+     * @return array<string, string>
+     */
+    private function themeTokens(): array
+    {
         $theme = app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->theme()
             ?: (string) config('vela.template.active');
 
         if ($theme === '') {
-            return null;
+            return [];
         }
 
-        $tokens = app(\VelaBuild\Core\Services\ThemeAuthor::class)->currentTokens($theme);
-        $ink = trim((string) ($tokens['ink'] ?? ''));
-
-        return $this->isHexColour($ink) ? $ink : null;
+        return app(\VelaBuild\Core\Services\ThemeAuthor::class)->currentTokens($theme);
     }
 
     /** @return array<int, array{0: string, 1: string}> */
