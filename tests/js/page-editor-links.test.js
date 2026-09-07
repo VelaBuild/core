@@ -27,7 +27,7 @@ function extract(name) {
 }
 
 const names = ['couldCarryALink', 'linkAnchor', 'applyLink', 'imageWidth', 'applyImageWidth',
-  'upgradeImportedBlock', 'hashString', 'wrapLooseText'];
+  'upgradeImportedBlock', 'hashString', 'wrapLooseText', 'partWorthEditingAbove', 'partName'];
 // Vars rather than functions, so they are lifted by name too.
 const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/];
 eval(vars.map(function (pattern) { return pattern.exec(src)[0]; }).join('\n')
@@ -130,6 +130,21 @@ check('children sharing no class are not a set', doc.querySelectorAll('[data-vel
 doc = docFrom('<div data-vela-block="b3"><ul><li>One</li><li>Two</li></ul></div>');
 upgradeImportedBlock(doc);
 check('children with no classes at all still are', doc.querySelectorAll('[data-vela-card]').length, '2');
+
+// --- the way out of a decorative part ---
+// A section is full of shapes that hold nothing — a scrim, a grid line, a dot
+// — and they lie on top of what somebody meant to point at, so they are easy
+// to hit. "Pick something inside it" was a dead end: there is nothing inside.
+doc = docFrom('<div data-vela-block="b4"><div class="card" data-vela-card="c1-1">'
+  + '<div class="scrim"></div><h3 data-vela-field="f1" data-vela-field-kind="text">Chat</h3>'
+  + '</div></div>');
+let above = partWorthEditingAbove(doc, doc.querySelector('.scrim'));
+check('a decorative shape offers the thing it sits in', above && above.label, 'Card');
+check('and addresses it the way the breadcrumb does', above && above.path, '0');
+
+doc = docFrom('<div data-vela-block="b5"><div class="deco"><span class="dot"></span></div></div>');
+check('with nothing above worth editing, nothing is offered',
+  partWorthEditingAbove(doc, doc.querySelector('.dot')), 'null');
 
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);

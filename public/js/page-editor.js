@@ -2723,10 +2723,22 @@ PageEditor.registerBlockType = function(name, config) {
             '</div>';
 
         var fields = renderImportedFields(doc, selected);
+
+        // A section is full of shapes that hold nothing — a scrim over a hero,
+        // a grid line, a dot, a bit of an SVG — and pointing at one is easy,
+        // because they lie on top of the thing somebody meant to point at.
+        // Telling them to "pick something inside it" was a dead end: there IS
+        // nothing inside, which is why they are here. What they want is the
+        // card or the row the shape belongs to, so offer it.
+        var outward = selected ? partWorthEditingAbove(doc, selected) : null;
         var emptyContent = '<div class="alert alert-light border py-2 mb-0"><small>' +
             (selected
-                ? 'Nothing in this part is wording, a picture or a link. Style it under <strong>Style</strong>, ' +
-                  'or pick something inside it in the preview.'
+                ? 'Nothing in this part is wording, a picture or a link — it is a shape the design draws. ' +
+                  'Style it under <strong>Style</strong>' +
+                  (outward
+                      ? ', or <a href="#" class="vela-crumb" data-path="' + escHtml(outward.path) + '">edit the ' +
+                        escHtml(outward.label.toLowerCase()) + ' it sits in</a>.'
+                      : '.')
                 : 'No editable wording was found in this section — its text sits inside markup this form cannot ' +
                   'take apart. Change it under "Edit the HTML directly" below.') +
             '</small></div>';
@@ -2827,6 +2839,33 @@ PageEditor.registerBlockType = function(name, config) {
                     : '<a href="#" class="vela-crumb" data-path="' + escHtml(c.path === null ? '' : c.path) + '">' + label + '</a>');
             }).join('<span class="mx-1">›</span>') +
             '</nav>';
+    }
+
+    /**
+     * The nearest thing above this one that has something to edit in it.
+     *
+     * Same path form as the breadcrumb, so the link it fills in is the crumb
+     * handler's own and there is nothing new to wire up. Stops at the section
+     * wrapper, which the breadcrumb already offers as "Section".
+     *
+     * @return {{path: string, label: string}|null}
+     */
+    function partWorthEditingAbove(doc, selected) {
+        var path = [];
+
+        for (var node = selected.parentElement; node && !node.hasAttribute('data-vela-block'); node = node.parentElement) {
+            if (!node.querySelector('[data-vela-field]') && !node.hasAttribute('data-vela-field')) {
+                continue;
+            }
+
+            for (var walk = node; walk && !walk.hasAttribute('data-vela-block'); walk = walk.parentElement) {
+                path.unshift(Array.prototype.indexOf.call(walk.parentElement.children, walk));
+            }
+
+            return { path: path.join('/'), label: partName(node) };
+        }
+
+        return null;
     }
 
     /** What to call a part in the breadcrumb. */
