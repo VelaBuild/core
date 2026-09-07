@@ -112,23 +112,6 @@ class ScreenshotService
     }
 
     /**
-     * A usable browser, fetching one if this machine has none.
-     *
-     * Callers that can wait for a download should use this rather than
-     * findChromeBinary(): an operator who has never installed Chrome should
-     * not have to, and the alternative was a run that stopped with an
-     * instruction to go and install software.
-     */
-    public function ensureChromeBinary(?\Closure $progress = null): string
-    {
-        if ($binary = $this->findChromeBinary()) {
-            return $binary;
-        }
-
-        return app(BrowserInstaller::class)->install($progress);
-    }
-
-    /**
      * Capture $url into $outputPath.
      *
      * Chrome always writes PNG, whatever the filename says. A .jpg or .jpeg
