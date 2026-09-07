@@ -849,7 +849,14 @@ body.vela-admin .vela-content,
 body.vela-admin .app-content {
   flex: 1; min-width: 0;
   padding: var(--space-6);
-  overflow-y: auto;
+  /* `auto` here made this a scroll container, and a sticky element sticks
+     inside its nearest scrolling ancestor — this one is as tall as its own
+     content and never scrolls, so the editor's side panel had nothing to stick
+     within and simply scrolled off the top. Measured: 900px down the page it
+     was at -748. The wrapper has min-height and no height, so nothing here
+     ever needed a scrollbar of its own; `min-width: 0` above is what keeps
+     wide content from blowing out the flex row, and that stays. */
+  overflow-y: visible;
 }
 
 /* Page head — the biggest visual signature */
@@ -1265,6 +1272,21 @@ body.vela-admin .mb-4 { margin-bottom: var(--space-4) !important; }
 
 /* Legacy helpers to make old admin pages usable while migrating */
 body.vela-admin .sticky-panel { position: sticky; top: calc(var(--header-h) + var(--space-4)); }
+
+/* And it has to fit, or half of it is unreachable once it is pinned. The page
+   editor's panel measures 904px against a 900px laptop viewport, so Save sat
+   just below the fold with no way to scroll to it — the panel was stuck, and
+   the page behind it had already run out. It gets a scrollbar of its own for
+   whatever does not fit, which on a taller screen never appears.
+   Desktop only: below this width the panel is stacked under the content, where
+   a scroll area inside a scrolling page is a nuisance rather than a help. */
+@media (min-width: 992px) {
+  body.vela-admin .sticky-panel {
+    max-height: calc(100vh - var(--header-h) - var(--space-4) * 2);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
 body.vela-admin .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-xs); margin-bottom: var(--space-4); overflow: hidden; }
 body.vela-admin .section-header { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle); font-weight: var(--weight-semibold); font-size: var(--text-sm); display: flex; align-items: center; gap: 8px; }
 body.vela-admin .section-body { padding: var(--space-5); }
