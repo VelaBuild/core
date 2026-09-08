@@ -3961,6 +3961,13 @@ PageEditor.registerBlockType = function(name, config) {
                         // setPartStyle() works from.
                         if (how === 'background') {
                             _htmlSelected = where;
+                            // And open the tab the thing just done is adjusted
+                            // on. Everything a background picture then wants
+                            // asking — how it fits, what colour sits over it —
+                            // is in Style, while the panel stayed on Content:
+                            // the picture appeared and its controls did not,
+                            // which is why they were reported missing twice.
+                            _htmlTab = 'style';
                             setPartStyle('bgImage', media.url);
                             return;
                         }
