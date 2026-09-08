@@ -35,7 +35,7 @@ const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/,
   /var VOID_TAGS = [^\n]+/, /var DESIGN_COLOUR = [^\n]+/, /var DESIGN_LENGTH = [^\n]+/,
   /var DESIGN_IMAGE = [^\n]+/, /var DESIGN_FONTS = \[[\s\S]*?\];/,
   /var PART_WEIGHTS = [^\n]+/, /var PART_SIZES = [^\n]+/, /var PART_PLACES = [^\n]+/,
-  /var PART_HEIGHTS = [^\n]+/, /var DESIGN_HEIGHT = [^\n]+/];
+  /var PART_HEIGHTS = [^\n]+/, /var DESIGN_HEIGHT = [^\n]+/, /var OVERLAY_DEFAULT = [^\n]+/];
 eval(vars.map(function (pattern) { return pattern.exec(src)[0]; }).join('\n')
   + '\n' + names.map(extract).join('\n'));
 
@@ -308,6 +308,17 @@ check('an overlay colour that is not a colour is refused',
   (sanitizeDesign({ parts: { p1: { bgImage: '/a.png', overlay: 'red;position:fixed' } } }).parts.p1.overlay) === undefined, 'true');
 check('and so is a colour name, since the channels are needed',
   (sanitizeDesign({ parts: { p1: { bgImage: '/a.png', overlay: 'rebeccapurple' } } }).parts.p1.overlay) === undefined, 'true');
+
+// Choosing a colour IS choosing an overlay. It was accepted, stored and drawn
+// nowhere, because the strength beside it still said none.
+css = designCss('b1', sanitizeDesign({ parts: { p1: { bgImage: '/a.png', overlay: '#1a2b3c' } } }), []);
+check('a colour on its own draws the overlay',
+  /linear-gradient\(rgba\(26,43,60,0\.4\)/.test(css), 'true');
+check('and a strength set with it still wins',
+  /rgba\(26,43,60,0\.6\)/.test(designCss('b1', sanitizeDesign({
+    parts: { p1: { bgImage: '/a.png', overlay: '#1a2b3c', darken: '60%' } } }), [])), 'true');
+check('a picture with neither is still just the picture',
+  /background-image:url/.test(designCss('b1', sanitizeDesign({ parts: { p1: { bgImage: '/a.png' } } }), [])), 'true');
 
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);

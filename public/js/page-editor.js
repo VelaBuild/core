@@ -2441,6 +2441,9 @@ PageEditor.registerBlockType = function(name, config) {
        field says that in one step. */
     var PART_DARKEN = ['10%', '20%', '30%', '40%', '50%', '60%', '70%'];
 
+    /** What an overlay is worth when a colour has been chosen and nothing else. */
+    var OVERLAY_DEFAULT = '40%';
+
     /**
      * Where a part's content sits in a box taller than it needs.
      *
@@ -2529,7 +2532,12 @@ PageEditor.registerBlockType = function(name, config) {
             // put inside the very markup this panel exists to avoid touching.
             if (p.bgImage) {
                 var layers = [];
-                var darken = parseInt(p.darken || '0', 10) / 100;
+                // Choosing a colour IS choosing an overlay. Without this the
+                // colour was accepted, stored, and drawn nowhere, because the
+                // strength beside it still said none — so the control did
+                // nothing at all until a second one was also set, with nothing
+                // on screen to say so.
+                var darken = parseInt(p.darken || (p.overlay ? OVERLAY_DEFAULT : '0'), 10) / 100;
 
                 if (darken > 0) {
                     var tint = channelsOf(p.overlay || '#000000') + ',' + darken;
@@ -2899,7 +2907,10 @@ PageEditor.registerBlockType = function(name, config) {
                 // Only worth asking once there is a picture to ask about.
                 (p.bgImage
                     ? partSelect('bgFit', 'How it fits', ['cover', 'contain'], p.bgFit, 'cover') +
-                      partSelect('darken', 'Overlay strength', PART_DARKEN, p.darken, 'no overlay') +
+                      // Shows what is in force, not merely what was stored:
+                      // a colour on its own means the default strength above.
+                      partSelect('darken', 'Overlay strength', PART_DARKEN,
+                          p.darken || (p.overlay ? OVERLAY_DEFAULT : ''), 'no overlay') +
                       // The colour of it. Black is what an overlay is for most
                       // of the time — making words readable — so it stays the
                       // answer when nothing is chosen, and a saved strength
@@ -3794,8 +3805,26 @@ PageEditor.registerBlockType = function(name, config) {
                     if (value) values[name] = value; else delete values[name];
                 });
 
+                // A colour chosen for the overlay means an overlay, and the
+                // strength beside it has to say so — it read "no overlay"
+                // while a 40% one was on screen, which is the panel lying
+                // about what it just did. Written in rather than defaulted
+                // quietly, and only the once, so changing it afterwards
+                // sticks.
+                var filledIn = false;
+                if (values.overlay && !values.darken) {
+                    values.darken = OVERLAY_DEFAULT;
+                    filledIn = true;
+                }
+
                 if (Object.keys(values).length) _htmlPartStyles[id] = values;
                 else delete _htmlPartStyles[id];
+
+                if (filledIn) {
+                    redrawPartPanel();
+                    refreshImportedPreview();
+                    return;
+                }
 
                 // Each swatch follows its own field: there are two of them now,
                 // and keeping them both on the text colour meant the
