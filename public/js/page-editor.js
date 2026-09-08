@@ -2320,7 +2320,8 @@ PageEditor.registerBlockType = function(name, config) {
             [['color', DESIGN_COLOUR], ['background', DESIGN_COLOUR], ['size', DESIGN_LENGTH],
              ['lineHeight', /^\d{1,2}(\.\d{1,2})?$/], ['spaceBelow', DESIGN_LENGTH],
              ['padding', DESIGN_LENGTH], ['radius', DESIGN_LENGTH],
-             ['bgImage', DESIGN_IMAGE], ['bgFit', /^(cover|contain)$/], ['darken', /^\d{1,2}%$/]].forEach(function(pair) {
+             ['bgImage', DESIGN_IMAGE], ['bgFit', /^(cover|contain)$/], ['darken', /^\d{1,2}%$/],
+             ['place', /^(top|middle|bottom|spread)$/]].forEach(function(pair) {
                 var value = safeCssValue(from[pair[0]], pair[1]);
                 if (value) kept[pair[0]] = value;
             });
@@ -2342,6 +2343,20 @@ PageEditor.registerBlockType = function(name, config) {
        discovered. Stops at 70%: past that it is a dark box, and the colour
        field says that in one step. */
     var PART_DARKEN = ['10%', '20%', '30%', '40%', '50%', '60%', '70%'];
+
+    /**
+     * Where a part's content sits in a box taller than it needs.
+     *
+     * A card written to a fixed height packs its content somewhere on purpose
+     * — `justify-content:flex-end` is in the stylesheet of the very card this
+     * was asked about, so its heading sat at the bottom and looked deliberate
+     * until a picture was added and everything slid down together. Nothing in
+     * this panel could say otherwise: the alignment control here is
+     * text-align, which is a different question.
+     *
+     * The words are the plain ones; the CSS is beside them.
+     */
+    var PART_PLACES = { top: 'flex-start', middle: 'center', bottom: 'flex-end', spread: 'space-between' };
 
     var PART_SPACES = ['0px', '4px', '8px', '12px', '16px', '24px', '32px', '48px'];
     var PART_LINES = ['1', '1.1', '1.25', '1.4', '1.6', '1.8', '2'];
@@ -2418,6 +2433,15 @@ PageEditor.registerBlockType = function(name, config) {
 
             if (p.padding) boxRules += 'padding:' + p.padding + ' !important;';
             if (p.radius) boxRules += 'border-radius:' + p.radius + ' !important;';
+
+            // Both properties, because the same question is called different
+            // things depending on how the box lays its children out: a column
+            // of flex items answers to justify-content, a grid and a wrapped
+            // row to align-content. Whichever does not apply is ignored.
+            if (PART_PLACES[p.place]) {
+                boxRules += 'justify-content:' + PART_PLACES[p.place] + ' !important;'
+                    + 'align-content:' + PART_PLACES[p.place] + ' !important;';
+            }
             if (boxRules) {
                 css += sel + ' [' + attribute + '="' + id + '"]{' + boxRules + '}';
             }
@@ -2764,6 +2788,7 @@ PageEditor.registerBlockType = function(name, config) {
                     ? partSelect('bgFit', 'How it fits', ['cover', 'contain'], p.bgFit, 'cover') +
                       partSelect('darken', 'Darken it', PART_DARKEN, p.darken, 'not at all')
                     : '') +
+                partSelect('place', 'Content sits', Object.keys(PART_PLACES), p.place) +
                 partSelect('padding', 'Inner spacing', PART_SPACES, p.padding) +
                 partSelect('radius', 'Corners', PART_RADII, p.radius) +
                 partSelect('size', 'Size', PART_SIZES, p.size) +

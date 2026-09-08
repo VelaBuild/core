@@ -34,7 +34,7 @@ const names = ['couldCarryALink', 'linkAnchor', 'applyLink', 'imageWidth', 'appl
 const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/,
   /var VOID_TAGS = [^\n]+/, /var DESIGN_COLOUR = [^\n]+/, /var DESIGN_LENGTH = [^\n]+/,
   /var DESIGN_IMAGE = [^\n]+/, /var DESIGN_FONTS = \[[\s\S]*?\];/,
-  /var PART_WEIGHTS = [^\n]+/, /var PART_SIZES = [^\n]+/];
+  /var PART_WEIGHTS = [^\n]+/, /var PART_SIZES = [^\n]+/, /var PART_PLACES = [^\n]+/];
 eval(vars.map(function (pattern) { return pattern.exec(src)[0]; }).join('\n')
   + '\n' + names.map(extract).join('\n'));
 
@@ -233,6 +233,22 @@ check('a plain https address is kept',
   'https://cdn.example.com/a.jpg');
 check('a darkening the controls do not offer is refused',
   (sanitizeDesign({ parts: { p1: { bgImage: '/a.png', darken: '999' } } }).parts.p1.darken) === undefined, 'true');
+
+// --- where the content of a taller box sits ---
+// The card this was asked about carries `justify-content:flex-end` in the
+// design's own stylesheet, so its heading sat at the bottom and looked
+// deliberate — until a picture was added and the lot slid down together.
+css = designCss('b1', sanitizeDesign({ parts: { p1: { place: 'top' } } }), []);
+check('the content can be sent to the top',
+  /\[data-vela-part="p1"\]\{[^}]*justify-content:flex-start !important;align-content:flex-start/.test(css), 'true');
+check('both properties, since the box may be flex or grid',
+  (css.match(/align-content/g) || []).length, '1');
+
+css = designCss('b1', sanitizeDesign({ parts: { p1: { place: 'spread' } } }), []);
+check('spreading it out is space-between', /justify-content:space-between/.test(css), 'true');
+
+check('a placement the control does not offer is refused',
+  (sanitizeDesign({ parts: { p1: { place: 'flex-end;color:red' } } }).parts) === undefined, 'true');
 
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);
