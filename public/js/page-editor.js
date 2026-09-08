@@ -2338,6 +2338,22 @@ PageEditor.registerBlockType = function(name, config) {
     var DESIGN_IMAGE = /^(https?:\/\/|\/|data:image\/)[^"'()\s;{}]{1,1000}$/i;
 
     /**
+     * "#1a2b3c" as "26,43,60", for putting a colour inside rgba().
+     *
+     * Only ever called with a value that has already been through the hex
+     * pattern above, so there is nothing to fall back to.
+     */
+    function channelsOf(hex) {
+        var h = String(hex).replace('#', '');
+
+        return [
+            parseInt(h.slice(0, 2), 16),
+            parseInt(h.slice(2, 4), 16),
+            parseInt(h.slice(4, 6), 16),
+        ].join(',');
+    }
+
+    /**
      * Drop anything that is not one of the values these controls produce.
      *
      * Run before the choices are stored, not only before they are written into
@@ -2401,7 +2417,8 @@ PageEditor.registerBlockType = function(name, config) {
              ['lineHeight', /^\d{1,2}(\.\d{1,2})?$/], ['spaceBelow', DESIGN_LENGTH],
              ['padding', DESIGN_LENGTH], ['radius', DESIGN_LENGTH],
              ['bgImage', DESIGN_IMAGE], ['bgFit', /^(cover|contain)$/], ['darken', /^\d{1,2}%$/],
-             ['place', /^(top|middle|bottom|spread)$/], ['height', DESIGN_HEIGHT]].forEach(function(pair) {
+             ['place', /^(top|middle|bottom|spread)$/], ['height', DESIGN_HEIGHT],
+             ['overlay', /^#[0-9a-f]{6}$/i]].forEach(function(pair) {
                 var value = safeCssValue(from[pair[0]], pair[1]);
                 if (value) kept[pair[0]] = value;
             });
@@ -2515,7 +2532,8 @@ PageEditor.registerBlockType = function(name, config) {
                 var darken = parseInt(p.darken || '0', 10) / 100;
 
                 if (darken > 0) {
-                    layers.push('linear-gradient(rgba(0,0,0,' + darken + '),rgba(0,0,0,' + darken + '))');
+                    var tint = channelsOf(p.overlay || '#000000') + ',' + darken;
+                    layers.push('linear-gradient(rgba(' + tint + '),rgba(' + tint + '))');
                 }
                 layers.push('url("' + p.bgImage + '")');
 
@@ -2881,7 +2899,25 @@ PageEditor.registerBlockType = function(name, config) {
                 // Only worth asking once there is a picture to ask about.
                 (p.bgImage
                     ? partSelect('bgFit', 'How it fits', ['cover', 'contain'], p.bgFit, 'cover') +
-                      partSelect('darken', 'Darken it', PART_DARKEN, p.darken, 'not at all')
+                      partSelect('darken', 'Overlay strength', PART_DARKEN, p.darken, 'no overlay') +
+                      // The colour of it. Black is what an overlay is for most
+                      // of the time — making words readable — so it stays the
+                      // answer when nothing is chosen, and a saved strength
+                      // from before this existed keeps meaning what it meant.
+                      '<div class="form-group col-md-6 mb-2">' + designLabel('Overlay colour') +
+                          '<div class="input-group input-group-sm vela-colour-group">' +
+                              '<div class="input-group-prepend"><span class="input-group-text p-0" style="overflow:hidden">' +
+                                  '<input type="color" class="vela-part-swatch" data-for="overlay" ' +
+                                      'value="' + escHtml(/^#[0-9a-f]{6}$/i.test(p.overlay || '') ? p.overlay : '#000000') + '" ' +
+                                      'style="width:34px;height:29px;border:0;padding:0;background:none;cursor:pointer">' +
+                              '</span></div>' +
+                              '<input type="text" class="form-control vela-part-design" data-part-design="overlay" ' +
+                                  'value="' + escHtml(p.overlay || '') + '" placeholder="Black">' +
+                              '<div class="input-group-append">' +
+                                  '<button class="btn btn-outline-secondary vela-part-clear" type="button" data-for="overlay" ' +
+                                      'title="Black">&times;</button>' +
+                              '</div>' +
+                          '</div></div>'
                     : '') +
                 partSelect('height', 'Height', PART_HEIGHTS, p.height) +
                 partSelect('place', 'Content sits', Object.keys(PART_PLACES), p.place) +

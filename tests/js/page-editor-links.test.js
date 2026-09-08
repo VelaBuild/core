@@ -29,7 +29,7 @@ function extract(name) {
 const names = ['couldCarryALink', 'linkAnchor', 'applyLink', 'imageWidth', 'applyImageWidth',
   'upgradeImportedBlock', 'hashString', 'wrapLooseText', 'partWorthEditingAbove', 'partName',
   'insertPictureAt', 'importedPathOf', 'nodeAtPath', 'nextImportedId',
-  'sanitizeDesign', 'designCss', 'safeCssValue', 'throughLinkWrap'];
+  'sanitizeDesign', 'designCss', 'safeCssValue', 'throughLinkWrap', 'channelsOf'];
 // Vars rather than functions, so they are lifted by name too.
 const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/,
   /var VOID_TAGS = [^\n]+/, /var DESIGN_COLOUR = [^\n]+/, /var DESIGN_LENGTH = [^\n]+/,
@@ -290,6 +290,24 @@ doc = withDoc('<div class="card"><h3>Tasks</h3></div>');
 insertPictureAt('0', { url: '/images/x.png' }, 'before');
 check('an answer that does not suit the part still places it',
   doc.querySelector('.card img') !== null, 'true');
+
+// --- the overlay over a background picture, in a chosen colour ---
+check('a colour becomes the channels rgba() wants', channelsOf('#1a2b3c'), '26,43,60');
+
+css = designCss('b1', sanitizeDesign({
+  parts: { p1: { bgImage: '/images/team.png', darken: '40%', overlay: '#1a2b3c' } },
+}), []);
+check('the overlay is drawn in the colour chosen',
+  /linear-gradient\(rgba\(26,43,60,0\.4\),rgba\(26,43,60,0\.4\)\),url\("\/images\/team\.png"\)/.test(css), 'true');
+
+// What was saved before an overlay colour existed still means what it meant.
+css = designCss('b1', sanitizeDesign({ parts: { p1: { bgImage: '/a.png', darken: '30%' } } }), []);
+check('with no colour chosen it is black', /rgba\(0,0,0,0\.3\)/.test(css), 'true');
+
+check('an overlay colour that is not a colour is refused',
+  (sanitizeDesign({ parts: { p1: { bgImage: '/a.png', overlay: 'red;position:fixed' } } }).parts.p1.overlay) === undefined, 'true');
+check('and so is a colour name, since the channels are needed',
+  (sanitizeDesign({ parts: { p1: { bgImage: '/a.png', overlay: 'rebeccapurple' } } }).parts.p1.overlay) === undefined, 'true');
 
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);
