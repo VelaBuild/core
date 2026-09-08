@@ -1931,6 +1931,14 @@ PageEditor.registerBlockType = function(name, config) {
                     // like a control and moved nothing.
                     '\'<span class="vela-grip" title="Drag to move this">&#10021;</span>\'+' +
                     '\'<button class="vela-copy" title="Add another one like this">+</button>\'+' +
+                    // Every other way of getting a picture into a section
+                    // needed one to already be there: click a picture to swap
+                    // it, or copy a whole card that has one and rewrite it. A
+                    // card with no picture had no route at all short of typing
+                    // an <img> into the HTML by hand — and one typed there
+                    // renders but cannot be edited, because the marks the form
+                    // reads are only added when a section is imported.
+                    '\'<button class="vela-picture" title="Put a picture in this">&#128444;</button>\'+' +
                     '\'<button class="vela-drop" title="Leave this out">&times;</button>\';' +
                 'document.body.appendChild(bar);' +
 
@@ -2109,6 +2117,12 @@ PageEditor.registerBlockType = function(name, config) {
                     'if(!hot)return;' +
                     'var path=pathOf(hot);if(path===null)return;' +
                     'window.parent.postMessage({velaDuplicate:path},"*");' +
+                '});' +
+                'bar.querySelector(".vela-picture").addEventListener("click",function(e){' +
+                    'e.preventDefault();e.stopPropagation();' +
+                    'if(!hot)return;' +
+                    'var path=pathOf(hot);if(path===null)return;' +
+                    'window.parent.postMessage({velaPicture:path},"*");' +
                 '});' +
                 'bar.querySelector(".vela-drop").addEventListener("click",function(e){' +
                     'e.preventDefault();e.stopPropagation();' +
@@ -3110,6 +3124,77 @@ PageEditor.registerBlockType = function(name, config) {
      *
      * Returns the new part's path, so it can be the one left selected.
      */
+    /**
+     * Put a chosen picture into the part that was pointed at.
+     *
+     * The <img> is written with the marks the form reads — a field id and an
+     * "image linkable" kind — because those are only ever added when a section
+     * is imported. One typed into the HTML by hand renders on the page and can
+     * then be neither swapped by clicking it nor given a link, which is the
+     * trap this exists to spare people.
+     *
+     * Inside what can hold it, after what cannot: a picture appended to a
+     * heading would land between the words.
+     *
+     * @return {string|null} the new picture's path, so it can be selected
+     */
+    function insertPictureAt(path, media) {
+        var node = nodeAtPath(_htmlDoc, path);
+        if (!node || !media || !media.url) return null;
+
+        // A part that has been given a link is wrapped in an anchor, and the
+        // anchor is what the pointer resolves to because it is the child of
+        // the row. A picture put in there would be a sibling of the card
+        // rather than something inside it — inside the link, outside the box.
+        if (node.hasAttribute('data-vela-link-wrap') && node.children.length === 1) {
+            node = node.firstElementChild;
+        }
+
+        var img = _htmlDoc.createElement('img');
+        img.setAttribute('src', media.url);
+        img.setAttribute('alt', media.alt || '');
+        // max-width, not width: the size control writes `width:N%` and reads
+        // its absence as 100%, so a picture arriving with one already set
+        // would show as sized when it is not. This only stops it overflowing
+        // the card it was put in.
+        img.setAttribute('style', 'max-width:100%;height:auto');
+        img.setAttribute('data-vela-field', 'f' + nextImportedId(_htmlDoc, 'data-vela-field', 'f'));
+        img.setAttribute('data-vela-field-kind', 'image linkable');
+
+        var holds = node.children.length > 0 && !VOID_TAGS.test(node.tagName);
+
+        if (holds) {
+            node.appendChild(img);
+        } else if (node.parentElement) {
+            node.parentElement.insertBefore(img, node.nextSibling);
+        } else {
+            return null;
+        }
+
+        return importedPathOf(img);
+    }
+
+    /** Tags that cannot hold anything, whatever their children say. */
+    var VOID_TAGS = /^(img|br|hr|input|source|track|area|col|embed|wbr)$/i;
+
+    /**
+     * Where a node sits, in the same form nodeAtPath() reads.
+     *
+     * Child indexes from the section wrapper down, which is what the preview
+     * sends and what the selection, the per-part styling and the hidden list
+     * are all keyed by.
+     */
+    function importedPathOf(el) {
+        var steps = [];
+
+        for (var node = el; node && !node.hasAttribute('data-vela-block'); node = node.parentElement) {
+            if (!node.parentElement) return null;
+            steps.unshift(Array.prototype.indexOf.call(node.parentElement.children, node));
+        }
+
+        return steps.join('/');
+    }
+
     function duplicateImportedPart(path) {
         var node = nodeAtPath(_htmlDoc, path);
         if (!node || !node.parentElement || node.hasAttribute('data-vela-block')) return null;
@@ -3506,6 +3591,24 @@ PageEditor.registerBlockType = function(name, config) {
                 if (typeof data.velaPick === 'string') {
                     var id = markPartAtPath(_htmlDoc, data.velaPick);
                     if (id) toggleHiddenPart(id);
+                    return;
+                }
+
+                // The media library, then the picture lands in the part that
+                // was pointed at and becomes the selection — so its size, its
+                // alt text and its link are the next thing in front of you,
+                // and it can be dragged into place from where it landed.
+                if (typeof data.velaPicture === 'string') {
+                    var where = data.velaPicture;
+                    openMediaBrowser(function(media) {
+                        var placed = insertPictureAt(where, media);
+                        if (placed === null) return;
+
+                        _htmlSelected = placed;
+                        _blockEditTouched = true;
+                        redrawPartPanel();
+                        refreshImportedPreview();
+                    });
                     return;
                 }
 

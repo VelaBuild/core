@@ -27,9 +27,11 @@ function extract(name) {
 }
 
 const names = ['couldCarryALink', 'linkAnchor', 'applyLink', 'imageWidth', 'applyImageWidth',
-  'upgradeImportedBlock', 'hashString', 'wrapLooseText', 'partWorthEditingAbove', 'partName'];
+  'upgradeImportedBlock', 'hashString', 'wrapLooseText', 'partWorthEditingAbove', 'partName',
+  'insertPictureAt', 'importedPathOf', 'nodeAtPath', 'nextImportedId'];
 // Vars rather than functions, so they are lifted by name too.
-const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/];
+const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/,
+  /var VOID_TAGS = [^;]+;/];
 eval(vars.map(function (pattern) { return pattern.exec(src)[0]; }).join('\n')
   + '\n' + names.map(extract).join('\n'));
 
@@ -145,6 +147,52 @@ check('and addresses it the way the breadcrumb does', above && above.path, '0');
 doc = docFrom('<div data-vela-block="b5"><div class="deco"><span class="dot"></span></div></div>');
 check('with nothing above worth editing, nothing is offered',
   partWorthEditingAbove(doc, doc.querySelector('.dot')), 'null');
+
+// --- putting a picture into a part ---
+// The only route into a card with no picture used to be typing an <img> into
+// the HTML by hand — and one typed there renders but cannot be swapped or
+// linked, because the marks the form reads are added at import and never again.
+function withDoc(html) {
+  const d = docFrom('<div data-vela-block="b1">' + html + '</div>');
+  _htmlDoc = d;                       // what insertPictureAt() works on
+  return d;
+}
+let _htmlDoc = null;
+
+doc = withDoc('<div class="card" data-vela-field="f1" data-vela-field-kind="linkable">'
+  + '<h3 data-vela-field="f2" data-vela-field-kind="text">Tasks</h3></div>');
+let placed = insertPictureAt('0', { url: '/images/a.png', alt: 'A picture' });
+let img = doc.querySelector('img');
+check('a picture goes inside a part that can hold one', img && img.parentElement.className, 'card');
+check('it is the last thing in it', img && img.previousElementSibling.tagName, 'H3');
+check('it carries the marks the form reads', img && img.getAttribute('data-vela-field-kind'), 'image linkable');
+check('with an id nothing else has', img && img.getAttribute('data-vela-field'), 'f3');
+check('and the alt text that came with it', img && img.getAttribute('alt'), 'A picture');
+check('it does not overflow what it was put in', img && img.getAttribute('style'), 'max-width:100%;height:auto');
+check('the path returned finds it again', nodeAtPath(doc, placed), img);
+
+// A heading cannot hold a picture: it would land between the words.
+doc = withDoc('<div class="card"><h3 data-vela-field="f1" data-vela-field-kind="text">Tasks</h3>'
+  + '<p data-vela-field="f2" data-vela-field-kind="text">Assign them.</p></div>');
+placed = insertPictureAt('0/0', { url: '/images/b.png' });
+img = doc.querySelector('img');
+check('a picture goes after what cannot hold it', img && img.previousElementSibling.tagName, 'H3');
+check('and stays inside the card', img && img.parentElement.className, 'card');
+check('the path returned finds that one too', nodeAtPath(doc, placed), img);
+
+// A part with a link on it is wrapped in an anchor, and the anchor is what the
+// pointer resolves to. A picture put in THERE is a sibling of the card: inside
+// the link, outside the box it was meant for.
+doc = withDoc('<a data-vela-link-wrap="1" href="/x" style="display:contents">'
+  + '<div class="card"><h3 data-vela-field="f1" data-vela-field-kind="text">Tasks</h3></div></a>');
+placed = insertPictureAt('0', { url: '/images/d.png' });
+img = doc.querySelector('img');
+check('a picture goes past the link wrapper into the card', img && img.parentElement.className, 'card');
+check('and the path returned is the one it is really at', nodeAtPath(doc, placed), img);
+
+doc = withDoc('<div class="card"><h3>Tasks</h3></div>');
+check('nothing is placed without a picture to place', insertPictureAt('0', { alt: 'no url' }), 'null');
+check('nor for a part that is not there', insertPictureAt('7/7', { url: '/images/c.png' }), 'null');
 
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);
