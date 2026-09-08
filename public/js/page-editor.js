@@ -1742,6 +1742,17 @@ PageEditor.registerBlockType = function(name, config) {
                     '});}' +
                 'boxWrappers();' +
 
+                // A picture and a link are draggable by the browser itself,
+                // and that drag swallows the mouse events Sortable's fallback
+                // is listening for: the drag started — the item took
+                // sortable-chosen, a fallback clone appeared — and then never
+                // finished, leaving the classes on and the clone in the
+                // markup. Measured: three pictures came out 1,2,3 with a
+                // stray fourth; with the native drag off, 2,3,1, which is
+                // where it was dropped.
+                'Array.prototype.forEach.call(root.querySelectorAll("img,a"),function(el){' +
+                    'el.setAttribute("draggable","false");});' +
+
                 // "Click a picture to swap it" is a listener ON the <img>, and
                 // a hero's background picture is an absolutely positioned
                 // <img> UNDER the heading, the overlay and the buttons — so
@@ -1948,6 +1959,21 @@ PageEditor.registerBlockType = function(name, config) {
                 // it, and the choice outlives the redraw a drag causes, so the
                 // same part can be moved twice without hunting for it again.
                 'var hot=null,list=null,sortable=null,dragging=false,pinned=null;' +
+
+                // Elements whose children are never rendered. The bar lives
+                // INSIDE the part it belongs to, because Sortable only accepts
+                // a handle that descends from the item being dragged — and put
+                // inside a picture it is in the DOM and invisible. Measured:
+                // appended, img.children.length 1, and a rect of 0,0,0,0. So
+                // two pictures in a card had no grip to move them by, no
+                // buttons, nothing: the whole bar was there and unseeable.
+                //
+                // For those the bar goes on the body instead, and the picture
+                // itself becomes what Sortable drags — the handle below also
+                // accepts the marked element. A press that does not travel the
+                // three pixels of fallbackTolerance is still the click that
+                // swaps the picture, so nothing is taken away by it.
+                'var REPLACED=/^(IMG|VIDEO|IFRAME|CANVAS|EMBED|OBJECT|INPUT|SVG)$/;' +
                 // The CSS above stops the part under the pointer from moving,
                 // which covers the common case. This covers the rest: ANY
                 // transformed ancestor — a card rotated by the design, a
@@ -1992,7 +2018,7 @@ PageEditor.registerBlockType = function(name, config) {
                     // pointer handling follows the grip to the part it belongs
                     // to. It also gives the same behaviour everywhere rather
                     // than each browser's native drag.
-                    'sortable=Sortable.create(list,{handle:".vela-grip",animation:150,' +
+                    'sortable=Sortable.create(list,{handle:".vela-grip,[data-vela-drag-self]",animation:150,' +
                         'forceFallback:true,fallbackTolerance:3,' +
                         'ghostClass:"vela-drag-ghost",filter:"style,script",' +
                         'onStart:function(e){bar.style.display="none";' +
@@ -2032,7 +2058,8 @@ PageEditor.registerBlockType = function(name, config) {
                         'window.parent.postMessage({velaSelect:el?pathOf(el):null},"*");' +
                     '}' +
                     'if(el===hot){place();return;}' +
-                    'if(hot)hot.removeAttribute("data-vela-hot");' +
+                    'if(hot){hot.removeAttribute("data-vela-hot");' +
+                        'hot.removeAttribute("data-vela-drag-self");}' +
                     'hot=el;' +
                     // The bar lives INSIDE the part it belongs to, because
                     // Sortable only accepts a handle that is a descendant of
@@ -2040,7 +2067,14 @@ PageEditor.registerBlockType = function(name, config) {
                     // just a button on top of the page and pressing it started
                     // nothing. Appended last and positioned fixed, it neither
                     // shifts the layout nor moves any sibling's index.
-                    'if(hot){hot.setAttribute("data-vela-hot","");hot.appendChild(bar);' +
+                    'if(hot){hot.setAttribute("data-vela-hot","");' +
+                        // See REPLACED above: inside a picture the bar renders
+                        // nowhere, so it is parked and the picture is dragged
+                        // by itself instead.
+                        'if(REPLACED.test(hot.tagName)){' +
+                            'hot.setAttribute("data-vela-drag-self","");' +
+                            'document.body.appendChild(bar);}' +
+                        'else hot.appendChild(bar);' +
                         'bind(hot.parentElement);}' +
                     'else {document.body.appendChild(bar);bind(null);}' +
                     'var up=enclosing();' +
