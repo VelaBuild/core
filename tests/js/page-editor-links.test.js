@@ -28,10 +28,13 @@ function extract(name) {
 
 const names = ['couldCarryALink', 'linkAnchor', 'applyLink', 'imageWidth', 'applyImageWidth',
   'upgradeImportedBlock', 'hashString', 'wrapLooseText', 'partWorthEditingAbove', 'partName',
-  'insertPictureAt', 'importedPathOf', 'nodeAtPath', 'nextImportedId'];
+  'insertPictureAt', 'importedPathOf', 'nodeAtPath', 'nextImportedId',
+  'sanitizeDesign', 'designCss', 'safeCssValue', 'throughLinkWrap'];
 // Vars rather than functions, so they are lifted by name too.
 const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/,
-  /var VOID_TAGS = [^;]+;/];
+  /var VOID_TAGS = [^\n]+/, /var DESIGN_COLOUR = [^\n]+/, /var DESIGN_LENGTH = [^\n]+/,
+  /var DESIGN_IMAGE = [^\n]+/, /var DESIGN_FONTS = \[[\s\S]*?\];/,
+  /var PART_WEIGHTS = [^\n]+/, /var PART_SIZES = [^\n]+/];
 eval(vars.map(function (pattern) { return pattern.exec(src)[0]; }).join('\n')
   + '\n' + names.map(extract).join('\n'));
 
@@ -193,6 +196,43 @@ check('and the path returned is the one it is really at', nodeAtPath(doc, placed
 doc = withDoc('<div class="card"><h3>Tasks</h3></div>');
 check('nothing is placed without a picture to place', insertPictureAt('0', { alt: 'no url' }), 'null');
 check('nor for a part that is not there', insertPictureAt('7/7', { url: '/images/c.png' }), 'null');
+
+// --- a picture behind a part ---
+// "Can a card have a picture as its background?" The colour field cannot say
+// it: it takes a colour and refuses everything else, because the value is
+// written straight into a stylesheet.
+let css = designCss('b1', sanitizeDesign({
+  parts: { p1: { bgImage: '/images/team.png' } },
+}), []);
+check('the picture is drawn behind the part',
+  /\[data-vela-part="p1"\]\{[^}]*background-image:url\("\/images\/team\.png"\)/.test(css), 'true');
+check('and fills it rather than tiling',
+  /background-size:cover !important;background-position:center !important;background-repeat:no-repeat/.test(css), 'true');
+
+css = designCss('b1', sanitizeDesign({
+  parts: { p1: { bgImage: '/images/team.png', bgFit: 'contain', darken: '40%' } },
+}), []);
+check('darkening goes in front of it, in the same property',
+  /background-image:linear-gradient\(rgba\(0,0,0,0\.4\),rgba\(0,0,0,0\.4\)\),url\("\/images\/team\.png"\)/.test(css), 'true');
+check('and how it fits is honoured', /background-size:contain/.test(css), 'true');
+
+// The value is written into a stylesheet, so anything that could close the
+// url() it sits in has to be refused rather than escaped.
+[
+  ['/img.png") ;} body{display:none', 'a url that closes the declaration'],
+  ['javascript:alert(1)', 'a script url'],
+  ['/img.png\'', 'a url carrying a quote'],
+  ['../secret', 'a relative path that is not one'],
+].forEach(function (pair) {
+  const cleaned = sanitizeDesign({ parts: { p1: { bgImage: pair[0] } } });
+  check(pair[1] + ' is refused', (cleaned.parts && cleaned.parts.p1) ? 'kept' : 'dropped', 'dropped');
+});
+
+check('a plain https address is kept',
+  sanitizeDesign({ parts: { p1: { bgImage: 'https://cdn.example.com/a.jpg' } } }).parts.p1.bgImage,
+  'https://cdn.example.com/a.jpg');
+check('a darkening the controls do not offer is refused',
+  (sanitizeDesign({ parts: { p1: { bgImage: '/a.png', darken: '999' } } }).parts.p1.darken) === undefined, 'true');
 
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);

@@ -2214,6 +2214,16 @@ PageEditor.registerBlockType = function(name, config) {
     var DESIGN_LENGTH = /^-?\d{1,4}(px|rem|em|%|vw|vh)?$/i;
 
     /**
+     * A picture address, and nothing that could end the url() around it.
+     *
+     * Quotes, brackets and whitespace are excluded rather than escaped: this
+     * value is written straight into a stylesheet, and the only safe rule for
+     * that is one that cannot close the declaration it sits in. Anything else
+     * is refused rather than repaired, the same as every other value here.
+     */
+    var DESIGN_IMAGE = /^(https?:\/\/|\/|data:image\/)[^"'()\s;{}]{1,1000}$/i;
+
+    /**
      * Drop anything that is not one of the values these controls produce.
      *
      * Run before the choices are stored, not only before they are written into
@@ -2275,7 +2285,8 @@ PageEditor.registerBlockType = function(name, config) {
 
             [['color', DESIGN_COLOUR], ['background', DESIGN_COLOUR], ['size', DESIGN_LENGTH],
              ['lineHeight', /^\d{1,2}(\.\d{1,2})?$/], ['spaceBelow', DESIGN_LENGTH],
-             ['padding', DESIGN_LENGTH], ['radius', DESIGN_LENGTH]].forEach(function(pair) {
+             ['padding', DESIGN_LENGTH], ['radius', DESIGN_LENGTH],
+             ['bgImage', DESIGN_IMAGE], ['bgFit', /^(cover|contain)$/], ['darken', /^\d{1,2}%$/]].forEach(function(pair) {
                 var value = safeCssValue(from[pair[0]], pair[1]);
                 if (value) kept[pair[0]] = value;
             });
@@ -2292,6 +2303,12 @@ PageEditor.registerBlockType = function(name, config) {
 
     var PART_WEIGHTS = ['', '300', '400', '500', '600', '700', '800'];
     var PART_SIZES = ['12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '40px', '48px', '64px'];
+    /* Words on a photograph are unreadable more often than not, so the amount
+       of black over it is offered beside the picture rather than left to be
+       discovered. Stops at 70%: past that it is a dark box, and the colour
+       field says that in one step. */
+    var PART_DARKEN = ['10%', '20%', '30%', '40%', '50%', '60%', '70%'];
+
     var PART_SPACES = ['0px', '4px', '8px', '12px', '16px', '24px', '32px', '48px'];
     var PART_LINES = ['1', '1.1', '1.25', '1.4', '1.6', '1.8', '2'];
     var PART_RADII = ['0px', '4px', '8px', '12px', '16px', '24px', '999px'];
@@ -2344,6 +2361,27 @@ PageEditor.registerBlockType = function(name, config) {
             // it, and a background would be drawn behind each word instead of
             // behind the box.
             if (p.background) boxRules += 'background:' + p.background + ' !important;';
+
+            // A picture behind the part, over whatever colour it also has —
+            // which is what shows while the picture loads, and if it never
+            // does. The darkening is a flat gradient in the same property
+            // rather than an overlay element: words on a photograph are
+            // unreadable more often than not, and an element would have to be
+            // put inside the very markup this panel exists to avoid touching.
+            if (p.bgImage) {
+                var layers = [];
+                var darken = parseInt(p.darken || '0', 10) / 100;
+
+                if (darken > 0) {
+                    layers.push('linear-gradient(rgba(0,0,0,' + darken + '),rgba(0,0,0,' + darken + '))');
+                }
+                layers.push('url("' + p.bgImage + '")');
+
+                boxRules += 'background-image:' + layers.join(',') + ' !important;'
+                    + 'background-size:' + (p.bgFit || 'cover') + ' !important;'
+                    + 'background-position:center !important;background-repeat:no-repeat !important;';
+            }
+
             if (p.padding) boxRules += 'padding:' + p.padding + ' !important;';
             if (p.radius) boxRules += 'border-radius:' + p.radius + ' !important;';
             if (boxRules) {
@@ -2530,10 +2568,54 @@ PageEditor.registerBlockType = function(name, config) {
      * click would put an attribute into the markup for each part merely looked
      * at, and each of those would land in the undo history as a change.
      */
+    /**
+     * Set one styling value on the selected part, or clear it with ''.
+     *
+     * The select and text controls write themselves back through their own
+     * change handler, which reads every control in the panel at once. A
+     * picture is chosen somewhere else entirely — in the media dialog — so it
+     * has nothing to read, and says what it changed instead.
+     */
+    function setPartStyle(name, value) {
+        var id = selectedPartId(_htmlDoc, true);
+        if (!id) return;
+
+        var values = _htmlPartStyles[id] || {};
+
+        if (value) values[name] = value;
+        else delete values[name];
+
+        if (Object.keys(values).length) _htmlPartStyles[id] = values;
+        else delete _htmlPartStyles[id];
+
+        // Redrawn rather than only refreshed: choosing a picture brings the
+        // controls that belong with one — how it fits, how dark — and taking
+        // it away takes them with it.
+        redrawPartPanel();
+        refreshImportedPreview();
+    }
+
+    /**
+     * The thing a link wrapper stands for.
+     *
+     * A part given a link is wrapped in an `<a style="display:contents">`, and
+     * the wrapper is what a path resolves to, because it is the child of the
+     * row. Everything this panel says — a background, padding, corners, hiding
+     * — would then be said about an element that has no box, and
+     * display:contents paints nothing at all on the live page. Measured in the
+     * editor: a background picture chosen for a card landed on the wrapper and
+     * the card stayed as it was.
+     */
+    function throughLinkWrap(el) {
+        return (el && el.hasAttribute && el.hasAttribute('data-vela-link-wrap') && el.children.length === 1)
+            ? el.firstElementChild
+            : el;
+    }
+
     function selectedPartId(doc, assign) {
         if (_htmlSelected === null) return null;
 
-        var el = nodeAtPath(doc, _htmlSelected);
+        var el = throughLinkWrap(nodeAtPath(doc, _htmlSelected));
         if (!el || !el.parentElement || el.hasAttribute('data-vela-block')) return null;
 
         var id = el.getAttribute('data-vela-field') || el.getAttribute('data-vela-part');
@@ -2626,6 +2708,28 @@ PageEditor.registerBlockType = function(name, config) {
                                 'title="Keep the original">&times;</button>' +
                         '</div>' +
                     '</div></div>' +
+                // A picture behind the part, which is what "make this card a
+                // photograph" means and the colour box above cannot say: the
+                // background field takes a colour and refuses anything else,
+                // deliberately, because it is written into a stylesheet.
+                '<div class="form-group col-12 mb-2">' + designLabel('Background picture') +
+                    '<div class="d-flex align-items-center" style="gap:8px;">' +
+                        '<img class="vela-part-bg-thumb" src="' + escHtml(p.bgImage || '') + '" ' +
+                            'style="width:56px;height:40px;object-fit:cover;border:1px solid #e9ecef;border-radius:4px;' +
+                            'background:#f8f9fa;' + (p.bgImage ? '' : 'visibility:hidden;') + '">' +
+                        '<button type="button" class="btn btn-outline-info btn-sm vela-part-bg-browse">' +
+                            '<i class="fas fa-images mr-1"></i> ' + (p.bgImage ? 'Change' : 'Choose') + '</button>' +
+                        (p.bgImage
+                            ? '<button type="button" class="btn btn-outline-secondary btn-sm vela-part-bg-clear">Remove</button>'
+                            : '') +
+                        '<input type="hidden" class="vela-part-design" data-part-design="bgImage" ' +
+                            'value="' + escHtml(p.bgImage || '') + '">' +
+                    '</div></div>' +
+                // Only worth asking once there is a picture to ask about.
+                (p.bgImage
+                    ? partSelect('bgFit', 'How it fits', ['cover', 'contain'], p.bgFit, 'cover') +
+                      partSelect('darken', 'Darken it', PART_DARKEN, p.darken, 'not at all')
+                    : '') +
                 partSelect('padding', 'Inner spacing', PART_SPACES, p.padding) +
                 partSelect('radius', 'Corners', PART_RADII, p.radius) +
                 partSelect('size', 'Size', PART_SIZES, p.size) +
@@ -3062,7 +3166,10 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     function markPartAtPath(doc, path) {
-        var node = nodeAtPath(doc, path);
+        // Past the link wrapper, for the same reason selectedPartId is: hiding
+        // the wrapper would work by accident (display:none hides a subtree
+        // whatever the element is) and styling it would not work at all.
+        var node = throughLinkWrap(nodeAtPath(doc, path));
         if (!node) return null;
 
         // Never the wrapper itself: hiding that hides the whole section, which
@@ -3142,13 +3249,9 @@ PageEditor.registerBlockType = function(name, config) {
         var node = nodeAtPath(_htmlDoc, path);
         if (!node || !media || !media.url) return null;
 
-        // A part that has been given a link is wrapped in an anchor, and the
-        // anchor is what the pointer resolves to because it is the child of
-        // the row. A picture put in there would be a sibling of the card
-        // rather than something inside it — inside the link, outside the box.
-        if (node.hasAttribute('data-vela-link-wrap') && node.children.length === 1) {
-            node = node.firstElementChild;
-        }
+        // A picture put in the wrapper would be a sibling of the card rather
+        // than something inside it — inside the link, outside the box.
+        node = throughLinkWrap(node);
 
         var img = _htmlDoc.createElement('img');
         img.setAttribute('src', media.url);
@@ -3460,6 +3563,20 @@ PageEditor.registerBlockType = function(name, config) {
 
             $('#block-edit-content').on('click.velaImported', '.vela-part-show', function() {
                 toggleHiddenPart($(this).data('target'));
+            });
+
+            // The picture behind a part. Written into the part's styling
+            // rather than into the markup, so it can be taken off again in
+            // one press and the section is left as it was found.
+            $('#block-edit-content').on('click.velaImported', '.vela-part-bg-browse', function() {
+                openMediaBrowser(function(media) {
+                    if (!media || !media.url) return;
+                    setPartStyle('bgImage', media.url);
+                });
+            });
+
+            $('#block-edit-content').on('click.velaImported', '.vela-part-bg-clear', function() {
+                setPartStyle('bgImage', '');
             });
 
             // Styling one part. The id is minted here rather than on selection,
