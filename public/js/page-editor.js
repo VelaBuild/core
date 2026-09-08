@@ -2321,7 +2321,7 @@ PageEditor.registerBlockType = function(name, config) {
              ['lineHeight', /^\d{1,2}(\.\d{1,2})?$/], ['spaceBelow', DESIGN_LENGTH],
              ['padding', DESIGN_LENGTH], ['radius', DESIGN_LENGTH],
              ['bgImage', DESIGN_IMAGE], ['bgFit', /^(cover|contain)$/], ['darken', /^\d{1,2}%$/],
-             ['place', /^(top|middle|bottom|spread)$/]].forEach(function(pair) {
+             ['place', /^(top|middle|bottom|spread)$/], ['height', DESIGN_HEIGHT]].forEach(function(pair) {
                 var value = safeCssValue(from[pair[0]], pair[1]);
                 if (value) kept[pair[0]] = value;
             });
@@ -2357,6 +2357,19 @@ PageEditor.registerBlockType = function(name, config) {
      * The words are the plain ones; the CSS is beside them.
      */
     var PART_PLACES = { top: 'flex-start', middle: 'center', bottom: 'flex-end', spread: 'space-between' };
+
+    /**
+     * How tall a part is, offered as a floor rather than a fixed size.
+     *
+     * `min-height` and not `height`, because a card whose height is fixed and
+     * whose content does not fit is a card with its words cut off — and these
+     * cards carry `overflow:hidden` from the design, so the cutting would be
+     * silent. A floor is what a card wants anyway: the design's own is
+     * `min-height:320px`, which is why they line up when they are nearly
+     * empty. "auto" gives that up and lets the content decide.
+     */
+    var PART_HEIGHTS = ['auto', '160px', '240px', '320px', '400px', '520px', '640px'];
+    var DESIGN_HEIGHT = /^(auto|\d{1,4}(px|rem|em|vh|%)?)$/i;
 
     var PART_SPACES = ['0px', '4px', '8px', '12px', '16px', '24px', '32px', '48px'];
     var PART_LINES = ['1', '1.1', '1.25', '1.4', '1.6', '1.8', '2'];
@@ -2433,6 +2446,8 @@ PageEditor.registerBlockType = function(name, config) {
 
             if (p.padding) boxRules += 'padding:' + p.padding + ' !important;';
             if (p.radius) boxRules += 'border-radius:' + p.radius + ' !important;';
+            // See PART_HEIGHTS: a floor, never a ceiling.
+            if (p.height) boxRules += 'min-height:' + p.height + ' !important;';
 
             // Both properties, because the same question is called different
             // things depending on how the box lays its children out: a column
@@ -2788,6 +2803,7 @@ PageEditor.registerBlockType = function(name, config) {
                     ? partSelect('bgFit', 'How it fits', ['cover', 'contain'], p.bgFit, 'cover') +
                       partSelect('darken', 'Darken it', PART_DARKEN, p.darken, 'not at all')
                     : '') +
+                partSelect('height', 'Height', PART_HEIGHTS, p.height) +
                 partSelect('place', 'Content sits', Object.keys(PART_PLACES), p.place) +
                 partSelect('padding', 'Inner spacing', PART_SPACES, p.padding) +
                 partSelect('radius', 'Corners', PART_RADII, p.radius) +

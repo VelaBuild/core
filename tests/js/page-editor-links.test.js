@@ -34,7 +34,8 @@ const names = ['couldCarryALink', 'linkAnchor', 'applyLink', 'imageWidth', 'appl
 const vars = [/var COLUMN_CLASS = [^;]+;/, /var LOOSE_TEXT_SKIP = \{[^}]*\};/,
   /var VOID_TAGS = [^\n]+/, /var DESIGN_COLOUR = [^\n]+/, /var DESIGN_LENGTH = [^\n]+/,
   /var DESIGN_IMAGE = [^\n]+/, /var DESIGN_FONTS = \[[\s\S]*?\];/,
-  /var PART_WEIGHTS = [^\n]+/, /var PART_SIZES = [^\n]+/, /var PART_PLACES = [^\n]+/];
+  /var PART_WEIGHTS = [^\n]+/, /var PART_SIZES = [^\n]+/, /var PART_PLACES = [^\n]+/,
+  /var PART_HEIGHTS = [^\n]+/, /var DESIGN_HEIGHT = [^\n]+/];
 eval(vars.map(function (pattern) { return pattern.exec(src)[0]; }).join('\n')
   + '\n' + names.map(extract).join('\n'));
 
@@ -249,6 +250,20 @@ check('spreading it out is space-between', /justify-content:space-between/.test(
 
 check('a placement the control does not offer is refused',
   (sanitizeDesign({ parts: { p1: { place: 'flex-end;color:red' } } }).parts) === undefined, 'true');
+
+// --- how tall a card is ---
+// There was no way to say it at all: the design's own min-height decided, and
+// a card given a picture grew while the one beside it stayed as it was.
+css = designCss('b1', sanitizeDesign({ parts: { p1: { height: '400px' } } }), []);
+check('the height is written as a floor, not a fixed size',
+  /\[data-vela-part="p1"\]\{[^}]*min-height:400px !important/.test(css), 'true');
+check('and never as height itself', /[^-]height:400px/.test(css.replace(/min-height/g, 'X')), 'false');
+
+css = designCss('b1', sanitizeDesign({ parts: { p1: { height: 'auto' } } }), []);
+check('auto gives the floor up', /min-height:auto !important/.test(css), 'true');
+
+check('a height the control does not offer is refused',
+  (sanitizeDesign({ parts: { p1: { height: '400px;position:fixed' } } }).parts) === undefined, 'true');
 
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);
