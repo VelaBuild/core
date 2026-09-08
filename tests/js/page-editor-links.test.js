@@ -265,5 +265,31 @@ check('auto gives the floor up', /min-height:auto !important/.test(css), 'true')
 check('a height the control does not offer is refused',
   (sanitizeDesign({ parts: { p1: { height: '400px;position:fixed' } } }).parts) === undefined, 'true');
 
+// --- and where it goes is asked, not assumed ---
+// It used to be the last thing inside, always, so a picture meant for the top
+// of a card had to be dragged there every time.
+doc = withDoc('<div class="card"><h3 data-vela-field="f1" data-vela-field-kind="text">Tasks</h3>'
+  + '<p data-vela-field="f2" data-vela-field-kind="text">Assign them.</p></div>');
+insertPictureAt('0', { url: '/images/top.png' }, 'top');
+check('at the top of a box, it is the first thing in it',
+  doc.querySelector('img').previousElementSibling, 'null');
+
+doc = withDoc('<div class="card"><h3 data-vela-field="f1" data-vela-field-kind="text">Tasks</h3></div>');
+insertPictureAt('0', { url: '/images/end.png' }, 'bottom');
+check('at the bottom, it is the last', doc.querySelector('img').previousElementSibling.tagName, 'H3');
+
+doc = withDoc('<div class="card"><h3 data-vela-field="f1" data-vela-field-kind="text">Tasks</h3>'
+  + '<p data-vela-field="f2" data-vela-field-kind="text">Assign them.</p></div>');
+insertPictureAt('0/1', { url: '/images/above.png' }, 'before');
+img = doc.querySelector('img');
+check('above a leaf, it comes before it', img.nextElementSibling.tagName, 'P');
+check('and stays in the card it was in', img.parentElement.className, 'card');
+
+// A box asked for "before" gets the sensible reading rather than nothing.
+doc = withDoc('<div class="card"><h3>Tasks</h3></div>');
+insertPictureAt('0', { url: '/images/x.png' }, 'before');
+check('an answer that does not suit the part still places it',
+  doc.querySelector('.card img') !== null, 'true');
+
 console.log(failures ? '\n' + failures + ' FAILED' : '\nall passed');
 process.exit(failures ? 1 : 0);

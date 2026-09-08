@@ -1698,6 +1698,14 @@ PageEditor.registerBlockType = function(name, config) {
                 'border-radius:3px;font:11px/22px system-ui,sans-serif;white-space:nowrap;' +
                 '-webkit-user-select:none;user-select:none}' +
             '[data-vela-ui] button.vela-drop{background:#dc3545}' +
+            // The little menu the picture button opens. Laid out as a column
+            // of full words rather than more glyphs: these are three different
+            // outcomes, not three more tools, and a row of icons would be a
+            // guess for each of them.
+            '.vela-menu{flex-direction:column;gap:2px;align-items:stretch}' +
+            '.vela-menu button{width:auto;height:auto;padding:5px 10px;text-align:left;' +
+                'font:12px/1.3 system-ui,sans-serif;background:#212529;white-space:nowrap}' +
+            '.vela-menu button:hover{background:#0d6efd}' +
             '[data-vela-ui] .vela-grip{cursor:grab}' +
             // The copied form's controls are real: they take typing that goes
             // nowhere. Harmless while nothing here was editable, misleading now
@@ -2042,6 +2050,16 @@ PageEditor.registerBlockType = function(name, config) {
                     'LI:"List item",FORM:"Form",SECTION:"Section",FIGURE:"Figure",TABLE:"Table"};' +
                 'function nameOf(el){' +
                     'if(!el)return "";' +
+                    // What the person editing calls it. The editor names one a
+                    // Card everywhere else; here it fell through to the
+                    // geometry below and came out "Group", and in a menu
+                    // offering to put a picture in one, the word matters.
+                    'if(el.hasAttribute("data-vela-card"))return "Card";' +
+                    // What the person editing calls it. The editor names a
+                    // card a Card everywhere else; here it fell through to
+                    // the geometry below and came out "Group", and in a menu
+                    // that offers to put a picture in one, the word matters.
+                    'if(el.hasAttribute&&el.hasAttribute("data-vela-card"))return "Card";' +
                     'if(NAMES[el.tagName])return NAMES[el.tagName];' +
                     'var up=el.parentElement,sibs=up?parts(up):[];' +
                     'if(sibs.length>1){' +
@@ -2058,6 +2076,9 @@ PageEditor.registerBlockType = function(name, config) {
                         'window.parent.postMessage({velaSelect:el?pathOf(el):null},"*");' +
                     '}' +
                     'if(el===hot){place();return;}' +
+                    // Pointing somewhere else answers the question by walking
+                    // away from it.
+                    'hideMenu();' +
                     'if(hot){hot.removeAttribute("data-vela-hot");' +
                         'hot.removeAttribute("data-vela-drag-self");}' +
                     'hot=el;' +
@@ -2152,12 +2173,71 @@ PageEditor.registerBlockType = function(name, config) {
                     'var path=pathOf(hot);if(path===null)return;' +
                     'window.parent.postMessage({velaDuplicate:path},"*");' +
                 '});' +
-                'bar.querySelector(".vela-picture").addEventListener("click",function(e){' +
-                    'e.preventDefault();e.stopPropagation();' +
+                // Where a picture goes is three different answers, and it used
+                // to be one: always the last thing inside, which then had to
+                // be dragged. And "behind it" was not an answer at all here —
+                // it lived in the Style tab, two steps away from the button
+                // somebody had already found, so it may as well not have.
+                'var menu=document.createElement("div");' +
+                'menu.setAttribute("data-vela-ui","");' +
+                'menu.className="vela-menu";' +
+                'menu.setAttribute("contenteditable","false");' +
+                'menu.style.display="none";' +
+                'document.body.appendChild(menu);' +
+                'function hideMenu(){menu.style.display="none";}' +
+                'function askWhere(){' +
                     'if(!hot)return;' +
                     'var path=pathOf(hot);if(path===null)return;' +
-                    'window.parent.postMessage({velaPicture:path},"*");' +
+                    // A box that already holds things takes the picture among
+                    // them; anything else takes it alongside.
+                    // Past the link wrapper, because that is where the picture
+                    // will really go — and because the menu offered to put one
+                    // "at the top of the link", which is not a thing anybody
+                    // means.
+                    // parts(), never children: the bar is appended INSIDE the
+                    // part it belongs to, so counting raw children counts the
+                    // editor's own furniture. It made a wrapper look like it
+                    // held two things, so the menu offered to put a picture
+                    // "at the top of the link" — which is not a thing anybody
+                    // means, and not where it would have gone either.
+                    'var into=(hot.hasAttribute("data-vela-link-wrap")&&parts(hot).length===1)' +
+                        '?parts(hot)[0]:hot;' +
+                    'var holds=parts(into).length>0&&!REPLACED.test(into.tagName);' +
+                    'var name=nameOf(into).toLowerCase();' +
+                    'var choices=holds' +
+                        '?[["top","At the top of the "+name],["bottom","At the bottom of the "+name]]' +
+                        ':[["before","Above this"],["after","Below this"]];' +
+                    'choices.push(["background","Behind the "+name+", as its background"]);' +
+                    'menu.innerHTML="";' +
+                    'choices.forEach(function(c){' +
+                        'var b=document.createElement("button");' +
+                        'b.type="button";b.textContent=c[1];' +
+                        'b.addEventListener("click",function(ev){' +
+                            'ev.preventDefault();ev.stopPropagation();' +
+                            'hideMenu();' +
+                            'window.parent.postMessage({velaPicture:path,how:c[0]},"*");' +
+                        '});' +
+                        'menu.appendChild(b);});' +
+                    'var r=bar.getBoundingClientRect();' +
+                    'menu.style.display="flex";' +
+                    'menu.style.left="0px";menu.style.top="0px";' +
+                    'var o=menu.getBoundingClientRect();' +
+                    'menu.style.left=(Math.max(2,r.left)-o.left)+"px";' +
+                    'menu.style.top=(r.bottom+4-o.top)+"px";' +
+                '}' +
+                'bar.querySelector(".vela-picture").addEventListener("click",function(e){' +
+                    'e.preventDefault();e.stopPropagation();' +
+                    'if(menu.style.display!=="none"){hideMenu();return;}' +
+                    'askWhere();' +
                 '});' +
+                // Anywhere else puts it away — but not a press on the menu
+                // itself, whose buttons have not run yet, nor on the button
+                // that opened it, which is a toggle.
+                'document.addEventListener("click",function(e){' +
+                    'if(menu.contains(e.target))return;' +
+                    'if(e.target&&e.target.closest&&e.target.closest(".vela-picture"))return;' +
+                    'hideMenu();' +
+                '},true);' +
                 'bar.querySelector(".vela-drop").addEventListener("click",function(e){' +
                     'e.preventDefault();e.stopPropagation();' +
                     'if(!hot)return;' +
@@ -3315,12 +3395,19 @@ PageEditor.registerBlockType = function(name, config) {
      * then be neither swapped by clicking it nor given a link, which is the
      * trap this exists to spare people.
      *
-     * Inside what can hold it, after what cannot: a picture appended to a
-     * heading would land between the words.
+     * Where it goes is asked rather than assumed. It used to be the last thing
+     * inside, always, which meant a picture meant for the top of a card had to
+     * be dragged there every time.
+     *
+     * `how` is one of top, bottom, before, after. A box that holds things
+     * takes the first two; anything else — a heading, a picture — takes the
+     * other two, since a picture appended to a heading would land between the
+     * words. An answer that does not suit what was pointed at falls back to
+     * the one that does.
      *
      * @return {string|null} the new picture's path, so it can be selected
      */
-    function insertPictureAt(path, media) {
+    function insertPictureAt(path, media, how) {
         var node = nodeAtPath(_htmlDoc, path);
         if (!node || !media || !media.url) return null;
 
@@ -3341,12 +3428,16 @@ PageEditor.registerBlockType = function(name, config) {
 
         var holds = node.children.length > 0 && !VOID_TAGS.test(node.tagName);
 
-        if (holds) {
+        if (holds && how === 'top') {
+            node.insertBefore(img, node.firstChild);
+        } else if (holds) {
             node.appendChild(img);
-        } else if (node.parentElement) {
-            node.parentElement.insertBefore(img, node.nextSibling);
-        } else {
+        } else if (!node.parentElement) {
             return null;
+        } else if (how === 'before') {
+            node.parentElement.insertBefore(img, node);
+        } else {
+            node.parentElement.insertBefore(img, node.nextSibling);
         }
 
         return importedPathOf(img);
@@ -3792,12 +3883,27 @@ PageEditor.registerBlockType = function(name, config) {
                 // and it can be dragged into place from where it landed.
                 if (typeof data.velaPicture === 'string') {
                     var where = data.velaPicture;
+                    var how = data.how || 'bottom';
+
                     openMediaBrowser(function(media) {
-                        var placed = insertPictureAt(where, media);
+                        if (!media || !media.url) return;
+
+                        _blockEditTouched = true;
+
+                        // Behind it rather than in it: the same picture, said
+                        // as styling, which is what the Style tab's own
+                        // control writes. Selecting the part first is what
+                        // setPartStyle() works from.
+                        if (how === 'background') {
+                            _htmlSelected = where;
+                            setPartStyle('bgImage', media.url);
+                            return;
+                        }
+
+                        var placed = insertPictureAt(where, media, how);
                         if (placed === null) return;
 
                         _htmlSelected = placed;
-                        _blockEditTouched = true;
                         redrawPartPanel();
                         refreshImportedPreview();
                     });
