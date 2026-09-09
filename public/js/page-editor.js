@@ -894,6 +894,15 @@ PageEditor.registerBlockType = function(name, config) {
     var _htmlHidden = [];         // ids of parts the user chose not to show
     var _htmlMoveUnavailable = false; // the preview could not load SortableJS
     var _htmlSelected = null;     // path of the part held in the preview, if any
+    // Whether the redraw about to happen should HOLD that part or merely show
+    // the bar on it. Holding is right when the work is happening in the panel
+    // out here — a part duplicated, a picture put in — because the pointer is
+    // nowhere near the preview and the choice has to survive the trip. After a
+    // drop it is wrong: the pointer is already in the section, the next thing
+    // it does is reach for another card, and a held part means the bar never
+    // follows it there. Reported as "after I drop one, there is nothing left
+    // to drag".
+    var _htmlSelectedHold = true;
     var _htmlTab = 'content';     // which tab of the panel is open
     var _htmlPartStyles = {};     // per-part styling, keyed by field or part id
     var _htmlPreviewTimer = null;
@@ -1719,6 +1728,7 @@ PageEditor.registerBlockType = function(name, config) {
             '<script>(function(){' +
                 'var root=document.querySelector("[data-vela-block]");if(!root)return;' +
                 'var picked=' + JSON.stringify(_htmlSelected) + ';' +
+                'var pickedHold=' + JSON.stringify(_htmlSelectedHold) + ';' +
 
                 // A link put on a part wraps it in an <a style="display:contents">
                 // so the part keeps its own place in the grid. An element with
@@ -2153,9 +2163,6 @@ PageEditor.registerBlockType = function(name, config) {
                     'if(up&&up!==pinned)focusPart(up,true);else focusPart(null,true);' +
                 '},true);' +
 
-                // The choice survives the redraw a drop causes: the editor
-                // hands back the position it should land on.
-                'if(picked!==null){var re=nodeAt(picked);if(re)focusPart(re,true);}' +
                 'window.addEventListener("scroll",place,true);' +
                 'window.addEventListener("resize",place);' +
 
@@ -2244,6 +2251,22 @@ PageEditor.registerBlockType = function(name, config) {
                     'var path=pathOf(hot);if(path===null)return;' +
                     'window.parent.postMessage({velaPick:path},"*");' +
                 '});' +
+
+                // The choice survives the redraw a drop causes: the editor
+                // hands back the position it should land on.
+                //
+                // LAST, and it has to stay last. This ran where it reads —
+                // straight after the listeners — and focusPart calls hideMenu,
+                // whose menu is created further down: `var menu` is hoisted but
+                // still undefined up there, so restoring the choice threw
+                // "Cannot read properties of undefined", the rest of this
+                // script never ran, and every later focusPart threw the same.
+                // The bar stopped appearing on anything at all. What that looks
+                // like from outside is a drag that works once: the drop redraws
+                // the preview WITH a choice to restore, and from then on
+                // nothing in the section can be pointed at or moved — reported
+                // as "there is nothing left to drag".
+                'if(picked!==null){var re=nodeAt(picked);if(re)focusPart(re,pickedHold);}' +
             '})();<\/script>';
 
         // Once the pointer has been in the preview, the focus belongs to the
@@ -2287,6 +2310,10 @@ PageEditor.registerBlockType = function(name, config) {
         frame.srcdoc = '<!doctype html><html><head><meta charset="utf-8">' +
             '<style>body{margin:0}' + pageCustomCss() + '</style>' +
             previewCss + '</head><body>' + html + previewJs + keyJs + '</body></html>';
+
+        // Spent on the redraw it was set for. Every other one holds the choice,
+        // which is what the panel out here needs.
+        _htmlSelectedHold = true;
     }
 
     function scheduleImportedPreview() {
@@ -4008,6 +4035,10 @@ PageEditor.registerBlockType = function(name, config) {
                         // than on whatever now sits at the old position.
                         var container = String(data.velaMove.container || '');
                         _htmlSelected = (container ? container + '/' : '') + data.velaMove.to;
+                        // Shown on the moved card, not held there: the pointer
+                        // is in the section and the next card is what it is
+                        // reaching for.
+                        _htmlSelectedHold = false;
                         redrawImportedEditor();
                     }
                 }
