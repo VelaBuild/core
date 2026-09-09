@@ -69,7 +69,12 @@ function runPreview(picked, hold) {
     '<body><div data-vela-block><div class="row">' +
     '<div class="card" id="a"><h3>One</h3></div>' +
     '<div class="card" id="b"><h3>Two</h3></div>' +
-    '<div class="card" id="c"><h3>Three</h3></div>' +
+    '<div class="card" id="c"><h3>Three</h3>' +
+    '<img id="pic" data-vela-field="f1" data-vela-field-kind="image" src="/a.jpg">' +
+    '</div>' +
+    '</div><div class="row" id="row2">' +
+    '<div class="card" id="d"><h3>Four</h3></div>' +
+    '<div class="card" id="e"><h3>Five</h3></div>' +
     '</div></div></body>',
     { runScripts: 'outside-only' }
   );
@@ -170,7 +175,7 @@ outer.appendChild(doc.getElementById('b'));
 rowSortable.opts.onEnd({ from: row, to: outer, item: doc.getElementById('b') });
 check('a drop into another box names both ends',
   JSON.stringify(sent && sent.velaMove),
-  JSON.stringify({ from: { container: '0', index: 1 }, to: { container: '', index: 1 } }));
+  JSON.stringify({ from: { container: '0', index: 1 }, to: { container: '', index: 2 } }));
 
 // And the ordinary case still reports as it did.
 r = runPreview(null, true);
@@ -231,6 +236,69 @@ check('with its id, and everything keyed by it, along for the ride', out && out.
 _htmlDoc = section();
 check('a box cannot be dropped inside itself', moveImportedPart('', 0, '0', 0), 'null');
 check('and nothing moved', ids(_htmlDoc.querySelector('[data-vela-block]')), 'top,bottom');
+
+// --- a picture answers a click the way everything else does ---------------
+//
+// Clicking one used to open the media library on the spot, so a click meant to
+// SELECT a picture — or to start dragging it — was answered by a dialog nobody
+// asked for. Reported as "I don't like that clicking a picture opens a modal".
+r = runPreview(null, true);
+const pic = r.win.document.getElementById('pic');
+let posted = [];
+r.win.parent.postMessage = message => posted.push(message);
+
+pic.dispatchEvent(new r.win.MouseEvent('click', { bubbles: true, cancelable: true }));
+check('clicking a picture opens nothing',
+  posted.filter(m => m.velaImage).length, 0);
+check('it chooses it, like any other part',
+  JSON.stringify(posted.filter(m => 'velaSelect' in m).map(m => m.velaSelect)), JSON.stringify(['0/2/1']));
+
+posted = [];
+pic.dispatchEvent(new r.win.MouseEvent('dblclick', { bubbles: true, cancelable: true }));
+check('and double-clicking still goes straight to the media library',
+  JSON.stringify(posted.filter(m => m.velaImage).map(m => m.velaImage.field)), JSON.stringify(['f1']));
+
+// The bar's picture button has two jobs and says which one it is offering.
+const barButton = () => r.bar.querySelector('.vela-picture').title;
+pic.dispatchEvent(new r.win.MouseEvent('mouseover', { bubbles: true }));
+check('on a picture the button offers to change it', barButton(), 'Change this picture');
+// A click, not a hover: the picture is HELD after being clicked, and a held
+// part is exactly what stops the bar wandering off while you reach for it.
+r.win.document.getElementById('a').dispatchEvent(new r.win.MouseEvent('click', { bubbles: true, cancelable: true }));
+check('on anything else it offers to put one in', barButton(), 'Put a picture in this');
+
+posted = [];
+pic.dispatchEvent(new r.win.MouseEvent('click', { bubbles: true, cancelable: true }));
+r.bar.querySelector('.vela-picture').dispatchEvent(new r.win.MouseEvent('click', { bubbles: true, cancelable: true }));
+check('and pressing it on a picture asks for that picture',
+  JSON.stringify(posted.filter(m => m.velaImage).map(m => m.velaImage.field)), JSON.stringify(['f1']));
+
+// --- a card must not sink into another card ------------------------------
+//
+// Every box that holds parts can receive, and a card is a box: dropping one
+// card ON another put it INSIDE it, and the next drag buried it one level
+// further. Measured on a real section — div.fb-feature-card inside
+// div.fb-feature-card — and reported as cards sinking as you drag them about.
+//
+// What may receive a part is now decided the way the editor already decides
+// what a row of cards is: the same tag, and a class they share.
+r = runPreview(null, true);
+const takes = (boxId, itemId) => {
+  const box = r.win.document.getElementById(boxId);
+  const put = box.__velaSortable ? box.__velaSortable.opts.group.put : null;
+  if (typeof put !== 'function') return 'box ' + boxId + ' has no rule';
+  return put({ el: box }, null, r.win.document.getElementById(itemId));
+};
+
+check('a card is refused by another card', takes('a', 'b'), false);
+check('and taken by the row across the section', takes('row2', 'b'), true);
+
+// The row you just emptied has to be fillable again, and a picture is a
+// picture wherever it came from.
+const emptied = r.win.document.getElementById('row2');
+while (emptied.firstElementChild) emptied.removeChild(emptied.firstElementChild);
+check('a box holding nothing takes anything', takes('row2', 'b'), true);
+check('a card still refuses a picture', takes('a', 'pic'), false);
 
 console.log(failures ? '\n' + failures + ' failed' : '\nall passed');
 process.exit(failures ? 1 : 0);

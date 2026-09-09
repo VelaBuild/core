@@ -1819,9 +1819,17 @@ PageEditor.registerBlockType = function(name, config) {
                 'var timer=null;' +
                 'Array.prototype.forEach.call(root.querySelectorAll("[data-vela-field]"),function(el){' +
                     'var kinds=(el.getAttribute("data-vela-field-kind")||"").split(/\\s+/);' +
+                    // A picture answers a click the way everything else does:
+                    // it gets chosen, and the panel beside the preview shows
+                    // that picture's own row — its thumbnail, its alt text,
+                    // how wide it runs, and the button that opens the media
+                    // library. It used to open the library on the spot, so a
+                    // click meant to select a picture, or to start dragging
+                    // one, was answered by a dialog nobody asked for.
+                    // Double-click still goes straight there.
                     'if(kinds.indexOf("image")>-1){' +
                         'el.setAttribute("data-vela-pick-image","");' +
-                        'el.addEventListener("click",function(e){e.preventDefault();e.stopPropagation();' +
+                        'el.addEventListener("dblclick",function(e){e.preventDefault();e.stopPropagation();' +
                             'window.parent.postMessage({velaImage:{' +
                                 'field:el.getAttribute("data-vela-field")}},"*");});' +
                         'return;}' +
@@ -1858,9 +1866,11 @@ PageEditor.registerBlockType = function(name, config) {
                     'if(a)e.preventDefault();' +
                 '},true);' +
 
-                // A click that landed on nothing editable but has a picture
-                // under it asks to change that picture — see pictureUnder.
-                'document.addEventListener("click",function(e){' +
+                // A picture lying under the section's own words is reached the
+                // same way as one in the open: a click chooses it — the
+                // handler further down does that — and a double-click asks to
+                // change it.
+                'document.addEventListener("dblclick",function(e){' +
                     'var img=pictureBehind(e);' +
                     'if(!img)return;' +
                     'e.preventDefault();' +
@@ -2041,9 +2051,41 @@ PageEditor.registerBlockType = function(name, config) {
                         'if(BOX.test(el.tagName)&&parts(el).length&&!el.hasAttribute("data-vela-ui"))out.push(el);});' +
                     'return out;}' +
                 'var from=null,fromPath=null,paths=null;' +
+
+                // A part goes where things of its kind already are.
+                //
+                // Without this a card dropped ON another card goes INSIDE it —
+                // the innermost box under the pointer is the one that accepts,
+                // and a card is a box. Measured: dragging one card over
+                // another put `div.fb-feature-card` inside
+                // `div.fb-feature-card`, and every drag after that buried it
+                // one level further. What it looks like is a card sinking into
+                // the page.
+                //
+                // The test for "of its kind" is the one the editor already
+                // uses to recognise a row of cards: the same tag, and a class
+                // they share — with classless elements counting as a set of
+                // their own, and a picture needing no more than being a
+                // picture. A box holding nothing takes anything, or the row
+                // you just emptied could never be filled again.
+                'function classesOf(el){' +
+                    'return (el.getAttribute("class")||"").split(/\\s+/).filter(function(c){return c;});}' +
+                'function alike(a,b){' +
+                    'if(!a||!b||a.tagName!==b.tagName)return false;' +
+                    'if(REPLACED.test(a.tagName))return true;' +
+                    'var ca=classesOf(a),cb=classesOf(b);' +
+                    'if(!ca.length||!cb.length)return true;' +
+                    'return ca.some(function(c){return cb.indexOf(c)>-1;});}' +
+                'function takes(box,item){' +
+                    'if(!box||!item||box===item||item.contains(box))return false;' +
+                    'var held=parts(box).filter(function(p){return p!==item;});' +
+                    'if(!held.length)return true;' +
+                    'return held.some(function(p){return alike(p,item);});}' +
+
                 'function makeReceiver(el){' +
                     'if(el.__velaSortable)return el.__velaSortable;' +
-                    'el.__velaSortable=Sortable.create(el,{group:{name:"vela-parts",pull:true,put:true},' +
+                    'el.__velaSortable=Sortable.create(el,{group:{name:"vela-parts",pull:true,' +
+                        'put:function(to,fromList,dragged){return takes(to.el,dragged);}},' +
                         'handle:NO_HANDLE,animation:150,' +
                     // Positions are read off the DOM rather than taken from
                     // Sortable's own indices, which skip whatever `filter`
@@ -2172,6 +2214,10 @@ PageEditor.registerBlockType = function(name, config) {
                     'upBtn.style.display=(up&&up!==hot)?"":"none";' +
                     'if(up&&up!==hot)upBtn.title="Select the "+nameOf(up).toLowerCase()+" holding this";' +
                     'bar.querySelector(".vela-name").textContent=nameOf(hot);' +
+                    // The same button, two jobs, and the tooltip is the only
+                    // thing that says which one you are about to get.
+                    'bar.querySelector(".vela-picture").title=hot.hasAttribute("data-vela-pick-image")' +
+                        '?"Change this picture":"Put a picture in this";' +
                     'place();}' +
 
                 // A drag leaves the grip almost immediately and travels over
@@ -2291,9 +2337,15 @@ PageEditor.registerBlockType = function(name, config) {
                     'menu.style.left=(Math.max(2,r.left)-o.left)+"px";' +
                     'menu.style.top=(r.bottom+4-o.top)+"px";' +
                 '}' +
+                // On a picture the button means the one thing it can mean:
+                // change this picture. Asking a photograph whereabouts in
+                // itself a picture should go is not a question.
                 'bar.querySelector(".vela-picture").addEventListener("click",function(e){' +
                     'e.preventDefault();e.stopPropagation();' +
                     'if(menu.style.display!=="none"){hideMenu();return;}' +
+                    'var img=hot&&hot.hasAttribute("data-vela-pick-image")?hot:null;' +
+                    'if(img){window.parent.postMessage({velaImage:{' +
+                        'field:img.getAttribute("data-vela-field")}},"*");return;}' +
                     'askWhere();' +
                 '});' +
                 // Anywhere else puts it away — but not a press on the menu
