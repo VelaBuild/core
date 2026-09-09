@@ -2268,6 +2268,29 @@ PageEditor.registerBlockType = function(name, config) {
                     'if(up&&up!==pinned)focusPart(up,true);else focusPart(null,true);' +
                 '},true);' +
 
+                // Backspace and Delete take the part out — the same thing the
+                // bar\'s × does, reached the way anybody would try first.
+                //
+                // On what the bar is ON, so the answer is whatever is outlined
+                // in front of you: a part held by a click if there is one,
+                // otherwise the part under the pointer.
+                //
+                // Never while wording is being typed. In a contenteditable
+                // both keys mean a letter, and a heading being shortened
+                // one character at a time would otherwise vanish on the first
+                // press. Backspace also walks the browser back a page when
+                // nothing takes it, which loses the whole editor.
+                'document.addEventListener("keydown",function(e){' +
+                    'if(e.key!=="Backspace"&&e.key!=="Delete")return;' +
+                    'var a=document.activeElement;' +
+                    'if(a&&(a.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)))return;' +
+                    'var going=pinned||hot;' +
+                    'if(!going)return;' +
+                    'var path=pathOf(going);if(path===null)return;' +
+                    'e.preventDefault();' +
+                    'window.parent.postMessage({velaPick:path},"*");' +
+                '},true);' +
+
                 'window.addEventListener("scroll",place,true);' +
                 'window.addEventListener("resize",place);' +
 
@@ -3473,8 +3496,8 @@ PageEditor.registerBlockType = function(name, config) {
         return '<div class="mt-2 mb-2">' +
             '<div class="text-muted" style="font-size:.75rem;">' +
                 'Click any wording in the preview to rewrite it, or a picture to swap it. ' +
-                'Point at a part to drag it into a new place or leave it out — nothing is deleted, ' +
-                'and whatever you take out is listed here.' +
+                'Point at a part to drag it into a new place, or press Backspace to leave it out — ' +
+                'nothing is deleted, and whatever you take out is listed here.' +
             '</div>' +
             (_htmlMoveUnavailable ? '<div class="alert alert-warning py-1 mt-2 mb-0" style="font-size:.75rem;">' +
                 '<i class="fas fa-exclamation-triangle mr-1"></i> Dragging needs the SortableJS file, which the preview ' +
@@ -4100,7 +4123,14 @@ PageEditor.registerBlockType = function(name, config) {
 
                 if (typeof data.velaPick === 'string') {
                     var id = markPartAtPath(_htmlDoc, data.velaPick);
-                    if (id) toggleHiddenPart(id);
+                    if (id) {
+                        // Nothing is left holding a part that is no longer
+                        // shown: the redraw hands the choice back, and handed
+                        // back onto something now display:none it put the bar
+                        // on a box of no size, in the corner of the section.
+                        if (_htmlHidden.indexOf(id) === -1) _htmlSelected = null;
+                        toggleHiddenPart(id);
+                    }
                     return;
                 }
 

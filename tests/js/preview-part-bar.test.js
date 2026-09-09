@@ -300,5 +300,41 @@ while (emptied.firstElementChild) emptied.removeChild(emptied.firstElementChild)
 check('a box holding nothing takes anything', takes('row2', 'b'), true);
 check('a card still refuses a picture', takes('a', 'pic'), false);
 
+// --- Backspace and Delete take a part out ---------------------------------
+//
+// The bar's × has always done this; the keys are how anybody would try it
+// first. Same message, so there is one action and two ways to reach it.
+r = runPreview(null, true);
+const press = (key, opts) => {
+  const event = new r.win.KeyboardEvent('keydown', Object.assign({ key, bubbles: true, cancelable: true }, opts || {}));
+  (opts && opts.on ? opts.on : r.win.document).dispatchEvent(event);
+  return event;
+};
+posted = [];
+r.win.parent.postMessage = message => posted.push(message);
+
+r.win.document.getElementById('b').dispatchEvent(new r.win.MouseEvent('click', { bubbles: true, cancelable: true }));
+posted = [];
+let pressed = press('Backspace');
+check('backspace takes out the part that is held',
+  JSON.stringify(posted.filter(m => 'velaPick' in m).map(m => m.velaPick)), JSON.stringify(['0/1']));
+check('and the browser does not go back a page instead', pressed.defaultPrevented, true);
+
+posted = [];
+press('Delete');
+check('delete does the same', JSON.stringify(posted.filter(m => 'velaPick' in m).map(m => m.velaPick)), JSON.stringify(['0/1']));
+
+// Wording being typed owns both keys — a heading shortened one character at a
+// time would otherwise disappear on the first press.
+const heading = r.win.document.querySelector('#c h3');
+// jsdom does not implement contentEditable, so the property the guard reads is
+// set here rather than inferred from the attribute.
+Object.defineProperty(heading, 'isContentEditable', { value: true, configurable: true });
+Object.defineProperty(r.win.document, 'activeElement', { get: () => heading, configurable: true });
+posted = [];
+pressed = press('Backspace');
+check('but not while wording is being typed', posted.filter(m => 'velaPick' in m).length, 0);
+check('and the keystroke is left alone there', pressed.defaultPrevented, false);
+
 console.log(failures ? '\n' + failures + ' failed' : '\nall passed');
 process.exit(failures ? 1 : 0);
