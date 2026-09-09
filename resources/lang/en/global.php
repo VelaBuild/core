@@ -576,6 +576,7 @@ return [
     'homepage_template_not_found'    => 'Homepage template not found for this theme.',
     'homepage_template_invalid'      => 'Homepage template file is invalid.',
     'homepage_installed_replaced'    => 'Homepage installed successfully. Your homepage has been updated.',
+    'homepage_installed_replaced_kept' => 'Homepage installed successfully. The homepage you had is still there, unlisted, at "/:slug".',
     'homepage_installed_new'         => 'Homepage installed as a new draft page. Edit it in the Pages section.',
 
     // Settings

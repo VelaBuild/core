@@ -598,10 +598,22 @@ class ConfigController extends Controller
 
         $velaHomeCss = app(\VelaBuild\Core\Services\ThemeHomeTemplate::class)->stylesheetFor($template);
 
-        DB::transaction(function () use ($mode, $rowsData, $velaHomeCss) {
+        $kept = null;
+
+        DB::transaction(function () use ($mode, $rowsData, $velaHomeCss, &$kept) {
             if ($mode === 'replace') {
                 $page = Page::where('slug', 'home')->first();
                 if ($page) {
+                    // What is standing there is kept before it goes. This
+                    // deleted the homepage outright and had no undo of any
+                    // kind: a site built from a design, kept as the homepage,
+                    // was gone the moment somebody pressed a theme's "install
+                    // as homepage" to see what it looked like — rows, blocks
+                    // and the stylesheet that painted them. Every other place
+                    // in Vela that displaces a homepage parks it unlisted
+                    // instead, and this is now no different.
+                    $kept = $this->parkACopyOf($page);
+
                     foreach ($page->rows as $row) {
                         $row->blocks()->delete();
                     }
@@ -699,10 +711,72 @@ class ConfigController extends Controller
         \Illuminate\Support\Facades\Artisan::call('cache:clear');
 
         $msg = $mode === 'replace'
-            ? __('vela::global.homepage_installed_replaced')
+            ? ($kept
+                ? __('vela::global.homepage_installed_replaced_kept', ['slug' => $kept->slug])
+                : __('vela::global.homepage_installed_replaced'))
             : __('vela::global.homepage_installed_new');
 
         return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * Put a copy of a page somewhere safe, unlisted, and answer with it.
+     *
+     * A copy rather than a rename, because the page being replaced here keeps
+     * its id: menus, links and anything else pointing at the homepage go on
+     * pointing at the homepage. The copy is what somebody goes back to.
+     *
+     * Everything is replicated rather than listed field by field — a column
+     * added to rows or blocks later would otherwise quietly stop being kept,
+     * which is exactly the kind of loss this method exists to prevent.
+     */
+    private function parkACopyOf(Page $page): ?Page
+    {
+        $page->loadMissing('rows.blocks');
+
+        // Nothing on it and nothing painting it: there is nothing to lose, and
+        // an empty page parked on every press is just litter in the page list.
+        if ($page->rows->isEmpty() && trim((string) $page->custom_css) === '') {
+            return null;
+        }
+
+        $copy = $page->replicate(['slug', 'status']);
+        $copy->slug = $this->slugToParkPageUnder($page->slug ?: 'home');
+        $copy->status = 'unlisted';
+        $copy->save();
+
+        foreach ($page->rows as $row) {
+            $newRow = $row->replicate(['page_id']);
+            $newRow->page_id = $copy->id;
+            $newRow->save();
+
+            foreach ($row->blocks as $block) {
+                $newBlock = $block->replicate(['page_row_id']);
+                $newBlock->page_row_id = $newRow->id;
+                $newBlock->save();
+            }
+        }
+
+        return $copy;
+    }
+
+    /**
+     * A slug to park a displaced page under, free of anybody else's.
+     *
+     * Down to the second, and then numbered: two presses inside one second
+     * would otherwise collide on (locale, slug) and roll back the whole
+     * install — in the one place where a person is most likely to press twice.
+     */
+    private function slugToParkPageUnder(string $slug): string
+    {
+        $base = $slug . '-' . now()->format('Y-m-d-His');
+        $parked = $base;
+
+        for ($n = 2; Page::withTrashed()->where('slug', $parked)->exists(); $n++) {
+            $parked = $base . '-' . $n;
+        }
+
+        return $parked;
     }
 
     private function writeSiteConfig(): void
