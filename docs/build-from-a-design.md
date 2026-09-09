@@ -147,6 +147,16 @@ design was not applied.
 listed as *the design*, and that your brief says what the site is. A build
 given two designs, or no explanation, has to guess.
 
+**It says some words may have been misread.** The wording comes off your
+picture, and a picture can be read wrong — a small logo especially. When a
+build finishes on a line listing words like `"Wluctn" (Hero)`, those are words
+on your page that are not spelled the way any language spells a word, which is
+what a misreading looks like. Look at your design: if that is really what it
+says — an unusual name is still a name — leave it. If it is not, correct it in
+**Pages → your page → Edit**, which takes seconds. Nothing is listed for a page
+written in Thai or another non-Latin script, and a name your brief mentions is
+never listed, however unusual it looks.
+
 **A section is in the wrong words.** Edit it. **Pages → your page → Edit** puts
 every piece of wording in the section in front of you as a form, and changing
 one takes ten seconds where rebuilding takes ten minutes.

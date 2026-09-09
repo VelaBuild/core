@@ -28,6 +28,16 @@ class DesignBuilderService
     private ?AiTextProvider $provider = null;
 
     /**
+     * Words this run wrote onto the page that do not look like words.
+     *
+     * @var array<string, string> the word, against the section it is in
+     */
+    private array $misread = [];
+
+    /** @var array<int, string>|null wording already known to be right */
+    private ?array $knownWording = null;
+
+    /**
      * Turns of tool calling a build or fix pass is allowed.
      *
      * Ten was not enough to both survey the site and build it — the survey
@@ -1233,6 +1243,8 @@ class DesignBuilderService
                     )
                 );
 
+                $result = $this->sayWhatLooksMisread($toolCall, $result, $context);
+
                 $context['created_resources'][] = [
                     'tool' => $toolCall['name'],
                     'result' => $result,
@@ -1627,6 +1639,8 @@ PROMPT;
                         $user
                     )
                 );
+
+                $result = $this->sayWhatLooksMisread($toolCall, $result, $context);
 
                 $context['created_resources'][] = [
                     'tool' => $toolCall['name'],
@@ -2072,6 +2086,134 @@ PROMPT;
         }
 
         return null;
+    }
+
+    /**
+     * Tools whose arguments carry wording that lands on the page.
+     *
+     * @var array<int, string>
+     */
+    private const TOOLS_THAT_WRITE_WORDING = [
+        'add_designed_section',
+        'add_block',
+        'update_block',
+        'create_page',
+        'update_page',
+        'edit_page_content',
+        'create_article',
+        'update_article',
+        'edit_article_content',
+        'set_menu',
+        'update_site_config',
+    ];
+
+    /**
+     * Note the words a call has just written that do not look like words.
+     *
+     * The wording comes off a photograph, and a photograph can be read wrong:
+     * runs have put "Wluctn znoe." on a page and reported success, because
+     * every check there is asks whether the page matches the design and none
+     * asks whether what was read is language. MisreadWords answers that from
+     * the letters alone, so it costs nothing and needs no model.
+     *
+     * Said, not refused. What it finds is a suspicion — an unfamiliar brand
+     * name is spelled however its owner spells it — and a model told its
+     * wording is wrong rewrites it. That failure has already happened here
+     * once, when the fix loop was sent text with no design attached and wrote
+     * fresh marketing copy over sentences that had been read correctly. So the
+     * call stands, and the answer carries the list back with the one
+     * instruction that can be followed safely: look again, and if that is what
+     * the design says, leave it.
+     *
+     * @param  array<string, mixed> $toolCall
+     * @param  array<string, mixed> $result
+     * @param  array<string, mixed> $context
+     * @return array<string, mixed>
+     */
+    public function sayWhatLooksMisread(array $toolCall, array $result, array $context): array
+    {
+        $tool = (string) ($toolCall['name'] ?? '');
+
+        if (!in_array($tool, self::TOOLS_THAT_WRITE_WORDING, true) || isset($result['error'])) {
+            return $result;
+        }
+
+        $arguments = $toolCall['arguments'] ?? [];
+
+        if (!is_array($arguments)) {
+            return $result;
+        }
+
+        $words = MisreadWords::in(
+            MisreadWords::inArguments($arguments),
+            $this->wordingKnownToBeRight($context)
+        );
+
+        if ($words === []) {
+            return $result;
+        }
+
+        $where = trim((string) ($arguments['name'] ?? $arguments['title'] ?? '')) ?: $tool;
+
+        foreach ($words as $word) {
+            $this->misread[mb_strtolower($word)] = $where;
+        }
+
+        $result['words_to_check'] = $words;
+        $result['words_to_check_note'] = 'These words are on the page now and are not spelled the way any language '
+            . 'spells a word, which is what a misreading of the design looks like. Look at the design again and read '
+            . 'them off it. If the design really says them — an unusual name is still a name — leave them exactly as '
+            . 'they are. Only correct a word you can see was read wrong, and change nothing else while you are there.';
+
+        return $result;
+    }
+
+    /**
+     * Every word this run has written that does not look like a word.
+     *
+     * @return array<string, string>
+     */
+    public function misreadWords(): array
+    {
+        return $this->misread;
+    }
+
+    /**
+     * Wording that is known to be right, so it is never reported as misread.
+     *
+     * The brief is the person's own writing, and the site already carries its
+     * own name: a build that reads "Zercurity" off a logo has read it right if
+     * that word is in the brief, however little it looks like English.
+     *
+     * @param  array<string, mixed> $context
+     * @return array<int, string>
+     */
+    private function wordingKnownToBeRight(array $context): array
+    {
+        if ($this->knownWording !== null) {
+            return $this->knownWording;
+        }
+
+        $known = [
+            $this->siteContext->getName(),
+            $this->siteContext->getSiteDescription(),
+            (string) ($context['target_page']['title'] ?? ''),
+        ];
+
+        foreach ($context['instructions'] ?? [] as $instruction) {
+            $known[] = (string) ($instruction['content'] ?? '');
+            $known[] = (string) ($instruction['file'] ?? '');
+        }
+
+        foreach ($context['assets'] ?? [] as $asset) {
+            $known[] = (string) ($asset['file'] ?? '');
+        }
+
+        foreach ($context['design_sections'] ?? [] as $section) {
+            $known[] = (string) ($section['label'] ?? '');
+        }
+
+        return $this->knownWording = array_values(array_filter($known));
     }
 
     /**

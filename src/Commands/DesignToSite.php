@@ -442,6 +442,25 @@ class DesignToSite extends Command
             $this->info("Design builder complete. {$loopsRun} QA loops executed.");
             $this->info("Screenshots and reports saved to: {$outputPath}");
 
+            // The wording came off a photograph, and a photograph can be read
+            // wrong. Nothing else in a build asks whether what was read is
+            // language: the QA rounds compare a picture of the page with the
+            // design, and a misread word is the same shape, in the same place,
+            // as the right one. Whoever is watching can see the design, so
+            // this is theirs to settle — and every one of these words is
+            // editable where it sits.
+            if ($misread = $this->builder->misreadWords()) {
+                $listed = [];
+                foreach ($misread as $word => $where) {
+                    $listed[] = '"' . $word . '" (' . $where . ')';
+                }
+
+                $this->warn('These words are on the page and are not spelled the way any language spells a word, '
+                    . 'which is what a misreading of your design looks like: ' . implode(', ', $listed)
+                    . '. Check them against your design — if that is what it says, they are right as they are; '
+                    . 'if not, they can be corrected in Edit Page.');
+            }
+
             if ($rolledBack) {
                 $this->status?->finish(false, 'A round of fixes left the site unable to render. The theme has been put back as it was, and the design was not applied.');
 
