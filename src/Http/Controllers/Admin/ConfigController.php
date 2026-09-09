@@ -555,7 +555,9 @@ class ConfigController extends Controller
             return redirect()->back()->with('error', __('vela::global.homepage_template_invalid'));
         }
 
-        DB::transaction(function () use ($mode, $rowsData) {
+        $velaHomeCss = app(\VelaBuild\Core\Services\ThemeHomeTemplate::class)->stylesheetFor($template);
+
+        DB::transaction(function () use ($mode, $rowsData, $velaHomeCss) {
             if ($mode === 'replace') {
                 $page = Page::where('slug', 'home')->first();
                 if ($page) {
@@ -572,7 +574,13 @@ class ConfigController extends Controller
                     $page->update([
                         'title' => 'Home',
                         'status' => 'published',
-                        'custom_css' => null,
+                        // A theme written by a design build styles its example
+                        // homepage from the page rather than from the theme,
+                        // so its stylesheet is kept beside the layout and put
+                        // back with it. A shipped theme has none, and clearing
+                        // is still the right answer there — see the note below
+                        // about the mockup frame that outlived its rows.
+                        'custom_css' => $velaHomeCss,
                         'custom_js' => null,
                     ]);
                 } else {
@@ -582,6 +590,7 @@ class ConfigController extends Controller
                         'locale'       => config('vela.primary_language', 'en'),
                         'status'       => 'published',
                         'order_column' => 0,
+                        'custom_css'   => $velaHomeCss,
                     ]);
                 }
             } else {
@@ -596,6 +605,7 @@ class ConfigController extends Controller
                     'locale'       => config('vela.primary_language', 'en'),
                     'status'       => 'draft',
                     'order_column' => 0,
+                    'custom_css'   => $velaHomeCss,
                 ]);
             }
 

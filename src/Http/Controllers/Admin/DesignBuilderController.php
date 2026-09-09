@@ -164,6 +164,15 @@ class DesignBuilderController extends Controller
             // Only a homepage build stages either; a page build was never
             // given the tools.
             app(\VelaBuild\Core\Services\DesignPreviewFrame::class)->promote();
+
+            // And the theme keeps this page as its own example homepage, the
+            // way every shipped theme carries one. Without it a generated
+            // theme had no "install this theme's homepage" anywhere — not in
+            // Settings → Appearance, not in the panel that offers it after a
+            // switch — and no card image either, since the screenshot command
+            // builds its capture from that same file.
+            app(\VelaBuild\Core\Services\ThemeHomeTemplate::class)
+                ->writeFrom($preview, (string) config('vela.template.active'));
         });
 
         return back()->with('message', $isHomepage
