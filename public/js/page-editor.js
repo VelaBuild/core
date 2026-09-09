@@ -1692,6 +1692,12 @@ PageEditor.registerBlockType = function(name, config) {
             '[data-vela-pinned]{outline:2px solid #0d6efd !important;outline-offset:-2px;' +
                 'background:rgba(13,110,253,.04)}' +
             '.vela-drag-ghost{opacity:.35}' +
+            // Where the drop will land. Reordering among siblings needed no
+            // such thing — the answer was "where it already is" — but once a
+            // card can leave its row, nothing else on the page says which box
+            // is about to take it.
+            '[data-vela-drop]{outline:2px dashed #198754 !important;outline-offset:-2px;' +
+                'background:rgba(25,135,84,.06)}' +
             // The bar is fixed, so it sits over the section without taking part
             // in its layout — a card that suddenly grew a toolbar in the flow
             // would reflow the very thing being pointed at.
@@ -1976,7 +1982,7 @@ PageEditor.registerBlockType = function(name, config) {
                 // crossing other parts. Clicking one holds it: the bar stays on
                 // it, and the choice outlives the redraw a drag causes, so the
                 // same part can be moved twice without hunting for it again.
-                'var hot=null,list=null,sortable=null,dragging=false,pinned=null;' +
+                'var hot=null,list=null,dragging=false,pinned=null;' +
 
                 // Elements whose children are never rendered. The bar lives
                 // INSIDE the part it belongs to, because Sortable only accepts
@@ -2009,18 +2015,36 @@ PageEditor.registerBlockType = function(name, config) {
                     'bar.style.left=(Math.max(2,r.left)-o.left)+"px";' +
                     'bar.style.top=(Math.max(2,r.top-24)-o.top)+"px";}' +
 
-                // One list is live at a time — whichever the pointer is in.
-                // Binding every run of siblings at once puts a drop target
-                // inside another, and dragging a heading moved the card around
-                // it instead.
-                'function bind(next){' +
-                    'if(next===list)return;' +
-                    'if(sortable){sortable.destroy();sortable=null;}' +
-                    'if(list)list.removeAttribute("data-vela-sortable");' +
-                    'list=next;' +
-                    'if(!list)return;' +
-                    'list.setAttribute("data-vela-sortable","");' +
-                    'var from=null;' +
+                // Every box that holds parts can RECEIVE, and only the one the
+                // pointer is in can START a drag.
+                //
+                // Both halves matter. A card could only ever be moved among
+                // its own siblings, because one list was bound at a time and
+                // that list was the only Sortable in the document — there was
+                // nowhere else for a drop to land. Binding them all as equals
+                // was tried and is worse: every instance sees the grip
+                // pressed inside its own item, so pressing the grip on a
+                // heading dragged the card around it instead.
+                //
+                // So they are not equals. All of them are created able to
+                // accept, with `handle` set to something no element carries;
+                // the list under the pointer has its handle switched on. One
+                // list can begin a drag, all of them can end one.
+                'var NO_HANDLE=".vela-not-a-handle";' +
+                'var HANDLE=".vela-grip,[data-vela-drag-self]";' +
+                // A box, never a heading: dropping a card "into" an <h2> is
+                // not something anybody means, and the same tags that decide
+                // what counts as a part decide what counts as a place.
+                'function receivers(){var out=[];' +
+                    'if(parts(root).length)out.push(root);' +
+                    'Array.prototype.forEach.call(root.querySelectorAll("*"),function(el){' +
+                        'if(BOX.test(el.tagName)&&parts(el).length&&!el.hasAttribute("data-vela-ui"))out.push(el);});' +
+                    'return out;}' +
+                'var from=null,fromPath=null,paths=null;' +
+                'function makeReceiver(el){' +
+                    'if(el.__velaSortable)return el.__velaSortable;' +
+                    'el.__velaSortable=Sortable.create(el,{group:{name:"vela-parts",pull:true,put:true},' +
+                        'handle:NO_HANDLE,animation:150,' +
                     // Positions are read off the DOM rather than taken from
                     // Sortable's own indices, which skip whatever `filter`
                     // excludes and would then not line up with the document.
@@ -2036,16 +2060,51 @@ PageEditor.registerBlockType = function(name, config) {
                     // pointer handling follows the grip to the part it belongs
                     // to. It also gives the same behaviour everywhere rather
                     // than each browser's native drag.
-                    'sortable=Sortable.create(list,{handle:".vela-grip,[data-vela-drag-self]",animation:150,' +
                         'forceFallback:true,fallbackTolerance:3,' +
                         'ghostClass:"vela-drag-ghost",filter:"style,script",' +
+                        // Paths are read while the document is still as the
+                        // editor has it. The one place a drop lands cannot be
+                        // read afterwards is the destination's OWN path: move
+                        // a card into a row that sits after it and that row
+                        // has just shifted up one, so the path measured after
+                        // the drop names something else. Measured before, and
+                        // looked up by element.
                         'onStart:function(e){bar.style.display="none";' +
-                            'from=Array.prototype.indexOf.call(e.from.children,e.item);},' +
+                            'from=Array.prototype.indexOf.call(e.from.children,e.item);' +
+                            'fromPath=pathOf(e.from);' +
+                            'paths=receivers().map(function(el){return [el,pathOf(el)];});},' +
+                        // Which box is about to take it. Nothing else on the
+                        // page says where a drop will land once it can land
+                        // somewhere other than where it started.
+                        'onMove:function(e){' +
+                            'Array.prototype.forEach.call(root.querySelectorAll("[data-vela-drop]"),function(el){' +
+                                'el.removeAttribute("data-vela-drop");});' +
+                            'if(e.to&&e.to!==e.from)e.to.setAttribute("data-vela-drop","");' +
+                            'return true;},' +
                         'onEnd:function(e){' +
+                            'Array.prototype.forEach.call(root.querySelectorAll("[data-vela-drop]"),function(el){' +
+                                'el.removeAttribute("data-vela-drop");});' +
                             'var to=Array.prototype.indexOf.call(e.to.children,e.item);' +
-                            'if(from===null||to<0||to===from)return;' +
-                            'var path=pathOf(e.to);if(path===null)return;' +
-                            'window.parent.postMessage({velaMove:{container:path,from:from,to:to}},"*");}});}' +
+                            'if(from===null||to<0||(e.to===e.from&&to===from))return;' +
+                            'var found=(paths||[]).filter(function(p){return p[0]===e.to;})[0];' +
+                            'var toPath=found?found[1]:pathOf(e.to);' +
+                            'if(fromPath===null||toPath===null)return;' +
+                            'window.parent.postMessage({velaMove:{' +
+                                'from:{container:fromPath,index:from},' +
+                                'to:{container:toPath,index:to}}},"*");}});' +
+                    'return el.__velaSortable;}' +
+
+                // Every box is made able to receive once; the one the pointer
+                // is in is the only one that can begin a drag.
+                'function bind(next){' +
+                    'if(next===list)return;' +
+                    'if(list&&list.__velaSortable)list.__velaSortable.option("handle",NO_HANDLE);' +
+                    'if(list)list.removeAttribute("data-vela-sortable");' +
+                    'list=next;' +
+                    'if(!list)return;' +
+                    'list.setAttribute("data-vela-sortable","");' +
+                    'makeReceiver(list).option("handle",HANDLE);}' +
+                'receivers().forEach(makeReceiver);' +
 
                 'function enclosing(){' +
                     'return (hot&&hot.parentElement)?partAt(hot.parentElement):null;}' +
@@ -3556,25 +3615,49 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     /**
-     * Move one child of a container to another position in it.
+     * Move one part to another place — in its own box, or into another one.
      *
      * The ids the form, the design CSS and the hidden list are keyed by sit on
      * the elements themselves, so a moved element takes its wording, its
      * picture and its styling along and none of those lists need renumbering.
+     * That is also why an arrangement needs no store of its own: the markup IS
+     * the arrangement, and this moves a node in it.
+     *
+     * Both paths are the ones the preview measured BEFORE it moved anything,
+     * so they are resolved against this document before it moves anything
+     * either.
+     *
+     * @return the moved element, or null
      */
-    function moveImportedPart(containerPath, from, to) {
-        var container = nodeAtPath(_htmlDoc, containerPath);
-        if (!container) return false;
+    function moveImportedPart(fromPath, from, toPath, to) {
+        var source = nodeAtPath(_htmlDoc, fromPath);
+        var target = nodeAtPath(_htmlDoc, toPath);
+        if (!source || !target) return null;
 
-        var kids = container.children;
-        if (from === to || from < 0 || to < 0 || from >= kids.length || to >= kids.length) return false;
+        var moved = source.children[from];
+        if (!moved || from < 0 || to < 0) return null;
 
-        // Taking the element out shifts everything after it up by one, so a
-        // move to the right lands one place short without this.
-        var moved = kids[from];
-        container.insertBefore(moved, kids[to > from ? to + 1 : to] || null);
+        // A box cannot be dropped inside itself, and Sortable's own guard
+        // against it only covers what it can see.
+        if (moved === target || moved.contains(target)) return null;
 
-        return true;
+        if (source === target) {
+            if (from === to || to >= source.children.length) return null;
+
+            // Taking the element out shifts everything after it up by one, so
+            // a move to the right lands one place short without this.
+            var kids = source.children;
+            source.insertBefore(moved, kids[to > from ? to + 1 : to] || null);
+
+            return moved;
+        }
+
+        // Into a different box the index is read straight: the element now at
+        // that position is the one the moved part goes in front of, and taking
+        // it out of the box it came from shifts nothing here.
+        target.insertBefore(moved, target.children[to] || null);
+
+        return moved;
     }
 
     function collectDesign() {
@@ -4028,13 +4111,20 @@ PageEditor.registerBlockType = function(name, config) {
                     return;
                 }
 
-                if (data.velaMove) {
-                    if (moveImportedPart(data.velaMove.container, data.velaMove.from, data.velaMove.to)) {
+                if (data.velaMove && data.velaMove.from && data.velaMove.to) {
+                    var moved = moveImportedPart(
+                        String(data.velaMove.from.container || ''), data.velaMove.from.index,
+                        String(data.velaMove.to.container || ''), data.velaMove.to.index
+                    );
+
+                    if (moved) {
                         // Follow the part to where it landed, so the redraw
                         // hands the choice back on the moved element rather
                         // than on whatever now sits at the old position.
-                        var container = String(data.velaMove.container || '');
-                        _htmlSelected = (container ? container + '/' : '') + data.velaMove.to;
+                        // Read off the element itself: moving a card into a
+                        // box that sat after it moves that box too, and the
+                        // path the drop was described by no longer names it.
+                        _htmlSelected = importedPathOf(moved);
                         // Shown on the moved card, not held there: the pointer
                         // is in the section and the next card is what it is
                         // reaching for.

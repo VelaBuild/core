@@ -75,7 +75,16 @@ function runPreview(picked, hold) {
   );
 
   const win = dom.window;
-  win.Sortable = { create: () => ({ destroy() {} }) };
+  // Enough of SortableJS for the script to wire itself up: what is under test
+  // is which box is given a live handle and what a finished drag reports.
+  const made = [];
+  win.Sortable = {
+    create(el, opts) {
+      const instance = { el, opts, option(k, v) { opts[k] = v; }, destroy() {} };
+      made.push(instance);
+      return instance;
+    },
+  };
   // The preview talks to the editor through the frame's parent.
   win.parent = { postMessage() {} };
 
@@ -89,6 +98,7 @@ function runPreview(picked, hold) {
     threw,
     win,
     bar,
+    made,
     barShown: !!bar && bar.style.display !== 'none',
     on: bar && bar.parentElement ? bar.parentElement.id : null,
     pinned: (win.document.querySelector('[data-vela-pinned]') || {}).id || null,
@@ -124,6 +134,103 @@ r = runPreview('0/1', false);
 const other = r.win.document.getElementById('c');
 other.dispatchEvent(new r.win.MouseEvent('mouseover', { bubbles: true }));
 check('the bar follows the pointer to another card', r.bar.parentElement.id, 'c');
+
+// --- a card can be dragged out of its own box, not only within it ---------
+//
+// One list was bound at a time and it was the only Sortable in the document,
+// so there was nowhere else for a drop to land: a card could be reordered
+// among its siblings and could not leave the row. Every box now accepts;
+// only the box the pointer is in can begin a drag.
+r = runPreview(null, true);
+const doc = r.win.document;
+const row = doc.querySelector('.row');
+const outer = doc.querySelector('[data-vela-block]');
+
+check('every box that holds parts can receive a drop',
+  r.made.filter(m => m.el === row).length + ',' + r.made.filter(m => m.el === outer).length, '1,1');
+check('they share one group, so a part can travel between them',
+  r.made.every(m => m.opts.group && m.opts.group.name === 'vela-parts'), true);
+check('and none of them can start a drag until it is pointed at',
+  r.made.every(m => m.opts.handle === '.vela-not-a-handle'), true);
+
+doc.getElementById('b').dispatchEvent(new r.win.MouseEvent('mouseover', { bubbles: true }));
+const rowSortable = r.made.find(m => m.el === row);
+const outerSortable = r.made.find(m => m.el === outer);
+check('the box under the pointer gets the live handle',
+  rowSortable.opts.handle, '.vela-grip,[data-vela-drag-self]');
+check('and the others stay receive-only', outerSortable.opts.handle, '.vela-not-a-handle');
+
+// A finished drag, reported: card #1 of the row dropped into the box around
+// it, at the end. Both ends of the move have to be named, or the editor has
+// no way to know it left the row it started in.
+let sent = null;
+r.win.parent.postMessage = message => { sent = message; };
+rowSortable.opts.onStart({ from: row, item: doc.getElementById('b') });
+outer.appendChild(doc.getElementById('b'));
+rowSortable.opts.onEnd({ from: row, to: outer, item: doc.getElementById('b') });
+check('a drop into another box names both ends',
+  JSON.stringify(sent && sent.velaMove),
+  JSON.stringify({ from: { container: '0', index: 1 }, to: { container: '', index: 1 } }));
+
+// And the ordinary case still reports as it did.
+r = runPreview(null, true);
+const doc2 = r.win.document, row2 = doc2.querySelector('.row');
+doc2.getElementById('a').dispatchEvent(new r.win.MouseEvent('mouseover', { bubbles: true }));
+const rs2 = r.made.find(m => m.el === row2);
+let sent2 = null;
+r.win.parent.postMessage = message => { sent2 = message; };
+rs2.opts.onStart({ from: row2, item: doc2.getElementById('a') });
+row2.appendChild(doc2.getElementById('a'));
+rs2.opts.onEnd({ from: row2, to: row2, item: doc2.getElementById('a') });
+check('a reorder inside one box still reports one box',
+  JSON.stringify(sent2 && sent2.velaMove),
+  JSON.stringify({ from: { container: '0', index: 0 }, to: { container: '0', index: 2 } }));
+
+// --- and the other half of the same gesture: applying the move ------------
+//
+// The editor holds the section as a document of its own and the preview only
+// describes what happened to it. Both ends arrive as paths measured before
+// anything moved, so both are resolved before anything moves here either.
+function extract(name) {
+  const start = src.indexOf('function ' + name + '(');
+  if (start < 0) throw new Error('not found: ' + name);
+  let i = src.indexOf('{', start), depth = 0;
+  for (let j = i; j < src.length; j++) {
+    if (src[j] === '{') depth++;
+    else if (src[j] === '}') { depth--; if (depth === 0) return src.slice(start, j + 1); }
+  }
+  throw new Error('unbalanced: ' + name);
+}
+eval(extract('nodeAtPath') + '\n' + extract('moveImportedPart'));
+
+function section() {
+  return new JSDOM(
+    '<body><div data-vela-block="b1">' +
+    '<div class="row" id="top"><div id="a">A</div><div id="b">B</div></div>' +
+    '<div class="row" id="bottom"><div id="c">C</div></div>' +
+    '</div></body>'
+  ).window.document;
+}
+const ids = el => Array.prototype.map.call(el.children, c => c.id).join(',');
+
+let _htmlDoc = section();
+let out = moveImportedPart('0', 0, '0', 1);
+check('a part moves to the right inside its own box', ids(_htmlDoc.getElementById('top')), 'b,a');
+check('and the moved element comes back', out && out.id, 'a');
+
+_htmlDoc = section();
+moveImportedPart('0', 1, '0', 0);
+check('and to the left', ids(_htmlDoc.getElementById('top')), 'b,a');
+
+_htmlDoc = section();
+out = moveImportedPart('0', 1, '1', 0);
+check('a part can leave its box for another one', ids(_htmlDoc.getElementById('top')), 'a');
+check('landing where the drop said', ids(_htmlDoc.getElementById('bottom')), 'b,c');
+check('with its id, and everything keyed by it, along for the ride', out && out.id, 'b');
+
+_htmlDoc = section();
+check('a box cannot be dropped inside itself', moveImportedPart('', 0, '0', 0), 'null');
+check('and nothing moved', ids(_htmlDoc.querySelector('[data-vela-block]')), 'top,bottom');
 
 console.log(failures ? '\n' + failures + ' failed' : '\nall passed');
 process.exit(failures ? 1 : 0);
