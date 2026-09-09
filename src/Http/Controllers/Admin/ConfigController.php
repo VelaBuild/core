@@ -526,6 +526,47 @@ class ConfigController extends Controller
         return back()->with('success', 'That theme has been deleted. A copy is kept in storage in case it was a mistake.');
     }
 
+    /**
+     * Keep the homepage as this theme's own example of one.
+     *
+     * A theme written by a design build gets this written for it when the
+     * design is kept — but only from then on, and the themes already on a site
+     * had none, so switching to one still offered nothing to install. This is
+     * the way to give a theme one at any time, from the homepage as it stands.
+     *
+     * The active theme only: the example is of what this theme looks like, and
+     * the homepage is currently wearing it.
+     */
+    public function saveHomeTemplate(Request $request)
+    {
+        abort_if(Gate::denies('config_edit'), 403);
+
+        $request->validate(['template' => 'required|string']);
+
+        $template = (string) $request->input('template');
+        $active = (string) config('vela.template.active');
+
+        if ($template !== $active) {
+            return redirect()->back()->with('error', __('vela::global.home_template_saved_active_only'));
+        }
+
+        $home = Page::where('slug', 'home')->first();
+        $templates = app(\VelaBuild\Core\Vela::class)->templates()->all();
+        $label = __($templates[$template]['label'] ?? $template);
+
+        if (! $home) {
+            return redirect()->back()->with('error', __('vela::global.home_template_saved_no_home'));
+        }
+
+        $saved = app(\VelaBuild\Core\Services\ThemeHomeTemplate::class)->writeFrom($home, $template);
+
+        if (! $saved) {
+            return redirect()->back()->with('error', __('vela::global.home_template_saved_failed', ['theme' => $label]));
+        }
+
+        return redirect()->back()->with('success', __('vela::global.home_template_saved', ['theme' => $label]));
+    }
+
     public function installHomepage(Request $request)
     {
         abort_if(Gate::denies('config_edit'), 403);

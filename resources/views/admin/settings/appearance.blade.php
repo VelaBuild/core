@@ -59,6 +59,31 @@
         @endcan
         @endif
 
+        {{-- And the other side of that: a theme with no example homepage at
+             all. Every theme that ships with Vela carries one; a theme written
+             by a design build gets one when a design is kept on it, and the
+             ones already on a site have none — so switching to one offered
+             nothing to install and its card had no picture. Offered only for
+             the theme in use, because the example is of what this theme looks
+             like and the homepage is currently wearing it. --}}
+        @php $velaOwnActive = is_dir(resource_path('views/templates/' . $activeTemplate)); @endphp
+        @if(!$hasHomeTemplate && $velaOwnActive)
+        @can('config_edit')
+        <div class="alert alert-light border d-flex align-items-center justify-content-between flex-wrap">
+            <div class="mr-3">
+                {{ trans('vela::global.home_template_none_yet') }}
+            </div>
+            <form action="{{ route('vela.admin.settings.appearance.saveHomeTemplate') }}" method="POST" class="d-inline">
+                @csrf
+                <input type="hidden" name="template" value="{{ $activeTemplate }}">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-camera"></i> {{ trans('vela::global.save_as_home_template') }}
+                </button>
+            </form>
+        </div>
+        @endcan
+        @endif
+
         <!-- Theme Picker -->
         <h5 class="mb-3">{{ trans('vela::global.theme') }}</h5>
         <form action="{{ route('vela.admin.settings.updateGroup', 'appearance') }}" method="POST" id="theme-form">

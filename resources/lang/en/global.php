@@ -560,6 +560,17 @@ return [
     'install_homepage_desc'          => 'Install a template homepage into the page builder. This creates page builder rows and blocks from the template\'s homepage design.',
     'home_template_available'            => 'This theme comes with an example homepage — a hero, a list of articles, the sections it was designed around. Installing it replaces the rows and blocks your homepage has now.',
     'install_as_homepage'            => 'Install as Homepage',
+
+    // Giving a theme an example homepage of its own. A theme written by a
+    // design build has none until a design is kept on it, and the ones already
+    // on a site never got one at all — so switching to one offered nothing to
+    // install, which is how this was found.
+    'home_template_none_yet'         => 'This theme has no example homepage yet, so there is nothing to install and its card has no picture. Keep the homepage as it stands now as this theme\'s own example.',
+    'save_as_home_template'          => 'Save the homepage as this theme\'s example',
+    'home_template_saved'            => 'The homepage is now :theme\'s own example. It can be installed again from here, and used as the theme\'s picture.',
+    'home_template_saved_failed'     => 'Nothing was saved for :theme. Either the homepage has no rows on it yet, or the theme is one that ships with Vela — those live inside the package, where the next update would take it away again.',
+    'home_template_saved_no_home'    => 'There is no homepage to save yet.',
+    'home_template_saved_active_only' => 'A theme can only keep an example of the homepage while that theme is the one in use.',
     'install_as_new_page'            => 'Install as New Page',
     'install_homepage_confirm_replace' => 'This will replace your current homepage content. Continue?',
     'homepage_template_not_found'    => 'Homepage template not found for this theme.',

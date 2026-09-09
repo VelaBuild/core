@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Tests\Feature;
 
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Models\PageRow;
 use VelaBuild\Core\Services\ThemeHomeTemplate;
@@ -125,6 +126,54 @@ class ThemeHomeTemplateTest extends PackageTestCase
         $this->assertNull($service->pathFor('../../../etc'));
         $this->assertNull($service->pathFor(''));
         $this->assertFalse($service->writeFrom($this->pageWithASection(), 'corporate'));
+    }
+
+    /**
+     * And a theme already on the site can be given one at any time.
+     *
+     * Writing it when a design is kept only helps from then on: the themes
+     * already on a site had none, so switching to one still offered nothing to
+     * install — which is how this was reported the second time.
+     */
+    public function test_the_homepage_can_be_kept_as_the_active_theme_s_example(): void
+    {
+        $dir = $this->theme();
+        config(['vela.template.active' => 'lantern']);
+
+        $home = $this->pageWithASection('home');
+
+        $this->signIn();
+        Gate::define('config_access', fn () => true);
+        Gate::define('config_edit', fn () => true);
+
+        $this->post(route('vela.admin.settings.appearance.saveHomeTemplate'), ['template' => 'lantern'])
+            ->assertSessionHas('success');
+
+        $this->assertTrue(app(ThemeHomeTemplate::class)->has('lantern'));
+        $this->assertStringContainsString(
+            'Be prepared',
+            (string) file_get_contents($dir . '/home-template.json')
+        );
+        $this->assertNotNull(app(ThemeHomeTemplate::class)->stylesheetFor('lantern'), 'and its stylesheet with it');
+        $this->assertSame($home->id, Page::where('slug', 'home')->first()->id);
+    }
+
+    /** Only the theme in use: the homepage is wearing that one and no other. */
+    public function test_a_theme_that_is_not_in_use_cannot_keep_the_homepage(): void
+    {
+        $this->theme();
+        $this->theme('other');
+        config(['vela.template.active' => 'lantern']);
+        $this->pageWithASection('home');
+
+        $this->signIn();
+        Gate::define('config_access', fn () => true);
+        Gate::define('config_edit', fn () => true);
+
+        $this->post(route('vela.admin.settings.appearance.saveHomeTemplate'), ['template' => 'other'])
+            ->assertSessionHas('error');
+
+        $this->assertFalse(app(ThemeHomeTemplate::class)->has('other'));
     }
 
     /** An empty page is not an example of anything. */
