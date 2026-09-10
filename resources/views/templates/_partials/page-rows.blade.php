@@ -3,11 +3,20 @@
 // as "has anything to show". Both are asked here, once, because the answer is
 // needed again at the foot of this file.
 $__rowsWithSomethingIn = $page->rows->filter(fn ($r) => $r->blocks->count() > 0);
+
+// Aliased here rather than imported: Blade compiles each @php block inline
+// where it stands, and a `use` statement inside a loop body is a parse error.
+$__tokens = \VelaBuild\Core\Services\DesignTokens::class;
 @endphp
 @foreach($__rowsWithSomethingIn as $row)
 @php
 $rowStyle = '';
-if ($row->background_color) $rowStyle .= 'background-color:' . e($row->background_color) . ';';
+// A colour here may be a literal the author picked, or a name from the
+// theme's palette — `token:surface` — which resolves to the custom property
+// behind it, so the row follows the site when the site is re-skinned.
+// DesignTokens also drops anything that is not a colour at all: these values
+// land in a `style` attribute, and `text_alignment` used to go in unchecked.
+if ($c = $__tokens::colour($row->background_color)) $rowStyle .= 'background-color:' . e($c) . ';';
 // A CSS background never passed through the optimiser, so a full-bleed row
 // image was served at whatever size it was uploaded, in its original format,
 // to phones and desktops alike — while every <img> on the same page got WebP
@@ -16,16 +25,8 @@ if ($row->background_image) $rowStyle .= 'background-image:url(' . e(vela_backgr
 // Also published as a custom property: a block whose container sets its own
 // colour (.block-hero paints white over its overlay) beats a plain inherited
 // `color`, so those blocks read this variable to know the author overrode it.
-if ($row->text_color)       $rowStyle .= 'color:' . e($row->text_color) . ';--vela-text-color:' . e($row->text_color) . ';';
-if ($row->text_alignment)   $rowStyle .= 'text-align:' . e($row->text_alignment) . ';';
-// A single length is vertical space only. Written as the shorthand it would
-// also set the sides, and an inline rule beats the stylesheet — so asking a
-// full-width row for 40px of breathing room would hand its gutters back and
-// pull the section in from the edges it was meant to reach.
-// `!== ''`, not truthiness: "0" is a perfectly good answer to "how much
-// space", and PHP reads that string as false — so choosing None in the row
-// style left the template's 20px exactly where it was.
-$rowPadding = trim((string) ($row->padding ?? ''));
+if ($c = $__tokens::colour($row->text_color)) $rowStyle .= 'color:' . e($c) . ';--vela-text-color:' . e($c) . ';';
+if ($a = $__tokens::alignment($row->text_alignment)) $rowStyle .= 'text-align:' . $a . ';';
 // A copied section brings its own spacing. The template's 20px above and
 // below is not breathing room around it, it is a band of page background
 // between one section and the next.
@@ -35,13 +36,19 @@ $rowPadding = trim((string) ($row->padding ?? ''));
 $rowImported = $row->blocks->contains(
     fn ($b) => $b->type === 'html' && str_contains((string) ($b->content['html'] ?? ''), 'vela-import-')
 );
-if ($rowPadding === '' && $rowImported) {
-    $rowPadding = '0';
-}
-if ($rowPadding !== '') {
+// `?? ''`, not truthiness: "0" is a perfectly good answer to "how much
+// space", and PHP reads that string as false — so choosing None in the row
+// style left the template's 20px exactly where it was.
+$rowPadding = $__tokens::spacing($row->padding) ?? ($rowImported ? '0' : null);
+if ($rowPadding !== null) {
+    // A single length is vertical space only. Written as the shorthand it
+    // would also set the sides, and an inline rule beats the stylesheet — so
+    // asking a full-width row for 40px of breathing room would hand its
+    // gutters back and pull the section in from the edges it was meant to
+    // reach.
     $rowStyle .= str_contains($rowPadding, ' ')
-        ? 'padding:' . e($rowPadding) . ';'
-        : 'padding-top:' . e($rowPadding) . ';padding-bottom:' . e($rowPadding) . ';';
+        ? 'padding:' . $rowPadding . ';'
+        : 'padding-top:' . $rowPadding . ';padding-bottom:' . $rowPadding . ';';
 }
 $widthClass = ($row->width ?? 'contained') === 'full' ? 'row-full' : 'row-contained';
 $columns    = $row->blocks->groupBy('column_index');
@@ -54,15 +61,15 @@ $gridFr     = implode(' ', $columns->map(fn($blocks) => $blocks->first()->column
 @foreach($blocks->sortBy('order_column') as $block)
 @php
 $blockStyle = '';
-if ($block->background_color) $blockStyle .= 'background-color:' . e($block->background_color) . ';';
+if ($c = $__tokens::colour($block->background_color)) $blockStyle .= 'background-color:' . e($c) . ';';
 if ($block->background_image) $blockStyle .= 'background-image:url(' . e(vela_background_url($block->background_image)) . ');background-size:cover;background-position:center;';
-if ($block->text_color)       $blockStyle .= 'color:' . e($block->text_color) . ';--vela-text-color:' . e($block->text_color) . ';';
-if ($block->text_alignment)   $blockStyle .= 'text-align:' . e($block->text_alignment) . ';';
-$blockPadding = trim((string) ($block->padding ?? ''));
-if ($blockPadding !== '') {
+if ($c = $__tokens::colour($block->text_color)) $blockStyle .= 'color:' . e($c) . ';--vela-text-color:' . e($c) . ';';
+if ($a = $__tokens::alignment($block->text_alignment)) $blockStyle .= 'text-align:' . $a . ';';
+$blockPadding = $__tokens::spacing($block->padding);
+if ($blockPadding !== null) {
     $blockStyle .= str_contains($blockPadding, ' ')
-        ? 'padding:' . e($blockPadding) . ';'
-        : 'padding-top:' . e($blockPadding) . ';padding-bottom:' . e($blockPadding) . ';';
+        ? 'padding:' . $blockPadding . ';'
+        : 'padding-top:' . $blockPadding . ';padding-bottom:' . $blockPadding . ';';
 }
 // The 20px under every block is the other half of the seam.
 $blockImported = $block->type === 'html'

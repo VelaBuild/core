@@ -124,3 +124,30 @@ Values there are written by whoever can reach Settings and are interpolated into
 a `<style>` element on every public page, so they are matched against a colour
 grammar first (a hex, a `rgb()`/`hsl()` function containing only numbers, or a
 bare keyword) and dropped if they do not fit.
+
+## Rows and blocks
+
+A row or a block can carry a background colour, a text colour, spacing and an
+alignment of its own. Those used to be stored as whatever the author picked on
+the day — `#ffffff`, out of a colour picker. That records a value and not an
+intention, and it is the pages somebody cared enough to style by hand that
+break when the site changes theme: white text on a white ground, forty pages
+deep, with nothing to do but open each one and pick again.
+
+A colour may now be a palette name instead, stored as `token:surface` and
+resolved on render to the custom property behind it. The names are in
+`DesignTokens::PALETTE`; the editor offers them as chips under each colour
+field, and the chatbot is told to prefer them (`ChatToolRegistry::COLOUR_HINT_*`).
+
+Literals still work and are still offered — sometimes a section really is meant
+to be that exact green — but they are validated now, which they were not
+before. These values are written into a `style` attribute where a background of
+`red; position: fixed; inset: 0; z-index: 9999` is a page-covering overlay, and
+`text_alignment` went in unchecked. `DesignTokens` drops anything that is not a
+colour, a length or one of four alignment words.
+
+The admin's other colour inputs keep the site palette row from
+`design-system-global.blade.php`, which writes a literal hex. That is the right
+answer where a literal is what is wanted — theme settings, the design builder.
+It stays out of the way of any field that offers theme chips, so the two never
+appear together offering the same choice with different consequences.

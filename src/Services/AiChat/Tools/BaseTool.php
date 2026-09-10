@@ -124,6 +124,14 @@ abstract class BaseTool
      */
     protected function validateColourContrast(?string $background, ?string $text, ?string $backgroundImage = null): ?array
     {
+        // A palette name is judged on the colour the default theme paints it.
+        // That is an approximation — another theme's surface is another
+        // colour — but it is what separates a sane pair from `token:ink` on
+        // `token:ink`, and the check used to skip these values entirely.
+        $shown = ['bg' => $background, 'text' => $text];
+        $background = $this->resolvePaletteColour($background);
+        $text = $this->resolvePaletteColour($text);
+
         if ($backgroundImage || !$this->isHexColour($background) || !$this->isHexColour($text)) {
             return null;
         }
@@ -132,6 +140,9 @@ abstract class BaseTool
         if ($ratio >= 3.0) {
             return null;
         }
+
+        $background = $shown['bg'];
+        $text = $shown['text'];
 
         return [
             'error' => "Text at {$text} on a {$background} background comes out at "
@@ -228,6 +239,24 @@ abstract class BaseTool
     protected function isHexColour(?string $value): bool
     {
         return is_string($value) && preg_match('/^#[0-9a-f]{6}$/i', trim($value)) === 1;
+    }
+
+    /**
+     * A `token:` name as the hex the default theme paints it; anything else
+     * unchanged.
+     */
+    protected function resolvePaletteColour(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        $prefix = \VelaBuild\Core\Services\DesignTokens::PREFIX;
+
+        if (!str_starts_with($value, $prefix)) {
+            return $value === '' ? null : $value;
+        }
+
+        $name = substr($value, strlen($prefix));
+
+        return \VelaBuild\Core\Services\DesignTokens::PALETTE[$name][1] ?? null;
     }
 
     /** WCAG relative-luminance contrast, 1:1 (identical) to 21:1 (black on white). */

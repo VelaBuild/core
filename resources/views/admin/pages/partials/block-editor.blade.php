@@ -211,6 +211,12 @@ window.PageEditorConfig = {
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/underline@1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/warning@1"></script>
 <script src="https://cdn.jsdelivr.net/npm/@editorjs/checklist@1"></script>
+{{-- The theme's palette, so the colour pickers can offer "Accent" and
+     "Surface" alongside the freehand picker. Set before the editor loads,
+     and read once at first use; the editor draws a picker with literals only
+     if it is missing, which is what a host app on an older view would give
+     it. --}}
+<script>window.VelaDesignPalette = @json(\VelaBuild\Core\Services\DesignTokens::paletteForEditor());</script>
 {{-- Versioned by file time: the editor gained the imported-section form and
      design controls, and a browser holding yesterday's copy shows a textarea
      of raw HTML instead, which looks like the feature is simply missing. --}}

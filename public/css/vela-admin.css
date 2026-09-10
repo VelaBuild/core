@@ -1607,3 +1607,45 @@ body.vela-admin .vela-colour-group > .form-control {
 }
 body.vela-admin .vela-edit-form .form-row > [class*="col-"] { min-width: 0; }
 body.vela-admin .vela-edit-form select.form-control { text-overflow: ellipsis; }
+
+/* --- Theme palette chips (page editor colour fields) ---------------------
+   A colour stored as `token:accent` follows the theme; a hex does not. The
+   chips make that the easy choice without removing the freehand picker. */
+.vela-token-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+}
+.vela-token-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    font-size: .75rem;
+    line-height: 1.4;
+    color: var(--vela-gray-700, #374151);
+    background: var(--vela-gray-0, #fff);
+    border: 1px solid var(--vela-gray-300, #d1d5db);
+    border-radius: 999px;
+    cursor: pointer;
+}
+.vela-token-chip:hover { border-color: var(--vela-gray-500, #6b7280); }
+.vela-token-chip.is-on {
+    color: var(--vela-gray-0, #fff);
+    background: var(--vela-navy-800, #1e3a5f);
+    border-color: var(--vela-navy-800, #1e3a5f);
+}
+.vela-token-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    /* Its own outline, or a white swatch vanishes into a white chip. */
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .25);
+}
+.vela-token-hint {
+    margin-left: 4px;
+    font-size: .7rem;
+    color: var(--vela-gray-500, #6b7280);
+}

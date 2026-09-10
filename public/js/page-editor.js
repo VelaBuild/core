@@ -369,8 +369,80 @@ PageEditor.registerBlockType = function(name, config) {
     // of the swatch really does overwrite it. The text box still carries the
     // real value, so the swatch just needs a colour it can show.
     function swatchValue(value, fallback) {
-        return /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? value : fallback;
+        var v = String(value || '');
+        if (/^#[0-9a-fA-F]{6}$/.test(v)) return v;
+        // A token has a colour too — the one the default theme paints it. The
+        // picker showing white next to a chip reading "Accent" looks like the
+        // choice did not take.
+        var token = (window.VelaDesignPalette || []).filter(function (t) { return t.value === v; })[0];
+        return token ? token.swatch : fallback;
     }
+
+    // --- Theme palette ---------------------------------------------------
+    //
+    // A colour picked here used to be stored as the hex it was on the day it
+    // was picked. That is a value, not an intention: switch the site to a dark
+    // theme and every row an author had styled by hand still says #ffffff, so
+    // the pages they cared enough to style are the ones that break.
+    //
+    // A swatch stores `token:surface` instead, which the public side resolves
+    // to the theme's own custom property. The freehand picker is still there —
+    // sometimes a section really is meant to be that exact green.
+
+    var TOKEN_PREFIX = 'token:';
+
+    function palette(role) {
+        var all = window.VelaDesignPalette || [];
+        return all.filter(function (t) { return t.role === role || t.role === 'both'; });
+    }
+
+    function tokenLabel(value) {
+        var found = (window.VelaDesignPalette || []).filter(function (t) { return t.value === value; })[0];
+        return found ? found.label : null;
+    }
+
+    /**
+     * The swatch row under a colour field. `target` is the id of the text
+     * input holding the stored value — the swatches write into it, so the
+     * existing save path needs no change.
+     */
+    function paletteStrip(target, role, current) {
+        var tokens = palette(role);
+        if (!tokens.length) return '';
+
+        var chips = tokens.map(function (t) {
+            var on = current === t.value;
+            return '<button type="button" class="vela-token-chip' + (on ? ' is-on' : '') + '"' +
+                ' data-token-target="' + target + '" data-token-value="' + escHtml(t.value) + '"' +
+                ' title="' + escHtml(t.label) + '">' +
+                '<span class="vela-token-dot" style="background:' + escHtml(t.swatch) + ';"></span>' +
+                escHtml(t.label) + '</button>';
+        }).join('');
+
+        return '<div class="vela-token-strip">' + chips +
+            '<span class="vela-token-hint">' +
+            (tokenLabel(current) ? 'Follows the theme' : 'Or pick an exact colour') +
+            '</span></div>';
+    }
+
+    $(document).on('click', '.vela-token-chip', function () {
+        var $chip = $(this);
+        var $input = $('#' + $chip.data('token-target'));
+        var value = String($chip.data('token-value'));
+        // Clicking the chip that is already on clears it, which is the only
+        // way back to "no colour" without retyping.
+        var next = $input.val() === value ? '' : value;
+        $input.val(next).trigger('change');
+        // The freehand picker sits beside the text field and reads it only when
+        // the modal is drawn. Left alone it goes on showing white next to a lit
+        // "Body text" chip, which reads as the choice not having taken.
+        var $picker = $('#' + $chip.data('token-target').replace(/-text$/, ''));
+        if ($picker.length) $picker.val(swatchValue(next, $picker.data('empty') || '#ffffff'));
+        $chip.closest('.vela-token-strip').find('.vela-token-chip').removeClass('is-on');
+        if (next) $chip.addClass('is-on');
+        $chip.closest('.vela-token-strip').find('.vela-token-hint')
+            .text(next ? 'Follows the theme' : 'Or pick an exact colour');
+    });
 
     // --- Internal helpers used by built-in block types ---
 
@@ -5328,14 +5400,16 @@ PageEditor.registerBlockType = function(name, config) {
         // Block style fields
         html += '<hr><details class="mt-2"><summary style="cursor:pointer;font-weight:500;font-size:0.9em;"><i class="fas fa-paint-roller mr-1"></i> Block Style</summary><div class="mt-2">' +
             '<div class="form-group"><label>Background Color</label>' +
-            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-bg-color" value="' + escHtml(swatchValue(block.background_color, '#ffffff')) + '" style="width:60px;padding:2px;">' +
-            '<input type="text" class="form-control" id="block-bg-color-text" value="' + escHtml(block.background_color || '') + '" placeholder="#hex or empty for none">' +
-            '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
+            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-bg-color" data-empty="#ffffff" value="' + escHtml(swatchValue(block.background_color, '#ffffff')) + '" style="width:60px;padding:2px;">' +
+            '<input type="text" class="form-control" id="block-bg-color-text" value="' + escHtml(block.background_color || '') + '" placeholder="Pick a theme colour above, or type #hex">' +
+            '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div>' +
+            paletteStrip('block-bg-color-text', 'bg', block.background_color) + '</div>' +
             (html.indexOf('id="block-bg-image"') === -1 ? imageField('block-bg-image', 'Background Image', block.background_image) : '') +
             '<div class="form-group"><label>Text Color</label>' +
-            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-text-color" value="' + escHtml(swatchValue(block.text_color, '#000000')) + '" style="width:60px;padding:2px;">' +
-            '<input type="text" class="form-control" id="block-text-color-text" value="' + escHtml(block.text_color || '') + '" placeholder="#hex or empty for default">' +
-            '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-text-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
+            '<div class="input-group"><input type="color" class="form-control form-control-color" id="block-text-color" data-empty="#000000" value="' + escHtml(swatchValue(block.text_color, '#000000')) + '" style="width:60px;padding:2px;">' +
+            '<input type="text" class="form-control" id="block-text-color-text" value="' + escHtml(block.text_color || '') + '" placeholder="Pick a theme colour above, or type #hex">' +
+            '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="block-text-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div>' +
+            paletteStrip('block-text-color-text', 'text', block.text_color) + '</div>' +
             '<div class="row"><div class="col-6"><div class="form-group"><label>Text Alignment</label>' +
             '<select class="form-control" id="block-text-align">' +
             '<option value=""' + (!block.text_alignment ? ' selected' : '') + '>Default</option>' +
@@ -5610,15 +5684,17 @@ PageEditor.registerBlockType = function(name, config) {
                 '<small class="form-text text-muted">Templates define their own contained width. Full width spans the viewport.</small>' +
                 '</div>' +
                 '<div class="form-group"><label>Background Color</label>' +
-                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-bg-color" value="' + escHtml(swatchValue(row.background_color, '#ffffff')) + '" style="width:60px;padding:2px;">' +
-                '<input type="text" class="form-control" id="row-bg-color-text" value="' + escHtml(row.background_color || '') + '" placeholder="#hex or empty for none">' +
-                '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
+                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-bg-color" data-empty="#ffffff" value="' + escHtml(swatchValue(row.background_color, '#ffffff')) + '" style="width:60px;padding:2px;">' +
+                '<input type="text" class="form-control" id="row-bg-color-text" value="' + escHtml(row.background_color || '') + '" placeholder="Pick a theme colour above, or type #hex">' +
+                '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-bg-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div>' +
+                paletteStrip('row-bg-color-text', 'bg', row.background_color) + '</div>' +
                 imageField('row-bg-image', 'Background Image', row.background_image) +
                 '<hr>' +
                 '<div class="form-group"><label>Text Color</label>' +
-                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-text-color" value="' + escHtml(swatchValue(row.text_color, '#000000')) + '" style="width:60px;padding:2px;">' +
-                '<input type="text" class="form-control" id="row-text-color-text" value="' + escHtml(row.text_color || '') + '" placeholder="#hex or empty for default">' +
-                '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-text-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div></div>' +
+                '<div class="input-group"><input type="color" class="form-control form-control-color" id="row-text-color" data-empty="#000000" value="' + escHtml(swatchValue(row.text_color, '#000000')) + '" style="width:60px;padding:2px;">' +
+                '<input type="text" class="form-control" id="row-text-color-text" value="' + escHtml(row.text_color || '') + '" placeholder="Pick a theme colour above, or type #hex">' +
+                '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary" id="row-text-color-clear" title="Clear"><i class="fas fa-times"></i></button></div></div>' +
+                paletteStrip('row-text-color-text', 'text', row.text_color) + '</div>' +
                 '<div class="row"><div class="col-6"><div class="form-group"><label>Text Alignment</label>' +
                 '<select class="form-control" id="row-text-align">' +
                 '<option value=""' + (!row.text_alignment ? ' selected' : '') + '>Default</option>' +

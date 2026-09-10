@@ -182,6 +182,7 @@ class ThemeSkeleton
                contract instead means every alias in page-blocks.css follows,
                including the ones added after this file was written. */
             --vela-primary: var(--accent);
+            --vela-primary-ink: var(--accent-ink);
             --vela-ink: var(--ink);
             --vela-ink-soft: var(--ink);
             --vela-muted: var(--muted);

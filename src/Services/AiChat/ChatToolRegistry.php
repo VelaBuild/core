@@ -3,6 +3,25 @@ namespace VelaBuild\Core\Services\AiChat;
 
 class ChatToolRegistry
 {
+    /**
+     * What to say about a colour, wherever a row or a block takes one.
+     *
+     * These parameters carried no description at all, so every row the chatbot
+     * has ever written names a literal hex — a colour correct on the day it was
+     * chosen and wrong the moment the site changes theme. The palette names are
+     * the same ones the editor offers; see DesignTokens.
+     */
+    private const COLOUR_HINT_BG = 'Prefer a palette name so the section follows the theme: '
+        . '"token:surface" (a panel on the page), "token:card", "token:background", '
+        . '"token:accent" (a brand-coloured band), "token:ink" (a dark band). '
+        . 'A #hex is allowed but fixes the colour forever, including after a theme change — '
+        . 'use one only when the design calls for that exact colour.';
+
+    private const COLOUR_HINT_TEXT = 'Prefer a palette name so the text follows the theme: '
+        . '"token:ink" (body text), "token:ink-soft", "token:muted", "token:accent", '
+        . '"token:accent-ink" (text on a brand-coloured band). A #hex is allowed but fixes '
+        . 'the colour forever, including after a theme change.';
+
     private array $tools = [
         [
             'name' => 'get_theme_contract',
@@ -487,9 +506,9 @@ class ChatToolRegistry
                     'locale'           => ['type' => 'string'],
                     'name'             => ['type' => 'string', 'description' => 'Internal admin label; NOT shown on the page.'],
                     'css_class'        => ['type' => 'string'],
-                    'background_color' => ['type' => 'string'],
+                    'background_color' => ['type' => 'string', 'description' => self::COLOUR_HINT_BG],
                     'background_image' => ['type' => 'string'],
-                    'text_color'       => ['type' => 'string'],
+                    'text_color'       => ['type' => 'string', 'description' => self::COLOUR_HINT_TEXT],
                     'text_alignment'   => ['type' => 'string'],
                     'padding'          => ['type' => 'string'],
                     'width'            => ['type' => 'string', 'enum' => ['contained', 'full']],
@@ -508,9 +527,9 @@ class ChatToolRegistry
                     'row_id'           => ['type' => 'integer'],
                     'name'             => ['type' => 'string', 'description' => 'Internal admin label; NOT shown on the page.'],
                     'css_class'        => ['type' => 'string'],
-                    'background_color' => ['type' => 'string'],
+                    'background_color' => ['type' => 'string', 'description' => self::COLOUR_HINT_BG],
                     'background_image' => ['type' => 'string'],
-                    'text_color'       => ['type' => 'string'],
+                    'text_color'       => ['type' => 'string', 'description' => self::COLOUR_HINT_TEXT],
                     'text_alignment'   => ['type' => 'string'],
                     'padding'          => ['type' => 'string'],
                     'width'            => ['type' => 'string', 'enum' => ['contained', 'full']],
@@ -548,8 +567,8 @@ class ChatToolRegistry
                     'column_width' => ['type' => 'integer', 'description' => '1-12 (Bootstrap-style columns).'],
                     'order'        => ['type' => 'integer', 'description' => 'Position within the row.'],
                     'background_image' => ['type' => 'string', 'description' => 'Background image URL for this block (e.g. a hero photo). This is its own parameter — it is NOT a settings key.'],
-                    'background_color' => ['type' => 'string'],
-                    'text_color'       => ['type' => 'string'],
+                    'background_color' => ['type' => 'string', 'description' => self::COLOUR_HINT_BG],
+                    'text_color'       => ['type' => 'string', 'description' => self::COLOUR_HINT_TEXT],
                     'text_alignment'   => ['type' => 'string'],
                     'padding'          => ['type' => 'string'],
                 ],
@@ -572,8 +591,8 @@ class ChatToolRegistry
                     'order'        => ['type' => 'integer'],
                     'row_id'       => ['type' => 'integer', 'description' => 'Move the block into this row.'],
                     'background_image' => ['type' => 'string', 'description' => 'Background image URL for this block (e.g. a hero photo). This is its own parameter — it is NOT a settings key.'],
-                    'background_color' => ['type' => 'string'],
-                    'text_color'       => ['type' => 'string'],
+                    'background_color' => ['type' => 'string', 'description' => self::COLOUR_HINT_BG],
+                    'text_color'       => ['type' => 'string', 'description' => self::COLOUR_HINT_TEXT],
                     'text_alignment'   => ['type' => 'string'],
                     'padding'          => ['type' => 'string'],
                 ],

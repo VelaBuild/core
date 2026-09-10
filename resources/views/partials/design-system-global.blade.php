@@ -27,6 +27,19 @@ window.__velaDesignSystem = {
 
     function enhance(input) {
         if (!input || input.dataset.velaPalette === '1') return;
+
+        // A field that already offers the theme's palette does not want this
+        // row underneath it as well. The two answer the same question and
+        // disagree: these swatches store the hex they are today, while a
+        // theme chip stores the role, so the row still follows the site after
+        // a change of theme. Where both could appear — the row and block
+        // colour fields — the chips win and this stays out of the way.
+        var group = input.closest('.form-group') || input.parentNode;
+        if (group && group.querySelector && group.querySelector('.vela-token-strip')) {
+            input.dataset.velaPalette = '1';
+            return;
+        }
+
         input.dataset.velaPalette = '1';
 
         var row = document.createElement('div');
