@@ -97,6 +97,16 @@ class ConfigController extends Controller
 
             $templates = app(\VelaBuild\Core\Vela::class)->templates()->all();
 
+            // A theme can be deleted while the site is still set to it, and
+            // nothing anywhere said so: the picker showed no theme selected,
+            // the Theme Options panel vanished because a theme that does not
+            // exist declares no options, and the public site went on looking
+            // fine because vela_template_view() quietly falls through to
+            // `default`. The owner is told which of their themes is gone and
+            // what is being drawn instead.
+            $missingTemplate = $activeTemplate && !isset($templates[$activeTemplate]) ? $activeTemplate : null;
+            $fallbackTemplate = $missingTemplate ? (isset($templates['default']) ? 'default' : null) : null;
+
             // Theme options for active template
             $templateDef = $templates[$activeTemplate] ?? [];
             $themeOptions = $templateDef['options'] ?? [];
@@ -111,7 +121,8 @@ class ConfigController extends Controller
             $hasHomeTemplate = is_file(($templateDef['path'] ?? '') . '/home-template.json');
 
             return view("vela::admin.settings.{$group}", compact(
-                'settings', 'templates', 'themeOptions', 'themeValues', 'activeTemplate', 'hasHomeTemplate'
+                'settings', 'templates', 'themeOptions', 'themeValues', 'activeTemplate', 'hasHomeTemplate',
+                'missingTemplate', 'fallbackTemplate'
             ));
         } elseif ($group === 'customcss') {
             $globalCss = VelaConfig::where('key', 'custom_css_global')->value('value') ?? '';
@@ -273,6 +284,13 @@ class ConfigController extends Controller
             $oldTemplate = VelaConfig::where('key', 'active_template')->value('value') ?? config('vela.template.active', 'default');
             $newTemplate = $request->input('active_template');
 
+            // The theme whose options this form is for. On the options form
+            // active_template is a hidden field carrying the current theme,
+            // so this is that theme either way.
+            $velaThemeOptionKeys = array_keys(
+                $templates[$newTemplate ?? $oldTemplate]['options'] ?? []
+            );
+
             foreach ($request->except(['_token', '_theme_options']) as $key => $value) {
                 if ($key === 'active_template') {
                     if (array_key_exists($value, $templates)) {
@@ -281,6 +299,14 @@ class ConfigController extends Controller
                 } elseif (str_starts_with($key, 'css_')) {
                     VelaConfig::updateOrCreate(['key' => $key], ['value' => $value ?? '']);
                 } elseif (str_starts_with($key, 'theme_') && ! $request->hasFile($key)) {
+                    // Only names the active theme actually declares. Anything
+                    // else is stored under a key nothing ever reads, which is
+                    // how a form posting `theme_0` looked like it saved and
+                    // silently changed nothing — and how the rows pile up.
+                    if ($request->has('_theme_options') && ! in_array(substr($key, 6), $velaThemeOptionKeys, true)) {
+                        continue;
+                    }
+
                     VelaConfig::updateOrCreate(['key' => $key], ['value' => $value ?? '']);
                 }
             }

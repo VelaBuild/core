@@ -5,6 +5,7 @@ namespace VelaBuild\Core\Services;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
+use VelaBuild\Core\Services\DesignTokens;
 
 /**
  * Writes a theme of its own for a site, rather than dressing up someone else's.
@@ -217,6 +218,7 @@ class ThemeAuthor
             // landing page begin from different furniture, and a later build
             // correcting this theme should know which it is looking at.
             'kind' => $kind,
+            // Filled in below, once the layout carrying the tokens exists.
             'options' => new \stdClass(),
         ];
 
@@ -252,7 +254,86 @@ class ThemeAuthor
             file_put_contents($directory . '/' . $view . '.blade.php', $contents);
         }
 
+        $this->refreshOptions($theme);
+
         return $theme;
+    }
+
+    /**
+     * Publish the theme's palette as options its owner can change.
+     *
+     * A theme with no `options` gets no Theme Options panel on Settings →
+     * Appearance — not a smaller one, none at all — so every theme the design
+     * builder wrote left its owner unable to change a single colour on the
+     * site it had just built them. The six that ship with Vela named their
+     * options by hand and were the only themes that had any.
+     *
+     * The defaults are read back off the theme's own `:root`, so the picker
+     * opens on the colour the design actually chose rather than on a generic
+     * one. Called again after setTokens, because a restyle moves them.
+     *
+     * Only for themes this site owns. A theme that comes with the package
+     * carries its own template.json, hand-written and richer than this — hero
+     * images, logos, a copyright line — and rewriting it would throw that
+     * away, as well as failing on a read-only vendor directory.
+     */
+    public function refreshOptions(string $theme): void
+    {
+        $manifestPath = $this->directory($theme) . '/template.json';
+
+        if (!is_file($manifestPath)) {
+            return;
+        }
+
+        $manifest = json_decode((string) file_get_contents($manifestPath), true);
+
+        if (!is_array($manifest)) {
+            return;
+        }
+
+        $tokens = $this->currentTokens($theme);
+        $options = [];
+
+        foreach (DesignTokens::SITE_OPTIONS as $key => [$property, $token, $label, $group]) {
+            // No token means the value is not something a generated theme
+            // holds, so there is nothing to open the picker on.
+            if ($token === null || !isset($tokens[$token])) {
+                continue;
+            }
+
+            $default = trim($tokens[$token]);
+
+            // A token may point at another token — `header-bg` ships as
+            // `var(--bg)`. A colour input cannot show that, and offering one
+            // that resets the colour to the literal string would be worse
+            // than leaving the option out.
+            if (!preg_match('/^#[0-9a-f]{3,8}$/i', $default)) {
+                continue;
+            }
+
+            $options[$key] = [
+                'type'    => 'color',
+                'label'   => $label,
+                'group'   => $group,
+                'default' => $default,
+            ];
+        }
+
+        $manifest['options'] = $options ?: new \stdClass();
+
+        file_put_contents(
+            $manifestPath,
+            json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+        );
+
+        // The registry holds what was read at boot, and the settings screen
+        // asks it rather than the file. Without this the panel stays empty
+        // until the next request.
+        $registry = app(\VelaBuild\Core\Vela::class)->templates();
+
+        if ($existing = $registry->get($theme)) {
+            $registry->register($theme, array_merge($existing, ['options' => $manifest['options']]));
+        }
     }
 
     /**
@@ -364,6 +445,9 @@ class ThemeAuthor
         }
 
         file_put_contents($file, $contents);
+
+        // A restyle moves the colours the settings pickers should open on.
+        $this->refreshOptions($theme);
 
         return ['applied' => $applied, 'unknown' => $unknown];
     }

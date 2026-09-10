@@ -151,3 +151,35 @@ The admin's other colour inputs keep the site palette row from
 answer where a literal is what is wanted — theme settings, the design builder.
 It stays out of the way of any field that offers theme chips, so the two never
 appear together offering the same choice with different consequences.
+
+## Colours the site's owner can change
+
+A theme declares `options` in its `template.json`; that is what puts a colour
+picker on Settings → Appearance. `DesignTokens::SITE_OPTIONS` is the list of
+colour options Vela understands and the `--vela-*` property each one sets, and
+`theme-colors.blade.php` renders every one of them. An option outside that list
+draws a picker that changes nothing, which `ThemeOptionsReachTheOwnerTest`
+refuses.
+
+Three separate faults met on this screen, and together they produced one
+symptom — "my colour settings have disappeared":
+
+- **The form posted the wrong names.** The view groups options for display, and
+  Laravel's `groupBy` reindexes unless passed `true`, so every field was posted
+  as `theme_0`, `theme_1`, `theme_2`. Those were stored under those names and
+  read by nothing: setting Primary Colour appeared to save and changed nothing
+  at all, on every theme Vela has ever shipped.
+- **Generated themes offered nothing.** A theme written by the design builder
+  declared `"options": {}`, and a theme with no options gets no Theme Options
+  panel — not a smaller one, none at all. `ThemeAuthor::refreshOptions()` now
+  publishes the theme's palette, reading each default off its own `:root` so
+  the picker opens on the colour the design chose. It runs on create and after
+  `setTokens`.
+- **A deleted theme said nothing.** A site set to a theme that is no longer
+  installed showed no theme selected, no options panel (a theme that does not
+  exist declares none), and a public site that looked fine because
+  `vela_template_view()` quietly falls back to `default`. The Appearance screen
+  names the missing theme and what is being drawn instead.
+
+Only the active theme's declared keys are stored, so a form posting something
+else no longer fills `vela_configs` with rows nothing reads.

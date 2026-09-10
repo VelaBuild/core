@@ -12,6 +12,23 @@
             <div class="alert alert-warning">{{ session('error') }}</div>
         @endif
 
+        {{-- The site is set to a theme that is no longer here. Nothing used
+             to say so: no theme showed as selected, the Theme Options panel
+             was gone because a theme that does not exist declares no options,
+             and the public site looked fine because it quietly falls back.
+             So the symptom was "my colour settings have disappeared", with
+             nothing anywhere connecting that to a deleted theme. --}}
+        @if(!empty($missingTemplate))
+            <div class="alert alert-warning">
+                <strong>{{ trans('vela::global.theme_missing_title', ['theme' => $missingTemplate]) }}</strong>
+                <div class="mt-1">
+                    {{ $fallbackTemplate
+                        ? trans('vela::global.theme_missing_body', ['theme' => $fallbackTemplate])
+                        : trans('vela::global.theme_missing_body_no_fallback') }}
+                </div>
+            </div>
+        @endif
+
         {{-- A theme swap changes the layout and the stylesheet; the homepage
              keeps whatever rows and blocks it already had. Without saying so,
              the change reads as a theme that only replaced the header and
@@ -216,7 +233,14 @@
             <input type="hidden" name="active_template" value="{{ $settings['active_template'] ?? 'default' }}">
             <input type="hidden" name="_theme_options" value="1">
 
-            @php $groups = collect($themeOptions)->groupBy('group'); @endphp
+            {{-- `true` preserves the keys, and the keys are the option names.
+                 Without it Laravel reindexes each group, so $optKey came out
+                 0, 1, 2 and every field on this form was posted as `theme_0`,
+                 `theme_1`, `theme_2`. Those were stored under those names and
+                 read by nothing: setting Primary Colour appeared to save and
+                 changed nothing at all, on every theme, including the six
+                 that ship with Vela. --}}
+            @php $groups = collect($themeOptions)->groupBy('group', true); @endphp
             @foreach($groups as $groupName => $options)
             <div class="card mb-3">
                 <div class="card-header py-2"><strong>{{ __($groupName) ?: trans('vela::global.general') }}</strong></div>

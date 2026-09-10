@@ -48,6 +48,34 @@ class DesignTokens
     ];
 
     /**
+     * The colours a site's owner may override, per theme.
+     *
+     * These are the `options` a theme declares in its template.json, which is
+     * what puts a colour picker on Settings → Appearance. Each entry is
+     * [custom property, the ThemeSkeleton token holding a generated theme's
+     * value for it, label, group].
+     *
+     * The six themes that ship with Vela named the first three of these by
+     * hand and were the only themes that had any: a theme written by the
+     * design builder declared `"options": {}`, so switching to one took the
+     * whole Theme Options panel off the settings screen and left its owner
+     * with no way to change a single colour. ThemeAuthor writes these now,
+     * with each default read off the theme's own tokens.
+     *
+     * The key names are the ones the shipped themes already use — a stored
+     * `theme_primary_color` has to keep meaning what it meant.
+     */
+    public const SITE_OPTIONS = [
+        'primary_color'    => ['--vela-primary',    'accent',  'Primary Colour',    'Colours'],
+        'background_color' => ['--vela-background', 'bg',      'Background Colour', 'Colours'],
+        'text_color'       => ['--vela-ink',        'ink',     'Text Colour',       'Colours'],
+        'surface_color'    => ['--vela-surface',    'surface', 'Surface Colour',    'Colours'],
+        // No skeleton token of its own: it is a shipped-theme idea, and a
+        // generated theme is not given a picker for it.
+        'secondary_color'  => ['--vela-secondary',  null,      'Secondary Colour',  'Colours'],
+    ];
+
+    /**
      * A stored colour as CSS, or null if it is empty or not a colour at all.
      */
     public static function colour(?string $value): ?string
