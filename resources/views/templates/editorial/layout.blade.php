@@ -20,9 +20,11 @@
     <style>
         /* Critical inline CSS */
         :root {
-            --block-accent: #b91c1c;
-            --block-accent-hover: #991b1b;
-            --block-bg-light: #f8f7f4;
+            /* The theme's palette, stated once — see page-blocks.css. */
+            --vela-primary: #b91c1c;
+            --vela-primary-hover: #991b1b;
+            --vela-ink: #111827;
+            --vela-surface: #f8f7f4;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }

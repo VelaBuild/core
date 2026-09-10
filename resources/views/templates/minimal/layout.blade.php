@@ -20,6 +20,14 @@
 
     <style>
         /* Minimal Template Styles */
+        /* Like Default, this theme kept its palette in `var()` fallbacks and
+           never told the blocks, so a black-and-white theme drew blue buttons.
+           `--vela-page-width` also replaces the .row-contained override that
+           used to be repeated further down this file. */
+        :root {
+            --vela-primary: #1a1a1a;
+            --vela-page-width: 1100px;
+        }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {

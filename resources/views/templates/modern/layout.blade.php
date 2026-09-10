@@ -20,8 +20,13 @@
     <style>
         /* Critical inline CSS */
         :root {
-            --block-accent: #7c3aed;
-            --block-accent-hover: #6d28d9;
+            /* The theme's palette, stated once. Blocks read these through the
+               `--block-*` aliases in page-blocks.css, so the site's buttons
+               and its header are now the same purple — and both follow a
+               brand colour set in Settings. */
+            --vela-primary: #7c3aed;
+            --vela-primary-hover: #6d28d9;
+            --vela-ink: #1e1b4b;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }

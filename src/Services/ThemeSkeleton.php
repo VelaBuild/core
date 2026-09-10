@@ -171,17 +171,28 @@ class ThemeSkeleton
 
             /* The block stylesheet above paints from its own variables, set
                for a light page. Pointed at the theme's colours instead, every
-               rule in it follows the design rather than fighting it. */
-            --block-accent: var(--accent);
-            --block-accent-hover: var(--accent);
-            --block-text-primary: var(--ink);
-            --block-text-secondary: var(--ink);
-            --block-text-muted: var(--muted);
-            --block-border: var(--line);
-            --block-bg-light: var(--surface);
-            --block-bg-hover: var(--surface);
-            --block-bg-white: var(--bg);
-            --block-form-border: var(--line);
+               rule in it follows the design rather than fighting it.
+
+               Written as the `--vela-*` contract rather than as `--block-*`
+               directly, which is what this did before. The old list named ten
+               of the twenty-one block variables, and the eleven it left out
+               kept their light-page defaults: a theme built for a dark design
+               drew its form inputs on #d1d5db, its success notice on #ecfdf5,
+               and gave `.block-text code` a hard-coded grey. Naming the
+               contract instead means every alias in page-blocks.css follows,
+               including the ones added after this file was written. */
+            --vela-primary: var(--accent);
+            --vela-ink: var(--ink);
+            --vela-ink-soft: var(--ink);
+            --vela-muted: var(--muted);
+            --vela-line: var(--line);
+            --vela-input-line: var(--line);
+            --vela-surface: var(--surface);
+            --vela-surface-hover: var(--surface);
+            --vela-card-bg: var(--bg);
+            --vela-background: var(--bg);
+            --vela-page-width: var(--page-width);
+            --vela-font-display: var(--font-display);
         }
 
         *, *::before, *::after { box-sizing: border-box; }

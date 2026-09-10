@@ -1,29 +1,64 @@
+/* ---------------------------------------------------------------------------
+   The Vela design-token contract.
+
+   Every `--block-*` name below is an ALIAS, not a value. The value lives in a
+   `--vela-*` token, and a theme sets those — once — to dress both its own
+   chrome and every block on every page in the same palette.
+
+   Before this, the two halves were wired separately and never met: theme CSS
+   read `var(--vela-primary, ...)` while block CSS read a `--block-accent` that
+   defaulted to blue here, and each theme re-declared it as a literal hex. So
+   setting Primary Colour in Settings turned the header the brand colour and
+   left every CTA, pricing tier and icon box on the site blue — and `default`
+   and `minimal`, which never overrode it at all, shipped blue blocks over a
+   navy and a black-and-white theme respectively.
+
+   The `--vela-*` tokens are deliberately left UNDEFINED here. A theme's own
+   `var(--vela-primary, #1e40af)` fallbacks are how it states its palette, and
+   defining a value at this level would silently outrank every one of them.
+   The literal after each comma is therefore the old block default, kept
+   exactly, so a theme that sets nothing renders precisely as it did.
+   --------------------------------------------------------------------------- */
 :root {
-    --block-accent: #2563eb;
-    --block-accent-hover: #1d4ed8;
-    --block-text-primary: #1f2937;
-    --block-text-secondary: #374151;
-    --block-text-muted: #6b7280;
-    --block-border: #e5e7eb;
-    --block-bg-light: #f9fafb;
-    --block-bg-hover: #f3f4f6;
-    --block-bg-white: #fff;
-    --block-form-border: #d1d5db;
-    --block-success-bg: #ecfdf5;
-    --block-success-border: #6ee7b7;
-    --block-success-text: #065f46;
-    --block-error-bg: #fef2f2;
-    --block-error-border: #fca5a5;
-    --block-error-text: #991b1b;
-    --block-overlay: rgba(0,0,0,0.6);
-    --block-overlay-light: rgba(0,0,0,0.5);
+    /* Two roles, because they need two values. `--vela-primary` is the brand
+       as text — a link, a category label, an icon. `--vela-primary-fill` is
+       the same brand as a solid behind white text, which is a stricter job:
+       the dark theme's #14b8a6 reads well as a link on black and gives white
+       2.1:1 as a button, so it carries #0d857b for the fill. A theme that
+       needs only one colour sets only `--vela-primary` and the fill follows. */
+    --block-accent: var(--vela-primary-fill, var(--vela-primary, #2563eb));
+    /* Derived, not declared, so a brand colour chosen in Settings brings its
+       own hover with it instead of leaving the previous theme's behind. A
+       theme may still name an exact hover; `theme-colors` clears that when
+       the owner overrides the brand. */
+    --block-accent-hover: var(--vela-primary-hover, color-mix(in srgb, var(--block-accent) 85%, #000));
+    --block-text-primary: var(--vela-ink, #1f2937);
+    --block-text-secondary: var(--vela-ink-soft, #374151);
+    --block-text-muted: var(--vela-muted, #6b7280);
+    --block-border: var(--vela-line, #e5e7eb);
+    --block-bg-light: var(--vela-surface, #f9fafb);
+    --block-bg-hover: var(--vela-surface-hover, #f3f4f6);
+    /* Named for the colour it used to be rather than the job it does: this is
+       the ground a card sits on, which the dark theme paints #0a0a0a. */
+    --block-bg-white: var(--vela-card-bg, #fff);
+    --block-form-border: var(--vela-input-line, #d1d5db);
+    --block-success-bg: var(--vela-success-bg, #ecfdf5);
+    --block-success-border: var(--vela-success-line, #6ee7b7);
+    --block-success-text: var(--vela-success-ink, #065f46);
+    /* `--vela-error-*`, not `--vela-danger-*`: the admin stylesheet already
+       owns `--vela-danger` and `--vela-danger-bg` for its own alert colours. */
+    --block-error-bg: var(--vela-error-bg, #fef2f2);
+    --block-error-border: var(--vela-error-line, #fca5a5);
+    --block-error-text: var(--vela-error-ink, #991b1b);
+    --block-overlay: var(--vela-overlay, rgba(0,0,0,0.6));
+    --block-overlay-light: var(--vela-overlay-soft, rgba(0,0,0,0.5));
     /* Heading font — templates override :root to pair a display font with body text. */
-    --block-heading-font: inherit;
+    --block-heading-font: var(--vela-font-display, inherit);
 }
 /* Row width contract — every template overrides these to set their own widths. */
 .page-row-public { width: 100%; margin: 0 auto; padding: 20px 15px; }
 .page-row-public.row-full { max-width: 100%; padding-left: 0; padding-right: 0; }
-.page-row-public.row-contained { max-width: 1200px; }
+.page-row-public.row-contained { max-width: var(--vela-page-width, 1200px); }
 .page-row-columns { display: grid; gap: 20px; }
 @media (max-width: 768px) { .page-row-columns { grid-template-columns: 1fr !important; } }
 .page-block-public { margin-bottom: 20px; }
@@ -36,7 +71,8 @@
 .block-text ul, .block-text ol { padding-left: 1.5em; margin-bottom: 1em; }
 .block-text blockquote { border-left: 4px solid var(--block-border); padding-left: 1em; color: var(--block-text-muted); font-style: italic; margin-bottom: 1em; }
 .block-text blockquote cite { display: block; margin-top: 0.5em; font-size: 0.9em; font-style: normal; color: var(--block-text-muted); }
-.block-text code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: 'SFMono-Regular', Consolas, monospace; }
+/* Was a literal #f3f4f6, which is a light grey however dark the page is. */
+.block-text code { background: var(--block-bg-hover); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: 'SFMono-Regular', Consolas, monospace; }
 .block-text mark { background: #fef08a; padding: 2px 4px; border-radius: 2px; }
 .block-delimiter { border: none; border-top: 2px solid var(--block-border); margin: 2em 0; }
 .block-warning { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px 20px; margin-bottom: 1em; }
@@ -111,7 +147,7 @@
 .block-contact-form .form-group { margin-bottom: 15px; }
 .block-contact-form label { display: block; font-weight: 500; margin-bottom: 5px; }
 .block-contact-form input, .block-contact-form textarea, .block-contact-form select { width: 100%; padding: 10px 14px; border: 1px solid var(--block-form-border); border-radius: 6px; font-size: 1em; }
-.block-contact-form input:focus, .block-contact-form textarea:focus { outline: none; border-color: var(--block-accent); box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.block-contact-form input:focus, .block-contact-form textarea:focus { outline: none; border-color: var(--block-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--block-accent) 12%, transparent); }
 .block-contact-form textarea { min-height: 120px; resize: vertical; }
 .block-contact-form button[type="submit"] { background: var(--block-accent); color: var(--block-bg-white); padding: 12px 24px; border: none; border-radius: 6px; font-size: 1em; cursor: pointer; }
 .block-contact-form button[type="submit"]:hover { background: var(--block-accent-hover); }

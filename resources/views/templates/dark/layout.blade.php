@@ -20,18 +20,23 @@
     <style>
         /* Critical inline CSS — Dark Theme */
         :root {
-            --block-accent: #0d857b;
-            --block-accent-hover: #0b7267;
-            --block-text-primary: #e5e5e5;
-            --block-text-secondary: #d4d4d4;
-            --block-text-muted: #a3a3a3;
-            --block-border: #262626;
-            --block-bg-light: #141414;
-            --block-bg-hover: #1a1a1a;
-            --block-bg-white: #0a0a0a;
-            --block-form-border: #787878;
-            --block-overlay: rgba(0,0,0,0.8);
-            --block-overlay-light: rgba(0,0,0,0.7);
+            /* The theme's palette, stated once — see page-blocks.css.
+               Two teals on purpose: the bright one reads as a link on black,
+               the darker one is the only one of the two that gives white text
+               on a button a passable contrast ratio. */
+            --vela-primary: #14b8a6;
+            --vela-primary-fill: #0d857b;
+            --vela-primary-hover: #0b7267;
+            --vela-ink: #e5e5e5;
+            --vela-ink-soft: #d4d4d4;
+            --vela-muted: #a3a3a3;
+            --vela-line: #262626;
+            --vela-surface: #141414;
+            --vela-surface-hover: #1a1a1a;
+            --vela-card-bg: #0a0a0a;
+            --vela-input-line: #787878;
+            --vela-overlay: rgba(0,0,0,0.8);
+            --vela-overlay-soft: rgba(0,0,0,0.7);
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }

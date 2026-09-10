@@ -19,6 +19,17 @@
 @include('vela::templates._partials.analytics')
 @include('vela::partials.cookie-consent-styles')
 @stack('head')
+    <style>
+        /* This theme named its palette only in premium.css, as the fallback
+           half of `var(--vela-primary, #2A5894)`, and never told the blocks.
+           So every CTA, pricing tier and icon box on a Default site was drawn
+           in page-blocks.css's stock blue over a navy theme. Stating the
+           tokens here hands the same palette to both halves. */
+        :root {
+            --vela-primary: #2A5894;
+            --vela-secondary: #808183;
+        }
+    </style>
 @include('vela::templates._partials.theme-colors')
 @include('vela::templates._partials.custom-css')
 @include('vela::templates._partials.interactive-styles')

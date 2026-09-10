@@ -89,4 +89,5 @@ Configure via `CLOUDFLARE_BROWSER_RENDERING_URL` in .env.
 - Menu items registered via `Vela::registerMenu()`
 - Blocks registered via `Vela::registerBlock()`
 - Templates in `resources/views/templates/{name}/`
+- Themes state their palette in `--vela-*` tokens; `--block-*` are aliases and must never be set directly — see `docs/design-tokens.md`
 - Lang files in `resources/lang/{locale}/`
