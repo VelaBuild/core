@@ -217,6 +217,12 @@ window.PageEditorConfig = {
      if it is missing, which is what a host app on an older view would give
      it. --}}
 <script>window.VelaDesignPalette = @json(\VelaBuild\Core\Services\DesignTokens::paletteForEditor());</script>
+{{-- Field schemas for the blocks whose editing is a plain form. Five blocks
+     had no form at all, so a page carrying one showed "Unknown block type"
+     and its owner could not change a word of it; the editor builds theirs
+     from this. Blocks whose editing is genuinely bespoke are hand-written in
+     page-editor.js and do not appear here. --}}
+<script>window.VelaBlockFields = @json(app(\VelaBuild\Core\Vela::class)->blocks()->fieldSchemas());</script>
 {{-- Versioned by file time: the editor gained the imported-section form and
      design controls, and a browser holding yesterday's copy shows a textarea
      of raw HTML instead, which looks like the feature is simply missing. --}}

@@ -434,7 +434,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_text',
             'icon' => 'fas fa-font',
             'view' => 'vela::public.pages.blocks.text',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['blocks' => []], 'settings' => []],
         ]);
 
@@ -442,7 +442,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_image',
             'icon' => 'fas fa-image',
             'view' => 'vela::public.pages.blocks.image',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['url' => '', 'alt' => '', 'caption' => ''], 'settings' => []],
         ]);
 
@@ -450,7 +450,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_video',
             'icon' => 'fas fa-video',
             'view' => 'vela::public.pages.blocks.video',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['url' => '', 'provider' => 'youtube'], 'settings' => []],
         ]);
 
@@ -458,7 +458,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_html',
             'icon' => 'fas fa-code',
             'view' => 'vela::public.pages.blocks.html',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['html' => ''], 'settings' => []],
         ]);
 
@@ -466,7 +466,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_accordion',
             'icon' => 'fas fa-list',
             'view' => 'vela::public.pages.blocks.accordion',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['items' => []], 'settings' => []],
             // Shown by list_block_types so the AI knows what one item holds —
             // an empty defaults array tells it nothing, so it guesses a shape
@@ -478,7 +478,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_contact_form',
             'icon' => 'fas fa-envelope',
             'view' => 'vela::public.pages.blocks.contact_form',
-            'editor' => null,
+            'editor' => 'js',
             // The view reads a heading/intro from content and everything else
             // from settings. Enumerating both is what lets the shape check
             // reject invented keys — an empty settings array disabled it, so
@@ -506,7 +506,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.carousel',
             'icon' => 'fas fa-images',
             'view' => 'vela::public.pages.blocks.carousel',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['slides' => []], 'settings' => []],
             'content_example' => ['slides' => [['image_url' => 'https://example.com/slide.jpg', 'caption' => 'Caption', 'link' => '/target-page']]],
         ]);
@@ -515,7 +515,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.gallery',
             'icon' => 'fas fa-th',
             'view' => 'vela::public.pages.blocks.gallery',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['images' => []], 'settings' => []],
             'content_example' => ['images' => [['url' => 'https://example.com/photo.jpg', 'alt' => 'Alt text', 'caption' => 'Caption']]],
         ]);
@@ -524,7 +524,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.testimonials',
             'icon' => 'fas fa-quote-left',
             'view' => 'vela::public.pages.blocks.testimonials',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['items' => []], 'settings' => []],
             'content_example' => ['items' => [['quote' => 'They fixed it same day.', 'name' => 'Jane Doe', 'title' => 'Homeowner', 'photo_url' => 'https://example.com/jane.jpg']]],
         ]);
@@ -533,7 +533,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.icon_box',
             'icon' => 'fas fa-star',
             'view' => 'vela::public.pages.blocks.icon_box',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => ['items' => []], 'settings' => []],
             // One icon_box block holds ALL the boxes — do not add one block per
             // box in separate columns.
@@ -544,7 +544,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.categories_grid',
             'icon' => 'fas fa-th-large',
             'view' => 'vela::public.pages.blocks.categories_grid',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => [], 'settings' => ['columns' => 3, 'max_count' => 12, 'show_post_count' => true]],
         ]);
 
@@ -552,7 +552,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.posts_grid',
             'icon' => 'fas fa-newspaper',
             'view' => 'vela::public.pages.blocks.posts_grid',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => ['content' => [], 'settings' => ['columns' => 3, 'max_count' => 12, 'order_by' => 'newest', 'skip' => 0]],
         ]);
 
@@ -560,7 +560,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_hero',
             'icon' => 'fas fa-flag',
             'view' => 'vela::public.pages.blocks.hero',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => [
                 'content' => ['title' => '', 'subtitle' => '', 'primary_button_text' => '', 'primary_button_url' => '', 'secondary_button_text' => '', 'secondary_button_url' => ''],
                 'settings' => ['background_overlay' => 'rgba(0,0,0,0.4)', 'text_alignment' => 'center', 'min_height' => '80vh'],
@@ -571,7 +571,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_cta',
             'icon' => 'fas fa-bullhorn',
             'view' => 'vela::public.pages.blocks.cta',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => [
                 // `note` is read by the cta view (small print under the buttons)
                 // and must be declared here — the defaults are what add_block /
@@ -582,6 +582,20 @@ class VelaServiceProvider extends ServiceProvider
         ]);
 
         $vela->registerBlock('app_download', [
+            // No hand-written editor in page-editor.js, so the admin builds one
+            // from this. Before it existed, a page carrying this block showed
+            // "Unknown block type" and its owner could not change a word.
+            'fields' => [
+                ['key' => 'heading',        'in' => 'content',  'type' => 'text',     'label' => 'Heading'],
+                ['key' => 'description',    'in' => 'content',  'type' => 'textarea', 'label' => 'Description'],
+                ['key' => 'text_alignment', 'in' => 'settings', 'type' => 'select',   'label' => 'Alignment',
+                 'options' => ['left' => 'Left', 'center' => 'Centre', 'right' => 'Right']],
+            ],
+            // The store badges come from Settings, not from the block, and
+            // the whole block renders nothing at all until one is filled in —
+            // which looks like a broken block rather than a missing setting.
+            'editor_note' => 'The App Store and Google Play links come from Settings → Tools. '
+                . 'This block renders nothing until at least one of them is set.',
             'label' => 'vela::global.block_type_app_download',
             'icon' => 'fas fa-download',
             'view' => 'vela::public.pages.blocks.app_download',
@@ -593,6 +607,18 @@ class VelaServiceProvider extends ServiceProvider
         ]);
 
         $vela->registerBlock('code', [
+            'fields' => [
+                ['key' => 'code',      'in' => 'content',  'type' => 'code',     'label' => 'Code'],
+                ['key' => 'filename',  'in' => 'content',  'type' => 'text',     'label' => 'Filename',
+                 'help' => 'Shown above the code. Leave empty for none.'],
+                ['key' => 'caption',   'in' => 'content',  'type' => 'text',     'label' => 'Caption'],
+                ['key' => 'language',  'in' => 'settings', 'type' => 'select',   'label' => 'Language',
+                 'options' => ['bash' => 'Shell', 'php' => 'PHP', 'js' => 'JavaScript', 'json' => 'JSON',
+                               'html' => 'HTML', 'css' => 'CSS', 'sql' => 'SQL', 'yaml' => 'YAML', 'text' => 'Plain text']],
+                ['key' => 'theme',     'in' => 'settings', 'type' => 'select',   'label' => 'Theme',
+                 'options' => ['dark' => 'Dark', 'light' => 'Light']],
+                ['key' => 'show_copy', 'in' => 'settings', 'type' => 'toggle',   'label' => 'Show a copy button'],
+            ],
             'label' => 'vela::global.block_type_code',
             'icon' => 'fas fa-code',
             'view' => 'vela::public.pages.blocks.code',
@@ -607,7 +633,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.block_type_pricing_tiers',
             'icon' => 'fas fa-tags',
             'view' => 'vela::public.pages.blocks.pricing_tiers',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => [
                 'content' => ['tiers' => []],
                 'settings' => ['columns' => 3],
@@ -1141,6 +1167,11 @@ class VelaServiceProvider extends ServiceProvider
 
         // Register review blocks
         $vela->registerBlock('review-summary', [
+            'fields' => [
+                ['key' => 'min_rating', 'in' => 'settings', 'type' => 'number', 'label' => 'Lowest rating to include',
+                 'min' => 1, 'max' => 5],
+            ],
+            'editor_note' => 'Reviews come from the Reviews section; this block has no wording of its own.',
             'label' => 'vela::global.review_summary',
             'icon' => 'fas fa-star-half-alt',
             'view' => 'vela::public.pages.blocks.review-summary',
@@ -1149,6 +1180,13 @@ class VelaServiceProvider extends ServiceProvider
         ]);
 
         $vela->registerBlock('review-carousel', [
+            'fields' => [
+                ['key' => 'max_count',  'in' => 'settings', 'type' => 'number', 'label' => 'How many to show',
+                 'min' => 1, 'max' => 50],
+                ['key' => 'min_rating', 'in' => 'settings', 'type' => 'number', 'label' => 'Lowest rating to include',
+                 'min' => 1, 'max' => 5],
+            ],
+            'editor_note' => 'Reviews come from the Reviews section; this block has no wording of its own.',
             'label' => 'vela::global.review_carousel',
             'icon' => 'fas fa-star',
             'view' => 'vela::public.pages.blocks.review-carousel',
@@ -1157,6 +1195,15 @@ class VelaServiceProvider extends ServiceProvider
         ]);
 
         $vela->registerBlock('review-grid', [
+            'fields' => [
+                ['key' => 'max_count',  'in' => 'settings', 'type' => 'number', 'label' => 'How many to show',
+                 'min' => 1, 'max' => 50],
+                ['key' => 'columns',    'in' => 'settings', 'type' => 'number', 'label' => 'Columns',
+                 'min' => 1, 'max' => 4],
+                ['key' => 'min_rating', 'in' => 'settings', 'type' => 'number', 'label' => 'Lowest rating to include',
+                 'min' => 1, 'max' => 5],
+            ],
+            'editor_note' => 'Reviews come from the Reviews section; this block has no wording of its own.',
             'label' => 'vela::global.review_grid',
             'icon' => 'fas fa-th',
             'view' => 'vela::public.pages.blocks.review-grid',

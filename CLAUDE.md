@@ -87,7 +87,7 @@ Configure via `CLOUDFLARE_BROWSER_RENDERING_URL` in .env.
 ## Conventions
 - Settings stored in `vela_configs` table via `VelaConfig::updateOrCreate()`
 - Menu items registered via `Vela::registerMenu()`
-- Blocks registered via `Vela::registerBlock()`
+- Blocks registered via `Vela::registerBlock()`; every block needs a form — `'editor' => 'js'` or a `'fields'` schema — see `docs/blocks.md`
 - Templates in `resources/views/templates/{name}/`
 - Themes state their palette in `--vela-*` tokens; `--block-*` are aliases and must never be set directly — see `docs/design-tokens.md`
 - Lang files in `resources/lang/{locale}/`

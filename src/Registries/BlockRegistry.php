@@ -18,7 +18,12 @@ class BlockRegistry
             'label' => $name,
             'icon' => 'fa-puzzle-piece',
             'view' => null,
+            // 'js' where page-editor.js hand-writes the form; otherwise the
+            // admin builds one from `fields`. Null means neither, which means
+            // the block renders but cannot be edited — see editableNames().
             'editor' => null,
+            'fields' => [],
+            'editor_note' => null,
             'defaults' => ['content' => [], 'settings' => []],
         ], $config);
     }
@@ -47,37 +52,61 @@ class BlockRegistry
      * Block types the page editor can actually edit.
      *
      * A block registered here renders on the public site, but editing one in
-     * the admin needs a matching registerBlockType() in page-editor.js, and
-     * several have none — a page built from those shows "Unknown block type"
-     * and its owner can never change a word of it. The editor's own file is
-     * the authority, so it is read rather than duplicated into a list beside
-     * it that would drift.
+     * the admin needs a form, and five had none: a page built from those
+     * showed "Unknown block type" and its owner could never change a word of
+     * it. There are two ways to have a form. `'editor' => 'js'` says one is
+     * hand-written in page-editor.js, for the blocks whose editing is genuinely
+     * bespoke — a rich-text canvas, a media browser, a repeater of pricing
+     * tiers. `'fields' => [...]` describes a plain form the admin builds
+     * itself, which is all the rest need.
+     *
+     * This used to be answered by regex over page-editor.js, reading back what
+     * the JS happened to register. That made a 324KB file the authority on a
+     * question PHP has to answer, so a block was editable by accident rather
+     * than by declaration, and nothing noticed a block that had neither.
+     * BlockManifestTest checks the two halves still agree.
      */
     public function editableNames(): array
     {
-        static $editable = null;
-
-        if ($editable !== null) {
-            return $editable;
-        }
-
-        $script = __DIR__ . '/../../public/js/page-editor.js';
-
-        if (!is_file($script)) {
-            return $editable = $this->names();
-        }
-
-        preg_match_all("/registerBlockType\(\s*'([a-z0-9_-]+)'/i", (string) file_get_contents($script), $matches);
-
-        $found = array_values(array_unique($matches[1]));
-
-        // Nothing found means the file changed shape, and silently declaring
-        // every block uneditable would be worse than assuming they are fine.
-        return $editable = $found ?: $this->names();
+        return array_keys(array_filter($this->blocks, fn (array $config) => $this->hasForm($config)));
     }
 
     public function isEditable(string $name): bool
     {
-        return in_array($name, $this->editableNames(), true);
+        $config = $this->blocks[$name] ?? null;
+
+        return $config !== null && $this->hasForm($config);
+    }
+
+    /** Whether a registration describes a way to edit the block. */
+    private function hasForm(array $config): bool
+    {
+        return ($config['editor'] ?? null) === 'js' || !empty($config['fields']);
+    }
+
+    /**
+     * The field schemas the admin needs to build forms, keyed by block type.
+     *
+     * Only blocks without a hand-written editor appear.
+     */
+    public function fieldSchemas(): array
+    {
+        $out = [];
+
+        foreach ($this->blocks as $name => $config) {
+            if (($config['editor'] ?? null) === 'js' || empty($config['fields'])) {
+                continue;
+            }
+
+            $out[$name] = [
+                'label'    => $config['label'] ? (string) trans($config['label']) : $name,
+                'icon'     => $config['icon'] ?? 'fa-puzzle-piece',
+                'defaults' => $config['defaults'] ?? ['content' => [], 'settings' => []],
+                'fields'   => $config['fields'],
+                'note'     => $config['editor_note'] ?? null,
+            ];
+        }
+
+        return $out;
     }
 }

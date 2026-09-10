@@ -5056,6 +5056,7 @@ PageEditor.registerBlockType = function(name, config) {
 
     // --- Init ---
     function init(existingRows) {
+        registerFieldBlocks();
         if (existingRows && existingRows.length) {
             rows = parseExistingRows(existingRows);
         }
@@ -5063,6 +5064,130 @@ PageEditor.registerBlockType = function(name, config) {
         initRowSortable();
         bindFormEvents();
         bindLinkSuggest();
+    }
+
+    // --- Blocks whose editing is a plain form -------------------------------
+    //
+    // Most blocks here are hand-written because their editing genuinely is:
+    // a rich-text canvas, a media browser, a repeater of pricing tiers. Five
+    // were not hand-written for any such reason — they were simply never got
+    // to, and a page carrying one showed "Unknown block type" with no way for
+    // its owner to change a word.
+    //
+    // Their shape is declared in PHP, beside the block's registration, and the
+    // form is built from it here. Adding a block of that kind no longer means
+    // finding a place for it in six thousand lines of this file.
+
+    function fieldId(type, key) {
+        return 'vela-field-' + type.replace(/[^a-z0-9]+/gi, '-') + '-' + key;
+    }
+
+    function fieldValue(block, field) {
+        var bag = (field.in === 'settings' ? block.settings : block.content) || {};
+        return bag[field.key];
+    }
+
+    function renderField(type, block, field) {
+        var id = fieldId(type, field.key);
+        var value = fieldValue(block, field);
+        var label = '<label for="' + id + '">' + escHtml(field.label || field.key) + '</label>';
+        var help = field.help ? '<small class="form-text text-muted">' + escHtml(field.help) + '</small>' : '';
+        var input;
+
+        if (field.type === 'textarea' || field.type === 'code') {
+            var mono = field.type === 'code'
+                ? ' style="font-family:SFMono-Regular,Consolas,monospace;font-size:.85rem;" spellcheck="false"'
+                : '';
+            input = '<textarea class="form-control" id="' + id + '" rows="' + (field.type === 'code' ? 10 : 3) + '"' +
+                mono + '>' + escHtml(value == null ? '' : String(value)) + '</textarea>';
+        } else if (field.type === 'select') {
+            var opts = Object.keys(field.options || {}).map(function (k) {
+                return '<option value="' + escHtml(k) + '"' + (String(value) === k ? ' selected' : '') + '>' +
+                    escHtml(field.options[k]) + '</option>';
+            }).join('');
+            input = '<select class="form-control" id="' + id + '">' + opts + '</select>';
+        } else if (field.type === 'toggle') {
+            // Rendered as its own group so the label sits beside the box, and
+            // returned early: the shared label above would repeat it.
+            return '<div class="form-group form-check">' +
+                '<input type="checkbox" class="form-check-input" id="' + id + '"' + (value ? ' checked' : '') + '>' +
+                '<label class="form-check-label" for="' + id + '">' + escHtml(field.label || field.key) + '</label>' +
+                help + '</div>';
+        } else if (field.type === 'number') {
+            input = '<input type="number" class="form-control" id="' + id + '" value="' +
+                escHtml(value == null ? '' : String(value)) + '"' +
+                (field.min != null ? ' min="' + escHtml(String(field.min)) + '"' : '') +
+                (field.max != null ? ' max="' + escHtml(String(field.max)) + '"' : '') + '>';
+        } else {
+            input = '<input type="text" class="form-control" id="' + id + '" value="' +
+                escHtml(value == null ? '' : String(value)) + '">';
+        }
+
+        return '<div class="form-group">' + label + input + help + '</div>';
+    }
+
+    function readField(type, field) {
+        var $el = $('#' + fieldId(type, field.key));
+        if (!$el.length) return undefined;
+        if (field.type === 'toggle') return $el.is(':checked');
+        if (field.type === 'number') {
+            var n = parseInt($el.val(), 10);
+            return isNaN(n) ? undefined : n;
+        }
+        return $el.val();
+    }
+
+    function registerFieldBlocks() {
+        var schemas = window.VelaBlockFields || {};
+
+        Object.keys(schemas).forEach(function (type) {
+            // A hand-written editor always wins: a plugin may replace one of
+            // these with something better, and it registers before init runs.
+            if (PageEditor.blockTypes[type]) return;
+
+            var schema = schemas[type];
+            var fields = schema.fields || [];
+
+            PageEditor.registerBlockType(type, {
+                icon: schema.icon,
+                label: schema.label,
+                defaults: schema.defaults,
+                renderPreview: function (block) {
+                    // The first text field is the closest thing these blocks
+                    // have to a headline; failing that, say what it is rather
+                    // than drawing an empty box.
+                    var first = fields.filter(function (f) {
+                        return f.type === 'text' || f.type === 'textarea' || f.type === 'code';
+                    })[0];
+                    var text = first ? fieldValue(block, first) : '';
+                    return text
+                        ? escHtml(String(text).slice(0, 120))
+                        : '<em>' + escHtml(schema.label) + '</em>';
+                },
+                renderEditor: function (block) {
+                    var note = schema.note
+                        ? '<div class="alert alert-info py-2 px-3" style="font-size:.85rem;">' +
+                          escHtml(schema.note) + '</div>'
+                        : '';
+                    return note + fields.map(function (f) {
+                        return renderField(type, block, f);
+                    }).join('');
+                },
+                initEditor: function () {},
+                collectData: function (block) {
+                    var out = {
+                        content: $.extend({}, block.content),
+                        settings: $.extend({}, block.settings),
+                    };
+                    fields.forEach(function (f) {
+                        var v = readField(type, f);
+                        if (v === undefined) return;
+                        out[f.in === 'settings' ? 'settings' : 'content'][f.key] = v;
+                    });
+                    return out;
+                },
+            });
+        });
     }
 
     function parseExistingRows(data) {
@@ -5591,16 +5716,17 @@ PageEditor.registerBlockType = function(name, config) {
                 row.columns[colIndex].blocks.push(block);
                 renderRows();
                 initRowSortable();
-                // Swap modal content to the edit form without closing/reopening
-                var bi = row.columns[colIndex].blocks.length - 1;
-                editingRowId = rowId;
-                editingColIndex = colIndex;
-                editingBlockIndex = bi;
-                var editHtml = cfg.renderEditor(block);
-                $('.modal-title').text('Edit Block: ' + cfg.label);
-                $('#block-edit-content').html(editHtml);
-                $('#save-block-btn').show();
-                if (cfg.initEditor) { cfg.initEditor(block); }
+                // Swap modal content to the edit form without closing it —
+                // openEditModal's own modal('show') is a no-op on a modal that
+                // is already up.
+                //
+                // This used to render the block's own fields and stop there,
+                // so a block added and styled in one sitting had no Block
+                // Style section at all: no background, no text colour, no
+                // padding. The controls appeared only after closing the dialog
+                // and opening the block again, which reads as the block not
+                // having them.
+                openEditModal(rowId, colIndex, row.columns[colIndex].blocks.length - 1);
             });
             $('#block-edit-modal').modal('show');
         });
