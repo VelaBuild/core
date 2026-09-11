@@ -44,17 +44,27 @@ class CreateContentCommandTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Arrange a text provider the command will actually use.
+     *
+     * Swapping AiProviderManager itself does not work here: the command takes
+     * one in its constructor, and Artisan has already built the command by the
+     * time a test body runs — so it went on holding the real manager and every
+     * one of these tests failed with "No AI text provider configured".
+     *
+     * The real manager picks a provider by asking whether a key is set and
+     * then resolving that provider's class from the container, both at call
+     * time. So a key and a bound double are enough, and the manager's own
+     * choosing is exercised rather than mocked away.
+     */
     private function mockAiManager(string $generatedText = "## Test Article\n\nThis is generated test content for the article."): void
     {
         $mockProvider = \Mockery::mock(AiTextProvider::class);
-        $mockProvider->shouldReceive('generateText')
-            ->andReturn($generatedText);
+        $mockProvider->shouldReceive('generateText')->andReturn($generatedText);
+        $mockProvider->shouldReceive('generate')->andReturn($generatedText);
 
-        $mockManager = \Mockery::mock(AiProviderManager::class);
-        $mockManager->shouldReceive('hasTextProvider')->andReturn(true);
-        $mockManager->shouldReceive('resolveTextProvider')->andReturn($mockProvider);
-
-        $this->instance(AiProviderManager::class, $mockManager);
+        $this->setAiKeys(['openai' => 'sk-test-key']);
+        $this->instance(\VelaBuild\Core\Services\OpenAiTextService::class, $mockProvider);
     }
 
     public function test_creates_content_with_all_flags(): void
@@ -66,7 +76,6 @@ class CreateContentCommandTest extends TestCase
         $this->artisan('vela:create-content', [
             '--title' => $title,
             '--prompt' => 'Write about testing',
-            '--type' => 'post',
             '--status' => 'draft',
         ])->assertExitCode(0);
 
@@ -113,7 +122,6 @@ class CreateContentCommandTest extends TestCase
         $this->artisan('vela:create-content', [
             '--title' => $title,
             '--prompt' => 'Write about testing',
-            '--type' => 'post',
             '--status' => 'draft',
         ])->assertExitCode(0);
 

@@ -56,6 +56,30 @@ abstract class PackageTestCase extends TestbenchTestCase
     }
 
     /**
+     * Bind a double, and make sure the console can still see it.
+     *
+     * Artisan builds its commands once, out of the container, when the console
+     * kernel first boots — and that happens before a test body runs. A command
+     * taking its dependency in the constructor therefore went on holding the
+     * real one however carefully a test swapped the binding afterwards, which
+     * is why a shelf of command tests failed with "No AI text provider
+     * configured" while mocking a manager that said the opposite.
+     *
+     * Dropping the Artisan application makes the kernel build its commands
+     * again, from the container as it stands now.
+     */
+    protected function instance($abstract, $instance)
+    {
+        $result = parent::instance($abstract, $instance);
+
+        if ($this->app->resolved(\Illuminate\Contracts\Console\Kernel::class)) {
+            $this->app[\Illuminate\Contracts\Console\Kernel::class]->setArtisan(null);
+        }
+
+        return $result;
+    }
+
+    /**
      * Give a provider an API key, or take it away.
      *
      * Provider keys used to be config values, and a shelf of tests still set
