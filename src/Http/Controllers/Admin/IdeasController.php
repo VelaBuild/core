@@ -167,6 +167,18 @@ class IdeasController extends Controller
         $count = $request->input('count', 20);
         $categories = $request->input('categories', []);
 
+        // Asked before the try, because "no key has been set" is not a server
+        // fault and should not be dressed as one. It used to fall into the
+        // catch below and come back as a 500 saying "An error occurred while
+        // generating ideas" — which tells whoever is looking at it nothing
+        // about the one thing they need to do.
+        if (!$aiManager->hasTextProvider()) {
+            return response()->json([
+                'success' => false,
+                'message' => trans('vela::global.ai_no_provider_configured'),
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         try {
             $textProvider = $aiManager->resolveTextProvider();
             $ideas = $this->generateIdeasWithAI($textProvider, $topic, $keyword, $count, $categories);

@@ -583,6 +583,7 @@ return [
     'homepage_installed_new'         => 'Homepage installed as a new draft page. Edit it in the Pages section.',
 
     // Settings
+    'ai_no_provider_configured' => 'No AI provider is configured. Add an API key under Settings → AI, then try again.',
     'theme'                          => 'Theme',
     'theme_options'                  => 'Theme Options',
     'theme_switch_confirm'           => 'Switch the live site to the :theme theme? Visitors will see it right away.',

@@ -59,7 +59,11 @@ class IdeasControllerTest extends TestCase
         $response = $this->delete('/admin/ideas/' . $idea->id);
 
         $response->assertRedirect();
-        $this->assertSoftDeleted('vela_ideas', ['id' => $idea->id]);
+        // Deleting one idea rejects it rather than removing it, which is what
+        // the controller has always done and what the index relies on.
+        // Note this is not what massDestroy does — that one really deletes —
+        // so one idea and several ideas do different things to the same data.
+        $this->assertDatabaseHas('vela_ideas', ['id' => $idea->id, 'status' => 'reject']);
     }
 
     public function test_generate_ai_returns_error_without_api_key(): void

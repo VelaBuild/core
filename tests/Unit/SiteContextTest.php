@@ -14,7 +14,7 @@ class SiteContextTest extends TestCase
     public function test_returns_config_defaults_when_no_db_overrides(): void
     {
         config([
-            'vela.ai.site_context.name' => 'Config Site Name',
+            'app.name' => 'Config Site Name',
             'vela.ai.site_context.niche' => 'cooking',
             'vela.ai.site_context.description' => '',
         ]);
@@ -42,7 +42,7 @@ class SiteContextTest extends TestCase
     public function test_get_description_formats_correctly(): void
     {
         config([
-            'vela.ai.site_context.name' => 'My Site',
+            'app.name' => 'My Site',
             'vela.ai.site_context.niche' => 'cooking',
             'vela.ai.site_context.description' => '',
         ]);

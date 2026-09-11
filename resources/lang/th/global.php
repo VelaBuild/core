@@ -512,6 +512,7 @@ return [
     'block_type_app_download'        => 'App Download',
 
     // Settings
+    'ai_no_provider_configured' => 'ยังไม่ได้ตั้งค่าผู้ให้บริการ AI เพิ่ม API key ที่ ตั้งค่า → AI แล้วลองใหม่',
     'theme'                          => 'ธีม',
     'theme_options'                  => 'ตัวเลือกธีม',
     'theme_missing_title'            => 'ธีม ":theme" ไม่ได้ติดตั้งอยู่แล้ว',
