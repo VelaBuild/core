@@ -119,6 +119,13 @@ abstract class PackageTestCase extends TestbenchTestCase
         // and Testbench boots without one.
         $app['config']->set('app.key', 'base64:' . base64_encode(random_bytes(32)));
 
+        // Testbench boots with no mailer, so anything that checks whether one
+        // is configured before sending answers "no" — which is not what those
+        // tests are about. The array driver keeps every message in memory and
+        // sends nothing.
+        $app['config']->set('mail.default', 'array');
+        $app['config']->set('mail.mailers.array', ['transport' => 'array']);
+
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
             'driver'   => 'sqlite',

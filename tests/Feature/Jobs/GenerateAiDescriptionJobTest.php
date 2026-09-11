@@ -14,6 +14,11 @@ class GenerateAiDescriptionJobTest extends TestCase
 
     public function test_job_generates_description_for_content_without_one(): void
     {
+        // The job asks the provider manager for a text provider, and that
+        // asks the settings service whether any key is set. Without one it
+        // returns before the faked HTTP call is ever reached.
+        $this->setAiKeys(['openai' => 'sk-test-key']);
+
         $editorJsContent = json_encode([
             'blocks' => [
                 [

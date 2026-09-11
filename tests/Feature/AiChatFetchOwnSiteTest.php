@@ -2,6 +2,7 @@
 
 namespace VelaBuild\Core\Tests\Feature;
 
+use Illuminate\Support\Facades\Http;
 use VelaBuild\Core\Services\AiChat\Tools\FetchUrlTool;
 use VelaBuild\Core\Tests\PackageTestCase;
 
@@ -22,6 +23,12 @@ class AiChatFetchOwnSiteTest extends PackageTestCase
 
     public function test_the_site_may_read_its_own_pages(): void
     {
+        // Faked, because the question is whether the SSRF guard lets the
+        // address through — not whether something is listening on port 8000.
+        // Unfaked, this passed only on a machine that happened to have the
+        // dev server up, and had been red on every other one.
+        Http::fake(['127.0.0.1:8000/*' => Http::response('<html><body>Home</body></html>', 200)]);
+
         $result = (new FetchUrlTool())->execute(['url' => 'http://127.0.0.1:8000/']);
 
         $this->assertArrayNotHasKey('error', $result, 'the chatbot must be able to look at the site it runs inside');

@@ -151,9 +151,13 @@ class ChatToolExecutorTest extends TestCase
         $testKey = 'test_action_log_key_' . uniqid();
         $this->createdVelaConfigKeys[] = $testKey;
 
+        // update_site_config refuses an unknown key unless told to create it:
+        // writing one nothing reads changes nothing, and the chatbot used to
+        // report that as done. This test is about the action log, so it says
+        // yes to the thing the guard asks about.
         $result = $this->executor->execute(
             'update_site_config',
-            ['key' => $testKey, 'value' => 'test_value'],
+            ['key' => $testKey, 'value' => 'test_value', 'create_new' => true],
             $this->conversation->id,
             $this->message->id,
             $user

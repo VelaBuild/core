@@ -27,6 +27,9 @@
         "orchestra/testbench": "^8.0|^9.0",
         "phpunit/phpunit": "^10.0|^11.0"
     },
+    "scripts": {
+        "test": "phpunit --no-coverage"
+    },
     "autoload": {
         "psr-4": {
             "VelaBuild\\Core\\": "src/",

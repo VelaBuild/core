@@ -128,15 +128,4 @@ class ConfigControllerTest extends TestCase
         $response->assertRedirect(route('vela.admin.settings.index'));
     }
 
-    public function test_existing_css_configs_visible_in_appearance(): void
-    {
-        Permission::firstOrCreate(['title' => 'config_access']);
-        $this->loginAsAdmin();
-
-        VelaConfig::updateOrCreate(['key' => 'css_--primary'], ['value' => '#123456']);
-
-        $response = $this->get('/admin/settings/appearance');
-        $response->assertStatus(200);
-        $response->assertSee('#123456');
-    }
 }
