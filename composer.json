@@ -30,7 +30,8 @@
     "autoload": {
         "psr-4": {
             "VelaBuild\\Core\\": "src/",
-            "VelaBuild\\Core\\Database\\Seeders\\": "database/seeders/"
+            "VelaBuild\\Core\\Database\\Seeders\\": "database/seeders/",
+            "VelaBuild\\Core\\Database\\Factories\\": "database/factories/"
         },
         "files": [
             "src/Helpers/template.php",

@@ -2,68 +2,68 @@
 <phpunit bootstrap="vendor/autoload.php" colors="true" cacheDirectory=".phpunit.cache">
   <testsuites><testsuite name="package">
     <file>tests/Unit/PageCustomCssLimitTest.php</file>
-    <file>tests/Unit/Services/ImportedCarouselsTest.php</file>
+    <file>tests/Unit/AiChatTranscriptOrderTest.php</file>
     <file>tests/Unit/Services/MisreadWordsTest.php</file>
     <file>tests/Unit/Services/ThemeSkeletonTokensTest.php</file>
+    <file>tests/Unit/Services/ImportedCarouselsTest.php</file>
     <file>tests/Unit/Services/ImportedDisclosuresTest.php</file>
     <file>tests/Unit/Services/ProviderModelChoiceTest.php</file>
     <file>tests/Unit/Services/PageSectionExtractorTest.php</file>
     <file>tests/Unit/Services/StyleConflictDetectorTest.php</file>
     <file>tests/Unit/Services/ImportedAnimationsTest.php</file>
-    <file>tests/Unit/Services/CssScoperTest.php</file>
     <file>tests/Unit/Services/DesignBuilderServiceTest.php</file>
+    <file>tests/Unit/Services/CssScoperTest.php</file>
     <file>tests/Unit/Services/DesignBuildProgressTest.php</file>
     <file>tests/Unit/Services/DesignTokensTest.php</file>
     <file>tests/Unit/Services/ScreenshotServiceTest.php</file>
-    <file>tests/Unit/AiChatTranscriptOrderTest.php</file>
     <file>tests/Feature/AiChatPageBuilderToolsTest.php</file>
     <file>tests/Feature/DesignMisreadWordsTest.php</file>
-    <file>tests/Feature/ThemeHomeTemplateTest.php</file>
-    <file>tests/Feature/ThemeOptionsReachTheOwnerTest.php</file>
-    <file>tests/Feature/BlockManifestTest.php</file>
-    <file>tests/Feature/AiChatTranslateSiteToolTest.php</file>
-    <file>tests/Feature/AiChatCopyPageToolsTest.php</file>
     <file>tests/Feature/AiChatTranscriptIntegrationTest.php</file>
-    <file>tests/Feature/DesignBuildModelChoiceTest.php</file>
-    <file>tests/Feature/Auth/RegisterTest.php</file>
+    <file>tests/Feature/ThemeOptionsReachTheOwnerTest.php</file>
+    <file>tests/Feature/ThemeHomeTemplateTest.php</file>
+    <file>tests/Feature/BlockManifestTest.php</file>
+    <file>tests/Feature/AiChatCopyPageToolsTest.php</file>
+    <file>tests/Feature/AiChatTranslateSiteToolTest.php</file>
     <file>tests/Feature/SetMenuToolTest.php</file>
-    <file>tests/Feature/PageSlugAfterDeleteTest.php</file>
-    <file>tests/Feature/PreviewThemeNameTest.php</file>
     <file>tests/Feature/AiChatModelSettingTest.php</file>
-    <file>tests/Feature/InstallHomepageKeepsWhatItReplacesTest.php</file>
+    <file>tests/Feature/PreviewThemeNameTest.php</file>
+    <file>tests/Feature/DesignBuildModelChoiceTest.php</file>
     <file>tests/Feature/DesignPreviewFrameTest.php</file>
-    <file>tests/Feature/VelaRolesSeederTest.php</file>
-    <file>tests/Feature/DesignBuilderReadinessTest.php</file>
     <file>tests/Feature/DesignFixRoundToolsTest.php</file>
     <file>tests/Feature/ConvertSectionToBlockTest.php</file>
-    <file>tests/Feature/BrowserForScreenshotsTest.php</file>
+    <file>tests/Feature/PageSlugAfterDeleteTest.php</file>
+    <file>tests/Feature/DesignBuilderReadinessTest.php</file>
     <file>tests/Feature/AiChatFetchOwnSiteTest.php</file>
-    <file>tests/Feature/ThemeKindTest.php</file>
-    <file>tests/Feature/DesignSectionInventoryTest.php</file>
+    <file>tests/Feature/BrowserForScreenshotsTest.php</file>
+    <file>tests/Feature/InstallHomepageKeepsWhatItReplacesTest.php</file>
     <file>tests/Feature/RowColoursFollowTheThemeTest.php</file>
-    <file>tests/Feature/AiChatDesignGuardsTest.php</file>
+    <file>tests/Feature/DesignSectionInventoryTest.php</file>
+    <file>tests/Feature/VelaRolesSeederTest.php</file>
     <file>tests/Feature/DesignPageBuildTest.php</file>
-    <file>tests/Feature/HeaderActionsSlotTest.php</file>
+    <file>tests/Feature/AiChatDesignGuardsTest.php</file>
     <file>tests/Feature/MenuEditingTest.php</file>
-    <file>tests/Feature/AiChatUndoTest.php</file>
+    <file>tests/Feature/HeaderActionsSlotTest.php</file>
+    <file>tests/Feature/ThemeKindTest.php</file>
     <file>tests/Feature/AiChatArticleToolsTest.php</file>
-    <file>tests/Feature/AiChatSiteConfigCacheTest.php</file>
-    <file>tests/Feature/AiChatDesignedSectionTest.php</file>
-    <file>tests/Feature/ThemeMenusTest.php</file>
-    <file>tests/Feature/ThemeNamingTest.php</file>
-    <file>tests/Feature/StaticSiteGeneratorTest.php</file>
+    <file>tests/Feature/AiChatUndoTest.php</file>
     <file>tests/Feature/GeneratedPictureGuardsTest.php</file>
-    <file>tests/Feature/AiChatConversationListTest.php</file>
-    <file>tests/Feature/PageCssStaysInsideThePageTest.php</file>
+    <file>tests/Feature/ThemeMenusTest.php</file>
+    <file>tests/Feature/AiChatSiteConfigCacheTest.php</file>
     <file>tests/Feature/CloudScreenshotTest.php</file>
+    <file>tests/Feature/AiChatConversationListTest.php</file>
+    <file>tests/Feature/AiChatDesignedSectionTest.php</file>
     <file>tests/Feature/ThemeLayoutGuardTest.php</file>
-    <file>tests/Feature/ThemePaletteReachesBlocksTest.php</file>
-    <file>tests/Feature/PageSlugsThatBeginWithARouteNameTest.php</file>
+    <file>tests/Feature/StaticSiteGeneratorTest.php</file>
     <file>tests/Feature/DesignRestoreTest.php</file>
-    <file>tests/Feature/AiChatImportSectionTest.php</file>
-    <file>tests/Feature/AiChatStyleConflictTest.php</file>
-    <file>tests/Feature/LinkSuggestTest.php</file>
+    <file>tests/Feature/ThemeNamingTest.php</file>
     <file>tests/Feature/AiChatCopyPageTest.php</file>
+    <file>tests/Feature/AiChatImportSectionTest.php</file>
+    <file>tests/Feature/ThemePaletteReachesBlocksTest.php</file>
+    <file>tests/Feature/PageCssStaysInsideThePageTest.php</file>
+    <file>tests/Feature/AiChatStyleConflictTest.php</file>
+    <file>tests/Feature/PageSlugsThatBeginWithARouteNameTest.php</file>
+    <file>tests/Feature/LinkSuggestTest.php</file>
+    <file>tests/Feature/Auth/RegisterTest.php</file>
   </testsuite></testsuites>
   <php><env name="APP_ENV" value="testing"/><env name="DB_CONNECTION" value="sqlite"/><env name="DB_DATABASE" value=":memory:"/></php>
 </phpunit>
