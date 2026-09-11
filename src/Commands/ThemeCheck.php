@@ -86,7 +86,7 @@ class ThemeCheck extends Command
         }
 
         // 1. Required files
-        $requiredFiles = ['layout.blade.php', 'home.blade.php', 'article.blade.php', 'articles.blade.php', 'page.blade.php', 'categories_index.blade.php', 'categories_show.blade.php', 'offline.blade.php'];
+        $requiredFiles = ['layout.blade.php', 'article.blade.php', 'articles.blade.php', 'page.blade.php', 'categories_index.blade.php', 'categories_show.blade.php', 'offline.blade.php'];
         foreach ($requiredFiles as $file) {
             $exists = file_exists($path . '/' . $file);
             $checks[] = [
@@ -95,6 +95,21 @@ class ThemeCheck extends Command
                 'message' => $exists ? '' : "Missing required file: {$file}",
             ];
         }
+
+        // `home.blade.php` is not one of them, though it was listed as
+        // required — so this command failed every theme Vela ships, none of
+        // which has one. It is not an oversight in six themes: a site with a
+        // homepage renders it through page.blade.php, and HomeController has
+        // a branch for the case where the theme offers no home view at all.
+        // Worth saying when it is missing, because a theme meant to show
+        // something on an empty site needs one; not worth failing over.
+        $hasHome = file_exists($path . '/home.blade.php');
+        $checks[] = [
+            'check' => 'file_exists:home.blade.php',
+            'status' => $hasHome ? 'pass' : 'warn',
+            'message' => $hasHome ? '' : 'No home.blade.php. The homepage renders through page.blade.php; '
+                . 'a site with no homepage falls back to the built-in welcome screen.',
+        ];
 
         // 2. Layout includes shared partials
         $layoutPath = $path . '/layout.blade.php';
@@ -141,7 +156,13 @@ class ThemeCheck extends Command
             $checks[] = ['check' => 'html_lang_attribute', 'status' => $hasLangAttr ? 'pass' : 'fail', 'message' => $hasLangAttr ? '' : 'Missing lang attribute on <html>'];
 
             // 6. page-blocks.css loaded
-            $hasPageBlocks = str_contains($layoutContent, 'page-blocks.css');
+            //
+            // Either by name, or through the bundle that carries it. The
+            // check looked for the filename alone, so `minimal` — which loads
+            // it the way the asset pipeline intends, and nothing else — was
+            // reported as shipping no block styling at all.
+            $hasPageBlocks = str_contains($layoutContent, 'page-blocks.css')
+                || preg_match("/@velaAssets\(\s*'public'/", $layoutContent) === 1;
             $checks[] = ['check' => 'page_blocks_css', 'status' => $hasPageBlocks ? 'pass' : 'fail', 'message' => $hasPageBlocks ? '' : 'page-blocks.css not loaded'];
 
             // 7. Alpine.js loaded

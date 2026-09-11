@@ -4,12 +4,9 @@ namespace VelaBuild\Core\Tests\Feature\Public;
 
 use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Tests\TestCase;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 
 class ManifestTest extends TestCase
 {
-    use DatabaseTransactions;
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -26,7 +23,7 @@ class ManifestTest extends TestCase
     {
         VelaConfig::updateOrCreate(['key' => 'pwa_enabled'], ['value' => '1']);
 
-        $response = $this->get('/manifest.webmanifest');
+        $response = $this->get('/manifest.json');
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/manifest+json');
     }
@@ -36,7 +33,7 @@ class ManifestTest extends TestCase
         VelaConfig::updateOrCreate(['key' => 'pwa_enabled'], ['value' => '1']);
         VelaConfig::updateOrCreate(['key' => 'pwa_name'], ['value' => 'Test PWA']);
 
-        $response = $this->get('/manifest.webmanifest');
+        $response = $this->get('/manifest.json');
         $data = $response->json();
 
         $this->assertEquals('Test PWA', $data['name']);
@@ -51,7 +48,7 @@ class ManifestTest extends TestCase
     {
         VelaConfig::updateOrCreate(['key' => 'pwa_enabled'], ['value' => '1']);
 
-        $response = $this->get('/manifest.webmanifest');
+        $response = $this->get('/manifest.json');
         $data = $response->json();
 
         $this->assertEquals(config('app.name'), $data['name']);
@@ -62,7 +59,7 @@ class ManifestTest extends TestCase
     {
         VelaConfig::updateOrCreate(['key' => 'pwa_enabled'], ['value' => '0']);
 
-        $response = $this->get('/manifest.webmanifest');
+        $response = $this->get('/manifest.json');
         $response->assertStatus(404);
     }
 
@@ -70,7 +67,7 @@ class ManifestTest extends TestCase
     {
         VelaConfig::updateOrCreate(['key' => 'pwa_enabled'], ['value' => '1']);
 
-        $response = $this->get('/manifest.webmanifest?lang=de');
+        $response = $this->get('/de/manifest.json');
         $data = $response->json();
 
         $this->assertEquals('de', $data['lang']);

@@ -22,9 +22,10 @@ class ImageOptimizerTest extends TestCase
 
         $url = $this->optimizer->generateUrl($src, $width);
 
-        // Extract config param (everything after /imgp/)
-        $this->assertStringStartsWith('/imgp/', $url);
-        $config = substr($url, strlen('/imgp/'));
+        // route() gives an absolute URL, so the config is whatever follows
+        // the /imgp/ segment rather than the whole string after the prefix.
+        $this->assertStringContainsString('/imgp/', $url);
+        $config = substr($url, strpos($url, '/imgp/') + strlen('/imgp/'));
 
         $decoded = $this->optimizer->verifyAndDecode($config);
 
@@ -80,7 +81,7 @@ class ImageOptimizerTest extends TestCase
     {
         $url = $this->optimizer->generateResizeUrl('storage/app/public/test.jpg', 800);
 
-        $this->assertStringStartsWith('/imgr/', $url);
+        $this->assertStringContainsString('/imgr/', $url);
     }
 
     public function test_resize_url_hmac_roundtrip(): void
@@ -89,7 +90,7 @@ class ImageOptimizerTest extends TestCase
         $width = 600;
 
         $url = $this->optimizer->generateResizeUrl($src, $width);
-        $config = substr($url, strlen('/imgr/'));
+        $config = substr($url, strpos($url, '/imgr/') + strlen('/imgr/'));
 
         $decoded = $this->optimizer->verifyAndDecode($config);
 
