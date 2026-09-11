@@ -17,6 +17,11 @@ class LoginController extends Controller
             return response()->view('vela::auth.unavailable', ['disabled' => false], 503);
         }
 
+        // Already signed in: the form has nothing to offer, send them on.
+        if (auth('vela')->check()) {
+            return redirect()->route('vela.admin.home');
+        }
+
         return view('vela::auth.login');
     }
 

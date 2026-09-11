@@ -14,6 +14,16 @@ class LoginTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_login_page_redirects_signed_in_user_to_admin(): void
+    {
+        $user = VelaUser::factory()->create();
+        $this->actingAs($user, 'vela');
+
+        $response = $this->get('/vela/login');
+
+        $response->assertRedirect(route('vela.admin.home'));
+    }
+
     public function test_user_can_login_with_valid_credentials(): void
     {
         $user = VelaUser::factory()->create([
