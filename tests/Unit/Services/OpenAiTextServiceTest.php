@@ -11,7 +11,7 @@ class OpenAiTextServiceTest extends TestCase
 {
     public function test_returns_null_when_no_api_key(): void
     {
-        config(['vela.ai.openai.api_key' => null]);
+        $this->setAiKeys(['openai' => null]);
 
         Log::shouldReceive('warning')
             ->once()
@@ -25,7 +25,7 @@ class OpenAiTextServiceTest extends TestCase
 
     public function test_generate_text_calls_api(): void
     {
-        config(['vela.ai.openai.api_key' => 'test-api-key-123']);
+        $this->setAiKeys(['openai' => 'test-api-key-123']);
 
         Http::fake([
             'https://api.openai.com/v1/chat/completions' => Http::response([
@@ -56,7 +56,7 @@ class OpenAiTextServiceTest extends TestCase
 
     public function test_returns_null_on_api_failure(): void
     {
-        config(['vela.ai.openai.api_key' => 'test-api-key-123']);
+        $this->setAiKeys(['openai' => 'test-api-key-123']);
 
         Http::fake([
             'https://api.openai.com/v1/chat/completions' => Http::response([], 500),

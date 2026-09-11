@@ -18,9 +18,9 @@ class CreateContentCommandTest extends TestCase
     {
         parent::setUp();
         // Clear all API keys so tests start from a known state
-        config()->set('vela.ai.openai.api_key', '');
-        config()->set('vela.ai.anthropic.api_key', '');
-        config()->set('vela.ai.gemini.api_key', '');
+        $this->setAiKeys(['openai' => null]);
+        $this->setAiKeys(['anthropic' => null]);
+        $this->setAiKeys(['gemini' => null]);
 
         // The CreateContent command hardcodes author_id => 1, so ensure user ID 1 exists
         if (!\DB::table('vela_users')->where('id', 1)->exists()) {

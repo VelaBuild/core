@@ -11,7 +11,7 @@ class GeminiImageServiceTest extends TestCase
 {
     public function test_returns_null_when_no_api_key(): void
     {
-        config(['vela.ai.gemini.api_key' => null]);
+        $this->setAiKeys(['gemini' => null]);
 
         Log::shouldReceive('warning')
             ->once()
@@ -25,7 +25,7 @@ class GeminiImageServiceTest extends TestCase
 
     public function test_returns_null_on_api_failure(): void
     {
-        config(['vela.ai.gemini.api_key' => 'test-gemini-key-123']);
+        $this->setAiKeys(['gemini' => 'test-gemini-key-123']);
 
         Http::fake([
             'https://generativelanguage.googleapis.com/*' => Http::response([], 500),

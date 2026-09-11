@@ -56,6 +56,25 @@ abstract class PackageTestCase extends TestbenchTestCase
     }
 
     /**
+     * Give a provider an API key, or take it away.
+     *
+     * Provider keys used to be config values, and a shelf of tests still set
+     * `vela.ai.openai.api_key` and wondered why nothing resolved. They live in
+     * AiSettingsService now — the same place Settings → AI writes them — so
+     * this is the only way to arrange a test around one.
+     *
+     * @param array<string, ?string> $keys provider name => key, or null to clear
+     */
+    protected function setAiKeys(array $keys): void
+    {
+        $settings = app(\VelaBuild\Core\Services\AiSettingsService::class);
+
+        foreach ($keys as $provider => $value) {
+            $settings->set($provider . '_api_key', $value);
+        }
+    }
+
+    /**
      * Anything that writes the site config writes a REAL file into the test
      * app's storage, and a test app boots by reading it. Left behind by one
      * test, it decides which theme is active for every test after it — and

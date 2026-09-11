@@ -23,7 +23,7 @@ class ExtensibilityTest extends TestCase
             'view' => 'vela::public.pages.blocks.text',
         ]);
 
-        $blocks = $vela->getBlocks();
+        $blocks = $vela->blocks()->all();
         $this->assertArrayHasKey('test/custom-block', $blocks);
         $this->assertEquals('Custom Block', $blocks['test/custom-block']['label']);
     }
@@ -40,7 +40,7 @@ class ExtensibilityTest extends TestCase
             'order' => 50,
         ]);
 
-        $items = $vela->getMenuItems();
+        $items = $vela->menus()->all();
         $this->assertArrayHasKey('test/custom-menu', $items);
         $this->assertEquals('Custom Menu', $items['test/custom-menu']['label']);
     }
@@ -55,7 +55,7 @@ class ExtensibilityTest extends TestCase
             'path' => null,
         ]);
 
-        $templates = $vela->getTemplates();
+        $templates = $vela->templates()->all();
         $this->assertArrayHasKey('test/custom-template', $templates);
         $this->assertEquals('Custom Template', $templates['test/custom-template']['label']);
     }

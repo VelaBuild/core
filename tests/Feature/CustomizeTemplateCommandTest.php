@@ -20,9 +20,9 @@ class CustomizeTemplateCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config()->set('vela.ai.openai.api_key', '');
-        config()->set('vela.ai.anthropic.api_key', '');
-        config()->set('vela.ai.gemini.api_key', '');
+        $this->setAiKeys(['openai' => null]);
+        $this->setAiKeys(['anthropic' => null]);
+        $this->setAiKeys(['gemini' => null]);
     }
 
     protected function tearDown(): void

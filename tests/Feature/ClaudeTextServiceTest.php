@@ -15,7 +15,7 @@ class ClaudeTextServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config()->set('vela.ai.anthropic.api_key', 'test-anthropic-key');
+        $this->setAiKeys(['anthropic' => 'test-anthropic-key']);
     }
 
     public function test_sends_correct_anthropic_headers(): void
@@ -67,7 +67,7 @@ class ClaudeTextServiceTest extends TestCase
 
     public function test_generate_text_returns_null_with_no_api_key(): void
     {
-        config()->set('vela.ai.anthropic.api_key', '');
+        $this->setAiKeys(['anthropic' => null]);
 
         Log::shouldReceive('warning')
             ->once()

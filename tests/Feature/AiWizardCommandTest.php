@@ -21,9 +21,9 @@ class AiWizardCommandTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config()->set('vela.ai.openai.api_key', '');
-        config()->set('vela.ai.anthropic.api_key', '');
-        config()->set('vela.ai.gemini.api_key', '');
+        $this->setAiKeys(['openai' => null]);
+        $this->setAiKeys(['anthropic' => null]);
+        $this->setAiKeys(['gemini' => null]);
 
         // The CreateContent command hardcodes author_id => 1
         if (!\DB::table('vela_users')->where('id', 1)->exists()) {
