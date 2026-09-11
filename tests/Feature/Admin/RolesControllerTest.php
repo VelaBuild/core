@@ -26,7 +26,7 @@ class RolesControllerTest extends TestCase
 
         $response = $this->post('/admin/roles', [
             'title' => $title,
-            'permissions' => [],
+            'permissions' => [Permission::firstOrCreate(['title' => 'role_access'])->id],
         ]);
 
         $response->assertRedirect();
@@ -43,7 +43,7 @@ class RolesControllerTest extends TestCase
 
         $response = $this->put('/admin/roles/' . $role->id, [
             'title' => $newTitle,
-            'permissions' => [],
+            'permissions' => [Permission::firstOrCreate(['title' => 'role_access'])->id],
         ]);
 
         $response->assertRedirect();

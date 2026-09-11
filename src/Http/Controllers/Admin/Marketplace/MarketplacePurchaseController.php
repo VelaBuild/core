@@ -15,6 +15,15 @@ use VelaBuild\Core\Services\Marketplace\PackageInstaller;
 
 class MarketplacePurchaseController extends Controller
 {
+    /**
+     * A composer package name, as composer itself defines one.
+     *
+     * Held here because it is asked twice — once of what the browser came
+     * back with, once of what the marketplace says was bought — and the two
+     * had been written out separately.
+     */
+    private const COMPOSER_NAME = '/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$/';
+
     public function __construct(
         private MarketplaceClient $client,
         private PackageInstaller $installer,
@@ -26,9 +35,14 @@ class MarketplacePurchaseController extends Controller
     {
         abort_if(Gate::denies('marketplace_install'), Response::HTTP_FORBIDDEN);
 
+        // Rules as an array, not a pipe-delimited string. The pattern below
+        // contains a `|` of its own, and Laravel splits a rule STRING on that
+        // character: the regex arrived at preg_match() cut off mid-pattern,
+        // with no closing delimiter, and every purchase coming back from the
+        // marketplace answered 500 instead of installing anything.
         $request->validate([
-            'token' => 'required|string|max:64',
-            'package' => 'required|string|regex:/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$/',
+            'token' => ['required', 'string', 'max:64'],
+            'package' => ['required', 'string', 'regex:' . self::COMPOSER_NAME],
         ]);
 
         $data = $this->client->exchangeToken($request->input('token'));
@@ -40,7 +54,7 @@ class MarketplacePurchaseController extends Controller
 
         $composerName = $data['composer_name'] ?? null;
 
-        if (!$composerName || !preg_match('/^[a-z0-9]([_.-]?[a-z0-9]+)*\/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$/', $composerName)) {
+        if (!$composerName || !preg_match(self::COMPOSER_NAME, $composerName)) {
             return redirect()->route('vela.admin.marketplace.index')
                 ->with('error', 'Purchase verification failed: Invalid package name received.');
         }

@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Tests\Feature\Admin;
 
 use VelaBuild\Core\Models\Permission;
+use VelaBuild\Core\Models\Role;
 use VelaBuild\Core\Models\VelaUser;
 use VelaBuild\Core\Tests\TestCase;
 
@@ -29,7 +30,7 @@ class UsersControllerTest extends TestCase
             'email' => $email,
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'roles' => [],
+            'roles' => [Role::firstOrCreate(['id' => 1], ['title' => 'Admin'])->id],
         ]);
 
         $response->assertRedirect();
@@ -46,7 +47,7 @@ class UsersControllerTest extends TestCase
         $response = $this->put('/admin/users/' . $user->id, [
             'name' => 'New Name',
             'email' => $user->email,
-            'roles' => [],
+            'roles' => [Role::firstOrCreate(['id' => 1], ['title' => 'Admin'])->id],
         ]);
 
         $response->assertRedirect();

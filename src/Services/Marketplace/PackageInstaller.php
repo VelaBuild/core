@@ -281,11 +281,18 @@ class PackageInstaller
     private function acquireLock(): bool
     {
         $dir = dirname($this->lockFile);
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+
+        // Both calls are silenced and their results checked, because the
+        // failure they report is one this method already has an answer for:
+        // it returns false and the caller says the install could not start.
+        // Unsilenced, a directory that cannot be created raises a warning,
+        // Laravel turns that into an ErrorException, and a lock that could
+        // not be taken came back as a 500 rather than as a refusal.
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return false;
         }
 
-        $handle = fopen($this->lockFile, 'c');
+        $handle = @fopen($this->lockFile, 'c');
         if ($handle === false) {
             return false;
         }
