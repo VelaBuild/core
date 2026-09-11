@@ -41,8 +41,17 @@ class PageControllerTest extends TestCase
         $block = PageBlock::factory()->create([
             'page_row_id' => $row->id,
             'type' => 'contact_form',
-            'content' => json_encode(['fields' => [['name' => 'name', 'label' => 'Name', 'type' => 'text', 'required' => true]]]),
-            'settings' => json_encode([]),
+            // The contact form reads its field config from `settings`, keyed
+            // by field name — the same shape registerBlock() declares. Put in
+            // `content` as a list, it was never seen, and the controller fell
+            // back to its default five fields and refused the post for a
+            // missing email.
+            'content'  => ['title' => 'Contact', 'intro' => ''],
+            'settings' => ['fields' => [
+                'name'    => ['enabled' => true,  'required' => true],
+                'email'   => ['enabled' => false, 'required' => false],
+                'message' => ['enabled' => false, 'required' => false],
+            ]],
         ]);
 
         $response = $this->post('/page-form/' . $page->id, [
@@ -62,8 +71,8 @@ class PageControllerTest extends TestCase
         PageBlock::factory()->create([
             'page_row_id' => $row->id,
             'type' => 'contact_form',
-            'content' => json_encode([]),
-            'settings' => json_encode([]),
+            'content' => [],
+            'settings' => [],
         ]);
 
         $response = $this->post('/page-form/' . $page->id, [

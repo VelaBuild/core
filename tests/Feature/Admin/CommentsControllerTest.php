@@ -20,11 +20,14 @@ class CommentsControllerTest extends TestCase
     public function test_store_creates_comment(): void
     {
         Permission::firstOrCreate(['title' => 'comment_create']);
-        $this->loginAsAdmin();
+        $admin = $this->loginAsAdmin();
 
         $comment = 'Test comment ' . uniqid();
 
+        // StoreCommentRequest requires user_id — a comment belongs to
+        // somebody — and neither of these calls was sending one.
         $response = $this->post('/admin/comments', [
+            'user_id' => $admin->id,
             'comment' => $comment,
             'status' => 'approved',
         ]);
@@ -36,11 +39,16 @@ class CommentsControllerTest extends TestCase
     public function test_update_comment(): void
     {
         Permission::firstOrCreate(['title' => 'comment_edit']);
-        $this->loginAsAdmin();
+        $admin = $this->loginAsAdmin();
 
-        $comment = Comment::factory()->create(['comment' => 'Old comment text']);
+        // The factory leaves user_id null, and the update request requires it.
+        $comment = Comment::factory()->create([
+            'comment' => 'Old comment text',
+            'user_id' => $admin->id,
+        ]);
 
         $response = $this->put('/admin/comments/' . $comment->id, [
+            'user_id' => $comment->user_id,
             'comment' => 'New comment text',
             'status' => $comment->status,
         ]);
