@@ -28,7 +28,7 @@ class AiChatTranscriptIntegrationTest extends PackageTestCase
         $manager = $this->createStub(AiProviderManager::class);
         $manager->method('resolveTextProvider')->willReturn($this->provider);
         $manager->method('hasTextProvider')->willReturn(true);
-        $this->app->instance(AiProviderManager::class, $manager);
+        $this->instance(AiProviderManager::class, $manager);
     }
 
     private function runJobFor(AiConversation $conversation, int $triggerId, string $body): void

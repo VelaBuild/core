@@ -16,7 +16,14 @@ class VisionProviderTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // Ensure all three providers have API keys available for testing
+        // Through the settings service, which is where the providers read
+        // their keys. putenv() alone left OpenAI without one, so its two
+        // tests never got as far as sending a request.
+        $this->setAiKeys([
+            'openai'    => 'test-openai-key',
+            'anthropic' => 'test-anthropic-key',
+            'gemini'    => 'test-gemini-key',
+        ]);
         putenv('ANTHROPIC_API_KEY=test-anthropic-key');
         putenv('GEMINI_API_KEY=test-gemini-key');
     }

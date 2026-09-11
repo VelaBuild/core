@@ -41,8 +41,10 @@ class OpenAiTextServiceTest extends TestCase
 
         Log::shouldReceive('info')->once();
 
+        // generateText() answers the message text; the whole API response is
+        // what generateTextRaw() is for, and this test wants the response.
         $service = new OpenAiTextService();
-        $result = $service->generateText('Test prompt');
+        $result = $service->generateTextRaw('Test prompt');
 
         $this->assertNotNull($result);
         $this->assertArrayHasKey('choices', $result);

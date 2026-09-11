@@ -179,7 +179,7 @@ class BrowserForScreenshotsTest extends PackageTestCase
             }
         };
 
-        $this->app->instance(BrowserInstaller::class, $installer);
+        $this->instance(BrowserInstaller::class, $installer);
 
         return $installer;
     }

@@ -160,7 +160,7 @@ class CustomizeTemplateCommandTest extends TestCase
         $mockCompiler->shouldReceive('compileString')
             ->andThrow(new \Exception('Simulated Blade compilation failure'));
 
-        $this->app->instance('blade.compiler', $mockCompiler);
+        $this->instance('blade.compiler', $mockCompiler);
 
         $backupDir = storage_path('app/template-backups');
         $basename = 'test.blade.php';
