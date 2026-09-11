@@ -28,6 +28,21 @@
         :root {
             --vela-primary: #2A5894;
             --vela-secondary: #808183;
+            /* The two faces and the measure, stated once. premium.css reads
+               them, and so does the block stylesheet — so a heading inside a
+               text block is set in the theme's display face rather than
+               inheriting the body one. */
+            /* The full-width dark strip this theme's example homepage opens
+               with, and the light ground under its middle sections. Named
+               here so the example page can say which role a section plays
+               instead of repeating a hex that stops being right the moment
+               the site changes theme. */
+            --vela-band: #1e3a5f;
+            --vela-band-ink: #ffffff;
+            --vela-surface: #f8fafc;
+            --vela-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --vela-font-display: 'Playfair Display', Georgia, serif;
+            --vela-page-width: 1400px;
         }
     </style>
 @include('vela::templates._partials.theme-colors')

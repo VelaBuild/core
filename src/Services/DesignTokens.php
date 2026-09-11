@@ -45,6 +45,11 @@ class DesignTokens
         'surface'    => ['--vela-surface',       '#f9fafb', 'Surface',          'bg'],
         'card'       => ['--vela-card-bg',       '#ffffff', 'Card',             'bg'],
         'line'       => ['--vela-line',          '#e5e7eb', 'Rule',             'bg'],
+        // The full-width dark strip every theme's example homepage opens with
+        // and closes on. It was written out as a hex in all six, so switching
+        // theme left a navy band across a site that had stopped being navy.
+        'band'       => ['--vela-band',          '#1a1a1a', 'Band',             'bg'],
+        'band-ink'   => ['--vela-band-ink',      '#ffffff', 'Text on a band',   'text'],
     ];
 
     /**

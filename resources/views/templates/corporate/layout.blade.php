@@ -23,18 +23,33 @@
             /* The theme's palette, stated once — see page-blocks.css. */
             --vela-primary: #1e40af;
             --vela-primary-hover: #1e3a8a;
+            /* The full-width dark strip this theme's example homepage opens
+               with, and the light ground under its middle sections. Named
+               here so the example page can say which role a section plays
+               instead of repeating a hex that stops being right the moment
+               the site changes theme. */
+            --vela-band: #1e3a5f;
+            --vela-band-ink: #ffffff;
+            --vela-surface: #f1f5f9;
+            /* The two faces and the measure, stated once — read by this
+               theme's own stylesheet and by the block stylesheet, so a
+               heading inside a text block is set in the display face
+               rather than inheriting the body one. */
+            --vela-font-body: 'Inter', sans-serif;
+            --vela-font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+            --vela-page-width: 1200px;
             --vela-ink: #0f172a;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--vela-font-body, 'Inter', sans-serif);
             color: #0f172a;
             line-height: 1.6;
             background: #fff;
         }
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+            font-family: var(--vela-font-display, 'Plus Jakarta Sans', 'Inter', sans-serif);
             font-weight: 700;
             line-height: 1.25;
             color: #0f172a;
@@ -51,7 +66,7 @@
             margin: 0 auto;
             padding: 0 24px;
         }
-        .page-row-public.row-contained { max-width: 1200px; padding-left: 24px; padding-right: 24px; }
+        .page-row-public.row-contained { max-width: var(--vela-page-width, 1200px); padding-left: 24px; padding-right: 24px; }
 
         /* Navigation */
         .co-nav {
@@ -77,7 +92,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: var(--vela-font-display, 'Plus Jakarta Sans', sans-serif);
             font-weight: 700;
             font-size: 1.15rem;
             color: #0f172a;

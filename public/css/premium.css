@@ -19,7 +19,7 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--vela-font-body, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
     line-height: 1.6;
     color: var(--text-gray);
     background-color: #ffffff;
@@ -42,7 +42,7 @@ a:hover {
 }
 
 .font-display {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: var(--vela-font-display, 'Playfair Display', Georgia, serif);
 }
 
 .text-gradient {
@@ -114,13 +114,13 @@ a:hover {
 }
 
 .container-premium {
-    max-width: 1400px;
+    max-width: var(--vela-page-width, 1400px);
     margin: 0 auto;
     padding: 0 24px;
 }
 
 .page-row-public.row-contained {
-    max-width: 1400px;
+    max-width: var(--vela-page-width, 1400px);
     padding-left: 24px;
     padding-right: 24px;
 }
@@ -132,7 +132,7 @@ a:hover {
 }
 
 .heading-premium {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: var(--vela-font-display, 'Playfair Display', Georgia, serif);
     font-weight: 600;
     line-height: 1.2;
     color: var(--dark-gray);

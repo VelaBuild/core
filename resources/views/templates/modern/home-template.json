@@ -2,7 +2,7 @@
     {
         "name": "Hero",
         "css_class": "home-row-hero",
-        "background_color": "#4c1d95",
+        "background_color": "token:band",
         "background_image": "public/vendor/vela/images/heroes/modern.webp",
         "order": 0,
         "blocks": [
@@ -77,7 +77,7 @@
     {
         "name": "Categories",
         "css_class": "home-row-categories",
-        "background_color": "#f1f5f9",
+        "background_color": "token:surface",
         "background_image": null,
         "order": 2,
         "blocks": [

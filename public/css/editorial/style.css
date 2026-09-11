@@ -111,7 +111,7 @@
     margin-bottom: 14px;
 }
 .ed-featured-title {
-    font-family: 'Lora', Georgia, serif;
+    font-family: var(--vela-font-display, 'Lora', Georgia, serif);
     font-size: clamp(1.6rem, 3.5vw, 2.4rem);
     font-weight: 700;
     color: #111827;
@@ -187,7 +187,7 @@
 }
 .ed-card-kicker:hover { text-decoration: underline; }
 .ed-card-title {
-    font-family: 'Lora', Georgia, serif;
+    font-family: var(--vela-font-display, 'Lora', Georgia, serif);
     font-size: 1.2rem;
     font-weight: 700;
     color: #111827;
@@ -258,7 +258,7 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     color: #111827;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--vela-font-body, 'Inter', sans-serif);
 }
 .ed-section-header a {
     font-size: 0.8rem;
@@ -352,7 +352,7 @@
     padding: 20px 28px;
     background: #fef2f2;
     font-style: italic;
-    font-family: 'Lora', Georgia, serif;
+    font-family: var(--vela-font-display, 'Lora', Georgia, serif);
     font-size: 1.15rem;
     color: #374151;
     border-radius: 0 4px 4px 0;
@@ -378,7 +378,7 @@
 
 /* Drop cap for first paragraph */
 .ed-prose > p:first-of-type::first-letter {
-    font-family: 'Lora', Georgia, serif;
+    font-family: var(--vela-font-display, 'Lora', Georgia, serif);
     font-size: 3.5rem;
     font-weight: 700;
     line-height: 1;
@@ -406,7 +406,7 @@
     margin-bottom: 16px;
     padding-bottom: 10px;
     border-bottom: 1px solid #e5e7eb;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--vela-font-body, 'Inter', sans-serif);
 }
 .ed-sidebar-widget ul { list-style: none; }
 .ed-sidebar-widget li {
@@ -585,7 +585,7 @@
     color: #d1d5db;
     margin: 0 auto 20px;
 }
-.ed-empty-state h3 { font-size: 1.25rem; color: #374151; margin-bottom: 12px; font-family: 'Inter', sans-serif; }
+.ed-empty-state h3 { font-size: 1.25rem; color: #374151; margin-bottom: 12px; font-family: var(--vela-font-body, 'Inter', sans-serif); }
 
 /* Footer */
 .ed-footer {
@@ -604,7 +604,7 @@
 }
 .ed-footer-brand {}
 .ed-footer-logo {
-    font-family: 'Lora', Georgia, serif;
+    font-family: var(--vela-font-display, 'Lora', Georgia, serif);
     font-size: 1.4rem;
     font-weight: 700;
     color: #111827;

@@ -66,6 +66,92 @@ class ThemePaletteReachesBlocksTest extends PackageTestCase
         }
     }
 
+    public function test_every_shipped_theme_names_its_faces_and_its_measure(): void
+    {
+        // Typography was the half of the contract no theme used. Five of the
+        // six wrote their fonts out as literals — thirty-one of them, spread
+        // between each layout's inline CSS and its stylesheet — so a heading
+        // inside a text block inherited the body face while the theme's own
+        // headings did not, and nothing could restyle a site's type without
+        // editing six themes by hand.
+        foreach (self::THEMES as $theme) {
+            $layout = $this->layout($theme);
+
+            foreach (['--vela-font-body', '--vela-font-display', '--vela-page-width'] as $token) {
+                $this->assertMatchesRegularExpression(
+                    '/' . preg_quote($token, '/') . '\s*:/',
+                    $layout,
+                    "The {$theme} theme declares no {$token}."
+                );
+            }
+        }
+    }
+
+    public function test_no_shipped_theme_writes_a_font_out_as_a_literal(): void
+    {
+        foreach (self::THEMES as $theme) {
+            $files = [__DIR__ . '/../../resources/views/templates/' . $theme . '/layout.blade.php'];
+
+            foreach ([
+                __DIR__ . '/../../public/css/' . $theme . '/style.css',
+                __DIR__ . '/../../public/css/premium.css',
+            ] as $stylesheet) {
+                // premium.css belongs to `default`; the others to the theme
+                // whose folder they sit in.
+                if (is_file($stylesheet) && ($theme === 'default') === str_ends_with($stylesheet, 'premium.css')) {
+                    $files[] = $stylesheet;
+                }
+            }
+
+            foreach ($files as $file) {
+                preg_match_all('/font-family:\s*([^;\n]+)/', (string) file_get_contents($file), $found);
+
+                foreach ($found[1] as $value) {
+                    $this->assertStringContainsString(
+                        'var(--',
+                        $value,
+                        basename($file) . " in the {$theme} theme sets a font as a literal: {$value}. "
+                        . 'Read it from --vela-font-body / --vela-font-display so the theme states its '
+                        . 'faces once and the blocks follow.'
+                    );
+                }
+            }
+        }
+    }
+
+    public function test_the_example_homepages_name_roles_rather_than_hexes(): void
+    {
+        // Every theme ships an example homepage, and every one of them wrote
+        // its section colours out as hexes — a navy band, a grey middle. Install
+        // one, switch theme, and the band stayed navy across a site that had
+        // stopped being navy, with nothing on screen explaining why.
+        $palette = array_keys(\VelaBuild\Core\Services\DesignTokens::PALETTE);
+
+        foreach (self::THEMES as $theme) {
+            $path = __DIR__ . '/../../resources/views/templates/' . $theme . '/home-template.json';
+            $rows = json_decode((string) file_get_contents($path), true);
+
+            $this->assertIsArray($rows, "The {$theme} theme's home-template.json does not parse.");
+
+            foreach ($rows as $i => $row) {
+                foreach (['background_color', 'text_color'] as $field) {
+                    $value = $row[$field] ?? '';
+
+                    if ($value === '' || !str_starts_with($value, 'token:')) {
+                        continue;
+                    }
+
+                    $this->assertContains(
+                        substr($value, strlen('token:')),
+                        $palette,
+                        "Row {$i} of the {$theme} example homepage names '{$value}', which is not in "
+                        . 'the palette — it resolves to nothing and the section draws no colour at all.'
+                    );
+                }
+            }
+        }
+    }
+
     public function test_no_shipped_theme_sets_a_block_variable_directly(): void
     {
         foreach (self::THEMES as $theme) {

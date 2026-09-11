@@ -261,7 +261,7 @@
     border: none;
     text-decoration: none;
     white-space: nowrap;
-    font-family: 'Outfit', system-ui, sans-serif;
+    font-family: var(--vela-font-body, 'Outfit', system-ui, sans-serif);
 }
 .md-btn:hover { text-decoration: none; }
 .md-btn-primary {

@@ -26,19 +26,34 @@
                brand colour set in Settings. */
             --vela-primary: #7c3aed;
             --vela-primary-hover: #6d28d9;
+            /* The full-width dark strip this theme's example homepage opens
+               with, and the light ground under its middle sections. Named
+               here so the example page can say which role a section plays
+               instead of repeating a hex that stops being right the moment
+               the site changes theme. */
+            --vela-band: #4c1d95;
+            --vela-band-ink: #ffffff;
+            --vela-surface: #f1f5f9;
+            /* The two faces and the measure, stated once — read by this
+               theme's own stylesheet and by the block stylesheet, so a
+               heading inside a text block is set in the display face
+               rather than inheriting the body one. */
+            --vela-font-body: 'Outfit', system-ui, sans-serif;
+            --vela-font-display: 'Outfit', system-ui, sans-serif;
+            --vela-page-width: 1200px;
             --vela-ink: #1e1b4b;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body {
-            font-family: 'Outfit', system-ui, sans-serif;
+            font-family: var(--vela-font-body, 'Outfit', system-ui, sans-serif);
             color: #1e1b4b;
             line-height: 1.7;
             background: #fff;
             font-size: 1rem;
         }
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Outfit', system-ui, sans-serif;
+            font-family: var(--vela-font-body, 'Outfit', system-ui, sans-serif);
             font-weight: 700;
             line-height: 1.2;
             color: #1e1b4b;
@@ -55,7 +70,7 @@
             margin: 0 auto;
             padding: 0 24px;
         }
-        .page-row-public.row-contained { max-width: 1200px; padding-left: 24px; padding-right: 24px; }
+        .page-row-public.row-contained { max-width: var(--vela-page-width, 1200px); padding-left: 24px; padding-right: 24px; }
 
         /* Navigation */
         .md-nav {

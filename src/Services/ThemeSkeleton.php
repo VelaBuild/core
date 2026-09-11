@@ -183,6 +183,9 @@ class ThemeSkeleton
                including the ones added after this file was written. */
             --vela-primary: var(--accent);
             --vela-primary-ink: var(--accent-ink);
+            --vela-band: var(--band);
+            --vela-band-ink: var(--band-ink);
+            --vela-font-body: var(--font-body);
             --vela-ink: var(--ink);
             --vela-ink-soft: var(--ink);
             --vela-muted: var(--muted);

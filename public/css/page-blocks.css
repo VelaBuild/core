@@ -54,6 +54,12 @@
     --block-overlay-light: var(--vela-overlay-soft, rgba(0,0,0,0.5));
     /* Heading font — templates override :root to pair a display font with body text. */
     --block-heading-font: var(--vela-font-display, inherit);
+    /* The body face is the other half of that pair. Blocks inherit it from
+       the page rather than setting it, so there is no --block-* alias; it is
+       named here because it belongs to the same contract, and because a theme
+       that states its two faces once is the whole point — `--vela-font-body`
+       is what the theme's own stylesheet reads. */
+    --block-mono-font: var(--vela-font-mono, 'SFMono-Regular', Consolas, monospace);
 }
 /* Row width contract — every template overrides these to set their own widths. */
 .page-row-public { width: 100%; margin: 0 auto; padding: 20px 15px; }
@@ -72,7 +78,7 @@
 .block-text blockquote { border-left: 4px solid var(--block-border); padding-left: 1em; color: var(--block-text-muted); font-style: italic; margin-bottom: 1em; }
 .block-text blockquote cite { display: block; margin-top: 0.5em; font-size: 0.9em; font-style: normal; color: var(--block-text-muted); }
 /* Was a literal #f3f4f6, which is a light grey however dark the page is. */
-.block-text code { background: var(--block-bg-hover); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: 'SFMono-Regular', Consolas, monospace; }
+.block-text code { background: var(--block-bg-hover); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; font-family: var(--block-mono-font); }
 .block-text mark { background: #fef08a; padding: 2px 4px; border-radius: 2px; }
 .block-delimiter { border: none; border-top: 2px solid var(--block-border); margin: 2em 0; }
 .block-warning { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px 20px; margin-bottom: 1em; }
@@ -246,7 +252,7 @@
     background: var(--bc-bg);
     color: var(--bc-fg);
     border: 1px solid var(--bc-border);
-    font-family: 'Geist Mono', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+    font-family: var(--vela-font-mono, 'Geist Mono', 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace);
 }
 .block-code--light {
     --bc-bg:      #FBF9F5;

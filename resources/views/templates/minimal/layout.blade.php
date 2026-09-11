@@ -27,11 +27,23 @@
         :root {
             --vela-primary: #1a1a1a;
             --vela-page-width: 1100px;
+            /* The full-width dark strip this theme's example homepage opens
+               with, and the light ground under its middle sections. Named
+               here so the example page can say which role a section plays
+               instead of repeating a hex that stops being right the moment
+               the site changes theme. */
+            --vela-band: #1a1a1a;
+            --vela-band-ink: #ffffff;
+            --vela-surface: #f9fafb;
+            --vela-ink: #1a1a1a;
+            --vela-card-bg: #ffffff;
+            --vela-font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --vela-font-display: 'Source Serif 4', Georgia, serif;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: var(--vela-font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
             color: #1a1a1a;
             background: var(--vela-background, #fff);
             line-height: 1.7;
@@ -39,7 +51,7 @@
         }
 
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Source Serif 4', Georgia, serif;
+            font-family: var(--vela-font-display, 'Source Serif 4', Georgia, serif);
             font-weight: 600;
             line-height: 1.3;
         }
@@ -47,9 +59,9 @@
         a { color: inherit; text-decoration: none; }
         img { max-width: 100%; height: auto; display: block; }
 
-        .mn-container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+        .mn-container { max-width: var(--vela-page-width, 1100px); margin: 0 auto; padding: 0 24px; }
         .mn-narrow { max-width: 720px; margin: 0 auto; padding: 0 24px; }
-        .page-row-public.row-contained { max-width: 1100px; padding-left: 24px; padding-right: 24px; }
+        .page-row-public.row-contained { padding-left: 24px; padding-right: 24px; }
 
         /* Navigation */
         .mn-nav {
@@ -69,7 +81,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
-            font-family: 'Source Serif 4', Georgia, serif;
+            font-family: var(--vela-font-display, 'Source Serif 4', Georgia, serif);
             font-size: 1.25rem;
             font-weight: 700;
             color: #1a1a1a;
@@ -416,7 +428,7 @@
         .mn-footer-brand .mn-logo { margin-bottom: 12px; }
         .mn-footer-brand p { color: #757575; font-size: 0.85rem; line-height: 1.6; }
         .mn-footer-links h4 {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--vela-font-body, 'Inter', sans-serif);
             font-size: 0.85rem;
             font-weight: 600;
             color: #1a1a1a;

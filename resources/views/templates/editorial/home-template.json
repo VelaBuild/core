@@ -13,8 +13,19 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "The Latest", "level": 1}},
-                        {"type": "paragraph", "data": {"text": "Reporting, essays, and interviews from across the desk."}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "The Latest",
+                                "level": 1
+                            }
+                        },
+                        {
+                            "type": "paragraph",
+                            "data": {
+                                "text": "Reporting, essays, and interviews from across the desk."
+                            }
+                        }
                     ]
                 },
                 "settings": {},
@@ -53,7 +64,13 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "More Stories", "level": 2}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "More Stories",
+                                "level": 2
+                            }
+                        }
                     ]
                 },
                 "settings": {},
@@ -82,7 +99,7 @@
     {
         "name": "Categories",
         "css_class": "home-row-categories",
-        "background_color": "#f8f7f4",
+        "background_color": "token:surface",
         "background_image": null,
         "order": 2,
         "blocks": [
@@ -93,7 +110,13 @@
                 "type": "text",
                 "content": {
                     "blocks": [
-                        {"type": "header", "data": {"text": "Sections", "level": 2}}
+                        {
+                            "type": "header",
+                            "data": {
+                                "text": "Sections",
+                                "level": 2
+                            }
+                        }
                     ]
                 },
                 "settings": {},

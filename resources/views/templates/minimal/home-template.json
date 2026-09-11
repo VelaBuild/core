@@ -2,9 +2,9 @@
     {
         "name": "Hero",
         "css_class": "home-row-hero",
-        "background_color": "#ffffff",
+        "background_color": "token:card",
         "background_image": "public/vendor/vela/images/heroes/minimal.webp",
-        "text_color": "#1a1a1a",
+        "text_color": "token:ink",
         "order": 0,
         "blocks": [
             {
@@ -121,7 +121,7 @@
     {
         "name": "Call to Action",
         "css_class": "home-row-cta",
-        "background_color": "#f9fafb",
+        "background_color": "token:surface",
         "background_image": null,
         "order": 3,
         "blocks": [

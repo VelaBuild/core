@@ -71,12 +71,22 @@ renders exactly as it did before the contract existed.
 `--vela-error-*` rather than `--vela-danger-*`: the admin stylesheet already owns
 `--vela-danger` and `--vela-danger-bg` for its own alerts.
 
+| `--vela-band`, `--vela-band-ink` | — | a full-width strip and the text on it: a hero, a quote, a closing call to action |
+
 ### Type and measure
 
 | Token | Block alias | What it is |
 |---|---|---|
+| `--vela-font-body` | — | body copy, navigation, buttons; blocks inherit it from the page |
 | `--vela-font-display` | `--block-heading-font` | the face headings are set in |
+| `--vela-font-mono` | `--block-mono-font` | code |
 | `--vela-page-width` | `.row-contained` max-width | how wide content runs before it stops growing |
+
+A theme states its two faces once and both halves follow. Before that, five of
+the six wrote their fonts out as literals — thirty-one of them, spread between
+each layout's inline CSS and its stylesheet — so a heading inside a text block
+inherited the body face while the theme's own headings did not, and no setting
+could reach either.
 
 ## Two accents, when one will not do
 
@@ -183,3 +193,20 @@ symptom — "my colour settings have disappeared":
 
 Only the active theme's declared keys are stored, so a form posting something
 else no longer fills `vela_configs` with rows nothing reads.
+
+## The example homepages
+
+Every theme ships a `home-template.json` — the rows and blocks installed by
+"Install as Homepage". They named their section colours as hexes, so a site that
+installed one and later switched theme kept a navy band across a design that had
+stopped being navy, with nothing on screen explaining why.
+
+They name roles now: `token:band` for the full-width strip a page opens with,
+`token:surface` for the light ground under its middle sections, `token:ink` for a
+dark closing band. Each theme declares what those roles are worth to it, read off
+the page it already shipped, so every one renders exactly the colour it did
+before and re-skins from then on.
+
+One row is still a literal: the dark theme's second band, `#16213e`, a navy a
+shade off its first one and matching no role. Naming it `token:band` would
+flatten a two-tone the theme meant to have.

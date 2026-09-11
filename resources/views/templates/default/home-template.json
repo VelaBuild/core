@@ -2,9 +2,9 @@
     {
         "name": "Hero",
         "css_class": "home-row-hero",
-        "background_color": "#1e3a5f",
+        "background_color": "token:band",
         "background_image": "public/vendor/vela/images/heroes/default.webp",
-        "text_color": "#ffffff",
+        "text_color": "token:band-ink",
         "width": "full",
         "order": 0,
         "blocks": [
@@ -79,7 +79,7 @@
     {
         "name": "Categories",
         "css_class": "home-row-categories",
-        "background_color": "#f8fafc",
+        "background_color": "token:surface",
         "background_image": null,
         "order": 2,
         "blocks": [
@@ -122,9 +122,9 @@
     {
         "name": "Call to Action",
         "css_class": "home-row-cta",
-        "background_color": "#1e3a5f",
+        "background_color": "token:band",
         "background_image": null,
-        "text_color": "#ffffff",
+        "text_color": "token:band-ink",
         "width": "full",
         "padding": "40px 20px",
         "order": 3,

@@ -23,20 +23,34 @@
             /* The theme's palette, stated once — see page-blocks.css. */
             --vela-primary: #b91c1c;
             --vela-primary-hover: #991b1b;
+            /* The full-width dark strip this theme's example homepage opens
+               with, and the light ground under its middle sections. Named
+               here so the example page can say which role a section plays
+               instead of repeating a hex that stops being right the moment
+               the site changes theme. */
+            --vela-band: #111827;
+            --vela-band-ink: #ffffff;
+            /* The two faces and the measure, stated once — read by this
+               theme's own stylesheet and by the block stylesheet, so a
+               heading inside a text block is set in the display face
+               rather than inheriting the body one. */
+            --vela-font-body: 'Inter', sans-serif;
+            --vela-font-display: 'Lora', Georgia, serif;
+            --vela-page-width: 1160px;
             --vela-ink: #111827;
             --vela-surface: #f8f7f4;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--vela-font-body, 'Inter', sans-serif);
             color: #111827;
             line-height: 1.8;
             background: #fff;
             font-size: 1.05rem;
         }
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Lora', Georgia, serif;
+            font-family: var(--vela-font-display, 'Lora', Georgia, serif);
             font-weight: 700;
             line-height: 1.25;
             color: #111827;
@@ -58,7 +72,7 @@
             margin: 0 auto;
             padding: 0 24px;
         }
-        .page-row-public.row-contained { max-width: 1160px; padding-left: 24px; padding-right: 24px; }
+        .page-row-public.row-contained { max-width: var(--vela-page-width, 1160px); padding-left: 24px; padding-right: 24px; }
 
         /* Navigation — magazine masthead */
         .ed-topbar {
@@ -93,7 +107,7 @@
         }
         .ed-logo img { width: 40px; height: 40px; object-fit: contain; border-radius: 4px; }
         .ed-logo-name {
-            font-family: 'Lora', Georgia, serif;
+            font-family: var(--vela-font-display, 'Lora', Georgia, serif);
             font-size: 1.6rem;
             font-weight: 700;
             color: #111827;

@@ -27,6 +27,20 @@
             --vela-primary: #14b8a6;
             --vela-primary-fill: #0d857b;
             --vela-primary-hover: #0b7267;
+            /* The full-width dark strip this theme's example homepage opens
+               with, and the light ground under its middle sections. Named
+               here so the example page can say which role a section plays
+               instead of repeating a hex that stops being right the moment
+               the site changes theme. */
+            --vela-band: #1a1a2e;
+            --vela-band-ink: #e5e5e5;
+            /* The two faces and the measure, stated once — read by this
+               theme's own stylesheet and by the block stylesheet, so a
+               heading inside a text block is set in the display face
+               rather than inheriting the body one. */
+            --vela-font-body: 'Inter', system-ui, sans-serif;
+            --vela-font-display: 'Inter', system-ui, sans-serif;
+            --vela-page-width: 1200px;
             --vela-ink: #e5e5e5;
             --vela-ink-soft: #d4d4d4;
             --vela-muted: #a3a3a3;
@@ -41,14 +55,14 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         html { scroll-behavior: smooth; }
         body {
-            font-family: 'Inter', system-ui, sans-serif;
+            font-family: var(--vela-font-body, 'Inter', system-ui, sans-serif);
             color: #e5e5e5;
             line-height: 1.7;
             background: #0a0a0a;
             font-size: 1rem;
         }
         h1, h2, h3, h4, h5, h6 {
-            font-family: 'Inter', system-ui, sans-serif;
+            font-family: var(--vela-font-body, 'Inter', system-ui, sans-serif);
             font-weight: 700;
             line-height: 1.2;
             color: #f5f5f5;
@@ -65,7 +79,7 @@
             margin: 0 auto;
             padding: 0 24px;
         }
-        .page-row-public.row-contained { max-width: 1200px; padding-left: 24px; padding-right: 24px; }
+        .page-row-public.row-contained { max-width: var(--vela-page-width, 1200px); padding-left: 24px; padding-right: 24px; }
 
         /* Navigation */
         .dk-nav {
