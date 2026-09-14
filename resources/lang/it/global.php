@@ -627,6 +627,8 @@ return [
     'carousel'                       => 'Carosello',
     'carousel_previous'              => 'Slide precedente',
     'carousel_next'                  => 'Slide successiva',
+    'gallery_open_image'             => "Apri l'immagine :n di :total",
+    'gallery_close'                  => 'Chiudi',
     'testimonials'                   => 'Testimonianze',
     'icon_box'                       => 'Riquadro icona',
     'review_summary'                 => 'Riepilogo recensioni',

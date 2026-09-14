@@ -296,11 +296,70 @@
 .carousel-dot { width: 10px; height: 10px; border-radius: 50%; border: none; background: var(--block-form-border); margin: 0 4px; cursor: pointer; padding: 0; }
 .carousel-dot.active { background: var(--block-accent); }
 /* Gallery block */
-.gallery-item { overflow: hidden; border-radius: 6px; }
-.gallery-item img { transition: transform 0.3s; }
-.gallery-item:hover img { transform: scale(1.05); }
-.gallery-caption { text-align: center; color: var(--block-text-muted); font-size: 0.85em; margin-top: 6px; }
-@media (max-width: 768px) { .gallery-grid { grid-template-columns: repeat(2, 1fr) !important; } }
+/* Gallery — `settings.layout`, with --gallery-columns, --gallery-gap,
+   --gallery-ratio and --gallery-focus set on the block. Every rule names the
+   block as well as the part: themes style `.gallery-grid { display: grid;
+   gap: 10px }`, which would otherwise undo masonry's columns and the gap. */
+.block-gallery .gallery-grid { display: grid; grid-template-columns: repeat(var(--gallery-columns, 3), minmax(0, 1fr)); gap: var(--gallery-gap, 10px); }
+.block-gallery .gallery-item { position: relative; margin: 0; min-width: 0; }
+.block-gallery .gallery-open,
+.block-gallery .gallery-frame { display: block; width: 100%; padding: 0; border: 0; background: none; overflow: hidden; border-radius: 6px; }
+.block-gallery .gallery-open { cursor: zoom-in; }
+.block-gallery .gallery-open:focus-visible { outline: 3px solid var(--block-accent); outline-offset: 2px; }
+.block-gallery .gallery-item picture,
+.block-gallery .gallery-item img { display: block; width: 100%; height: auto; }
+.block-gallery .gallery-item img { transition: transform .35s ease; }
+.block-gallery .gallery-open:hover img { transform: scale(1.04); }
+.block-gallery .gallery-caption { text-align: center; color: var(--block-text-muted); font-size: .85em; margin-top: 6px; }
+
+/* Grid and featured: one shape for every picture, cropped around the focus. */
+.block-gallery--grid .gallery-open, .block-gallery--grid .gallery-frame,
+.block-gallery--featured .gallery-open, .block-gallery--featured .gallery-frame { aspect-ratio: var(--gallery-ratio, 1 / 1); }
+.block-gallery--grid .gallery-item picture, .block-gallery--grid .gallery-item img,
+.block-gallery--featured .gallery-item picture, .block-gallery--featured .gallery-item img { height: 100%; }
+.block-gallery--grid .gallery-item img,
+.block-gallery--featured .gallery-item img { object-fit: cover; object-position: var(--gallery-focus, center); }
+
+/* Featured: the first picture two columns by two rows, filling its space. */
+.block-gallery.block-gallery--featured .gallery-grid { grid-auto-flow: dense; }
+.block-gallery--featured .gallery-item--featured { grid-column: span 2; grid-row: span 2; display: flex; flex-direction: column; }
+.block-gallery--featured .gallery-item--featured .gallery-open,
+.block-gallery--featured .gallery-item--featured .gallery-frame { aspect-ratio: auto; flex: 1; min-height: 0; }
+
+/* Masonry: nothing cropped; pictures run down columns at their own shapes. */
+.block-gallery.block-gallery--masonry .gallery-grid { display: block; column-count: var(--gallery-columns, 3); column-gap: var(--gallery-gap, 10px); }
+.block-gallery--masonry .gallery-item { break-inside: avoid; margin-bottom: var(--gallery-gap, 10px); }
+
+@media (max-width: 768px) {
+    .block-gallery.block-gallery--grid .gallery-grid,
+    .block-gallery.block-gallery--featured .gallery-grid { grid-template-columns: repeat(var(--gallery-columns-small, 2), minmax(0, 1fr)); }
+    .block-gallery.block-gallery--masonry .gallery-grid { column-count: var(--gallery-columns-small, 2); }
+    .block-gallery--featured .gallery-item--featured { grid-row: auto; }
+    .block-gallery--featured .gallery-item--featured .gallery-open,
+    .block-gallery--featured .gallery-item--featured .gallery-frame { aspect-ratio: var(--gallery-ratio, 1 / 1); }
+}
+
+/* The lightbox — public/js/vela-gallery.js puts it on the body. */
+.vela-lightbox { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .9); touch-action: pan-y; }
+.vela-lightbox[hidden] { display: none; }
+html.vela-lightbox-open { overflow: hidden; }
+.vela-lightbox-figure { margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; padding: 56px 72px; box-sizing: border-box; }
+.vela-lightbox-img { max-width: 100%; max-height: calc(100% - 40px); object-fit: contain; border-radius: 4px; user-select: none; -webkit-user-drag: none; }
+.vela-lightbox-caption { color: #fff; margin-top: 12px; font-size: .95em; text-align: center; max-width: 60ch; }
+.vela-lightbox-caption:empty { display: none; }
+.vela-lightbox button { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; border: 0; color: #fff; background: rgba(255, 255, 255, .12); cursor: pointer; border-radius: 50%; }
+.vela-lightbox button:hover { background: rgba(255, 255, 255, .25); }
+.vela-lightbox button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.vela-lightbox button[hidden] { display: none; }
+.vela-lightbox-close { top: 16px; right: 16px; width: 44px; height: 44px; font-size: 28px; line-height: 1; }
+.vela-lightbox-nav { top: 50%; transform: translateY(-50%); width: 48px; height: 48px; font-size: 32px; line-height: 1; }
+.vela-lightbox-prev { left: 16px; }
+.vela-lightbox-next { right: 16px; }
+.vela-lightbox-count { position: absolute; top: 26px; left: 50%; transform: translateX(-50%); color: rgba(255, 255, 255, .8); font-size: 14px; }
+@media (max-width: 640px) {
+    .vela-lightbox-figure { padding: 56px 12px 72px; }
+    .vela-lightbox-nav { top: auto; bottom: 16px; transform: none; }
+}
 /* Testimonials block */
 .block-testimonials { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
 .testimonial-card { background: var(--block-bg-light); border-radius: 12px; padding: 24px; border-left: 4px solid var(--block-accent); }

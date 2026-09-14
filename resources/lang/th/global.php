@@ -631,6 +631,8 @@ return [
     'carousel'                       => 'สไลด์หมุน',
     'carousel_previous'              => 'สไลด์ก่อนหน้า',
     'carousel_next'                  => 'สไลด์ถัดไป',
+    'gallery_open_image'             => 'เปิดรูปที่ :n จาก :total',
+    'gallery_close'                  => 'ปิด',
     'testimonials'                   => 'คำรับรอง',
     'icon_box'                       => 'กล่องไอคอน',
     'review_summary'                 => 'สรุปรีวิว',

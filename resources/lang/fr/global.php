@@ -627,6 +627,8 @@ return [
     'carousel'                       => 'Carrousel',
     'carousel_previous'              => 'Diapositive précédente',
     'carousel_next'                  => 'Diapositive suivante',
+    'gallery_open_image'             => "Ouvrir l'image :n sur :total",
+    'gallery_close'                  => 'Fermer',
     'testimonials'                   => 'Témoignages',
     'icon_box'                       => 'Boîte d\'icône',
     'review_summary'                 => 'Résumé des avis',

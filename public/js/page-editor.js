@@ -940,10 +940,10 @@ PageEditor.registerBlockType = function(name, config) {
         return '<span class="vc-d"><span class="vc-d-row">' + boxes + '</span><span class="vc-d-dots"><i class="on"></i><i></i><i></i></span></span>';
     }
 
-    function carouselTiles(inputId, value, options, extraClass) {
+    function carouselTiles(inputId, value, options, extraClass, tileClass) {
         return '<div class="vela-tiles ' + (extraClass || 'vela-tiles--4') + ' mb-3">' + options.map(function (o) {
             var on = String(o.value) === String(value);
-            return '<button type="button" class="vela-tile carousel-tile' + (on ? ' active' : '') + '" aria-pressed="' + on + '"' +
+            return '<button type="button" class="vela-tile ' + (tileClass || 'carousel-tile') + (on ? ' active' : '') + '" aria-pressed="' + on + '"' +
                 ' data-input="' + inputId + '" data-value="' + escHtml(String(o.value)) + '">' +
                 o.art + '<span class="vela-tile-label">' + escHtml(o.label) + '</span></button>';
         }).join('') + '</div>';
@@ -1001,6 +1001,7 @@ PageEditor.registerBlockType = function(name, config) {
     function buildGalleryImageRow(img, i) {
         var thumb = img.url ? '<img src="' + escHtml(img.url) + '" style="width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">' : '<div style="width:80px;height:80px;background:#f3f4f6;border-radius:6px;border:2px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.75em;">No image</div>';
         return '<div class="gallery-image-row" style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+            '<span class="gal-handle text-muted" title="Drag to reorder" style="cursor:grab;padding-top:28px;"><i class="fas fa-grip-vertical"></i></span>' +
             '<div class="gal-thumb" style="flex-shrink:0;cursor:pointer;" title="Click to change">' + thumb + '</div>' +
             '<input type="hidden" class="gal-url" value="' + escHtml(img.url || '') + '">' +
             '<div style="flex:1;min-width:0;">' +
@@ -1035,7 +1036,77 @@ PageEditor.registerBlockType = function(name, config) {
         });
         $(document).off('click', '.remove-gallery-image').on('click', '.remove-gallery-image', function() {
             $(this).closest('.gallery-image-row').remove();
+            _blockEditTouched = true;
         });
+
+        var list = document.getElementById('gallery-images-list');
+        if (list && window.Sortable) {
+            Sortable.create(list, { handle: '.gal-handle', animation: 150, onEnd: function () { _blockEditTouched = true; drawGalleryPreview(); } });
+        }
+
+        $(document).off('click.galleryTile').on('click.galleryTile', '.gallery-tile', function () {
+            var $tile = $(this);
+            $tile.closest('.vela-tiles').find('.gallery-tile').removeClass('active').attr('aria-pressed', 'false');
+            $tile.addClass('active').attr('aria-pressed', 'true');
+            $('#' + $tile.data('input')).val($tile.data('value')).trigger('change');
+            _blockEditTouched = true;
+        });
+
+        // Shape and focus mean nothing when nothing is cropped.
+        function syncGalleryOptions() {
+            var masonry = $('#gallery-layout').val() === 'masonry';
+            $('#gallery-crop-options').prop('hidden', masonry);
+            $('#gallery-masonry-note').prop('hidden', !masonry);
+            drawGalleryPreview();
+        }
+        $(document).off('change.galleryOpts').on('change.galleryOpts', '#gallery-layout, #gallery-ratio, #gallery-focus, #gallery-columns, #gallery-gap', syncGalleryOptions);
+        $(document).off('input.galleryPreview').on('input.galleryPreview', '#gallery-images-list input', drawGalleryPreview);
+        if (list) new MutationObserver(drawGalleryPreview).observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'value'] });
+        syncGalleryOptions();
+    }
+
+    // A small drawing of a gallery layout for its tile.
+    function galleryDrawing(layout) {
+        var cells = '';
+        if (layout === 'masonry') {
+            var cols = [[18, 30, 14], [28, 12, 22], [14, 26, 20]];
+            cells = '<span class="vg-d-masonry">' + cols.map(function (c) {
+                return '<span>' + c.map(function (h) { return '<i style="height:' + h + 'px"></i>'; }).join('') + '</span>';
+            }).join('') + '</span>';
+        } else if (layout === 'featured') {
+            cells = '<span class="vg-d-grid vg-d-grid--featured"><i class="big"></i><i></i><i></i><i></i><i></i></span>';
+        } else {
+            cells = '<span class="vg-d-grid"><i></i><i></i><i></i><i></i><i></i><i></i></span>';
+        }
+        return '<span class="vc-d">' + cells + '</span>';
+    }
+
+    // The gallery as it will look, from the pictures in the form.
+    function drawGalleryPreview() {
+        var box = document.getElementById('gallery-live-preview');
+        if (!box) return;
+        var layout = $('#gallery-layout').val() || 'grid';
+        var ratio = ($('#gallery-ratio').val() || '1:1').replace(':', ' / ');
+        var focus = $('#gallery-focus').val() || 'center';
+        var columns = Math.min(6, Math.max(1, parseInt($('#gallery-columns').val(), 10) || 3));
+        var gap = Math.max(0, parseInt($('#gallery-gap').val(), 10) || 0);
+        var urls = $('#gallery-images-list .gal-url').map(function () { return this.value; }).get().filter(Boolean);
+
+        if (!urls.length) {
+            box.innerHTML = '<div class="vc-preview-empty">Add pictures above to see them here.</div>';
+            return;
+        }
+        var shown = urls.slice(0, layout === 'featured' ? 7 : 9);
+        // The preview is a third of the page's width, so the gap is drawn at a third too.
+        var g = Math.round(gap / 2);
+        var items = shown.map(function (u, i) {
+            return '<div class="vg-p-item' + (layout === 'featured' && i === 0 ? ' vg-p-item--featured' : '') + '">' +
+                '<img src="' + escHtml(u) + '" alt="" style="object-position:' + focus + '"></div>';
+        }).join('');
+        box.innerHTML = '<div class="vg-p vg-p--' + layout + '" style="--c:' + columns + ';--g:' + g + 'px;--r:' + ratio + '">' + items + '</div>' +
+            '<div class="vc-p-foot">' + urls.length + ' picture' + (urls.length === 1 ? '' : 's') +
+                (urls.length > shown.length ? ' · showing the first ' + shown.length : '') +
+                (columns > 2 ? ' · phones show two across' : '') + '</div>';
     }
 
     function buildTestimonialRow(t, i) {
@@ -5227,7 +5298,7 @@ PageEditor.registerBlockType = function(name, config) {
     PageEditor.registerBlockType('gallery', {
         icon: 'fa-th',
         label: 'Image Gallery',
-        defaults: { content: { images: [] }, settings: { columns: 3, gap: 10, lightbox: true } },
+        defaults: { content: { images: [] }, settings: { layout: 'grid', ratio: '1:1', focus: 'center', columns: 3, gap: 10, lightbox: true } },
         renderPreview: function(block) {
             var images = block.content && block.content.images ? block.content.images : [];
             if (!images.length) return '<em class="text-muted">No images added</em>';
@@ -5249,25 +5320,65 @@ PageEditor.registerBlockType = function(name, config) {
             var columns = typeof settings.columns !== 'undefined' ? settings.columns : 3;
             var gap = typeof settings.gap !== 'undefined' ? settings.gap : 10;
             var lightbox = typeof settings.lightbox !== 'undefined' ? settings.lightbox : true;
+            var layout = ['grid', 'masonry', 'featured'].indexOf(settings.layout) > -1 ? settings.layout : 'grid';
+            var ratio = settings.ratio || '1:1';
+            var focus = settings.focus || 'center';
             var imagesHtml = '';
             images.forEach(function(img, i) {
                 imagesHtml += buildGalleryImageRow(img, i);
             });
+            var shapeArt = function (r) { return '<span class="vc-shape"><i style="aspect-ratio:' + r.replace(':', ' / ') + '"></i></span>'; };
+            var focusArt = function (f) {
+                return '<span class="vc-shape vg-focus"><i class="vg-focus-frame"><b style="top:' + ({ top: '8%', center: '38%', bottom: '68%' })[f] + '"></b></i></span>';
+            };
             return '<div id="gallery-images-list">' + imagesHtml + '</div>' +
                 '<div class="mt-2" style="display:flex;gap:8px;">' +
                 '<button type="button" class="btn btn-sm btn-success" id="add-gallery-image"><i class="fas fa-plus mr-1"></i> Add Image</button>' +
                 '<button type="button" class="btn btn-sm btn-outline-info" id="bulk-add-gallery"><i class="fas fa-images mr-1"></i> Bulk Add from Library</button>' +
                 '</div>' +
                 '<hr>' +
-                '<div class="form-group mt-2"><label>Columns</label>' +
-                    '<input type="number" class="form-control" id="gallery-columns" value="' + escHtml(String(columns)) + '" min="1" max="6">' +
+                '<input type="hidden" id="gallery-layout" value="' + layout + '">' +
+                '<input type="hidden" id="gallery-ratio" value="' + escHtml(ratio) + '">' +
+                '<input type="hidden" id="gallery-focus" value="' + escHtml(focus) + '">' +
+                '<input type="hidden" id="gallery-columns" value="' + escHtml(String(columns)) + '">' +
+                '<input type="hidden" id="gallery-gap" value="' + escHtml(String(gap)) + '">' +
+
+                '<div class="vc-section-title">How it will look</div>' +
+                '<div id="gallery-live-preview" class="vc-preview"></div>' +
+
+                '<div class="vc-section-title">Layout</div>' +
+                carouselTiles('gallery-layout', layout, [
+                    { value: 'grid', label: 'Even grid · every picture the same shape', art: galleryDrawing('grid') },
+                    { value: 'masonry', label: 'Masonry · nothing cropped', art: galleryDrawing('masonry') },
+                    { value: 'featured', label: 'Featured · first picture large', art: galleryDrawing('featured') }
+                ], 'vela-tiles--3', 'gallery-tile') +
+                '<small class="form-text text-muted mb-2" id="gallery-masonry-note" hidden>Masonry keeps each picture\'s own shape, so there is no shape or focus to choose.</small>' +
+
+                '<div id="gallery-crop-options">' +
+                    '<div class="vc-section-title">Picture shape <small>— pictures are cropped to it</small></div>' +
+                    carouselTiles('gallery-ratio', ratio, [['1:1', 'Square'], ['4:3', 'Classic 4:3'], ['3:2', 'Photo 3:2'], ['16:9', 'Wide 16:9'], ['4:5', 'Portrait 4:5'], ['2:3', 'Tall 2:3']].map(function (r) {
+                        return { value: r[0], label: r[1], art: shapeArt(r[0]) };
+                    }), 'vela-tiles--6', 'gallery-tile') +
+                    '<div class="vc-section-title">Keep which part when cropping <small>— top keeps faces in portraits</small></div>' +
+                    carouselTiles('gallery-focus', focus, [['top', 'Top'], ['center', 'Middle'], ['bottom', 'Bottom']].map(function (f) {
+                        return { value: f[0], label: f[1], art: focusArt(f[0]) };
+                    }), 'vela-tiles--3', 'gallery-tile') +
                 '</div>' +
-                '<div class="form-group"><label>Gap (px)</label>' +
-                    '<input type="number" class="form-control" id="gallery-gap" value="' + escHtml(String(gap)) + '" min="0">' +
-                '</div>' +
+
+                '<div class="vc-section-title">Pictures across</div>' +
+                carouselTiles('gallery-columns', columns, [2, 3, 4, 5, 6].map(function (n) {
+                    var cells = ''; for (var i = 0; i < n; i++) cells += '<i></i>';
+                    return { value: n, label: String(n), art: '<span class="vc-shape vg-cols" style="--n:' + n + '">' + cells + '</span>' };
+                }), 'vela-tiles--5', 'gallery-tile') +
+
+                '<div class="vc-section-title">Space between pictures</div>' +
+                carouselTiles('gallery-gap', gap, [[0, 'None'], [4, 'Thin'], [10, 'Normal'], [20, 'Wide']].map(function (s) {
+                    return { value: s[0], label: s[1], art: '<span class="vc-shape vg-gap" style="--g:' + Math.max(1, s[0] / 2) + 'px"><i></i><i></i><i></i></span>' };
+                }), 'vela-tiles--4', 'gallery-tile') +
+
                 '<div class="form-check">' +
                     '<input type="checkbox" class="form-check-input" id="gallery-lightbox"' + (lightbox ? ' checked' : '') + '>' +
-                    '<label class="form-check-label" for="gallery-lightbox">Enable Lightbox</label>' +
+                    '<label class="form-check-label" for="gallery-lightbox">Open a picture full screen when clicked <small class="text-muted">— with next and previous</small></label>' +
                 '</div>';
         },
         initEditor: function(block) {
@@ -5283,13 +5394,18 @@ PageEditor.registerBlockType = function(name, config) {
                     caption: altText
                 });
             });
+            // `|| 10` turned a chosen gap of 0 back into 10.
+            var gap = parseInt($('#gallery-gap').val(), 10);
             return {
                 content: { images: images },
-                settings: {
-                    columns: parseInt($('#gallery-columns').val()) || 3,
-                    gap: parseInt($('#gallery-gap').val()) || 10,
+                settings: $.extend({}, block.settings, {
+                    layout: $('#gallery-layout').val() || 'grid',
+                    ratio: $('#gallery-ratio').val() || '1:1',
+                    focus: $('#gallery-focus').val() || 'center',
+                    columns: parseInt($('#gallery-columns').val(), 10) || 3,
+                    gap: isNaN(gap) ? 10 : gap,
                     lightbox: $('#gallery-lightbox').is(':checked')
-                }
+                })
             };
         }
     });

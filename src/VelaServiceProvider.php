@@ -561,8 +561,23 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-th',
             'view' => 'vela::public.pages.blocks.gallery',
             'editor' => 'js',
-            'defaults' => ['content' => ['images' => []], 'settings' => []],
+            'defaults' => [
+                'content' => ['images' => []],
+                'settings' => [
+                    'layout'   => 'grid',
+                    'ratio'    => '1:1',
+                    'focus'    => 'center',
+                    'columns'  => 3,
+                    'gap'      => 10,
+                    'lightbox' => true,
+                ],
+            ],
             'content_example' => ['images' => [['url' => 'https://example.com/photo.jpg', 'alt' => 'Alt text', 'caption' => 'Caption']]],
+            'shape_note' => 'settings.layout is grid (every picture cropped to settings.ratio so the rows line up), masonry '
+                . '(nothing cropped, pictures run down columns at their own shapes) or featured (the first picture two columns '
+                . 'by two rows, the rest cropped to ratio around it). ratio is 1:1, 4:3, 3:2, 16:9, 4:5 or 2:3; focus — center, '
+                . 'top or bottom — is where a crop keeps the picture. columns 1-6, gap in pixels 0-64. lightbox opens a picture '
+                . 'full screen with next/previous.',
         ]);
 
         $vela->registerBlock('testimonials', [

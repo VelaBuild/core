@@ -627,6 +627,8 @@ return [
     'carousel'                       => 'Carrousel',
     'carousel_previous'              => 'Vorige dia',
     'carousel_next'                  => 'Volgende dia',
+    'gallery_open_image'             => 'Afbeelding :n van :total openen',
+    'gallery_close'                  => 'Sluiten',
     'testimonials'                   => 'Getuigenissen',
     'icon_box'                       => 'Icoonblok',
     'review_summary'                 => 'Beoordelingsoverzicht',

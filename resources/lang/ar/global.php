@@ -627,6 +627,8 @@ return [
     'carousel'                       => 'عرض دوّار',
     'carousel_previous'              => 'الشريحة السابقة',
     'carousel_next'                  => 'الشريحة التالية',
+    'gallery_open_image'             => 'فتح الصورة :n من :total',
+    'gallery_close'                  => 'إغلاق',
     'testimonials'                   => 'شهادات العملاء',
     'icon_box'                       => 'صندوق أيقونة',
     'review_summary'                 => 'ملخص المراجعات',

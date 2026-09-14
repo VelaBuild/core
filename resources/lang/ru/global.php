@@ -627,6 +627,8 @@ return [
     'carousel'                       => 'Карусель',
     'carousel_previous'              => 'Предыдущий слайд',
     'carousel_next'                  => 'Следующий слайд',
+    'gallery_open_image'             => 'Открыть изображение :n из :total',
+    'gallery_close'                  => 'Закрыть',
     'testimonials'                   => 'Отзывы клиентов',
     'icon_box'                       => 'Блок с иконкой',
     'review_summary'                 => 'Сводка отзывов',

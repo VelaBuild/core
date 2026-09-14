@@ -627,6 +627,8 @@ return [
     'carousel'                       => 'Karrusel',
     'carousel_previous'              => 'Forrige slide',
     'carousel_next'                  => 'Næste slide',
+    'gallery_open_image'             => 'Åbn billede :n af :total',
+    'gallery_close'                  => 'Luk',
     'testimonials'                   => 'Udtalelser',
     'icon_box'                       => 'Ikonboks',
     'review_summary'                 => 'Anmeldelsesoversigt',

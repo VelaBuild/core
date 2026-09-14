@@ -699,6 +699,8 @@ return [
     'carousel'                       => 'Carousel',
     'carousel_previous'              => 'Previous slide',
     'carousel_next'                  => 'Next slide',
+    'gallery_open_image'             => 'Open image :n of :total',
+    'gallery_close'                  => 'Close',
     'testimonials'                   => 'Testimonials',
     'icon_box'                       => 'Icon Box',
     'review_summary'                 => 'Review Summary',
