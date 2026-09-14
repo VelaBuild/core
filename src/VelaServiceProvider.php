@@ -451,7 +451,13 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-video',
             'view' => 'vela::public.pages.blocks.video',
             'editor' => 'js',
-            'defaults' => ['content' => ['url' => '', 'provider' => 'youtube'], 'settings' => []],
+            // Every setting the view reads is declared here, because these
+            // defaults are what add_block and update_block check incoming
+            // content against: undeclared, the AI could not set any of them.
+            'defaults' => [
+                'content' => ['url' => '', 'title' => '', 'provider' => 'youtube'],
+                'settings' => \VelaBuild\Core\Services\VideoEmbed::DEFAULTS,
+            ],
         ]);
 
         $vela->registerBlock('html', [
