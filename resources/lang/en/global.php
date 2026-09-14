@@ -434,6 +434,8 @@ return [
     'contact_phone'                  => 'Phone',
     'contact_subject'                => 'Subject',
     'contact_message'                => 'Message',
+    'contact_address'                => 'Address',
+    'contact_hours'                  => 'Opening hours',
 
     // Content management
     'new_article'                    => 'New Article',

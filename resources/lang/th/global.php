@@ -429,6 +429,8 @@ return [
     'contact_phone'                  => 'โทรศัพท์',
     'contact_subject'                => 'หัวข้อ',
     'contact_message'                => 'ข้อความ',
+    'contact_address'                => 'ที่อยู่',
+    'contact_hours'                  => 'เวลาทำการ',
 
     // Content management
     'new_article'                    => 'บทความใหม่',

@@ -429,6 +429,8 @@ return [
     'contact_phone'                  => 'الهاتف',
     'contact_subject'                => 'الموضوع',
     'contact_message'                => 'الرسالة',
+    'contact_address'                => 'العنوان',
+    'contact_hours'                  => 'ساعات العمل',
 
     // Content management
     'new_article'                    => 'مقال جديد',

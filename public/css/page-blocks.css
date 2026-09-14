@@ -170,6 +170,53 @@
 .block-contact-form button[type="submit"] { background: var(--block-accent); color: var(--block-bg-white); padding: 12px 24px; border: none; border-radius: 6px; font-size: 1em; cursor: pointer; }
 .block-contact-form button[type="submit"]:hover { background: var(--block-accent-hover); }
 .block-contact-form .honeypot { position: absolute; left: -9999px; }
+
+/* Contact form layouts — `settings.layout`. Stacked is the rules above.
+   Every selector names the block twice (`.block-contact-form.block-contact-form--x`):
+   a theme's own `.block-contact-form { max-width: 640px; text-align: center }`
+   comes after this file and would otherwise hold a split layout to a column. */
+.block-contact-form-fields { display: block; }
+
+/* Two columns of short fields; the message keeps the full width. */
+.block-contact-form.block-contact-form--two-column .block-contact-form-fields,
+.block-contact-form.block-contact-form--card .block-contact-form-fields {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px;
+}
+.block-contact-form.block-contact-form--two-column .form-group-message,
+.block-contact-form.block-contact-form--card .form-group-message { grid-column: 1 / -1; }
+
+/* Split: something beside the form — the ways to reach you, or a picture. */
+.block-contact-form.block-contact-form--split-info,
+.block-contact-form.block-contact-form--split-image { max-width: var(--vela-page-width, 1200px); text-align: left; }
+.block-contact-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(24px, 5vw, 64px); align-items: start; }
+.block-contact-form--aside-right .block-contact-form-aside { order: 2; }
+.block-contact-form--split-image .block-contact-form-grid { align-items: stretch; }
+.block-contact-form--split-image .block-contact-form-aside { min-height: 280px; }
+.block-contact-form--split-image .block-contact-form-aside picture,
+.block-contact-form--split-image .block-contact-form-image { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; }
+.block-contact-form-info { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 18px; }
+.block-contact-form-info-item { display: flex; gap: 14px; align-items: flex-start; }
+.block-contact-form-info-icon { flex: none; width: 40px; height: 40px; padding: 10px; border-radius: 50%; color: var(--block-accent); background: color-mix(in srgb, var(--block-accent) 10%, transparent); box-sizing: border-box; }
+.block-contact-form-info-label { display: block; font-size: .8em; text-transform: uppercase; letter-spacing: .06em; opacity: .65; margin-bottom: 2px; }
+.block-contact-form-info a { color: inherit; text-decoration: none; }
+.block-contact-form-info a:hover { color: var(--block-accent); }
+
+/* Card: the form on a raised panel, over whatever the block's background is. */
+/* Held to a panel's width, so it has to be put in the middle: nothing else
+   centres it, and on a theme that does not a card sat against the left edge. */
+.block-contact-form.block-contact-form--card { max-width: 760px; margin-left: auto; margin-right: auto; }
+.block-contact-form-card { background: var(--block-bg-white); color: var(--block-text-primary); border: 1px solid var(--block-border); border-radius: 16px; padding: clamp(24px, 4vw, 48px); box-shadow: 0 10px 40px rgba(0, 0, 0, .08); text-align: left; }
+.block-contact-form--card .block-contact-form-title,
+.block-contact-form--card .block-contact-form-intro { text-align: center; }
+.block-contact-form--card button[type="submit"] { width: 100%; }
+
+@media (max-width: 768px) {
+    .block-contact-form.block-contact-form--two-column .block-contact-form-fields,
+    .block-contact-form.block-contact-form--card .block-contact-form-fields { grid-template-columns: 1fr; }
+    .block-contact-form-grid { grid-template-columns: 1fr; }
+    .block-contact-form--aside-right .block-contact-form-aside { order: 0; }
+    .block-contact-form--split-image .block-contact-form-aside { min-height: 0; aspect-ratio: 16 / 9; }
+}
 .block-contact-form .form-success { background: var(--block-success-bg); border: 1px solid var(--block-success-border); color: var(--block-success-text); padding: 12px 20px; border-radius: 6px; margin-bottom: 15px; }
 .block-contact-form .form-error { background: var(--block-error-bg); border: 1px solid var(--block-error-border); color: var(--block-error-text); padding: 12px 20px; border-radius: 6px; margin-bottom: 15px; }
 /* Carousel block */

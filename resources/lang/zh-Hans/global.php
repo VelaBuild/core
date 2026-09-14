@@ -429,6 +429,8 @@ return [
     'contact_phone'                  => '电话',
     'contact_subject'                => '主题',
     'contact_message'                => '消息',
+    'contact_address'                => '地址',
+    'contact_hours'                  => '营业时间',
 
     // Content management
     'new_article'                    => '新建文章',

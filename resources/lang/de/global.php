@@ -429,6 +429,8 @@ return [
     'contact_phone'                  => 'Telefon',
     'contact_subject'                => 'Betreff',
     'contact_message'                => 'Nachricht',
+    'contact_address'                => 'Adresse',
+    'contact_hours'                  => 'Öffnungszeiten',
 
     // Content management
     'new_article'                    => 'Neuer Artikel',

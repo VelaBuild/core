@@ -429,6 +429,8 @@ return [
     'contact_phone'                  => 'Телефон',
     'contact_subject'                => 'Тема',
     'contact_message'                => 'Сообщение',
+    'contact_address'                => 'Адрес',
+    'contact_hours'                  => 'Часы работы',
 
     // Content management
     'new_article'                    => 'Новая статья',

@@ -490,7 +490,15 @@ class VelaServiceProvider extends ServiceProvider
             // reject invented keys — an empty settings array disabled it, so
             // things like submit_label were guessed and silently dropped.
             'defaults' => [
-                'content'  => ['title' => '', 'intro' => ''],
+                'content'  => [
+                    'title' => '', 'intro' => '',
+                    // Beside the form in the split_info layout: how to reach the
+                    // business, for a visitor to read. Prefixed so none of them
+                    // reads as where submissions go — see shape_note.
+                    'info_address' => '', 'info_phone' => '', 'info_email' => '', 'info_hours' => '',
+                    // Beside the form in the split_image layout.
+                    'image' => '', 'image_alt' => '',
+                ],
                 'settings' => [
                     'fields' => [
                         'name'    => ['enabled' => true, 'required' => true],
@@ -501,11 +509,17 @@ class VelaServiceProvider extends ServiceProvider
                     ],
                     'submit_label'    => '',
                     'success_message' => '',
+                    'layout'          => 'stacked',
+                    'aside_position'  => 'left',
                 ],
             ],
             'shape_note' => 'Submissions are stored in the site admin under Form Submissions. This block never emails them, '
                 . 'so it takes no recipient address — do not tell the user their messages will be sent to an inbox. '
-                . 'The five fields above are the only ones available; each can be switched off or made optional, but no new field can be added.',
+                . 'The five fields above are the only ones available; each can be switched off or made optional, but no new field can be added. '
+                . 'settings.layout is one of stacked, two_column (short fields side by side), split_info (title, intro and '
+                . 'content.info_address/info_phone/info_email/info_hours beside the form — printed on the page for visitors, never where submissions go), split_image (content.image beside the form) or card '
+                . '(the form on a raised panel). settings.aside_position, left or right, is which side a split puts the '
+                . 'info or image on. A split is drawn as chosen even with nothing beside the form, so fill in what it shows.',
         ]);
 
         $vela->registerBlock('carousel', [

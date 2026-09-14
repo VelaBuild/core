@@ -4695,79 +4695,224 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    var CF_FIELDS = ['name', 'email', 'phone', 'subject', 'message'];
+    var CF_DEFAULT_FIELDS = {
+        name: { enabled: true, required: true },
+        email: { enabled: true, required: true },
+        phone: { enabled: true, required: false },
+        subject: { enabled: true, required: false },
+        message: { enabled: true, required: true }
+    };
+    var CF_LAYOUTS = [
+        { key: 'stacked', label: 'Stacked' },
+        { key: 'two_column', label: 'Two columns' },
+        { key: 'split_info', label: 'Split + contact info' },
+        { key: 'split_image', label: 'Split + image' },
+        { key: 'card', label: 'Card' }
+    ];
+
+    // A small drawing of each layout for the picker: grey bars are fields,
+    // the blue bar the button, dots the contact details, the hatched box a picture.
+    function cfLayoutThumb(key) {
+        var bar = function (w) { return '<i class="cf-t-bar" style="width:' + w + '"></i>'; };
+        var btn = '<i class="cf-t-btn"></i>';
+        var pair = '<span class="cf-t-row">' + bar('48%') + bar('48%') + '</span>';
+        var form = {
+            stacked: bar('100%') + bar('100%') + bar('100%') + '<i class="cf-t-area"></i>' + btn,
+            two_column: pair + pair + '<i class="cf-t-area"></i>' + btn,
+            split_info: '<span class="cf-t-split"><span class="cf-t-side"><i class="cf-t-head"></i>' +
+                '<i class="cf-t-dot"></i><i class="cf-t-dot"></i><i class="cf-t-dot"></i></span>' +
+                '<span class="cf-t-side">' + bar('100%') + bar('100%') + '<i class="cf-t-area"></i>' + btn + '</span></span>',
+            split_image: '<span class="cf-t-split"><span class="cf-t-side cf-t-img"></span>' +
+                '<span class="cf-t-side">' + bar('100%') + bar('100%') + '<i class="cf-t-area"></i>' + btn + '</span></span>',
+            card: '<span class="cf-t-panel">' + pair + '<i class="cf-t-area"></i><i class="cf-t-btn" style="width:100%"></i></span>'
+        };
+        return '<span class="cf-t cf-t-' + key + '">' + form[key] + '</span>';
+    }
+
     PageEditor.registerBlockType('contact_form', {
         icon: 'fa-envelope',
         label: 'Contact Form',
         defaults: {
-            content: {},
+            content: { title: '', intro: '', info_address: '', info_phone: '', info_email: '', info_hours: '', image: '', image_alt: '' },
             settings: {
-                fields: {
-                    name: { enabled: true, required: true },
-                    email: { enabled: true, required: true },
-                    phone: { enabled: true, required: false },
-                    subject: { enabled: true, required: false },
-                    message: { enabled: true, required: true }
-                },
+                fields: $.extend(true, {}, CF_DEFAULT_FIELDS),
                 submit_label: 'Send Message',
-                success_message: 'Thank you for your message!'
+                success_message: 'Thank you for your message!',
+                layout: 'stacked',
+                aside_position: 'left'
             }
         },
         renderPreview: function(block) {
-            var fields = block.content && block.content.fields ? block.content.fields : {};
-            var fieldNames = ['name', 'email', 'phone', 'subject', 'message'];
-            var formHtml = '<div style="font-size:0.85em;">';
-            fieldNames.forEach(function(f) {
-                if (fields[f] === false) return;
-                formHtml += '<div style="margin-bottom:6px;"><label style="display:block;font-weight:500;">' + escHtml(f.charAt(0).toUpperCase() + f.slice(1)) + '</label>';
-                if (f === 'message') {
-                    formHtml += '<textarea disabled style="width:100%;border:1px solid #dee2e6;border-radius:3px;padding:4px 6px;background:#f8f9fa;resize:none;" rows="2"></textarea>';
-                } else {
-                    formHtml += '<input type="text" disabled style="width:100%;border:1px solid #dee2e6;border-radius:3px;padding:4px 6px;background:#f8f9fa;">';
-                }
-                formHtml += '</div>';
-            });
-            formHtml += '<button disabled style="background:#007bff;color:#fff;border:none;padding:6px 16px;border-radius:3px;opacity:0.7;">Submit</button></div>';
-            return formHtml;
+            // The fields live in settings. This read content.fields, which
+            // nothing writes, so a field switched off still showed here.
+            var settings = block.settings || {};
+            var content = block.content || {};
+            var fields = settings.fields || CF_DEFAULT_FIELDS;
+            var layout = settings.layout || 'stacked';
+            var label = (CF_LAYOUTS.filter(function (l) { return l.key === layout; })[0] || CF_LAYOUTS[0]).label;
+            var on = CF_FIELDS.filter(function (f) { return fields[f] && fields[f].enabled; });
+            return '<div style="display:flex;gap:12px;align-items:center;font-size:.85em;">' +
+                '<div class="cf-layout-option is-static">' + cfLayoutThumb(layout) + '</div>' +
+                '<div style="min-width:0;">' +
+                    (content.title ? '<div style="font-weight:600;">' + escHtml(content.title) + '</div>' : '') +
+                    '<div class="text-muted">' + escHtml(label) + ' · ' +
+                        escHtml(on.map(function (f) { return f.charAt(0).toUpperCase() + f.slice(1); }).join(', ') || 'No fields') +
+                    '</div>' +
+                '</div></div>';
         },
         renderEditor: function(block) {
             var settings = block.settings || {};
-            var fields = settings.fields || {
-                name: { enabled: true, required: true },
-                email: { enabled: true, required: true },
-                phone: { enabled: true, required: false },
-                subject: { enabled: true, required: false },
-                message: { enabled: true, required: true }
-            };
+            var content = block.content || {};
+            var fields = settings.fields || CF_DEFAULT_FIELDS;
+            var layout = settings.layout || 'stacked';
+            var aside = settings.aside_position === 'right' ? 'right' : 'left';
             var submitLabel = settings.submit_label || 'Send Message';
             var successMessage = settings.success_message || 'Thank you for your message!';
-            var fieldNames = ['name', 'email', 'phone', 'subject', 'message'];
-            var tableRows = fieldNames.map(function(f) {
+            var input = function (id, label, value, placeholder) {
+                return '<div class="form-group"><label for="' + id + '">' + label + '</label>' +
+                    '<input type="text" class="form-control" id="' + id + '" value="' + escHtml(value || '') + '"' +
+                    (placeholder ? ' placeholder="' + escHtml(placeholder) + '"' : '') + '></div>';
+            };
+
+            var picker = '<div class="form-group"><label>Layout</label><div class="cf-layout-picker">' +
+                CF_LAYOUTS.map(function (l) {
+                    return '<button type="button" class="cf-layout-option' + (l.key === layout ? ' active' : '') + '" data-layout="' + l.key + '">' +
+                        cfLayoutThumb(l.key) + '<span class="cf-layout-label">' + escHtml(l.label) + '</span></button>';
+                }).join('') +
+                '</div><input type="hidden" id="cf-layout" value="' + escHtml(layout) + '"></div>';
+
+            var tableRows = CF_FIELDS.map(function(f) {
                 var fd = fields[f] || { enabled: false, required: false };
                 return '<tr><td>' + f.charAt(0).toUpperCase() + f.slice(1) + '</td>' +
                     '<td><input type="checkbox" class="cf-enabled" data-field="' + f + '"' + (fd.enabled ? ' checked' : '') + '></td>' +
                     '<td><input type="checkbox" class="cf-required" data-field="' + f + '"' + (fd.required ? ' checked' : '') + '></td></tr>';
             }).join('');
-            return '<table class="table table-sm"><thead><tr><th>Field</th><th>Enabled</th><th>Required</th></tr></thead><tbody>' + tableRows + '</tbody></table>' +
+
+            var image = content.image || '';
+
+            return picker +
+                '<div class="alert alert-warning py-2 px-3 cf-empty-note" hidden style="font-size:.85rem;"></div>' +
+                input('cf-title', 'Title', content.title, 'Get in touch') +
+                '<div class="form-group"><label for="cf-intro">Intro</label>' +
+                    '<textarea class="form-control" id="cf-intro" rows="2" placeholder="We usually reply within a day.">' + escHtml(content.intro || '') + '</textarea></div>' +
+
+                '<div class="cf-only" data-for="split_info split_image">' +
+                    '<div class="form-group"><label for="cf-aside">Put the ' +
+                        '<span class="cf-only" data-for="split_info">contact details</span><span class="cf-only" data-for="split_image">picture</span> on the</label>' +
+                    '<select class="form-control" id="cf-aside">' +
+                        '<option value="left"' + (aside === 'left' ? ' selected' : '') + '>Left</option>' +
+                        '<option value="right"' + (aside === 'right' ? ' selected' : '') + '>Right</option>' +
+                    '</select></div>' +
+                '</div>' +
+
+                '<div class="cf-only cf-group" data-for="split_info">' +
+                    '<div class="cf-group-title">Contact details <small class="text-muted">— shown beside the form; leave any empty to hide it</small></div>' +
+                    '<div class="form-group"><label for="cf-address">Address</label>' +
+                        '<textarea class="form-control" id="cf-address" rows="2">' + escHtml(content.info_address || '') + '</textarea></div>' +
+                    '<div class="form-row">' +
+                        '<div class="col-sm-6">' + input('cf-phone', 'Phone', content.info_phone) + '</div>' +
+                        '<div class="col-sm-6">' + input('cf-email', 'Email', content.info_email) + '</div>' +
+                    '</div>' +
+                    '<div class="form-group"><label for="cf-hours">Opening hours</label>' +
+                        '<textarea class="form-control" id="cf-hours" rows="2" placeholder="Mon–Fri 9:00–18:00">' + escHtml(content.info_hours || '') + '</textarea></div>' +
+                '</div>' +
+
+                '<div class="cf-only cf-group" data-for="split_image">' +
+                    '<div class="cf-group-title">Picture</div>' +
+                    '<div class="d-flex align-items-start" style="gap:12px;">' +
+                        '<img id="cf-image-thumb" src="' + escHtml(image) + '" alt=""' + (image ? '' : ' hidden') +
+                            ' style="width:96px;height:72px;object-fit:cover;border-radius:4px;background:#f1f3f5;">' +
+                        '<div style="flex:1;min-width:0;">' +
+                            '<div class="input-group input-group-sm mb-1">' +
+                                '<input type="text" class="form-control" id="cf-image" value="' + escHtml(image) + '" placeholder="Image URL">' +
+                                '<div class="input-group-append"><button type="button" class="btn btn-outline-info" id="cf-image-browse"><i class="fas fa-images"></i> Browse</button></div>' +
+                            '</div>' +
+                            '<input type="text" class="form-control form-control-sm" id="cf-image-alt" value="' + escHtml(content.image_alt || '') + '" placeholder="Alt text">' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<table class="table table-sm mt-3"><thead><tr><th>Field</th><th>Enabled</th><th>Required</th></tr></thead><tbody>' + tableRows + '</tbody></table>' +
                 '<div class="form-group"><label>Submit Button Label</label><input type="text" class="form-control" id="cf-submit-label" value="' + escHtml(submitLabel) + '"></div>' +
                 '<div class="form-group"><label>Success Message</label><input type="text" class="form-control" id="cf-success-msg" value="' + escHtml(successMessage) + '"></div>';
         },
-        initEditor: function(block) {},
+        initEditor: function(block) {
+            // Each section is shown only for the layouts that use it, so the
+            // form asks for a picture only when there is somewhere to put one.
+            function showFor(layout) {
+                $('#block-edit-content .cf-only').each(function () {
+                    var wanted = (this.getAttribute('data-for') || '').split(' ');
+                    this.hidden = wanted.indexOf(layout) === -1;
+                });
+                noteWhatIsMissing();
+            }
+
+            // A split draws its layout whether or not anything is beside the
+            // form, so an empty side is said here rather than left to be found
+            // on the live page as half a page of nothing.
+            function noteWhatIsMissing() {
+                var layout = $('#cf-layout').val();
+                var filled = function (sel) { return $.trim($(sel).val() || '') !== ''; };
+                var msg = '';
+                if (layout === 'split_info' && !['#cf-title', '#cf-intro', '#cf-address', '#cf-phone', '#cf-email', '#cf-hours'].some(filled)) {
+                    msg = 'Nothing to show beside the form yet — add a title or some contact details below, or that side stays empty.';
+                } else if (layout === 'split_image' && !filled('#cf-image')) {
+                    msg = 'No picture yet — choose one below, or that side stays empty.';
+                }
+                $('#block-edit-content .cf-empty-note').text(msg).prop('hidden', !msg);
+            }
+            showFor($('#cf-layout').val());
+            $(document).off('input.cfNote').on('input.cfNote', '#block-edit-content input, #block-edit-content textarea', noteWhatIsMissing);
+
+            $(document).off('click.cfEditor').on('click.cfEditor', '.cf-layout-picker .cf-layout-option', function () {
+                var layout = $(this).data('layout');
+                $('.cf-layout-picker .cf-layout-option').removeClass('active');
+                $(this).addClass('active');
+                $('#cf-layout').val(layout);
+                _blockEditTouched = true;
+                showFor(layout);
+            });
+
+            $(document).off('click.cfImage').on('click.cfImage', '#cf-image-browse', function () {
+                openMediaBrowser(function (media) {
+                    $('#cf-image').val(media.url);
+                    $('#cf-image-thumb').attr('src', media.url).prop('hidden', false);
+                    noteWhatIsMissing();
+                    if (media.alt && !$('#cf-image-alt').val()) $('#cf-image-alt').val(media.alt);
+                });
+            });
+            $(document).off('input.cfImage').on('input.cfImage', '#cf-image', function () {
+                var url = $(this).val().trim();
+                $('#cf-image-thumb').attr('src', url).prop('hidden', !url);
+            });
+        },
         collectData: function(block) {
-            var fieldNames = ['name', 'email', 'phone', 'subject', 'message'];
             var fields = {};
-            fieldNames.forEach(function(f) {
+            CF_FIELDS.forEach(function(f) {
                 fields[f] = {
                     enabled: $('.cf-enabled[data-field="' + f + '"]').is(':checked'),
                     required: $('.cf-required[data-field="' + f + '"]').is(':checked')
                 };
             });
             return {
-                content: block.content,
-                settings: {
+                content: $.extend({}, block.content, {
+                    title: $('#cf-title').val(),
+                    intro: $('#cf-intro').val(),
+                    info_address: $('#cf-address').val(),
+                    info_phone: $('#cf-phone').val(),
+                    info_email: $('#cf-email').val(),
+                    info_hours: $('#cf-hours').val(),
+                    image: $('#cf-image').val(),
+                    image_alt: $('#cf-image-alt').val()
+                }),
+                settings: $.extend({}, block.settings, {
                     fields: fields,
                     submit_label: $('#cf-submit-label').val(),
-                    success_message: $('#cf-success-msg').val()
-                }
+                    success_message: $('#cf-success-msg').val(),
+                    layout: $('#cf-layout').val() || 'stacked',
+                    aside_position: $('#cf-aside').val() === 'right' ? 'right' : 'left'
+                })
             };
         }
     });
