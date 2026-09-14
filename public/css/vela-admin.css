@@ -1537,29 +1537,51 @@ body.vela-admin .vela-cmd-item .ico {
 body.vela-admin .vela-cmd-item.is-active .ico { background: var(--accent); color: #fff; }
 body.vela-admin .vela-cmd-ai-label { color: var(--fg-subtle); font-size: var(--text-xs); padding: 0 12px 8px; }
 
-/* --- Block editor: full-screen, two panes ---------------------------------
+/* --- Block editor: a form, or full-screen with a preview -----------------
    The imported-section editor shows a live preview beside its controls. In a
    normal modal the preview scrolls out of view exactly when you reach the
-   field you are editing, so the dialog fills the screen and each side keeps
-   its own scroll position. */
+   field you are editing, so that dialog fills the screen and each side keeps
+   its own scroll position.
+
+   Everything else is a form, and a form does not need the screen: a Text
+   block's handful of fields sat in a 460px column at the edge of a blank
+   full-screen sheet. So the dialog is an ordinary large modal unless the
+   editor put a preview in the pane — `.has-preview`, set by
+   moveEditorPreviewIntoPane(), which is the one place that knows. Keyed on
+   the preview rather than the block type: Custom HTML typed by hand has no
+   preview either. */
 body.vela-admin .vela-block-modal {
+    max-width: 800px;
+}
+body.vela-admin .vela-block-modal .modal-content {
+    max-height: calc(100vh - 3.5rem);
+}
+body.vela-admin .vela-block-modal-body {
+    padding: 0;
+    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+body.vela-admin .vela-edit-form {
+    padding: var(--space-5, 20px);
+}
+
+body.vela-admin .vela-block-modal.has-preview {
     max-width: none;
     width: 100%;
     height: 100%;
     margin: 0;
 }
-body.vela-admin .vela-block-modal .modal-content {
+body.vela-admin .vela-block-modal.has-preview .modal-content {
     height: 100vh;
+    max-height: none;
     border: 0;
     border-radius: 0;
 }
-body.vela-admin .vela-block-modal-body {
-    padding: 0;
+body.vela-admin .vela-block-modal.has-preview .vela-block-modal-body {
     overflow: hidden;
-    flex: 1 1 auto;
-    min-height: 0;
 }
-body.vela-admin .vela-edit-split {
+body.vela-admin .vela-block-modal.has-preview .vela-edit-split {
     display: flex;
     align-items: stretch;
     height: 100%;
@@ -1583,17 +1605,16 @@ body.vela-admin .vela-edit-preview > iframe {
     background: #fff;
     display: block;
 }
-body.vela-admin .vela-edit-form {
+body.vela-admin .vela-block-modal.has-preview .vela-edit-form {
     flex: 0 0 460px;
     max-width: 100%;
     overflow: auto;
-    padding: var(--space-5, 20px);
 }
 /* One pane on a narrow screen: the preview on top, controls under it. */
 @media (max-width: 900px) {
-    body.vela-admin .vela-edit-split { flex-direction: column; }
+    body.vela-admin .vela-block-modal.has-preview .vela-edit-split { flex-direction: column; }
     body.vela-admin .vela-edit-preview { flex: 0 0 40%; border-right: 0; border-bottom: 1px solid var(--border-subtle, #e9ecef); }
-    body.vela-admin .vela-edit-form { flex: 1 1 auto; }
+    body.vela-admin .vela-block-modal.has-preview .vela-edit-form { flex: 1 1 auto; }
 }
 
 /* The colour picker, its hex box and the clear button belong on one line.

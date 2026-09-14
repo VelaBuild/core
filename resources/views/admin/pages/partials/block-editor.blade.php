@@ -21,11 +21,13 @@
 
 {{-- Block Edit Modal --}}
 <div class="modal fade" id="block-edit-modal" tabindex="-1" role="dialog">
-    {{-- Full screen, split in two: what the section looks like on the left,
-         the controls on the right, each scrolling on its own. A copied
-         section is a page-width thing, and judging an edit to it through a
-         narrow modal that scrolls the preview away as you reach the controls
-         is guesswork. --}}
+    {{-- An ordinary large dialog for a block's form. When the editor has a
+         preview (an imported or designed section) it becomes full screen,
+         split in two: what the section looks like on the left, the controls
+         on the right, each scrolling on its own. A copied section is a
+         page-width thing, and judging an edit to it through a narrow modal
+         that scrolls the preview away as you reach the controls is guesswork.
+         The switch is `.has-preview`, set by moveEditorPreviewIntoPane(). --}}
     <div class="modal-dialog vela-block-modal" role="document">
         <div class="modal-content">
             <div class="modal-header">

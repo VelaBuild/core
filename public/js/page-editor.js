@@ -1195,6 +1195,10 @@ PageEditor.registerBlockType = function(name, config) {
      */
     function clearEditorPreviewPane() {
         $('#block-edit-preview').empty().attr('hidden', 'hidden');
+        // Back to an ordinary dialog until an editor says it has a preview.
+        // Done here as well as below because the dialog is reused without
+        // closing — the type picker becomes a block's form in place.
+        $('#block-edit-modal .modal-dialog').removeClass('has-preview');
     }
 
     function moveEditorPreviewIntoPane() {
@@ -1206,6 +1210,7 @@ PageEditor.registerBlockType = function(name, config) {
 
         if (!$preview.length) {
             $pane.attr('hidden', 'hidden');
+            $('#block-edit-modal .modal-dialog').removeClass('has-preview');
             return;
         }
 
@@ -1213,6 +1218,8 @@ PageEditor.registerBlockType = function(name, config) {
         // fills whatever room the screen gives it.
         $preview.css({ height: '100%', marginBottom: 0 }).appendTo($pane);
         $pane.removeAttr('hidden');
+        // Only an editor with something to look at needs the whole screen.
+        $('#block-edit-modal .modal-dialog').addClass('has-preview');
     }
 
     function parseBlockHtml(html) {
