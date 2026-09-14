@@ -128,7 +128,7 @@
             </div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto;" id="media-browser-scroll">
                 <div class="mb-3 d-flex align-items-center" style="gap:10px;">
-                    <input type="file" id="media-browser-file" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none;">
+                    <input type="file" id="media-browser-file" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none;">
                     <button type="button" class="btn btn-sm btn-primary" id="media-browser-upload-btn">
                         <i class="fas fa-upload mr-1"></i> {{ trans('vela::global.upload') }}
                     </button>
@@ -178,6 +178,8 @@
 .media-browser-item:hover { border-color: #321fdb; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .media-browser-item img { width: 100%; height: 120px; object-fit: cover; display: block; }
 .media-browser-item .media-browser-name { padding: 4px 6px; font-size: 0.75em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #555; }
+.media-browser-item.is-new { position: relative; }
+.media-browser-item.is-new::before { content: 'New'; position: absolute; top: 6px; left: 6px; padding: 1px 6px; font-size: 11px; font-weight: 600; color: #fff; background: #16a34a; border-radius: 4px; }
 .media-browser-item.selected { border-color: #321fdb; box-shadow: 0 0 0 3px rgba(50,31,219,.25); }
 .media-browser-item.selected::after { content: '\f058'; font-family: 'Font Awesome 5 Free'; font-weight: 900; position: absolute; top: 6px; right: 6px; color: #321fdb; font-size: 18px; text-shadow: 0 0 3px #fff; }
 .multi-select .media-browser-item { position: relative; }

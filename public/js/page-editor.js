@@ -555,6 +555,7 @@ PageEditor.registerBlockType = function(name, config) {
         $('#media-browser-grid').empty().removeClass('multi-select');
         $('#media-browser-empty').hide();
         $('#media-browser-bulk-bar').remove();
+        $('#media-browser-upload-status').remove();
         loadMediaBrowserPage();
         $('#media-browser-modal').modal('show');
     }
@@ -570,6 +571,7 @@ PageEditor.registerBlockType = function(name, config) {
         $('#media-browser-grid').empty().addClass('multi-select');
         $('#media-browser-empty').hide();
         $('#media-browser-bulk-bar').remove();
+        $('#media-browser-upload-status').remove();
         var $bar = $('<div id="media-browser-bulk-bar" style="padding:10px 15px;background:#f0f9ff;border-bottom:1px solid #bae6fd;display:flex;justify-content:space-between;align-items:center;">' +
             '<span style="color:#0369a1;font-size:0.9em;"><i class="fas fa-info-circle mr-1"></i> Click images to select, then add all at once.</span>' +
             '<button type="button" class="btn btn-sm btn-primary" id="media-browser-add-selected" disabled><i class="fas fa-plus mr-1"></i> Add <span id="bulk-count">0</span> Selected</button>' +
@@ -6668,38 +6670,100 @@ PageEditor.registerBlockType = function(name, config) {
             $('#media-browser-file').click();
         });
 
-        $('#media-browser-file').on('change', function() {
-            var file = this.files[0];
-            if (!file) return;
-            var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        // Uploading adds to the library and leaves the browser open. It used to
+        // hand the first picture straight back and close: in "Bulk Add" there is
+        // no single-picture callback, so the upload closed the window and went
+        // nowhere, and in every mode a second picture meant opening it again.
+        // The new pictures go to the top of the grid — already selected when
+        // several are being chosen — and are picked like any other.
+        function mediaUploadStatus(html, kind) {
+            var $s = $('#media-browser-upload-status');
+            if (!$s.length) {
+                $s = $('<span id="media-browser-upload-status" style="font-size:.85em;"></span>').insertAfter('#media-browser-upload-btn');
+            }
+            $s.attr('class', kind === 'error' ? 'text-danger' : 'text-muted').html(html);
+        }
+
+        function uploadOneToLibrary(file, csrf) {
             var formData = new FormData();
             formData.append('file', file);
             formData.append('size', 20);
             formData.append('width', 4096);
             formData.append('height', 4096);
-            $('#media-browser-upload-btn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
-            fetch(getMediaUploadUrl(), {
+            return fetch(getMediaUploadUrl(), {
                 method: 'POST',
-                headers: { 'X-CSRF-TOKEN': csrf },
+                headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
                 body: formData
-            }).then(function(r) { return r.json(); }).then(function(resp) {
+            }).then(function(r) {
+                if (!r.ok) throw new Error('upload');
+                return r.json();
+            }).then(function(resp) {
                 return fetch(getMediaUrl(), {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
                     body: JSON.stringify({ media_file: resp.name, title: file.name })
                 });
-            }).then(function(r) { return r.json(); }).then(function(data) {
-                $('#media-browser-upload-btn').prop('disabled', false).html('<i class="fas fa-upload mr-1"></i> Upload');
-                $('#media-browser-file').val('');
-                if (data.success && data.url) {
-                    if (_mediaBrowserCallback) {
-                        _mediaBrowserCallback({ url: data.url, alt: '' });
-                    }
-                    $('#media-browser-modal').modal('hide');
+            }).then(function(r) {
+                if (!r.ok) throw new Error('store');
+                return r.json();
+            }).then(function(data) {
+                if (!data.success || !data.url) throw new Error('store');
+                return data;
+            });
+        }
+
+        $('#media-browser-file').on('change', function() {
+            var files = Array.prototype.slice.call(this.files || []);
+            var input = this;
+            if (!files.length) return;
+            var csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            var $btn = $('#media-browser-upload-btn');
+            var done = 0, failed = [];
+
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+            $('#media-browser-empty').hide();
+
+            // One at a time, so the pictures land in the order they were chosen
+            // and the count says how far it has got.
+            files.reduce(function(chain, file) {
+                return chain.then(function() {
+                    mediaUploadStatus('Uploading ' + (done + failed.length + 1) + ' of ' + files.length + '…');
+                    return uploadOneToLibrary(file, csrf).then(function(data) {
+                        done++;
+                        // The full picture, not data.thumb: the thumbnail is made after
+                        // the upload answers, so its address is a broken image for now.
+                        var $el = $('<div class="media-browser-item is-new">')
+                            .attr('data-id', data.media_id)
+                            .attr('data-url', data.url)
+                            .attr('data-alt', '')
+                            .append($('<img>').attr('src', data.url).attr('alt', file.name))
+                            .append($('<div class="media-browser-name">').text(file.name));
+                        $('#media-browser-grid').prepend($el);
+                        if (_mediaBrowserMulti) {
+                            $el.addClass('selected');
+                            _mediaBrowserSelected.push({ id: data.media_id, url: data.url, alt: '' });
+                            $('#bulk-count').text(_mediaBrowserSelected.length);
+                            $('#media-browser-add-selected').prop('disabled', false);
+                        }
+                    }, function() {
+                        failed.push(file.name);
+                    });
+                });
+            }, Promise.resolve()).then(function() {
+                $btn.prop('disabled', false).html('<i class="fas fa-upload mr-1"></i> Upload');
+                input.value = '';
+                document.getElementById('media-browser-scroll').scrollTop = 0;
+
+                var msg = '';
+                if (done) {
+                    msg = '<i class="fas fa-check text-success mr-1"></i>' + done + ' uploaded — ' +
+                        (_mediaBrowserMulti ? 'already selected; press <strong>Add Selected</strong> when you are ready.' : 'click ' + (done === 1 ? 'it' : 'one') + ' to use it.');
                 }
-            }).catch(function() {
-                $('#media-browser-upload-btn').prop('disabled', false).html('<i class="fas fa-upload mr-1"></i> Upload');
-                $('#media-browser-file').val('');
+                if (failed.length) {
+                    msg += (msg ? '<br>' : '') + '<i class="fas fa-exclamation-triangle mr-1"></i>Could not upload ' + escHtml(failed.join(', ')) +
+                        ' — pictures must be JPG, PNG, GIF or WebP and under 20 MB.';
+                }
+                mediaUploadStatus(msg, failed.length && !done ? 'error' : '');
             });
         });
 
