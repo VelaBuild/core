@@ -5550,6 +5550,15 @@ PageEditor.registerBlockType = function(name, config) {
         $('.modal-title').text('Edit Block: ' + (config ? config.label : block.type));
         clearEditorPreviewPane();
         $('#block-edit-content').html(html);
+        // An edit form owns its own save button. It used to be put back only
+        // when the dialog CLOSED, which was fine while every edit began with
+        // the dialog shut — and stopped being fine once adding a block swaps
+        // straight from the type picker (which hides the button, there being
+        // nothing to save yet) to this form without closing in between. A
+        // new block's form then had no Save Block at all, and Save Page and
+        // Ctrl+S did nothing either: both look for that button, see it
+        // hidden, and take it for the picker.
+        $('#save-block-btn').show();
         if (config && config.initEditor) { config.initEditor(block); }
         moveEditorPreviewIntoPane();
 
