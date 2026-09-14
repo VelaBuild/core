@@ -611,14 +611,157 @@ PageEditor.registerBlockType = function(name, config) {
 
     window.PageEditor.openMediaBrowser = openMediaBrowser;
 
-    function getVideoPreviewHtml(url) {
-        var embedUrl = '';
-        var ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-        var viMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-        if (ytMatch) embedUrl = 'https://www.youtube.com/embed/' + ytMatch[1];
-        else if (viMatch) embedUrl = 'https://player.vimeo.com/video/' + viMatch[1];
+    // --- Video: a link and its settings, as a player address ---------------
+    //
+    // The same as VideoEmbed.php, which draws the page. The preview needs its
+    // own copy because it answers as the form is changed; the two are held to
+    // one table of cases, tests/fixtures/video-embeds.json, run from both
+    // sides. The two regexes this replaces had each drifted: neither read the
+    // time in a link copied at 1:30, and neither knew a Shorts link.
+
+    var VIDEO_RATIOS = { '16:9': 56.25, '4:3': 75, '1:1': 100, '9:16': 177.7778 };
+    var _videoFormTimer = null;
+    var VIDEO_MAX_WIDTH = { '1:1': '720px', '9:16': '400px' };
+    var VIDEO_DEFAULTS = {
+        aspect_ratio: '16:9', start: null, end: null,
+        autoplay: false, mute: false, loop: false, controls: true, privacy: true
+    };
+
+    // The same reading as VideoEmbed::seconds() — see there for why it takes
+    // so many shapes and refuses the rest.
+    var THAI_DIGITS = '๐๑๒๓๔๕๖๗๘๙';
+
+    function videoSeconds(value) {
+        if (value === null || value === undefined || value === '' || value === false) return null;
+        if (typeof value === 'number') return value > 0 ? Math.floor(value) : null;
+
+        value = String(value).trim().toLowerCase()
+            .replace(/[๐-๙]/g, function(d) { return String(THAI_DIGITS.indexOf(d)); })
+            .replace(/ชั่วโมง|ชม\.?/g, 'h')
+            .replace(/วินาที|วิ\.?/g, 's')
+            .replace(/นาที|น\./g, 'm')
+            .replace(/\b(?:hours?|hrs?)\b/g, 'h')
+            .replace(/\b(?:minutes?|mins?)\b/g, 'm')
+            .replace(/\b(?:seconds?|secs?)\b/g, 's')
+            .replace(/(\d)\s+(?=\d)/g, '$1:')
+            .replace(/\s+/g, '');
+
+        if (value === '') return null;
+        var m, total;
+
+        if (/^\d+$/.test(value)) return parseInt(value, 10) > 0 ? parseInt(value, 10) : null;
+
+        if ((m = value.match(/^(\d+)[:.,](\d{2})(?:[:.,](\d{2}))?$/))) {
+            if (m[3] !== undefined) {
+                if (+m[2] >= 60 || +m[3] >= 60) return null;
+                total = +m[1] * 3600 + +m[2] * 60 + +m[3];
+            } else {
+                if (+m[2] >= 60) return null;
+                total = +m[1] * 60 + +m[2];
+            }
+            return total > 0 ? total : null;
+        }
+
+        if ((m = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/))) {
+            var h = m[1] !== undefined ? +m[1] : null;
+            var min = m[2] !== undefined ? +m[2] : null;
+            var sec = m[3] !== undefined ? +m[3] : null;
+            if ((h !== null && min !== null && min >= 60) || ((h !== null || min !== null) && sec !== null && sec >= 60)) return null;
+            total = (h || 0) * 3600 + (min || 0) * 60 + (sec || 0);
+            return total > 0 ? total : null;
+        }
+
+        return null;
+    }
+
+    function parseVideoLink(url) {
+        url = String(url || '').trim();
+        if (!url) return null;
+        var time = url.match(/[?&#](?:t|start)=([0-9hms:]+)/i);
+        var start = time ? videoSeconds(time[1]) : null;
+        var m = url.match(/(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+        if (m) return { provider: 'youtube', id: m[1], start: start };
+        m = url.match(/vimeo\.com\/(?:video\/|channels\/[^\/]+\/|groups\/[^\/]+\/videos\/)?(\d+)/);
+        if (m) return { provider: 'vimeo', id: m[1], start: start };
+        return null;
+    }
+
+    function videoFlag(value) {
+        return value === true || value === 1 || value === '1' || value === 'true' || value === 'on' || value === 'yes';
+    }
+
+    function videoSettings(settings) {
+        var out = {};
+        Object.keys(VIDEO_DEFAULTS).forEach(function(key) {
+            var given = settings ? settings[key] : undefined;
+            // A null is "never set", not "off" — see VideoEmbed::settings().
+            out[key] = (given === null || given === undefined || given === '') ? VIDEO_DEFAULTS[key] : given;
+        });
+        if (!VIDEO_RATIOS[out.aspect_ratio]) out.aspect_ratio = VIDEO_DEFAULTS.aspect_ratio;
+        ['autoplay', 'mute', 'loop', 'controls', 'privacy'].forEach(function(flag) {
+            out[flag] = videoFlag(out[flag]);
+        });
+        return out;
+    }
+
+    function videoQuery(pairs) {
+        var parts = [];
+        pairs.forEach(function(pair) {
+            if (pair[1] !== null && pair[1] !== undefined) parts.push(pair[0] + '=' + encodeURIComponent(pair[1]));
+        });
+        return parts.length ? '?' + parts.join('&') : '';
+    }
+
+    function videoEmbedUrl(link, settings) {
+        var video = parseVideoLink(link);
+        if (!video) return null;
+        var s = videoSettings(settings);
+        var start = videoSeconds(s.start);
+        if (start === null) start = video.start;
+        var end = videoSeconds(s.end);
+        var mute = s.mute || s.autoplay;
+
+        if (video.provider === 'youtube') {
+            return (s.privacy ? 'https://www.youtube-nocookie.com' : 'https://www.youtube.com') +
+                '/embed/' + video.id + videoQuery([
+                    ['start', start],
+                    ['end', (end && (!start || end > start)) ? end : null],
+                    ['autoplay', s.autoplay ? 1 : null],
+                    ['mute', mute ? 1 : null],
+                    ['playsinline', s.autoplay ? 1 : null],
+                    ['loop', s.loop ? 1 : null],
+                    ['playlist', s.loop ? video.id : null],
+                    ['controls', s.controls ? null : 0]
+                ]);
+        }
+
+        return 'https://player.vimeo.com/video/' + video.id + videoQuery([
+                ['autoplay', s.autoplay ? 1 : null],
+                ['muted', mute ? 1 : null],
+                ['loop', s.loop ? 1 : null],
+                ['controls', s.controls ? null : 0],
+                ['dnt', s.privacy ? 1 : null]
+            ]) + (start ? '#t=' + start + 's' : '');
+    }
+
+    function getVideoPreviewHtml(url, settings) {
+        var embedUrl = videoEmbedUrl(url, settings);
         if (!embedUrl) return '';
-        return '<div style="position:relative;padding-bottom:56.25%;height:0;"><iframe src="' + embedUrl + '" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" allowfullscreen></iframe></div>';
+        var s = videoSettings(settings);
+        var holder = VIDEO_MAX_WIDTH[s.aspect_ratio]
+            ? ' style="max-width:' + VIDEO_MAX_WIDTH[s.aspect_ratio] + ';margin:0 auto;"' : '';
+        return '<div' + holder + '><div style="position:relative;padding-bottom:' + VIDEO_RATIOS[s.aspect_ratio] + '%;height:0;">' +
+            '<iframe src="' + escHtml(embedUrl) + '" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;" ' +
+            'allow="autoplay; encrypted-media; picture-in-picture; fullscreen" ' +
+            'referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div></div>';
+    }
+
+    /** A number of seconds as a person would write it back: 90 -> "1:30". */
+    function videoClock(seconds) {
+        if (!seconds) return '';
+        var h = Math.floor(seconds / 3600), m = Math.floor((seconds % 3600) / 60), sec = seconds % 60;
+        var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+        return h ? h + ':' + pad(m) + ':' + pad(sec) : m + ':' + pad(sec);
     }
 
     function buildAccordionItemRow(item, i) {
@@ -918,38 +1061,190 @@ PageEditor.registerBlockType = function(name, config) {
     PageEditor.registerBlockType('video', {
         icon: 'fa-video',
         label: 'Video',
-        defaults: { content: { url: '' }, settings: { aspect_ratio: '16:9' } },
+        defaults: {
+            content: { url: '', title: '' },
+            settings: JSON.parse(JSON.stringify(VIDEO_DEFAULTS))
+        },
         renderPreview: function(block) {
             var videoUrl = (block.content && block.content.url) ? block.content.url : '';
             if (!videoUrl) return '<em>No URL set</em>';
-            var embedUrl = '';
-            var ytMatch = videoUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-            var viMatch = videoUrl.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-            if (ytMatch) embedUrl = 'https://www.youtube.com/embed/' + ytMatch[1];
-            else if (viMatch) embedUrl = 'https://player.vimeo.com/video/' + viMatch[1];
-            if (embedUrl) {
-                return '<div style="max-width:400px;position:relative;padding-bottom:56.25%;height:0;overflow:hidden;">' +
-                    '<iframe src="' + escHtml(embedUrl) + '" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen></iframe></div>';
-            }
-            return escHtml(videoUrl);
+            var html = getVideoPreviewHtml(videoUrl, block.settings);
+            return html ? '<div style="max-width:400px;">' + html + '</div>' : escHtml(videoUrl);
         },
         renderEditor: function(block) {
-            var url = block.content && block.content.url ? block.content.url : '';
+            var c = block.content || {};
+            var s = videoSettings(block.settings);
+            var check = function(id, key, label) {
+                return '<div class="custom-control custom-checkbox custom-control-inline">' +
+                    '<input type="checkbox" class="custom-control-input vela-video-opt" id="' + id + '"' + (s[key] ? ' checked' : '') + '>' +
+                    '<label class="custom-control-label" for="' + id + '">' + label + '</label></div>';
+            };
+            var ratios = [['16:9', '16:9 — widescreen'], ['4:3', '4:3'], ['1:1', '1:1 — square'], ['9:16', '9:16 — upright, for Shorts']];
+
             return '<div class="form-group"><label>Video URL</label>' +
-                '<input type="text" class="form-control" id="video-url" value="' + escHtml(url) + '" placeholder="https://www.youtube.com/watch?v=...">' +
-                '<small class="text-muted">Paste a YouTube or Vimeo URL</small></div>' +
-                '<div id="video-preview" class="mt-2">' + getVideoPreviewHtml(url) + '</div>';
+                    '<input type="text" class="form-control vela-video-opt" id="video-url" value="' + escHtml(c.url || '') + '" placeholder="https://www.youtube.com/watch?v=...">' +
+                    '<small class="form-text text-muted" id="video-url-note">Paste a YouTube or Vimeo link — a Shorts or live link works too.</small></div>' +
+
+                '<div class="form-group"><label>Title</label>' +
+                    '<input type="text" class="form-control" id="video-title" value="' + escHtml(c.title || '') + '" placeholder="What the video is about">' +
+                    '<small class="form-text text-muted">Read out by screen readers in place of the player.</small></div>' +
+
+                '<div class="form-row">' +
+                    '<div class="form-group col-md-6"><label>Shape</label>' +
+                        '<select class="form-control vela-video-opt" id="video-ratio">' +
+                            ratios.map(function(r) {
+                                return '<option value="' + r[0] + '"' + (s.aspect_ratio === r[0] ? ' selected' : '') + '>' + r[1] + '</option>';
+                            }).join('') +
+                        '</select></div>' +
+                    '<div class="form-group col-md-3"><label for="video-start">Start at</label>' +
+                        '<input type="text" class="form-control vela-video-opt vela-video-time" id="video-start" value="' + escHtml(videoClock(videoSeconds(s.start))) + '" placeholder="e.g. 1:30" inputmode="numeric" autocomplete="off">' +
+                        '<div class="invalid-feedback" hidden>Write a time like 1:30</div></div>' +
+                    '<div class="form-group col-md-3" id="video-end-group"><label for="video-end">End at</label>' +
+                        '<input type="text" class="form-control vela-video-opt vela-video-time" id="video-end" value="' + escHtml(videoClock(videoSeconds(s.end))) + '" placeholder="e.g. 2:45" inputmode="numeric" autocomplete="off">' +
+                        '<div class="invalid-feedback" hidden>Write a time like 2:45</div></div>' +
+                '</div>' +
+                // How to write one, said once, where the boxes are. A time is
+                // what a person sees on the YouTube player: minutes and seconds.
+                '<small class="form-text text-muted mt-n2 mb-3">Minutes and seconds, as the player shows them — <strong>1:30</strong> — or just seconds, <strong>90</strong>. Leave both empty to play the whole video.</small>' +
+
+                '<div class="form-group mb-1">' +
+                    check('video-autoplay', 'autoplay', 'Play by itself') +
+                    check('video-mute', 'mute', 'Start muted') +
+                    check('video-loop', 'loop', 'Play on repeat') +
+                    check('video-controls', 'controls', 'Show the player controls') +
+                '</div>' +
+                '<small class="form-text text-muted mb-3" id="video-options-note"></small>' +
+
+                '<details class="mb-3"><summary style="cursor:pointer;font-weight:500;font-size:.9em;">More options</summary><div class="mt-2">' +
+                    check('video-privacy', 'privacy', 'Privacy mode') +
+                    '<small class="form-text text-muted">No tracking cookie is set until the visitor presses play (youtube-nocookie.com, or Vimeo\'s do-not-track). Leave it on unless you have a reason not to.</small>' +
+                '</div></details>' +
+
+                // The player's thumbnail looks the same whatever time it starts
+                // at, so nothing on screen confirmed a time had been taken —
+                // which is how "Start at does not work" was reported. This says
+                // what the page will do, in words.
+                '<div id="video-plays" class="small font-weight-bold mb-2" style="color:var(--vela-accent,#0d6efd);"></div>' +
+                '<div id="video-preview" class="mt-2">' + getVideoPreviewHtml(c.url || '', block.settings) + '</div>';
         },
         initEditor: function(block) {
-            // Video URL live preview binding is handled in bindFormEvents
+            refreshVideoForm();
+        },
+        // A time that cannot be read is not saved as "no time": the dialog
+        // stays open on the box, which is already red and saying why.
+        validate: function() {
+            clearTimeout(_videoFormTimer);
+            refreshVideoForm();
+            var $bad = $('.vela-video-time.is-invalid:visible').first();
+            if (!$bad.length) return true;
+            $bad.trigger('focus');
+            return false;
         },
         collectData: function(block) {
+            // Times are kept as seconds whatever was typed, so the page, the AI
+            // tools and the next time this form opens all read one form of it.
+            var form = videoFormSettings();
             return {
-                content: { url: $('#video-url').val() },
-                settings: block.settings
+                content: $.extend({}, block.content || {}, {
+                    url: $('#video-url').val(),
+                    title: $('#video-title').val()
+                }),
+                settings: $.extend({}, block.settings || {}, form, {
+                    start: videoSeconds(form.start),
+                    end: videoSeconds(form.end)
+                })
             };
         }
     });
+
+    function videoFormSettings() {
+        return {
+            aspect_ratio: $('#video-ratio').val(),
+            start: $('#video-start').val(),
+            end: $('#video-end').val(),
+            autoplay: $('#video-autoplay').is(':checked'),
+            mute: $('#video-mute').is(':checked'),
+            loop: $('#video-loop').is(':checked'),
+            controls: $('#video-controls').is(':checked'),
+            privacy: $('#video-privacy').is(':checked')
+        };
+    }
+
+    /**
+     * Keep the form honest about what the player will actually do.
+     *
+     * Three things a setting cannot say for itself: that autoplay has to be
+     * muted or no browser will start it, that Vimeo has no end time, and that
+     * the link just pasted carries a start time of its own.
+     */
+    function refreshVideoForm() {
+        if (!$('#video-url').length) return;
+        var url = $('#video-url').val();
+        var video = parseVideoLink(url);
+        var form = videoFormSettings();
+
+        var $mute = $('#video-mute');
+        if (form.autoplay) {
+            // Remember whether this was the person's choice or ours, so taking
+            // autoplay off again does not leave a mute behind they never set.
+            if (!$mute.prop('disabled')) $mute.data('velaForced', !$mute.prop('checked'));
+            $mute.prop('checked', true).prop('disabled', true);
+            form.mute = true;
+        } else if ($mute.prop('disabled')) {
+            if ($mute.data('velaForced')) $mute.prop('checked', false);
+            $mute.prop('disabled', false).removeData('velaForced');
+            form.mute = $mute.prop('checked');
+        }
+
+        $('#video-end-group').toggle(!video || video.provider !== 'vimeo');
+
+        var urlNote = 'Paste a YouTube or Vimeo link — a Shorts or live link works too.';
+        if (url && !video) {
+            urlNote = 'That is not a YouTube or Vimeo link, so nothing will show.';
+        } else if (video) {
+            urlNote = (video.provider === 'youtube' ? 'YouTube' : 'Vimeo') + ' video found.';
+            if (video.start && !videoSeconds(form.start)) {
+                urlNote += ' The link starts at ' + videoClock(video.start) + ', so the video will too — type a time in Start at to change it.';
+            }
+        }
+        $('#video-url-note').text(urlNote);
+
+        var notes = [];
+        if (form.autoplay) notes.push('A video that plays by itself has to start muted — browsers will not start one with sound.');
+        if (video && video.provider === 'vimeo') {
+            notes.push('Vimeo has no end time.');
+            if (!form.controls) notes.push('Hiding the controls works only on a paid Vimeo plan.');
+        }
+        var start = videoSeconds(form.start), end = videoSeconds(form.end);
+        var isVimeo = video && video.provider === 'vimeo';
+
+        // Each box says whether it was understood.
+        // The hint is shown and hidden here rather than left to Bootstrap's
+        // `.is-invalid ~ .invalid-feedback`: the admin stylesheet shows every
+        // .invalid-feedback outright, so both hints stood under both boxes in
+        // red — under a time that had been read perfectly well.
+        [['#video-start', !!String(form.start || '').trim() && start === null],
+         ['#video-end', !isVimeo && !!String(form.end || '').trim() && end === null]].forEach(function(pair) {
+            $(pair[0]).toggleClass('is-invalid', pair[1])
+                .siblings('.invalid-feedback').prop('hidden', !pair[1]);
+        });
+
+        if (end && start && end <= start) notes.push('End at is before Start at, so the video plays to the end.');
+        $('#video-options-note').text(notes.join(' '));
+
+        // And the whole of it in one sentence, because the preview cannot show it.
+        var from = start || (video && video.start) || null;
+        var to = (!isVimeo && end && (!from || end > from)) ? end : null;
+        var plays = '';
+        if (video && (from || to)) {
+            plays = '▶ Plays ' + (from ? 'from ' + videoClock(from) : 'from the start') +
+                (to ? ' to ' + videoClock(to) : ' to the end') +
+                (from && !start ? ' — the time in the link' : '') + '.';
+        }
+        $('#video-plays').text(plays);
+
+        $('#video-preview').html(getVideoPreviewHtml(url, form));
+    }
 
     // --- Imported sections -------------------------------------------------
     //
@@ -5609,6 +5904,14 @@ PageEditor.registerBlockType = function(name, config) {
         var block = row.columns[editingColIndex].blocks[editingBlockIndex];
         if (!block) return;
 
+        // A form may refuse, and it is asked before anything is written onto
+        // the block: refused halfway, the block style below would already be
+        // applied to a block whose own fields were not.
+        var formConfig = PageEditor.blockTypes[block.type];
+        if (formConfig && typeof formConfig.validate === 'function' && formConfig.validate(block) === false) {
+            return;
+        }
+
         // Collect block style fields
         block.background_color = $('#block-bg-color-text').val() || '';
         block.background_image = $('#block-bg-image').val() || '';
@@ -5894,8 +6197,18 @@ PageEditor.registerBlockType = function(name, config) {
             }
         });
 
-        $(document).on('input', '#video-url', function() {
-            $('#video-preview').html(getVideoPreviewHtml($(this).val()));
+        // Debounced: every keystroke in a time box would otherwise reload the
+        // player, which starts buffering the video all over again each time.
+        // Leaving a box writes the time back the way it was read — "1.30"
+        // becomes "1:30", "90" becomes "1:30" — so what was understood is
+        // what is in front of you.
+        $(document).on('blur', '.vela-video-time', function() {
+            var seconds = videoSeconds($(this).val());
+            if (seconds !== null) $(this).val(videoClock(seconds));
+        });
+        $(document).on('input change', '.vela-video-opt', function() {
+            clearTimeout(_videoFormTimer);
+            _videoFormTimer = setTimeout(refreshVideoForm, 400);
         });
 
         // --- Media Browser event handlers ---

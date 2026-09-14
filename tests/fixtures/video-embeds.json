@@ -1,0 +1,286 @@
+{
+  "_about": "Link + settings -> player address. Run by tests/Unit/Services/VideoEmbedTest.php AND tests/js/video-embed.test.js, so the PHP that draws the page and the JavaScript that previews it cannot disagree.",
+  "cases": [
+    {
+      "name": "a plain watch link, nothing set: private by default",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {},
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA"
+    },
+    {
+      "name": "a block saved before any of these settings existed",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "aspect_ratio": "16:9"
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA"
+    },
+    {
+      "name": "a share link copied at 1:30 starts at 1:30",
+      "url": "https://youtu.be/RK3QuH9avVA?t=90",
+      "settings": {},
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?start=90"
+    },
+    {
+      "name": "the time in a watch link, written the long way, among other parameters",
+      "url": "https://www.youtube.com/watch?feature=share&v=RK3QuH9avVA&t=1m30s",
+      "settings": {},
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?start=90"
+    },
+    {
+      "name": "a Shorts link is a video",
+      "url": "https://youtube.com/shorts/aBcDeFgHiJk?si=xyz",
+      "settings": {},
+      "embed": "https://www.youtube-nocookie.com/embed/aBcDeFgHiJk"
+    },
+    {
+      "name": "a live link is a video",
+      "url": "https://www.youtube.com/live/aBcDeFgHiJk",
+      "settings": {},
+      "embed": "https://www.youtube-nocookie.com/embed/aBcDeFgHiJk"
+    },
+    {
+      "name": "privacy off uses youtube.com",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "privacy": false
+      },
+      "embed": "https://www.youtube.com/embed/RK3QuH9avVA"
+    },
+    {
+      "name": "autoplay mutes, because a browser will not start a video with sound",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "autoplay": true,
+        "mute": false
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?autoplay=1&mute=1&playsinline=1"
+    },
+    {
+      "name": "a loop is its own playlist, or YouTube ignores it",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "loop": true
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?loop=1&playlist=RK3QuH9avVA"
+    },
+    {
+      "name": "controls taken away",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "controls": false
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?controls=0"
+    },
+    {
+      "name": "a switch sent as the string a form sends is still a switch",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "controls": "0",
+        "mute": "1"
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?mute=1&controls=0"
+    },
+    {
+      "name": "a null is never-set, not off",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "controls": null,
+        "privacy": null
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA"
+    },
+    {
+      "name": "start and end as a person writes them",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "start": "1:30",
+        "end": "2:00"
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?start=90&end=120"
+    },
+    {
+      "name": "an end before the start is dropped rather than sent",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "start": "2:00",
+        "end": "1:00"
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?start=120"
+    },
+    {
+      "name": "a start set in the form wins over the one in the link",
+      "url": "https://youtu.be/RK3QuH9avVA?t=90",
+      "settings": {
+        "start": "10"
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?start=10"
+    },
+    {
+      "name": "hours",
+      "url": "https://www.youtube.com/watch?v=RK3QuH9avVA",
+      "settings": {
+        "start": "1:02:03"
+      },
+      "embed": "https://www.youtube-nocookie.com/embed/RK3QuH9avVA?start=3723"
+    },
+    {
+      "name": "a plain Vimeo link: do-not-track by default",
+      "url": "https://vimeo.com/76979871",
+      "settings": {},
+      "embed": "https://player.vimeo.com/video/76979871?dnt=1"
+    },
+    {
+      "name": "Vimeo takes its options its own way, and its start as a fragment",
+      "url": "https://vimeo.com/76979871",
+      "settings": {
+        "autoplay": true,
+        "loop": true,
+        "start": "0:45",
+        "end": "1:00"
+      },
+      "embed": "https://player.vimeo.com/video/76979871?autoplay=1&muted=1&loop=1&dnt=1#t=45s"
+    },
+    {
+      "name": "the time in a Vimeo link",
+      "url": "https://vimeo.com/76979871#t=1m5s",
+      "settings": {
+        "privacy": false
+      },
+      "embed": "https://player.vimeo.com/video/76979871#t=65s"
+    },
+    {
+      "name": "not a video",
+      "url": "https://example.com/watch?v=RK3QuH9avVA",
+      "settings": {},
+      "embed": null
+    }
+  ],
+  "_about_times": "Time as typed -> seconds (null = cannot be read, and the form must say so). Run by both tests.",
+  "times": [
+    [
+      "1:30",
+      90
+    ],
+    [
+      "90",
+      90
+    ],
+    [
+      "1.30",
+      90
+    ],
+    [
+      "01.30",
+      90
+    ],
+    [
+      "1,30",
+      90
+    ],
+    [
+      "1 30",
+      90
+    ],
+    [
+      "1:30 ",
+      90
+    ],
+    [
+      "0:01:30",
+      90
+    ],
+    [
+      "1:02:03",
+      3723
+    ],
+    [
+      "01:30:00",
+      5400
+    ],
+    [
+      "1m30s",
+      90
+    ],
+    [
+      "1m 30s",
+      90
+    ],
+    [
+      "1m30",
+      90
+    ],
+    [
+      "90s",
+      90
+    ],
+    [
+      "2m",
+      120
+    ],
+    [
+      "1h2m3s",
+      3723
+    ],
+    [
+      "1 min 30 sec",
+      90
+    ],
+    [
+      "2 hours",
+      7200
+    ],
+    [
+      "1 นาที 30 วินาที",
+      90
+    ],
+    [
+      "1นาที30วินาที",
+      90
+    ],
+    [
+      "30 วินาที",
+      30
+    ],
+    [
+      "2 นาที",
+      120
+    ],
+    [
+      "1 ชั่วโมง",
+      3600
+    ],
+    [
+      "๑:๓๐",
+      90
+    ],
+    [
+      "1:5",
+      null
+    ],
+    [
+      "1:75",
+      null
+    ],
+    [
+      "1h75m",
+      null
+    ],
+    [
+      "1m90s",
+      null
+    ],
+    [
+      "soon",
+      null
+    ],
+    [
+      "0",
+      null
+    ],
+    [
+      "",
+      null
+    ]
+  ]
+}
