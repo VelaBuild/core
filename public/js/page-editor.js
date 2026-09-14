@@ -1140,7 +1140,25 @@ PageEditor.registerBlockType = function(name, config) {
         });
         $(document).off('click', '.remove-testimonial').on('click', '.remove-testimonial', function() {
             $(this).closest('.testi-row').remove();
+            _blockEditTouched = true;
         });
+
+        $(document).off('click.testiTile').on('click.testiTile', '.testi-tile', function () {
+            var $tile = $(this);
+            $tile.closest('.vela-tiles').find('.testi-tile').removeClass('active').attr('aria-pressed', 'false');
+            $tile.addClass('active').attr('aria-pressed', 'true');
+            $('#testi-style').val($tile.data('value'));
+            _blockEditTouched = true;
+            syncTestimonialOptions();
+        });
+        $(document).off('change.testiOpts').on('change.testiOpts', '#testi-autoplay', syncTestimonialOptions);
+
+        // Moving on by itself means nothing to cards that stand still.
+        function syncTestimonialOptions() {
+            $('#testi-slider-options').prop('hidden', $('#testi-style').val() === 'grid');
+            $('#testi-interval-group').prop('hidden', !$('#testi-autoplay').is(':checked'));
+        }
+        syncTestimonialOptions();
     }
 
     function buildIconBoxRow(item, i) {
@@ -5410,12 +5428,20 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // Where a testimonials block keeps its list. `testimonials` is what this
+    // editor used to save; a block still holding only that is read from it.
+    function testimonialItems(block) {
+        var c = block.content || {};
+        if (Array.isArray(c.items) && c.items.length) return c.items;
+        return Array.isArray(c.testimonials) ? c.testimonials : [];
+    }
+
     PageEditor.registerBlockType('testimonials', {
         icon: 'fa-quote-right',
         label: 'Testimonials',
-        defaults: { content: { testimonials: [] }, settings: { layout: 'cards' } },
+        defaults: { content: { items: [] }, settings: { layout: 'grid', per_view: 1, autoplay: true, interval: 6000 } },
         renderPreview: function(block) {
-            var testimonials = block.content && block.content.testimonials ? block.content.testimonials : [];
+            var testimonials = testimonialItems(block);
             if (!testimonials.length) return '<em class="text-muted">No testimonials added</em>';
             var cardsHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
             testimonials.forEach(function(t) {
@@ -5435,13 +5461,39 @@ PageEditor.registerBlockType = function(name, config) {
             return cardsHtml;
         },
         renderEditor: function(block) {
-            var testimonials = block.content && block.content.testimonials ? block.content.testimonials : [];
+            var testimonials = testimonialItems(block);
             var testiHtml = '';
             testimonials.forEach(function(t, i) {
                 testiHtml += buildTestimonialRow(t, i);
             });
+            var settings = block.settings || {};
+            // One choice drawn three ways, rather than a layout and a count to combine.
+            var style = settings.layout === 'slider' ? 'slider-' + (parseInt(settings.per_view, 10) === 1 ? 1 : 3) : 'grid';
+            var autoplay = settings.autoplay !== false;
+            var interval = parseInt(settings.interval, 10) || 6000;
+            var card = function (big) {
+                return '<span class="vt-card' + (big ? ' vt-card--big' : '') + '"><i class="vt-q"></i><i class="vt-l"></i><i class="vt-l vt-l--short"></i><i class="vt-a"></i></span>';
+            };
             return '<div id="testimonials-list">' + testiHtml + '</div>' +
-                '<button type="button" class="btn btn-sm btn-success mt-2" id="add-testimonial">+ Add Testimonial</button>';
+                '<button type="button" class="btn btn-sm btn-success mt-2" id="add-testimonial">+ Add Testimonial</button>' +
+                '<hr>' +
+                '<input type="hidden" id="testi-style" value="' + style + '">' +
+                '<div class="vc-section-title">How to show them</div>' +
+                carouselTiles('testi-style', style, [
+                    { value: 'grid', label: 'Cards side by side', art: '<span class="vc-d"><span class="vt-row">' + card() + card() + card() + '</span></span>' },
+                    { value: 'slider-1', label: 'One quote at a time · changes by itself', art: '<span class="vc-d"><span class="vt-row vt-row--single"><b class="vt-arrow">&#8249;</b>' + card(true) + '<b class="vt-arrow">&#8250;</b></span><span class="vc-d-dots"><i class="on"></i><i></i><i></i></span></span>' },
+                    { value: 'slider-3', label: 'Sliding cards · three at a time', art: '<span class="vc-d"><span class="vt-row"><b class="vt-arrow">&#8249;</b>' + card() + card() + card() + '<b class="vt-arrow">&#8250;</b></span><span class="vc-d-dots"><i class="on"></i><i></i><i></i></span></span>' }
+                ], 'vela-tiles--3', 'testi-tile') +
+                '<div id="testi-slider-options">' +
+                    '<div class="form-check">' +
+                        '<input type="checkbox" class="form-check-input" id="testi-autoplay"' + (autoplay ? ' checked' : '') + '>' +
+                        '<label class="form-check-label" for="testi-autoplay">Move on by itself <small class="text-muted">— pauses while someone points at it</small></label>' +
+                    '</div>' +
+                    '<div class="form-group mt-2" id="testi-interval-group"><label for="testi-interval">Seconds per quote</label>' +
+                        '<input type="number" class="form-control form-control-sm" id="testi-interval" value="' + (Math.round(interval / 100) / 10) + '" min="2" step="0.5" style="max-width:120px;">' +
+                    '</div>' +
+                    '<small class="form-text text-muted">Phones always show one at a time, and can swipe.</small>' +
+                '</div>';
         },
         initEditor: function(block) {
             initTestimonialsEditor(block);
@@ -5456,9 +5508,23 @@ PageEditor.registerBlockType = function(name, config) {
                     photo_url: $(this).find('.testi-photo').val()
                 });
             });
+            // `items`, which the page reads and the registry declares. This
+            // saved `testimonials`, so everything added here saved and never
+            // showed; the old key goes, or a later read could take it instead.
+            var content = $.extend({}, block.content, { items: testimonials });
+            delete content.testimonials;
             return {
-                content: { testimonials: testimonials },
-                settings: { layout: 'cards' }
+                content: content,
+                settings: (function () {
+                    var style = $('#testi-style').val() || 'grid';
+                    var seconds = parseFloat($('#testi-interval').val());
+                    return $.extend({}, block.settings, {
+                        layout: style === 'grid' ? 'grid' : 'slider',
+                        per_view: style === 'slider-3' ? 3 : 1,
+                        autoplay: $('#testi-autoplay').is(':checked'),
+                        interval: seconds > 0 ? Math.max(2000, Math.round(seconds * 1000)) : 6000
+                    });
+                })()
             };
         }
     });

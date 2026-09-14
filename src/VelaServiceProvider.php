@@ -585,8 +585,14 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-quote-left',
             'view' => 'vela::public.pages.blocks.testimonials',
             'editor' => 'js',
-            'defaults' => ['content' => ['items' => []], 'settings' => []],
+            'defaults' => [
+                'content' => ['items' => []],
+                'settings' => ['layout' => 'grid', 'per_view' => 1, 'autoplay' => true, 'interval' => 6000],
+            ],
             'content_example' => ['items' => [['quote' => 'They fixed it same day.', 'name' => 'Jane Doe', 'title' => 'Homeowner', 'photo_url' => 'https://example.com/jane.jpg']]],
+            'shape_note' => 'settings.layout is grid (the quotes as cards side by side) or slider (moved through one or '
+                . 'several at a time, with dots, arrows and swipe). per_view 1-3 is how many a slider shows at once — 1 is a '
+                . 'single large centred quote. autoplay and interval (milliseconds) apply to a slider only.',
         ]);
 
         $vela->registerBlock('icon_box', [

@@ -531,6 +531,19 @@ body.vela-admin .CodeMirror.vela-code-editor.CodeMirror-focused { border-color: 
 .vg-gap { gap: var(--g); }
 .vg-gap i { width: 18px; height: 24px; background: #94a3b8; border: 0; border-radius: 1px; }
 
+/* Testimonials tiles: little quote cards. */
+.vt-row { display: flex; gap: 4px; align-items: center; min-height: 50px; }
+.vt-row--single { justify-content: center; }
+.vt-card { flex: 1; display: flex; flex-direction: column; gap: 3px; padding: 5px; background: #fff; border-left: 2px solid var(--accent, #2563eb); border-radius: 3px; }
+.vt-card--big { flex: 0 1 70%; align-items: center; border-left: 0; background: none; }
+.vt-card i { display: block; height: 3px; background: #cbd5e1; border-radius: 1px; }
+.vt-card .vt-q { width: 8px; height: 6px; background: var(--accent, #2563eb); opacity: .5; }
+.vt-card .vt-l { width: 100%; }
+.vt-card .vt-l--short { width: 60%; }
+.vt-card .vt-a { width: 40%; height: 4px; background: #94a3b8; margin-top: 2px; }
+.vt-card--big .vt-l { width: 90%; height: 4px; }
+.vt-arrow { font-size: 14px; line-height: 1; color: #94a3b8; }
+
 /* The live preview of a gallery in its dialog. */
 .vg-p { display: grid; grid-template-columns: repeat(var(--c), minmax(0, 1fr)); gap: var(--g); max-width: 460px; margin: 0 auto; }
 .vg-p-item { overflow: hidden; border-radius: 4px; background: #e5e7eb; aspect-ratio: var(--r); }
