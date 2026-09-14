@@ -5313,6 +5313,15 @@ PageEditor.registerBlockType = function(name, config) {
         try {
             _htmlDoc = parseBlockHtml(state.html);
             _htmlHidden = (state.hidden || []).slice();
+            // Styling given to one part — a colour, a size, a picture behind
+            // it — is held in memory as well as written into the markup, and
+            // it is the memory that the next redraw writes back from. Left as
+            // it was, undo put the old markup in place and the redraw painted
+            // the new styling straight back over it: a background picture
+            // could not be undone at all. Read again from the markup being
+            // restored, the same way it is read when the section is opened.
+            var restoredDesign = readDesign(_htmlDoc.querySelector('[data-vela-block]'));
+            _htmlPartStyles = JSON.parse(JSON.stringify(restoredDesign.parts || {}));
             // Rebuilt FROM the restored markup. The ordinary redraw folds the
             // form back into the document first, which on the way out of an
             // undo would put the wording that was just undone straight back.
