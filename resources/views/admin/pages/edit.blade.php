@@ -177,11 +177,11 @@
                             <div class="section-body">
                                 <div class="form-group">
                                     <label>{{ trans('vela::global.custom_css') }}</label>
-                                    <textarea class="form-control" name="custom_css" id="custom_css" rows="4" style="font-family:monospace; font-size:0.8rem;">{{ old('custom_css', $page->custom_css) }}</textarea>
+                                    <textarea class="form-control vela-code-input" name="custom_css" id="custom_css" rows="4" spellcheck="false" data-code-mode="css">{{ old('custom_css', $page->custom_css) }}</textarea>
                                 </div>
                                 <div class="form-group">
                                     <label>{{ trans('vela::global.custom_js') }}</label>
-                                    <textarea class="form-control" name="custom_js" id="custom_js" rows="4" style="font-family:monospace; font-size:0.8rem;">{{ old('custom_js', $page->custom_js) }}</textarea>
+                                    <textarea class="form-control vela-code-input" name="custom_js" id="custom_js" rows="4" spellcheck="false" data-code-mode="js">{{ old('custom_js', $page->custom_js) }}</textarea>
                                 </div>
                             </div>
                         </div>

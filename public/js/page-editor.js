@@ -4217,7 +4217,7 @@ PageEditor.registerBlockType = function(name, config) {
             if (!fields && !imported) {
                 return '<div class="form-group"><label>Custom HTML</label>' +
                     '<div class="alert alert-warning py-1 mb-2"><small><i class="fas fa-exclamation-triangle"></i> This content will be rendered as-is. Use with caution.</small></div>' +
-                    '<textarea class="form-control" id="html-content" rows="10" style="font-family:monospace;">' + escHtml(html) + '</textarea></div>';
+                    '<textarea class="form-control vela-code-input" id="html-content" rows="10" spellcheck="false" data-code-mode="html">' + escHtml(html) + '</textarea></div>';
             }
 
             // An imported section always gets the preview and the design
@@ -4233,7 +4233,7 @@ PageEditor.registerBlockType = function(name, config) {
                 renderDesignPanel(_htmlDoc) +
                 '<details class="mt-3"><summary style="cursor:pointer;font-weight:500;font-size:.9em;">' +
                     '<i class="fas fa-code mr-1"></i> Edit the HTML directly</summary>' +
-                    '<textarea class="form-control mt-2" id="html-content" rows="10" style="font-family:monospace;font-size:.8rem;">' + escHtml(html) + '</textarea>' +
+                    '<textarea class="form-control vela-code-input mt-2" id="html-content" rows="10" spellcheck="false" data-code-mode="html">' + escHtml(html) + '</textarea>' +
                 '</details>';
         },
         initEditor: function(block) {
@@ -5397,10 +5397,12 @@ PageEditor.registerBlockType = function(name, config) {
         var input;
 
         if (field.type === 'textarea' || field.type === 'code') {
+            // A code field follows the block's Language select when it has one.
             var mono = field.type === 'code'
-                ? ' style="font-family:SFMono-Regular,Consolas,monospace;font-size:.85rem;" spellcheck="false"'
+                ? ' spellcheck="false" data-code-mode="' + escHtml(field.mode || 'text') + '"' +
+                  ' data-code-mode-from="#' + fieldId(type, 'language') + '"'
                 : '';
-            input = '<textarea class="form-control" id="' + id + '" rows="' + (field.type === 'code' ? 10 : 3) + '"' +
+            input = '<textarea class="form-control' + (field.type === 'code' ? ' vela-code-input' : '') + '" id="' + id + '" rows="' + (field.type === 'code' ? 10 : 3) + '"' +
                 mono + '>' + escHtml(value == null ? '' : String(value)) + '</textarea>';
         } else if (field.type === 'select') {
             var opts = Object.keys(field.options || {}).map(function (k) {

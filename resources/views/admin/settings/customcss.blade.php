@@ -14,7 +14,7 @@
         <form action="{{ route('vela.admin.settings.updateGroup', 'customcss') }}" method="POST">
             @csrf
             <div class="form-group">
-                <textarea name="custom_css_global" id="custom_css_global" rows="18" class="form-control" style="font-family: 'Courier New', Consolas, monospace; font-size: 13px; line-height: 1.5; tab-size: 4; background: #f8f9fa;">{{ $globalCss }}</textarea>
+                <textarea name="custom_css_global" id="custom_css_global" rows="18" class="form-control vela-code-input" spellcheck="false" data-code-mode="css">{{ $globalCss }}</textarea>
             </div>
             @can('config_edit')
                 <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-1"></i> {{ trans('vela::global.save_css') }}</button>
