@@ -558,6 +558,10 @@ class VelaServiceProvider extends ServiceProvider
 
         $vela->registerBlock('hero', [
             'label' => 'vela::global.block_type_hero',
+            // A banner: its background runs to both edges, its words sit in a
+            // frame of their own. The default theme's example homepage puts it
+            // in a full-width row for exactly that.
+            'bleed' => true,
             'icon' => 'fas fa-flag',
             'view' => 'vela::public.pages.blocks.hero',
             'editor' => 'js',
@@ -569,6 +573,10 @@ class VelaServiceProvider extends ServiceProvider
 
         $vela->registerBlock('cta', [
             'label' => 'vela::global.block_type_cta',
+            // A banner: its background runs to both edges, its words sit in a
+            // frame of their own. The default theme's example homepage puts it
+            // in a full-width row for exactly that.
+            'bleed' => true,
             'icon' => 'fas fa-bullhorn',
             'view' => 'vela::public.pages.blocks.cta',
             'editor' => 'js',

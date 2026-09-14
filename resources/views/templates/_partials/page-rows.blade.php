@@ -7,6 +7,7 @@ $__rowsWithSomethingIn = $page->rows->filter(fn ($r) => $r->blocks->count() > 0)
 // Aliased here rather than imported: Blade compiles each @php block inline
 // where it stands, and a `use` statement inside a loop body is a parse error.
 $__tokens = \VelaBuild\Core\Services\DesignTokens::class;
+$__blockTypes = app(\VelaBuild\Core\Vela::class)->blocks();
 @endphp
 @foreach($__rowsWithSomethingIn as $row)
 @php
@@ -50,7 +51,8 @@ if ($rowPadding !== null) {
         ? 'padding:' . $rowPadding . ';'
         : 'padding-top:' . $rowPadding . ';padding-bottom:' . $rowPadding . ';';
 }
-$widthClass = ($row->width ?? 'contained') === 'full' ? 'row-full' : 'row-contained';
+$rowIsFull  = ($row->width ?? 'contained') === 'full';
+$widthClass = $rowIsFull ? 'row-full' : 'row-contained';
 $columns    = $row->blocks->groupBy('column_index');
 $gridFr     = implode(' ', $columns->map(fn($blocks) => $blocks->first()->column_width . 'fr')->toArray());
 @endphp
@@ -74,8 +76,19 @@ if ($blockPadding !== null) {
 // The 20px under every block is the other half of the seam.
 $blockImported = $block->type === 'html'
     && str_contains((string) ($block->content['html'] ?? ''), 'vela-import-');
+// A full-width row runs a block to both edges of the screen, and only some
+// blocks are made for that. A copied or designed section brings its own
+// container in its markup — that is why the design build puts every one in a
+// full-width row — and a banner declares it (`bleed`). Everything else has no
+// frame of its own: a video added under a designed hero ran the width of the
+// screen while every section around it sat at the page's measure. Those are
+// held to the measure, and the row's background still reaches the edges.
+$blockBringsItsOwnFrame = $blockImported
+    || ($block->type === 'html' && str_contains((string) ($block->content['html'] ?? ''), 'vela-design-'))
+    || $__blockTypes->bleeds($block->type);
+$blockContained = $rowIsFull && !$blockBringsItsOwnFrame;
 @endphp
-<div id="block-{{ $block->id }}" class="page-block-public @if($blockImported)block-imported-section @endif"@if($blockStyle) style="{{ $blockStyle }}"@endif>
+<div id="block-{{ $block->id }}" class="page-block-public @if($blockImported)block-imported-section @endif @if($blockContained)page-block-contained @endif"@if($blockStyle) style="{{ $blockStyle }}"@endif>
 @if(view()->exists('vela::public.pages.blocks.' . $block->type))
 @include('vela::public.pages.blocks.' . $block->type, ['block' => $block])
 @elseif(app(\VelaBuild\Core\Vela::class)->blocks()->has($block->type))

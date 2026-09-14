@@ -65,6 +65,18 @@
 .page-row-public { width: 100%; margin: 0 auto; padding: 20px 15px; }
 .page-row-public.row-full { max-width: 100%; padding-left: 0; padding-right: 0; }
 .page-row-public.row-contained { max-width: var(--vela-page-width, 1200px); }
+/* A block with no frame of its own, in a full-width row: held to the page's
+   measure like a contained row would hold it, so it lines up with the sections
+   around it. The row — and its background — still runs edge to edge. Which
+   blocks get this is decided in page-rows.blade.php. */
+.page-row-public.row-full .page-block-contained {
+    max-width: var(--vela-page-width, 1200px);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 24px;
+    padding-right: 24px;
+    box-sizing: border-box;
+}
 .page-row-columns { display: grid; gap: 20px; }
 @media (max-width: 768px) { .page-row-columns { grid-template-columns: 1fr !important; } }
 .page-block-public { margin-bottom: 20px; }

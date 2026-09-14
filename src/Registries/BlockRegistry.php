@@ -25,7 +25,21 @@ class BlockRegistry
             'fields' => [],
             'editor_note' => null,
             'defaults' => ['content' => [], 'settings' => []],
+            // Whether the block is made to run edge to edge. A banner paints
+            // its own background across the whole row and holds its words in
+            // a frame of its own, so a full-width row is what it is for. Most
+            // blocks are not: a video, a list of prices, a paragraph have no
+            // frame, and dropped into a full-width row they ran the width of
+            // the screen while the sections around them stayed at the page's
+            // measure. Those are kept to the measure — see page-rows.blade.php.
+            'bleed' => false,
         ], $config);
+    }
+
+    /** True if this block type is made to run the full width of a row. */
+    public function bleeds(string $name): bool
+    {
+        return (bool) ($this->blocks[$name]['bleed'] ?? false);
     }
 
     public function get(string $name): ?array
