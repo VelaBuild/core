@@ -625,6 +625,8 @@ return [
 
     // Block types
     'carousel'                       => 'Carrousel',
+    'carousel_previous'              => 'Diapositive précédente',
+    'carousel_next'                  => 'Diapositive suivante',
     'testimonials'                   => 'Témoignages',
     'icon_box'                       => 'Boîte d\'icône',
     'review_summary'                 => 'Résumé des avis',

@@ -625,6 +625,8 @@ return [
 
     // Block types
     'carousel'                       => 'Карусель',
+    'carousel_previous'              => 'Предыдущий слайд',
+    'carousel_next'                  => 'Следующий слайд',
     'testimonials'                   => 'Отзывы клиентов',
     'icon_box'                       => 'Блок с иконкой',
     'review_summary'                 => 'Сводка отзывов',

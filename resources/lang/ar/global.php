@@ -625,6 +625,8 @@ return [
 
     // Block types
     'carousel'                       => 'عرض دوّار',
+    'carousel_previous'              => 'الشريحة السابقة',
+    'carousel_next'                  => 'الشريحة التالية',
     'testimonials'                   => 'شهادات العملاء',
     'icon_box'                       => 'صندوق أيقونة',
     'review_summary'                 => 'ملخص المراجعات',

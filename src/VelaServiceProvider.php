@@ -527,8 +527,33 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-images',
             'view' => 'vela::public.pages.blocks.carousel',
             'editor' => 'js',
-            'defaults' => ['content' => ['slides' => []], 'settings' => []],
-            'content_example' => ['slides' => [['image_url' => 'https://example.com/slide.jpg', 'caption' => 'Caption', 'link' => '/target-page']]],
+            'defaults' => [
+                'content' => ['slides' => []],
+                // Named, so the shape check can refuse a guessed key rather
+                // than store it where the view never reads it.
+                'settings' => [
+                    'effect'        => 'slide',
+                    'per_view'      => 1,
+                    'ratio'         => 'auto',
+                    'text_position' => 'center',
+                    'autoplay'      => true,
+                    'interval'      => 5000,
+                    'show_arrows'   => true,
+                    'show_dots'     => true,
+                ],
+            ],
+            'content_example' => ['slides' => [[
+                'image_url' => 'https://example.com/slide.jpg',
+                'heading' => 'Summer menu is here', 'text' => 'Fresh from the market every morning.',
+                'button_label' => 'See the menu', 'button_url' => '/menu',
+                'link' => '', 'caption' => '',
+            ]]],
+            'shape_note' => 'Each slide is a picture, optionally with a heading, text and a button (button_label + button_url) '
+                . 'drawn on it — use those for a banner or hero slider. link makes the whole picture a link; caption is a plain '
+                . 'line shown only when the slide has no heading, text or button. settings.effect is slide or fade (fade only '
+                . 'with per_view 1). per_view 1-4 shows several at once, and their words then go under each picture like cards. '
+                . 'ratio is auto, 16:9, 21:9, 3:2, 4:3, 1:1 or 4:5 — a fixed one crops every picture to it so the page does not '
+                . 'jump. text_position is center, left or bottom-left. interval is milliseconds per slide.',
         ]);
 
         $vela->registerBlock('gallery', [

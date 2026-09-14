@@ -697,6 +697,8 @@ return [
 
     // Block types
     'carousel'                       => 'Carousel',
+    'carousel_previous'              => 'Previous slide',
+    'carousel_next'                  => 'Next slide',
     'testimonials'                   => 'Testimonials',
     'icon_box'                       => 'Icon Box',
     'review_summary'                 => 'Review Summary',

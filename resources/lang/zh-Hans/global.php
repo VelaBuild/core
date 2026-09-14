@@ -625,6 +625,8 @@ return [
 
     // Block types
     'carousel'                       => '轮播',
+    'carousel_previous'              => '上一张',
+    'carousel_next'                  => '下一张',
     'testimonials'                   => '客户评价',
     'icon_box'                       => '图标框',
     'review_summary'                 => '评论摘要',

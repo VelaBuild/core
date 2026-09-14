@@ -470,6 +470,75 @@ body.vela-admin .CodeMirror.vela-code-editor.CodeMirror-focused { border-color: 
 .cf-group { margin: 4px 0 12px; padding: 12px; background: var(--bg-muted, #f8f9fa); border-radius: 8px; }
 .cf-group-title { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
 
+/* Tiles: a choice shown as a small picture of itself, not a word in a list. */
+.vela-tiles { display: grid; gap: 8px; }
+.vela-tiles--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.vela-tiles--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.vela-tiles--7 { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+@media (max-width: 700px) { .vela-tiles--4, .vela-tiles--7 { grid-template-columns: repeat(3, minmax(0, 1fr)); } .vela-tiles--3 { grid-template-columns: 1fr; } }
+.vela-tile { display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; gap: 6px; padding: 8px; background: #fff; border: 2px solid var(--border-subtle, #e5e7eb); border-radius: 8px; cursor: pointer; text-align: center; color: var(--fg, #1f2937); }
+.vela-tile:hover:not(:disabled) { border-color: var(--fg-subtle, #9ca3af); }
+.vela-tile.active { border-color: var(--accent, #2563eb); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent); }
+.vela-tile:disabled { opacity: .4; cursor: not-allowed; }
+.vela-tile-label { font-size: 12px; line-height: 1.25; }
+.vela-tile-label strong { display: block; font-size: 13px; }
+.vela-tile-label small { display: block; color: var(--fg-muted, #6b7280); margin-top: 2px; }
+.vc-section-title { font-weight: 600; font-size: 13px; margin: 4px 0 6px; }
+.vc-section-title small { font-weight: 400; color: var(--fg-muted, #6b7280); }
+
+/* The drawings inside the carousel tiles. */
+.vc-d { display: flex; flex-direction: column; justify-content: center; gap: 5px; min-height: 64px; padding: 6px; background: #f3f4f6; border-radius: 4px; }
+.vc-d-row { display: flex; gap: 4px; align-items: flex-start; }
+.vc-d-slide { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.vc-d-pic { position: relative; display: block; width: 100%; max-height: 64px; background: linear-gradient(135deg, #94a3b8, #cbd5e1); border-radius: 3px; overflow: hidden; }
+.vc-d-words { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 2px; padding: 4px 6px; justify-content: center; align-items: center; }
+.vc-d-words--left { align-items: flex-start; }
+.vc-d-words--bottom-left { align-items: flex-start; justify-content: flex-end; }
+.vc-d-words i { display: block; background: #fff; border-radius: 1px; }
+.vc-d-h { width: 55%; height: 4px; }
+.vc-d-t { width: 38%; height: 2px; opacity: .8; }
+.vc-d-b { width: 22%; height: 4px; background: var(--accent, #2563eb) !important; margin-top: 1px; }
+.vc-d-under { display: block; height: 3px; width: 80%; background: #94a3b8; border-radius: 1px; }
+.vc-d-under--short { width: 50%; background: #cbd5e1; }
+.vc-d-dots { display: flex; gap: 3px; justify-content: center; }
+.vc-d-dots i { width: 4px; height: 4px; border-radius: 50%; background: #cbd5e1; }
+.vc-d-dots i.on { background: var(--accent, #2563eb); }
+.vc-shape { display: flex; align-items: center; justify-content: center; height: 52px; background: #f3f4f6; border-radius: 4px; }
+.vc-shape i { display: block; height: 36px; max-width: 80%; background: #cbd5e1; border: 2px solid #94a3b8; border-radius: 2px; }
+.vc-motion { position: relative; display: flex; align-items: center; justify-content: center; gap: 4px; height: 52px; background: #f3f4f6; border-radius: 4px; }
+.vc-motion i { display: block; width: 34px; height: 24px; background: #94a3b8; border-radius: 2px; }
+.vc-motion i + i { background: #cbd5e1; }
+.vc-motion b { position: absolute; font-size: 16px; color: var(--accent, #2563eb); }
+.vc-motion--fade i { position: absolute; }
+.vc-motion--fade i + i { transform: translate(8px, 5px); opacity: .6; }
+
+/* The live preview of the carousel in its dialog. */
+.vc-preview { margin-bottom: 14px; padding: 12px; background: #fbfaf7; border: 1px solid var(--border-subtle, #e5e7eb); border-radius: 8px; }
+.vc-preview-empty { padding: 24px; text-align: center; color: var(--fg-muted, #6b7280); font-size: 13px; }
+.vc-p-stage { position: relative; }
+.vc-p-row { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 10px; align-items: start; }
+.vc-p-pic { position: relative; overflow: hidden; border-radius: 6px; background: #d1d5db; }
+.vc-p-pic--auto { min-height: 120px; }
+.vc-p-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.vc-p-pic--auto img { height: auto; max-height: 260px; }
+.vc-p-pic.has-words::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.1), rgba(0,0,0,.55)); }
+.vc-p-overlay { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 16px 24px; color: #fff; }
+.vc-p-overlay--left { align-items: flex-start; text-align: left; }
+.vc-p-overlay--bottom-left { align-items: flex-start; justify-content: flex-end; text-align: left; }
+.vc-p-heading { font-size: 18px; font-weight: 700; line-height: 1.2; }
+.vc-p-text { font-size: 12px; opacity: .9; margin-top: 3px; }
+.vc-p-button { display: inline-block; margin-top: 8px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: #fff; background: var(--accent, #2563eb); border-radius: 4px; }
+.vc-p-below { padding-top: 6px; }
+.vc-p-below .vc-p-heading { font-size: 13px; }
+.vc-p-below .vc-p-text { color: var(--fg-muted, #6b7280); opacity: 1; font-size: 11px; }
+.vc-p-below .vc-p-button { margin-top: 5px; font-size: 10px; padding: 3px 8px; }
+.vc-p-caption { font-size: 11px; color: var(--fg-muted, #6b7280); padding-top: 4px; }
+.vc-p-slide--empty .vc-p-pic { background: repeating-linear-gradient(45deg, #eef0f3 0 6px, #e5e7eb 6px 12px); }
+.vc-p-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; font-size: 16px; line-height: 20px; text-align: center; }
+.vc-p-arrow--prev { left: 6px; }
+.vc-p-arrow--next { right: 6px; }
+.vc-p-foot { margin-top: 8px; font-size: 12px; color: var(--fg-muted, #6b7280); }
+
 /* The suggestion list sits on the page, above any open dialog. */
 .CodeMirror-hints {
   z-index: 2000;

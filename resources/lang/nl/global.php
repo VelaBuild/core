@@ -625,6 +625,8 @@ return [
 
     // Block types
     'carousel'                       => 'Carrousel',
+    'carousel_previous'              => 'Vorige dia',
+    'carousel_next'                  => 'Volgende dia',
     'testimonials'                   => 'Getuigenissen',
     'icon_box'                       => 'Icoonblok',
     'review_summary'                 => 'Beoordelingsoverzicht',

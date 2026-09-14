@@ -629,6 +629,8 @@ return [
 
     // Block types
     'carousel'                       => 'สไลด์หมุน',
+    'carousel_previous'              => 'สไลด์ก่อนหน้า',
+    'carousel_next'                  => 'สไลด์ถัดไป',
     'testimonials'                   => 'คำรับรอง',
     'icon_box'                       => 'กล่องไอคอน',
     'review_summary'                 => 'สรุปรีวิว',

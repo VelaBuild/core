@@ -625,6 +625,8 @@ return [
 
     // Block types
     'carousel'                       => 'Carosello',
+    'carousel_previous'              => 'Slide precedente',
+    'carousel_next'                  => 'Slide successiva',
     'testimonials'                   => 'Testimonianze',
     'icon_box'                       => 'Riquadro icona',
     'review_summary'                 => 'Riepilogo recensioni',

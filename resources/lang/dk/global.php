@@ -625,6 +625,8 @@ return [
 
     // Block types
     'carousel'                       => 'Karrusel',
+    'carousel_previous'              => 'Forrige slide',
+    'carousel_next'                  => 'Næste slide',
     'testimonials'                   => 'Udtalelser',
     'icon_box'                       => 'Ikonboks',
     'review_summary'                 => 'Anmeldelsesoversigt',

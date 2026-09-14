@@ -785,16 +785,36 @@ PageEditor.registerBlockType = function(name, config) {
         });
     }
 
+    function carouselThumb(url) {
+        return url
+            ? '<img src="' + escHtml(url) + '" style="width:100px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">'
+            : '<div style="width:100px;height:60px;background:#f3f4f6;border-radius:6px;border:2px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.7em;">No image</div>';
+    }
+
     function buildCarouselSlideRow(slide, i) {
-        var thumb = slide.image_url ? '<img src="' + escHtml(slide.image_url) + '" style="width:100px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">' : '<div style="width:100px;height:60px;background:#f3f4f6;border-radius:6px;border:2px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:0.7em;">No image</div>';
-        return '<div class="carousel-slide-row" style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
-            '<div class="slide-thumb" style="flex-shrink:0;cursor:pointer;" title="Click to change">' + thumb + '</div>' +
-            '<input type="hidden" class="slide-image" value="' + escHtml(slide.image_url || '') + '">' +
-            '<div style="flex:1;min-width:0;">' +
-                '<input type="text" class="form-control form-control-sm mb-1 slide-caption" placeholder="Caption (optional)" value="' + escHtml(slide.caption || '') + '">' +
-                '<input type="text" class="form-control form-control-sm slide-link vela-link-input" placeholder="Link URL (optional)" value="' + escHtml(slide.link || '') + '">' +
+        var hasWords = !!(slide.heading || slide.text || slide.button_label);
+        return '<div class="carousel-slide-row" style="margin-bottom:8px;padding:8px;background:#f8f9fa;border-radius:6px;">' +
+            '<div style="display:flex;gap:10px;align-items:flex-start;">' +
+                '<span class="slide-handle text-muted" title="Drag to reorder" style="cursor:grab;padding-top:20px;"><i class="fas fa-grip-vertical"></i></span>' +
+                '<div class="slide-thumb" style="flex-shrink:0;cursor:pointer;" title="Click to change">' + carouselThumb(slide.image_url) + '</div>' +
+                '<input type="hidden" class="slide-image" value="' + escHtml(slide.image_url || '') + '">' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<input type="text" class="form-control form-control-sm mb-1 slide-heading" placeholder="Heading on the picture (optional)" value="' + escHtml(slide.heading || '') + '">' +
+                    '<input type="text" class="form-control form-control-sm slide-link vela-link-input" placeholder="Make the whole picture a link (optional)" value="' + escHtml(slide.link || '') + '">' +
+                '</div>' +
+                '<button type="button" class="btn btn-sm btn-outline-danger remove-carousel-slide" title="Remove"><i class="fas fa-times"></i></button>' +
             '</div>' +
-            '<button type="button" class="btn btn-sm btn-outline-danger remove-carousel-slide" title="Remove"><i class="fas fa-times"></i></button>' +
+            '<details class="slide-more mt-2"' + (hasWords && (slide.text || slide.button_label) ? ' open' : '') + '>' +
+                '<summary style="cursor:pointer;font-size:.85em;" class="text-muted">Text and button</summary>' +
+                '<div class="mt-2">' +
+                    '<textarea class="form-control form-control-sm mb-1 slide-text" rows="2" placeholder="A line or two under the heading">' + escHtml(slide.text || '') + '</textarea>' +
+                    '<div class="form-row">' +
+                        '<div class="col-5"><input type="text" class="form-control form-control-sm slide-button-label" placeholder="Button label" value="' + escHtml(slide.button_label || '') + '"></div>' +
+                        '<div class="col-7"><input type="text" class="form-control form-control-sm slide-button-url vela-link-input" placeholder="Button link, e.g. /contact-us" value="' + escHtml(slide.button_url || '') + '"></div>' +
+                    '</div>' +
+                    '<input type="text" class="form-control form-control-sm mt-1 slide-caption" placeholder="Caption — shown only when there is no heading, text or button" value="' + escHtml(slide.caption || '') + '">' +
+                '</div>' +
+            '</details>' +
         '</div>';
     }
 
@@ -817,13 +837,163 @@ PageEditor.registerBlockType = function(name, config) {
             var $row = $(this).closest('.carousel-slide-row');
             openMediaBrowser(function(media) {
                 $row.find('.slide-image').val(media.url);
-                $row.find('.slide-thumb').html('<img src="' + escHtml(media.url) + '" style="width:100px;height:60px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;">');
+                $row.find('.slide-thumb').html(carouselThumb(media.url));
                 if (media.alt && !$row.find('.slide-caption').val()) $row.find('.slide-caption').val(media.alt);
             });
         });
         $(document).off('click', '.remove-carousel-slide').on('click', '.remove-carousel-slide', function() {
             $(this).closest('.carousel-slide-row').remove();
+            _blockEditTouched = true;
         });
+
+        // The order of the slides is the order they play in.
+        var list = document.getElementById('carousel-slides-list');
+        if (list && window.Sortable) {
+            Sortable.create(list, { handle: '.slide-handle', animation: 150, onEnd: function () { _blockEditTouched = true; } });
+        }
+
+        // A tile is a picture of the choice; clicking it sets the hidden input
+        // the rest of the form reads, exactly as the dropdown it replaced did.
+        $(document).off('click.carouselTile').on('click.carouselTile', '.carousel-tile', function () {
+            if (this.disabled) return;
+            var $tile = $(this);
+            $tile.closest('.vela-tiles').find('.carousel-tile').removeClass('active').attr('aria-pressed', 'false');
+            $tile.addClass('active').attr('aria-pressed', 'true');
+            $('#' + $tile.data('input')).val($tile.data('value')).trigger('change');
+            _blockEditTouched = true;
+        });
+
+        $(document).off('click.carouselPreset').on('click.carouselPreset', '.carousel-preset', function () {
+            var s = CAROUSEL_PRESETS[$(this).data('preset')].settings;
+            ['per_view', 'ratio', 'text_position', 'effect'].forEach(function (key) {
+                var id = 'carousel-' + key.replace('_', '-');
+                $('#' + id).val(s[key]);
+                $('.carousel-tile[data-input="' + id + '"]').each(function () {
+                    var on = String($(this).data('value')) === String(s[key]);
+                    $(this).toggleClass('active', on).attr('aria-pressed', on ? 'true' : 'false');
+                });
+            });
+            $('#carousel-autoplay').prop('checked', s.autoplay);
+            $('.carousel-preset').removeClass('active');
+            $(this).addClass('active');
+            _blockEditTouched = true;
+            syncCarouselOptions();
+        });
+
+        // Fade shows one picture over another, so it has no meaning with
+        // several at once; where the words sit applies only to words on a picture.
+        function syncCarouselOptions() {
+            var multi = parseInt($('#carousel-per-view').val(), 10) > 1;
+            if (multi && $('#carousel-effect').val() === 'fade') {
+                $('#carousel-effect').val('slide');
+                $('.carousel-tile[data-input="carousel-effect"]').each(function () {
+                    $(this).toggleClass('active', $(this).data('value') === 'slide');
+                });
+            }
+            $('.carousel-tile[data-input="carousel-effect"][data-value="fade"]').prop('disabled', multi);
+            $('#carousel-effect-note').prop('hidden', !multi);
+            $('#carousel-text-position-group').prop('hidden', multi);
+            $('#carousel-interval-group').prop('hidden', !$('#carousel-autoplay').is(':checked'));
+            drawCarouselPreview();
+        }
+        $(document).off('change.carouselOpts').on('change.carouselOpts', '#carousel-per-view, #carousel-autoplay, #carousel-ratio, #carousel-text-position, #carousel-effect', syncCarouselOptions);
+        // The preview follows the slides too: a heading typed, a picture swapped.
+        $(document).off('input.carouselPreview change.carouselPreview')
+            .on('input.carouselPreview change.carouselPreview', '#carousel-slides-list input, #carousel-slides-list textarea', drawCarouselPreview);
+        var listObserver = new MutationObserver(drawCarouselPreview);
+        if (list) listObserver.observe(list, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+        syncCarouselOptions();
+    }
+
+    // Starting points, each a whole look rather than four settings to work out.
+    var CAROUSEL_PRESETS = {
+        banner: {
+            label: 'Banner', hint: 'Big picture with a heading and a button — the top of a home page',
+            settings: { per_view: 1, ratio: '21:9', text_position: 'left', effect: 'slide', autoplay: true, words: true }
+        },
+        slideshow: {
+            label: 'Photo slideshow', hint: 'One photo at a time, fading into the next',
+            settings: { per_view: 1, ratio: '16:9', text_position: 'center', effect: 'fade', autoplay: true, words: false }
+        },
+        cards: {
+            label: 'Row of cards', hint: 'Three at a time with a title under each — dishes, products, work',
+            settings: { per_view: 3, ratio: '4:5', text_position: 'center', effect: 'slide', autoplay: false, words: true }
+        }
+    };
+
+    // A little drawing of a carousel: grey boxes are pictures, white lines words.
+    function carouselDrawing(s) {
+        var n = parseInt(s.per_view, 10) || 1;
+        var ratio = (s.ratio && s.ratio !== 'auto' ? s.ratio : '16:9').replace(':', ' / ');
+        var boxes = '';
+        for (var i = 0; i < n; i++) {
+            var words = s.words
+                ? (n === 1
+                    ? '<span class="vc-d-words vc-d-words--' + (s.text_position || 'center') + '"><i class="vc-d-h"></i><i class="vc-d-t"></i><i class="vc-d-b"></i></span>'
+                    : '')
+                : '';
+            boxes += '<span class="vc-d-slide"><span class="vc-d-pic" style="aspect-ratio:' + ratio + '">' + words + '</span>' +
+                (s.words && n > 1 ? '<i class="vc-d-under"></i><i class="vc-d-under vc-d-under--short"></i>' : '') + '</span>';
+        }
+        return '<span class="vc-d"><span class="vc-d-row">' + boxes + '</span><span class="vc-d-dots"><i class="on"></i><i></i><i></i></span></span>';
+    }
+
+    function carouselTiles(inputId, value, options, extraClass) {
+        return '<div class="vela-tiles ' + (extraClass || 'vela-tiles--4') + ' mb-3">' + options.map(function (o) {
+            var on = String(o.value) === String(value);
+            return '<button type="button" class="vela-tile carousel-tile' + (on ? ' active' : '') + '" aria-pressed="' + on + '"' +
+                ' data-input="' + inputId + '" data-value="' + escHtml(String(o.value)) + '">' +
+                o.art + '<span class="vela-tile-label">' + escHtml(o.label) + '</span></button>';
+        }).join('') + '</div>';
+    }
+
+    // The block as it will look, drawn from the slides in the form — their
+    // own pictures and words — so a setting is seen rather than imagined.
+    function drawCarouselPreview() {
+        var box = document.getElementById('carousel-live-preview');
+        if (!box) return;
+        var n = parseInt($('#carousel-per-view').val(), 10) || 1;
+        var ratio = $('#carousel-ratio').val() || 'auto';
+        var position = $('#carousel-text-position').val() || 'center';
+        var rows = $('#carousel-slides-list .carousel-slide-row').toArray();
+
+        if (!rows.length) {
+            box.innerHTML = '<div class="vc-preview-empty">Add a slide above to see it here.</div>';
+            return;
+        }
+
+        var cells = rows.slice(0, n).map(function (row) {
+            var $r = $(row);
+            var img = $r.find('.slide-image').val();
+            var heading = $r.find('.slide-heading').val();
+            var text = $r.find('.slide-text').val();
+            var button = $.trim($r.find('.slide-button-label').val()) && $.trim($r.find('.slide-button-url').val()) ? $r.find('.slide-button-label').val() : '';
+            var caption = $r.find('.slide-caption').val();
+            var hasWords = !!(heading || text || button);
+            var words = '<div class="vc-p-words">' +
+                (heading ? '<div class="vc-p-heading">' + escHtml(heading) + '</div>' : '') +
+                (text ? '<div class="vc-p-text">' + escHtml(text) + '</div>' : '') +
+                (button ? '<span class="vc-p-button">' + escHtml(button) + '</span>' : '') +
+            '</div>';
+            var pic = '<div class="vc-p-pic' + (ratio === 'auto' ? ' vc-p-pic--auto' : '') + (hasWords && n === 1 ? ' has-words' : '') + '"' +
+                ' style="' + (ratio !== 'auto' ? 'aspect-ratio:' + ratio.replace(':', ' / ') + ';' : '') + '">' +
+                (img ? '<img src="' + escHtml(img) + '" alt="">' : '') +
+                (hasWords && n === 1 ? '<div class="vc-p-overlay vc-p-overlay--' + position + '">' + words + '</div>' : '') +
+            '</div>';
+            return '<div class="vc-p-slide">' + pic +
+                (hasWords && n > 1 ? '<div class="vc-p-below">' + words + '</div>' : '') +
+                (!hasWords && caption ? '<div class="vc-p-caption">' + escHtml(caption) + '</div>' : '') +
+            '</div>';
+        });
+        // Fewer slides than places: the empty places show there is room.
+        for (var i = cells.length; i < n; i++) cells.push('<div class="vc-p-slide vc-p-slide--empty"><div class="vc-p-pic" style="aspect-ratio:' + (ratio === 'auto' ? '4 / 3' : ratio.replace(':', ' / ')) + '"></div></div>');
+
+        var arrows = rows.length > n ? '<span class="vc-p-arrow vc-p-arrow--prev">&#8249;</span><span class="vc-p-arrow vc-p-arrow--next">&#8250;</span>' : '';
+        box.innerHTML = '<div class="vc-p-stage">' + '<div class="vc-p-row" style="--n:' + n + '">' + cells.join('') + '</div>' + arrows + '</div>' +
+            '<div class="vc-p-foot">' + rows.length + ' slide' + (rows.length === 1 ? '' : 's') +
+                (rows.length > n ? ' · showing ' + (n === 1 ? 'the first' : 'the first ' + n) : '') +
+                ($('#carousel-autoplay').is(':checked') ? ' · plays by itself' : '') +
+                (n > 1 ? ' · phones show one at a time' : '') + '</div>';
     }
 
     function buildGalleryImageRow(img, i) {
@@ -4920,7 +5090,7 @@ PageEditor.registerBlockType = function(name, config) {
     PageEditor.registerBlockType('carousel', {
         icon: 'fa-images',
         label: 'Carousel Slider',
-        defaults: { content: { slides: [] }, settings: { autoplay: true, interval: 5000, show_arrows: true, show_dots: true } },
+        defaults: { content: { slides: [] }, settings: { effect: 'slide', per_view: 1, ratio: 'auto', text_position: 'center', autoplay: true, interval: 5000, show_arrows: true, show_dots: true } },
         renderPreview: function(block) {
             var slides = block.content && block.content.slides ? block.content.slides : [];
             if (!slides.length) return '<em class="text-muted">No slides added</em>';
@@ -4942,6 +5112,10 @@ PageEditor.registerBlockType = function(name, config) {
             var interval = typeof settings.interval !== 'undefined' ? settings.interval : 5000;
             var showArrows = typeof settings.show_arrows !== 'undefined' ? settings.show_arrows : true;
             var showDots = typeof settings.show_dots !== 'undefined' ? settings.show_dots : true;
+            var perView = parseInt(settings.per_view, 10) || 1;
+            var effect = settings.effect === 'fade' ? 'fade' : 'slide';
+            var ratio = settings.ratio || 'auto';
+            var position = settings.text_position || 'center';
             var slidesHtml = '';
             slides.forEach(function(slide, i) {
                 slidesHtml += buildCarouselSlideRow(slide, i);
@@ -4952,12 +5126,56 @@ PageEditor.registerBlockType = function(name, config) {
                 '<button type="button" class="btn btn-sm btn-outline-info" id="bulk-add-carousel"><i class="fas fa-images mr-1"></i> Bulk Add from Library</button>' +
                 '</div>' +
                 '<hr>' +
+                '<div class="vc-section-title">Start from an example</div>' +
+                '<div class="vela-tiles vela-tiles--3 mb-3">' +
+                    Object.keys(CAROUSEL_PRESETS).map(function (key) {
+                        var pr = CAROUSEL_PRESETS[key];
+                        return '<button type="button" class="vela-tile carousel-preset" data-preset="' + key + '">' +
+                            carouselDrawing(pr.settings) +
+                            '<span class="vela-tile-label"><strong>' + pr.label + '</strong><small>' + pr.hint + '</small></span></button>';
+                    }).join('') +
+                '</div>' +
+
+                '<div class="vc-section-title">How it will look</div>' +
+                '<div id="carousel-live-preview" class="vc-preview"></div>' +
+
+                '<input type="hidden" id="carousel-per-view" value="' + perView + '">' +
+                '<input type="hidden" id="carousel-effect" value="' + effect + '">' +
+                '<input type="hidden" id="carousel-ratio" value="' + escHtml(ratio) + '">' +
+                '<input type="hidden" id="carousel-text-position" value="' + escHtml(position) + '">' +
+
+                '<div class="vc-section-title">Slides at a time</div>' +
+                carouselTiles('carousel-per-view', perView, [1, 2, 3, 4].map(function (n) {
+                    return { value: n, label: n === 1 ? '1 · big picture' : n + ' · like cards', art: carouselDrawing({ per_view: n, ratio: n === 1 ? '16:9' : '4:5', words: n === 1 }) };
+                })) +
+
+                '<div class="vc-section-title">Picture shape <small>— every picture is cropped to it, so the page does not jump</small></div>' +
+                carouselTiles('carousel-ratio', ratio, [
+                    ['auto', 'As uploaded'], ['21:9', 'Banner'], ['16:9', 'Wide'], ['3:2', 'Photo'], ['4:3', 'Classic'], ['1:1', 'Square'], ['4:5', 'Portrait']
+                ].map(function (r) {
+                    return { value: r[0], label: r[1] + (r[0] === 'auto' ? '' : ' ' + r[0]), art: '<span class="vc-shape"><i style="aspect-ratio:' + (r[0] === 'auto' ? '3 / 2' : r[0].replace(':', ' / ')) + (r[0] === 'auto' ? ';border-style:dashed' : '') + '"></i></span>' };
+                }), 'vela-tiles--7') +
+
+                '<div id="carousel-text-position-group">' +
+                    '<div class="vc-section-title">Where the words sit on the picture <small>— for slides with a heading, text or button</small></div>' +
+                    carouselTiles('carousel-text-position', position, [['center', 'Middle'], ['left', 'Left'], ['bottom-left', 'Bottom left']].map(function (p) {
+                        return { value: p[0], label: p[1], art: carouselDrawing({ per_view: 1, ratio: '16:9', words: true, text_position: p[0] }) };
+                    })) +
+                '</div>' +
+
+                '<div class="vc-section-title">Moving to the next slide</div>' +
+                carouselTiles('carousel-effect', effect, [
+                    { value: 'slide', label: 'Slide across', art: '<span class="vc-motion"><i></i><i></i><b>&rarr;</b></span>' },
+                    { value: 'fade', label: 'Fade into the next', art: '<span class="vc-motion vc-motion--fade"><i></i><i></i></span>' }
+                ]) +
+                '<small class="form-text text-muted mb-2" id="carousel-effect-note" hidden>Fade needs one slide at a time.</small>' +
+
                 '<div class="form-check">' +
                     '<input type="checkbox" class="form-check-input" id="carousel-autoplay"' + (autoplay ? ' checked' : '') + '>' +
-                    '<label class="form-check-label" for="carousel-autoplay">Autoplay</label>' +
+                    '<label class="form-check-label" for="carousel-autoplay">Play by itself <small class="text-muted">— pauses while someone points at it</small></label>' +
                 '</div>' +
-                '<div class="form-group mt-2"><label>Interval (ms)</label>' +
-                    '<input type="number" class="form-control" id="carousel-interval" value="' + escHtml(String(interval)) + '" min="500" step="500">' +
+                '<div class="form-group mt-2" id="carousel-interval-group"><label for="carousel-interval">Seconds per slide</label>' +
+                    '<input type="number" class="form-control form-control-sm" id="carousel-interval" value="' + escHtml(String(Math.round(interval / 100) / 10)) + '" min="1.5" step="0.5" style="max-width:120px;">' +
                 '</div>' +
                 '<div class="form-check">' +
                     '<input type="checkbox" class="form-check-input" id="carousel-arrows"' + (showArrows ? ' checked' : '') + '>' +
@@ -4974,20 +5192,32 @@ PageEditor.registerBlockType = function(name, config) {
         collectData: function(block) {
             var slides = [];
             $('#carousel-slides-list .carousel-slide-row').each(function() {
+                var $r = $(this);
                 slides.push({
-                    image_url: $(this).find('.slide-image').val(),
-                    caption: $(this).find('.slide-caption').val(),
-                    link: $(this).find('.slide-link').val()
+                    image_url: $r.find('.slide-image').val(),
+                    heading: $r.find('.slide-heading').val(),
+                    text: $r.find('.slide-text').val(),
+                    button_label: $r.find('.slide-button-label').val(),
+                    button_url: $r.find('.slide-button-url').val(),
+                    caption: $r.find('.slide-caption').val(),
+                    link: $r.find('.slide-link').val()
                 });
             });
+            var perView = parseInt($('#carousel-per-view').val(), 10) || 1;
+            // Typed in seconds, kept in milliseconds as it always was.
+            var seconds = parseFloat($('#carousel-interval').val());
             return {
                 content: { slides: slides },
-                settings: {
+                settings: $.extend({}, block.settings, {
+                    per_view: perView,
+                    effect: perView > 1 ? 'slide' : ($('#carousel-effect').val() || 'slide'),
+                    ratio: $('#carousel-ratio').val() || 'auto',
+                    text_position: $('#carousel-text-position').val() || 'center',
                     autoplay: $('#carousel-autoplay').is(':checked'),
-                    interval: parseInt($('#carousel-interval').val()) || 5000,
+                    interval: seconds > 0 ? Math.max(1500, Math.round(seconds * 1000)) : 5000,
                     show_arrows: $('#carousel-arrows').is(':checked'),
                     show_dots: $('#carousel-dots').is(':checked')
-                }
+                })
             };
         }
     });

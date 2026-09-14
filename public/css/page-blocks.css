@@ -220,10 +220,73 @@
 .block-contact-form .form-success { background: var(--block-success-bg); border: 1px solid var(--block-success-border); color: var(--block-success-text); padding: 12px 20px; border-radius: 6px; margin-bottom: 15px; }
 .block-contact-form .form-error { background: var(--block-error-bg); border: 1px solid var(--block-error-border); color: var(--block-error-text); padding: 12px 20px; border-radius: 6px; margin-bottom: 15px; }
 /* Carousel block */
+/* Carousel — driven by public/js/vela-carousel.js, which sets
+   --carousel-index, --carousel-per-view-now and, mid-swipe, --carousel-drag.
+   Rules name the block as well as the part, because themes style
+   `.carousel-track { display: flex; overflow: hidden }` and a track that clips
+   itself cannot slide: it moves, and its own box goes with it. */
 .block-carousel { position: relative; }
-.carousel-track { position: relative; min-height: 200px; }
-.carousel-slide { position: absolute; top: 0; left: 0; width: 100%; }
-.carousel-slide:first-child { position: relative; }
+.block-carousel [hidden] { display: none !important; }
+/* Contained, so its width comes from the column and never from its slides: a
+   row's grid sizes a column from what is inside it, and a line of pictures
+   side by side is as wide as all of them — the page ran off the screen. */
+.block-carousel .carousel-viewport { position: relative; overflow: hidden; touch-action: pan-y; contain: inline-size; }
+.block-carousel .carousel-track {
+    --carousel-gap: 0px;
+    --carousel-n: var(--carousel-per-view-now, var(--carousel-per-view, 1));
+    display: flex; gap: var(--carousel-gap); overflow: visible; min-height: 0;
+    transform: translateX(calc(var(--carousel-index, 0) * -1 * (100% + var(--carousel-gap)) / var(--carousel-n) + var(--carousel-drag, 0px)));
+    transition: transform .55s cubic-bezier(.22, .61, .36, 1);
+}
+.block-carousel.block-carousel--multi .carousel-track { --carousel-gap: 20px; }
+.block-carousel.is-dragging .carousel-track { transition: none; cursor: grabbing; user-select: none; }
+.block-carousel .carousel-slide {
+    position: relative; top: auto; left: auto; width: auto; min-width: 0;
+    flex: 0 0 calc((100% - (var(--carousel-n) - 1) * var(--carousel-gap)) / var(--carousel-n));
+}
+/* Fade: every slide in the same place, the active one on top. */
+.block-carousel.block-carousel--fade .carousel-track { display: grid; transform: none; }
+.block-carousel.block-carousel--fade .carousel-slide { grid-area: 1 / 1; opacity: 0; visibility: hidden; transition: opacity .7s ease, visibility 0s linear .7s; }
+.block-carousel.block-carousel--fade .carousel-slide.is-active { opacity: 1; visibility: visible; z-index: 1; transition: opacity .7s ease, visibility 0s; }
+@media (prefers-reduced-motion: reduce) {
+    .block-carousel .carousel-track, .block-carousel .carousel-slide { transition: none !important; }
+}
+
+.block-carousel .carousel-media { position: relative; overflow: hidden; }
+.block-carousel .carousel-media picture,
+.block-carousel .carousel-media img { display: block; width: 100%; height: auto; }
+.block-carousel .carousel-media-link { display: block; }
+.block-carousel.block-carousel--multi .carousel-media { border-radius: 10px; }
+/* A fixed shape: every picture cropped to it, so nothing below moves. */
+.block-carousel.block-carousel--fixed-ratio .carousel-media { aspect-ratio: var(--carousel-ratio); }
+.block-carousel.block-carousel--fixed-ratio .carousel-media picture,
+.block-carousel.block-carousel--fixed-ratio .carousel-media img,
+.block-carousel.block-carousel--fixed-ratio .carousel-media-link { height: 100%; }
+.block-carousel.block-carousel--fixed-ratio .carousel-media img { object-fit: cover; }
+
+/* Words on the picture — one slide at a time, like a banner. */
+.block-carousel .carousel-slide.has-overlay .carousel-media { min-height: 280px; background: var(--vela-band, #1a1a1a); }
+.block-carousel .carousel-slide.has-overlay .carousel-media img { min-height: 280px; object-fit: cover; }
+.block-carousel .carousel-slide.has-overlay .carousel-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.15), rgba(0,0,0,.55)); pointer-events: none; }
+.block-carousel .carousel-content--overlay {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;
+    padding: clamp(24px, 6vw, 80px); color: #fff;
+}
+.block-carousel .carousel-content--overlay > * { pointer-events: auto; }
+.block-carousel .carousel-content--left { align-items: flex-start; text-align: left; }
+.block-carousel .carousel-content--bottom-left { justify-content: flex-end; align-items: flex-start; text-align: left; }
+.block-carousel .carousel-content--overlay .carousel-heading { font-family: var(--block-heading-font); font-size: clamp(1.6rem, 4.2vw, 3.4rem); line-height: 1.1; margin: 0 0 .35em; max-width: 22ch; color: inherit; text-shadow: 0 2px 16px rgba(0,0,0,.25); }
+.block-carousel .carousel-content--overlay .carousel-text { font-size: clamp(1rem, 1.6vw, 1.25rem); line-height: 1.5; margin: 0 0 1.2em; max-width: 48ch; color: inherit; opacity: .92; }
+/* Words under the picture — several slides at a time, like cards. */
+.block-carousel .carousel-content--below { padding: 14px 2px 4px; }
+.block-carousel .carousel-content--below .carousel-heading { font-family: var(--block-heading-font); font-size: 1.15rem; line-height: 1.3; margin: 0 0 .3em; color: inherit; }
+.block-carousel .carousel-content--below .carousel-text { font-size: .95rem; line-height: 1.5; margin: 0 0 .8em; color: var(--block-text-muted); }
+.block-carousel .carousel-button { display: inline-block; padding: 12px 26px; border-radius: 6px; background: var(--block-accent); color: #fff; font-weight: 600; text-decoration: none; }
+.block-carousel .carousel-button:hover { background: var(--block-accent-hover); color: #fff; }
+.block-carousel .carousel-content--below .carousel-button { padding: 8px 16px; font-size: .9rem; }
+.block-carousel .carousel-arrow:focus-visible,
+.block-carousel .carousel-dot:focus-visible { outline: 2px solid var(--block-accent); outline-offset: 2px; }
 .carousel-caption { position: absolute; bottom: 0; left: 0; right: 0; background: var(--block-overlay); color: var(--block-bg-white); padding: 12px 20px; font-size: 1em; }
 .carousel-arrow { position: absolute; top: 50%; transform: translateY(-50%); background: var(--block-overlay-light); color: var(--block-bg-white); border: none; width: 40px; height: 40px; border-radius: 50%; font-size: 1.5em; cursor: pointer; z-index: 2; }
 .carousel-arrow:hover { background: rgba(0,0,0,0.8); }
