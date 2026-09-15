@@ -635,7 +635,19 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-th-large',
             'view' => 'vela::public.pages.blocks.categories_grid',
             'editor' => 'js',
-            'defaults' => ['content' => [], 'settings' => ['columns' => 3, 'max_count' => 12, 'show_post_count' => true]],
+            'defaults' => [
+                'content' => [],
+                'settings' => [
+                    'columns' => 3, 'max_count' => 12, 'show_post_count' => true, 'hide_empty' => false,
+                    'source' => 'all', 'category_ids' => [], 'card_style' => 'image', 'ratio' => 'auto',
+                ],
+            ],
+            'shape_note' => 'Lists the site\'s own categories; there is no content to write. source is all (every category in '
+                . 'the categories screen order, up to max_count) or chosen (only the ids in category_ids, in that order — '
+                . 'look them up first). hide_empty drops categories with no published posts. show_post_count adds the count. '
+                . 'card_style is image (picture on top), overlay (name on the picture), compact (icon and name) or pills '
+                . '(one wrapping line of small buttons). ratio is auto, 16x9, 4x3 or 1x1 and applies to image and overlay. '
+                . 'columns is 2-4 usual; never more than there are categories.',
         ]);
 
         $vela->registerBlock('posts_grid', [

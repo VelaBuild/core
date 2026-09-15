@@ -396,6 +396,63 @@ html.vela-lightbox-open { overflow: hidden; }
     .block-testimonials--slider .carousel-viewport { margin: 0; }
     .block-testimonials--slider .carousel-arrow { display: none; }
 }
+/* Categories grid — settings.card_style and settings.ratio. The column count
+   is inline on the block, since a theme lays it out as a grid of its own.
+   Every look names the block twice so it outranks a theme's card rule. */
+.block-categories-grid { display: grid; gap: 20px; }
+.block-categories-grid .category-card { display: flex; flex-direction: column; min-width: 0; text-decoration: none; color: inherit; border: 1px solid var(--block-border); border-radius: 8px; overflow: hidden; transition: box-shadow .2s, transform .2s; }
+.block-categories-grid .category-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, .08); text-decoration: none; color: inherit; }
+.block-categories-grid .category-card:focus-visible { outline: 2px solid var(--block-accent); outline-offset: 2px; }
+.category-card-media { position: relative; display: block; height: 160px; overflow: hidden; background: var(--block-bg-light); }
+.category-card-media picture, .category-card-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.category-card-media--icon { display: flex; align-items: center; justify-content: center; color: var(--block-accent); font-size: 2.4em; }
+.category-card-body { display: block; padding: 16px; }
+.category-card-title { margin: 0 0 4px; font-size: 1.1em; color: inherit; }
+.category-card-count { font-size: .85em; opacity: .75; }
+.category-card-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--block-accent); }
+
+/* overlay: the name on the picture, darkened towards the bottom to be read. */
+.block-categories-grid.block-categories-grid--overlay .category-card { position: relative; border: 0; border-radius: 12px; color: #fff; }
+.block-categories-grid--overlay .category-card-media { height: 220px; }
+.block-categories-grid--overlay .category-card.has-image .category-card-media::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,0) 35%, rgba(0,0,0,.65)); }
+.block-categories-grid--overlay .category-card-body { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; padding: 18px; }
+.block-categories-grid--overlay .category-card-title { font-size: 1.25em; color: inherit; }
+.block-categories-grid--overlay .category-card.has-image .category-card-title { text-shadow: 0 1px 8px rgba(0,0,0,.35); }
+.block-categories-grid--overlay .category-card.has-image:hover .category-card-media img { transform: scale(1.04); }
+.block-categories-grid--overlay .category-card-media img { transition: transform .5s ease; }
+/* With no picture at all the card is a tinted tile in the theme's colours. */
+.block-categories-grid.block-categories-grid--overlay .category-card:not(.has-image) { color: var(--block-text-primary); background: var(--block-bg-light); }
+.block-categories-grid--overlay .category-card:not(.has-image):not(.has-icon-panel) { min-height: 140px; justify-content: flex-end; }
+.block-categories-grid--overlay .category-card:not(.has-image):not(.has-icon-panel) .category-card-body { position: static; }
+.block-categories-grid--overlay .category-card-media--icon { padding-bottom: 40px; }
+
+/* compact: icon beside the name, no picture. */
+.block-categories-grid.block-categories-grid--compact .category-card { flex-direction: row; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 10px; }
+.block-categories-grid--compact .category-card-icon { width: 44px; height: 44px; border-radius: 10px; font-size: 1.2em; background: var(--block-bg-light); }
+.block-categories-grid--compact .category-card-body { padding: 0; min-width: 0; }
+.block-categories-grid--compact .category-card-title { font-size: 1em; margin: 0; overflow-wrap: anywhere; }
+
+/* pills: one line that wraps; on a phone it scrolls sideways instead. */
+.block-categories-grid.block-categories-grid--pills { display: flex; flex-wrap: wrap; gap: 10px; }
+.block-categories-grid.block-categories-grid--pills .category-card { flex-direction: row; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; background: var(--block-bg-light); border-color: transparent; box-shadow: none; }
+.block-categories-grid--pills .category-card:hover { border-color: var(--block-accent); box-shadow: none; }
+.block-categories-grid--pills .category-card-body { display: flex; align-items: baseline; gap: 6px; padding: 0; }
+.block-categories-grid--pills .category-card-title { font-size: .95em; font-weight: 600; margin: 0; white-space: nowrap; }
+.block-categories-grid--pills .category-card-count { font-size: .8em; white-space: nowrap; }
+
+/* A chosen picture shape wins over each style's own height. */
+.block-categories-grid.block-categories-grid--ratio-16x9 .category-card-media { height: auto; aspect-ratio: 16 / 9; }
+.block-categories-grid.block-categories-grid--ratio-4x3 .category-card-media { height: auto; aspect-ratio: 4 / 3; }
+.block-categories-grid.block-categories-grid--ratio-1x1 .category-card-media { height: auto; aspect-ratio: 1 / 1; }
+
+@media (max-width: 900px) {
+    .block-categories-grid.block-categories-grid--multi { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 560px) {
+    .block-categories-grid.block-categories-grid--multi { grid-template-columns: minmax(0, 1fr) !important; }
+    .block-categories-grid.block-categories-grid--compact.block-categories-grid--multi { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .block-categories-grid.block-categories-grid--pills { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px; }
+}
 /* Icon Box block */
 .icon-box--vertical { text-align: center; padding: 24px 16px; }
 .icon-box--vertical .icon-box-icon { margin-bottom: 16px; }

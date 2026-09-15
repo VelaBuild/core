@@ -187,6 +187,20 @@
 </style>
 
 @push('scripts')
+@php
+    // The categories grid draws its preview from these, so they carry what a
+    // card shows: the picture, the icon and the published post count.
+    $editorCategories = \VelaBuild\Core\Models\Category::with('media')
+        ->withCount(['contents as published_posts_count' => fn ($q) => $q->where('status', 'published')])
+        ->orderBy('order_by')->orderBy('name')->get()
+        ->map(fn ($c) => [
+            'id'    => $c->id,
+            'name'  => $c->name,
+            'icon'  => $c->icon,
+            'image' => $c->image ? vela_image_url($c->image->url, 400) : null,
+            'posts' => (int) $c->published_posts_count,
+        ])->values();
+@endphp
 <script>
 window.PageEditorConfig = {
     uploadUrl: '{{ route("vela.admin.pages.storeCKEditorImages") }}',
@@ -195,7 +209,8 @@ window.PageEditorConfig = {
     {{-- Where a link box goes to turn a title somebody remembers into the
          slug the link needs. --}}
     linkSuggestUrl: '{{ route("vela.admin.link-suggest") }}',
-    categories: @json(\VelaBuild\Core\Models\Category::orderBy('order_by')->orderBy('name')->get(['id', 'name'])),
+    categories: @json($editorCategories),
+    categoriesCreateUrl: '{{ route("vela.admin.categories.create") }}',
     i18n: {
         discardBlockChanges: @json(trans('vela::global.discard_block_changes'))
     }

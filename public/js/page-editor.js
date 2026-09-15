@@ -6175,43 +6175,231 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // --- Categories grid --------------------------------------------------
+    //
+    // The block lists the site's own categories, so the dialog is about which
+    // ones and how they look, drawn from the real categories as it goes. It
+    // was two number boxes and a checkbox, and the only way to see the result
+    // was to save and open the page.
+
+    function siteCategories() {
+        return (window.PageEditorConfig && window.PageEditorConfig.categories) || [];
+    }
+
+    function categoriesGridSettings(s) {
+        var one = function (value, allowed) { return allowed.indexOf(value) > -1 ? value : allowed[0]; };
+        var ids = (Array.isArray(s.category_ids) ? s.category_ids : []).map(function (id) { return parseInt(id, 10); })
+            .filter(function (id, i, all) { return id > 0 && all.indexOf(id) === i; });
+        return {
+            columns: Math.max(1, Math.min(6, parseInt(s.columns, 10) || 3)),
+            max_count: Math.max(1, Math.min(50, parseInt(s.max_count, 10) || 12)),
+            show_post_count: s.show_post_count !== false && s.show_post_count !== 'false' && s.show_post_count !== 0,
+            hide_empty: s.hide_empty === true || s.hide_empty === 'true' || s.hide_empty === 1,
+            source: one(s.source, ['all', 'chosen']),
+            category_ids: ids,
+            card_style: one(s.card_style, ['image', 'overlay', 'compact', 'pills']),
+            ratio: one(s.ratio, ['auto', '16x9', '4x3', '1x1'])
+        };
+    }
+
+    // The categories the page will show for these settings — the same choice
+    // categories_grid.blade.php makes.
+    function categoriesGridPick(s) {
+        var all = siteCategories().filter(function (c) { return !s.hide_empty || c.posts > 0; });
+        if (s.source === 'chosen' && s.category_ids.length) {
+            return s.category_ids.map(function (id) {
+                return all.filter(function (c) { return c.id === id; })[0];
+            }).filter(Boolean);
+        }
+        return all.slice(0, s.max_count);
+    }
+
+    function categoriesGridHtml(s, mini) {
+        var cats = categoriesGridPick(s);
+        if (!cats.length) return '';
+        var cols = Math.max(1, Math.min(s.columns, cats.length));
+        var anyImage = cats.some(function (c) { return c.image; });
+        var pictured = s.card_style === 'image' || s.card_style === 'overlay';
+        var shown = mini ? cats.slice(0, s.card_style === 'pills' ? 8 : cols * 2) : cats;
+        return '<div class="cgp cgp--' + s.card_style + ' cgp--ratio-' + s.ratio + (mini ? ' cgp--mini' : '') + '" style="--cols:' + cols + '">' +
+            shown.map(function (c) {
+                var icon = '<i class="' + escHtml(c.icon || 'fas fa-folder') + '"></i>';
+                var media = '';
+                if (pictured && c.image) media = '<span class="cgp-media"><img src="' + escHtml(c.image) + '" alt=""></span>';
+                else if (pictured && anyImage) media = '<span class="cgp-media cgp-media--icon">' + icon + '</span>';
+                else if (!pictured) media = '<span class="cgp-icon">' + icon + '</span>';
+                return '<span class="cgp-card' + (pictured && c.image ? ' has-image' : '') + (media && pictured && !c.image ? ' has-panel' : '') + '">' + media +
+                    '<span class="cgp-body"><span class="cgp-title">' + escHtml(c.name) + '</span>' +
+                    (s.show_post_count ? '<span class="cgp-count">' + c.posts + ' post' + (c.posts === 1 ? '' : 's') + '</span>' : '') +
+                    '</span></span>';
+            }).join('') + '</div>';
+    }
+
+    function categoriesGridDialogSettings() {
+        return categoriesGridSettings({
+            columns: $('#catgrid-columns').val(),
+            max_count: $('#catgrid-max').val(),
+            show_post_count: $('#catgrid-count').is(':checked'),
+            hide_empty: $('#catgrid-hide-empty').is(':checked'),
+            source: $('#catgrid-source').val(),
+            category_ids: $('#catgrid-chooser .cg-choice').filter(function () { return $(this).find('.cg-check').is(':checked'); })
+                .map(function () { return $(this).data('id'); }).get(),
+            card_style: $('#catgrid-style').val(),
+            ratio: $('#catgrid-ratio').val()
+        });
+    }
+
+    function drawCategoriesGridPreview() {
+        var box = document.getElementById('catgrid-live-preview');
+        if (!box) return;
+        var s = categoriesGridDialogSettings();
+        var cats = categoriesGridPick(s);
+        var chosenMode = s.source === 'chosen';
+
+        $('#catgrid-all-options').prop('hidden', chosenMode);
+        $('#catgrid-chooser-wrap').prop('hidden', !chosenMode);
+        $('#catgrid-ratio-wrap').prop('hidden', s.card_style === 'compact' || s.card_style === 'pills');
+        $('#catgrid-columns-wrap').prop('hidden', s.card_style === 'pills');
+        $('#catgrid-chooser .cg-choice').each(function () {
+            $(this).toggleClass('is-on', $(this).find('.cg-check').is(':checked'));
+        });
+
+        var total = siteCategories().length;
+        var foot;
+        if (!total) {
+            foot = '';
+        } else if (chosenMode && !s.category_ids.length) {
+            foot = 'Nothing ticked yet, so the page shows every category — tick the ones you want below.';
+            cats = categoriesGridPick($.extend({}, s, { source: 'all' }));
+        } else {
+            foot = cats.length + ' of ' + total + ' categor' + (total === 1 ? 'y' : 'ies') +
+                (s.hide_empty && cats.length < total ? ' · ones with no posts are hidden' : '') +
+                (s.card_style === 'pills' ? ' · one line that wraps; it scrolls sideways on a phone' : ' · two in a row on a tablet, one on a phone');
+        }
+
+        var drawn = chosenMode && !s.category_ids.length ? categoriesGridHtml($.extend({}, s, { source: 'all' }), false) : categoriesGridHtml(s, false);
+        box.innerHTML = !total
+            ? '<div class="vc-preview-empty">This site has no categories yet. <a href="' + escHtml((window.PageEditorConfig && window.PageEditorConfig.categoriesCreateUrl) || '#') + '" target="_blank">Add a category</a>, then come back.</div>'
+            : (drawn || '<div class="vc-preview-empty">No category to show — every one is hidden because it has no posts.</div>') +
+              (foot ? '<div class="vc-p-foot">' + escHtml(foot) + '</div>' : '');
+    }
+
+    function categoriesChooserHtml(s) {
+        var cats = siteCategories();
+        if (!cats.length) return '<div class="text-muted small">No categories yet.</div>';
+        // Ticked ones first, in their chosen order; the rest after, as listed.
+        var ticked = s.category_ids.map(function (id) { return cats.filter(function (c) { return c.id === id; })[0]; }).filter(Boolean);
+        var rest = cats.filter(function (c) { return s.category_ids.indexOf(c.id) === -1; });
+        return ticked.concat(rest).map(function (c) {
+            var on = s.category_ids.indexOf(c.id) > -1;
+            return '<div class="cg-choice' + (on ? ' is-on' : '') + '" data-id="' + c.id + '">' +
+                '<span class="cg-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></span>' +
+                '<label class="cg-label"><input type="checkbox" class="cg-check"' + (on ? ' checked' : '') + '>' +
+                (c.image ? '<img class="cg-thumb" src="' + escHtml(c.image) + '" alt="">' : '<span class="cg-thumb cg-thumb--icon"><i class="' + escHtml(c.icon || 'fas fa-folder') + '"></i></span>') +
+                '<span class="cg-name">' + escHtml(c.name) + '</span>' +
+                '<span class="cg-posts">' + c.posts + ' post' + (c.posts === 1 ? '' : 's') + '</span>' +
+            '</label></div>';
+        }).join('');
+    }
+
     PageEditor.registerBlockType('categories_grid', {
         icon: 'fa-th-large',
         label: 'Categories Grid',
-        defaults: { content: {}, settings: { columns: 3, max_count: 12, show_post_count: true } },
+        defaults: { content: {}, settings: { columns: 3, max_count: 12, show_post_count: true, hide_empty: false, source: 'all', category_ids: [], card_style: 'image', ratio: 'auto' } },
         renderPreview: function(block) {
-            var s = block.settings || {};
-            var cols = s.columns || 3;
-            var max = s.max_count || 12;
-            var showCount = s.show_post_count !== false;
-            return '<div style="padding:8px;background:#f0f4f8;border-radius:4px;text-align:center;">' +
-                '<i class="fas fa-th-large" style="font-size:1.5em;color:#6c757d;"></i>' +
-                '<div style="font-size:0.85em;color:#555;margin-top:4px;">Categories Grid &mdash; ' + cols + ' cols, max ' + max +
-                (showCount ? ', with count' : '') + '</div></div>';
+            var s = categoriesGridSettings(block.settings || {});
+            var html = categoriesGridHtml(s, true);
+            return html || '<em class="text-muted">Categories Grid — no categories to show yet</em>';
         },
         renderEditor: function(block) {
-            var s = block.settings || {};
-            var columns = s.columns || 3;
-            var maxCount = s.max_count || 12;
-            var showPostCount = s.show_post_count !== false;
-            return '<div class="form-group"><label>Columns</label>' +
-                '<input type="number" class="form-control" id="catgrid-columns" value="' + columns + '" min="1" max="6"></div>' +
-                '<div class="form-group"><label>Max Categories</label>' +
-                '<input type="number" class="form-control" id="catgrid-max" value="' + maxCount + '" min="1" max="50"></div>' +
+            var s = categoriesGridSettings(block.settings || {});
+            var colsArt = function (n) { var c = ''; for (var i = 0; i < n; i++) c += '<i></i>'; return '<span class="vc-shape vg-cols" style="--n:' + n + '">' + c + '</span>'; };
+            var styleArt = function (kind) {
+                var card = {
+                    image: '<b class="cga-card"><s class="cga-pic"></s><u></u></b>',
+                    overlay: '<b class="cga-card cga-card--overlay"><s class="cga-pic"></s><u></u></b>',
+                    compact: '<b class="cga-card cga-card--compact"><s class="cga-dot"></s><u></u></b>',
+                    pills: '<b class="cga-pill"><s class="cga-dot"></s><u></u></b>'
+                }[kind];
+                return '<span class="vc-shape cga cga--' + kind + '">' + card + card + (kind === 'pills' ? card + card : card) + '</span>';
+            };
+            var ratioArt = function (r) { return '<span class="vc-shape cgr"><b class="cgr-box cgr-box--' + r + '"></b></span>'; };
+            return '<div class="vc-section-title">How it will look</div>' +
+                '<div id="catgrid-live-preview" class="vc-preview"></div>' +
+
+                '<div class="vc-section-title">Which categories</div>' +
+                '<input type="hidden" id="catgrid-source" value="' + s.source + '">' +
+                carouselTiles('catgrid-source', s.source, [
+                    { value: 'all', label: 'All · in the order of the categories screen', art: '<span class="vc-shape vg-cols" style="--n:4"><i></i><i></i><i></i><i></i></span>' },
+                    { value: 'chosen', label: 'Choose which · and their order', art: '<span class="vc-shape cg-pick-art"><b class="on"></b><b></b><b class="on"></b><b></b></span>' }
+                ], 'vela-tiles--2', 'catgrid-tile') +
+                '<div id="catgrid-all-options" class="form-group"' + (s.source === 'all' ? '' : ' hidden') + '>' +
+                    '<label for="catgrid-max" class="mb-1" style="font-size:12px;font-weight:600;">Show up to</label>' +
+                    '<div class="d-flex align-items-center" style="gap:8px;"><input type="number" class="form-control form-control-sm" id="catgrid-max" value="' + s.max_count + '" min="1" max="50" style="max-width:90px;"><span class="text-muted small">categories</span></div>' +
+                '</div>' +
+                '<div id="catgrid-chooser-wrap" class="mb-3"' + (s.source === 'chosen' ? '' : ' hidden') + '>' +
+                    '<small class="text-muted d-block mb-1">Tick the ones to show; drag <i class="fas fa-grip-vertical"></i> to set their order.</small>' +
+                    '<div id="catgrid-chooser">' + categoriesChooserHtml(s) + '</div>' +
+                '</div>' +
                 '<div class="form-check">' +
-                    '<input type="checkbox" class="form-check-input" id="catgrid-count"' + (showPostCount ? ' checked' : '') + '>' +
-                    '<label class="form-check-label" for="catgrid-count">Show post count</label>' +
+                    '<input type="checkbox" class="form-check-input" id="catgrid-hide-empty"' + (s.hide_empty ? ' checked' : '') + '>' +
+                    '<label class="form-check-label" for="catgrid-hide-empty">Hide categories with no posts <small class="text-muted">— their page would be empty</small></label>' +
+                '</div>' +
+                '<div class="form-check mb-3">' +
+                    '<input type="checkbox" class="form-check-input" id="catgrid-count"' + (s.show_post_count ? ' checked' : '') + '>' +
+                    '<label class="form-check-label" for="catgrid-count">Show how many posts each has</label>' +
+                '</div>' +
+
+                '<div class="vc-section-title">Card style <small>— a category with no picture shows its icon</small></div>' +
+                '<input type="hidden" id="catgrid-style" value="' + s.card_style + '">' +
+                carouselTiles('catgrid-style', s.card_style, [
+                    { value: 'image', label: 'Picture on top', art: styleArt('image') },
+                    { value: 'overlay', label: 'Name on the picture', art: styleArt('overlay') },
+                    { value: 'compact', label: 'Icon and name', art: styleArt('compact') },
+                    { value: 'pills', label: 'Pills in a line', art: styleArt('pills') }
+                ], 'vela-tiles--4', 'catgrid-tile') +
+
+                '<div id="catgrid-ratio-wrap"' + (s.card_style === 'compact' || s.card_style === 'pills' ? ' hidden' : '') + '>' +
+                    '<div class="vc-section-title">Picture shape</div>' +
+                    '<input type="hidden" id="catgrid-ratio" value="' + s.ratio + '">' +
+                    carouselTiles('catgrid-ratio', s.ratio, [
+                        { value: 'auto', label: 'Short strip', art: ratioArt('auto') },
+                        { value: '16x9', label: 'Wide · 16:9', art: ratioArt('16x9') },
+                        { value: '4x3', label: 'Classic · 4:3', art: ratioArt('4x3') },
+                        { value: '1x1', label: 'Square', art: ratioArt('1x1') }
+                    ], 'vela-tiles--4', 'catgrid-tile') +
+                '</div>' +
+
+                '<div id="catgrid-columns-wrap"' + (s.card_style === 'pills' ? ' hidden' : '') + '>' +
+                    '<div class="vc-section-title">Cards in a row</div>' +
+                    '<input type="hidden" id="catgrid-columns" value="' + s.columns + '">' +
+                    carouselTiles('catgrid-columns', s.columns, [2, 3, 4].map(function (n) {
+                        return { value: n, label: n + ' across', art: colsArt(n) };
+                    }), 'vela-tiles--3', 'catgrid-tile') +
                 '</div>';
         },
-        initEditor: function(block) {},
+        initEditor: function() {
+            var changed = function () { _blockEditTouched = true; drawCategoriesGridPreview(); };
+            $(document).off('click.catgrid').on('click.catgrid', '.catgrid-tile', function () {
+                var $tile = $(this);
+                $tile.closest('.vela-tiles').find('.catgrid-tile').removeClass('active').attr('aria-pressed', 'false');
+                $tile.addClass('active').attr('aria-pressed', 'true');
+                $('#' + $tile.data('input')).val($tile.data('value'));
+                changed();
+            });
+            $(document).off('input.catgrid change.catgrid')
+                .on('input.catgrid change.catgrid', '#catgrid-max, #catgrid-count, #catgrid-hide-empty, #catgrid-chooser .cg-check', changed);
+            var chooser = document.getElementById('catgrid-chooser');
+            if (chooser && window.Sortable) {
+                Sortable.create(chooser, { handle: '.cg-handle', animation: 150, onEnd: changed });
+            }
+            drawCategoriesGridPreview();
+        },
         collectData: function(block) {
+            var s = categoriesGridDialogSettings();
             return {
-                content: {},
-                settings: {
-                    columns: parseInt($('#catgrid-columns').val()) || 3,
-                    max_count: parseInt($('#catgrid-max').val()) || 12,
-                    show_post_count: $('#catgrid-count').is(':checked')
-                }
+                content: $.extend({}, block.content),
+                settings: $.extend({}, block.settings, s)
             };
         }
     });
