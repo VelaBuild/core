@@ -399,12 +399,61 @@ html.vela-lightbox-open { overflow: hidden; }
 /* Icon Box block */
 .icon-box--vertical { text-align: center; padding: 24px 16px; }
 .icon-box--vertical .icon-box-icon { margin-bottom: 16px; }
-.icon-box--vertical .icon-box-icon i { font-size: 2.5em; color: var(--block-accent); }
+.icon-box--vertical .icon-box-icon i { font-size: 2.5em; color: var(--ib-icon, var(--block-accent)); }
 .icon-box--horizontal { display: flex; align-items: flex-start; gap: 16px; padding: 16px; }
 .icon-box--horizontal .icon-box-icon { flex-shrink: 0; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; }
-.icon-box--horizontal .icon-box-icon i { font-size: 2em; color: var(--block-accent); }
+.icon-box--horizontal .icon-box-icon i { font-size: 2em; color: var(--ib-icon, var(--block-accent)); }
+.icon-box-words { min-width: 0; }
 .icon-box-title { font-size: 1.1em; font-weight: 600; color: var(--block-text-primary); margin: 0 0 8px; }
 .icon-box-description { font-size: 0.95em; color: var(--block-text-muted); line-height: 1.6; margin: 0; }
+/* Box styles. plain is no card at all. The block is named twice so these
+   outrank a theme's own rule for the boxes. */
+.block-icon-boxes.block-icon-boxes--soft .icon-box { background: var(--block-bg-light); border-radius: 12px; }
+.block-icon-boxes.block-icon-boxes--outline .icon-box { border: 1px solid var(--block-border); border-radius: 12px; }
+.block-icon-boxes.block-icon-boxes--soft .icon-box--horizontal,
+.block-icon-boxes.block-icon-boxes--outline .icon-box--horizontal { padding: 20px; }
+/* A pale disc or tile behind the icon, tinted from the icon's own colour. */
+.block-icon-boxes.icon-shape--circle .icon-box-icon,
+.block-icon-boxes.icon-shape--square .icon-box-icon {
+    display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px;
+    background: rgba(0, 0, 0, 0.05);
+    background: color-mix(in srgb, var(--ib-icon, var(--block-accent)) 14%, transparent);
+}
+.block-icon-boxes.icon-shape--circle .icon-box-icon { border-radius: 50%; }
+.block-icon-boxes.icon-shape--square .icon-box-icon { border-radius: 16px; }
+.block-icon-boxes.icon-shape--circle .icon-box-icon i,
+.block-icon-boxes.icon-shape--square .icon-box-icon i { font-size: 1.6em; }
+.block-icon-boxes.icon-shape--circle .icon-box--horizontal .icon-box-icon,
+.block-icon-boxes.icon-shape--square .icon-box--horizontal .icon-box-icon { width: 52px; height: 52px; }
+.block-icon-boxes.icon-shape--square .icon-box--horizontal .icon-box-icon { border-radius: 12px; }
+.block-icon-boxes.icon-shape--circle .icon-box--horizontal .icon-box-icon i,
+.block-icon-boxes.icon-shape--square .icon-box--horizontal .icon-box-icon i { font-size: 1.35em; }
+/* A box with a link and no link words is the link: the title's anchor
+   stretches over the whole box. */
+.icon-box.icon-box--linked { position: relative; transition: transform .2s ease; }
+.icon-box.icon-box--linked:hover { transform: translateY(-2px); }
+.icon-box-stretched { color: inherit; text-decoration: none; }
+.icon-box-stretched::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.icon-box-stretched:focus-visible { outline: none; }
+.icon-box.icon-box--linked:focus-within { outline: 2px solid var(--block-accent); outline-offset: 2px; border-radius: 12px; }
+.icon-box-link { display: inline-block; margin-top: 10px; font-weight: 600; font-size: .95em; color: var(--ib-icon, var(--block-accent)); text-decoration: none; }
+.icon-box-link:hover { text-decoration: underline; }
+/* Icon boxes as a slider — the carousel's rules move it. Named twice so a
+   theme that lays the block out as a grid does not make the track a cell. */
+.block-icon-boxes.block-icon-boxes--slider { display: block; position: relative; }
+.block-icon-boxes--slider .carousel-slide { display: flex; }
+/* The viewport clips, so leave room for a linked box's lift and focus ring. */
+.block-icon-boxes--slider .carousel-track { padding-block: 4px; }
+.block-icon-boxes--slider .carousel-slide > .icon-box { flex: 1; box-sizing: border-box; }
+.block-icon-boxes--slider .carousel-viewport { margin: 0 56px; }
+.block-icon-boxes--slider .carousel-arrow { top: calc(50% - 22px); background: var(--block-bg-light); color: var(--block-text-primary); border: 1px solid var(--block-border); }
+.block-icon-boxes--slider .carousel-arrow:hover { background: var(--block-bg-hover); }
+.block-icon-boxes--slider .carousel-prev { left: 4px; }
+.block-icon-boxes--slider .carousel-next { right: 4px; }
+@media (max-width: 640px) {
+    .block-icon-boxes--slider .carousel-viewport { margin: 0; }
+    .block-icon-boxes--slider .carousel-arrow { display: none; }
+}
 @media (max-width: 768px) { .block-icon-boxes { grid-template-columns: 1fr !important; } }
 /* Hero block */
 /* White by default because the hero sits over a darkening overlay, but a

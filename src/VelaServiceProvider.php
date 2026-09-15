@@ -606,10 +606,28 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-star',
             'view' => 'vela::public.pages.blocks.icon_box',
             'editor' => 'js',
-            'defaults' => ['content' => ['items' => []], 'settings' => []],
+            'defaults' => [
+                'content' => ['items' => []],
+                'settings' => [
+                    'columns' => 3, 'layout' => 'vertical', 'card_style' => 'plain', 'icon_shape' => 'none', 'icon_color' => '',
+                    'display' => 'grid', 'autoplay' => false, 'interval' => 5000,
+                ],
+            ],
             // One icon_box block holds ALL the boxes — do not add one block per
             // box in separate columns.
-            'content_example' => ['items' => [['icon' => 'fas fa-wrench', 'title' => 'Emergency Repairs', 'description' => 'Same-day callouts.']]],
+            'content_example' => ['items' => [[
+                'icon' => 'fas fa-wrench', 'title' => 'Emergency Repairs', 'description' => 'Same-day callouts.',
+                'link' => '/services/repairs', 'link_text' => '',
+            ]]],
+            'shape_note' => 'One icon_box block holds every box in the row. Each item: icon is a Font Awesome class '
+                . '("fas fa-truck"), title, and an optional description. link is optional: with link_text it is a '
+                . '"Learn more"-style line under the description, with link_text empty the whole box is the link. settings.columns is how many sit side by side '
+                . '(2-4 usual; never more than there are boxes). layout is vertical (icon on top, centred) or horizontal '
+                . '(icon on the left). card_style is plain (no box), soft (tinted box) or outline (thin edge). icon_shape '
+                . 'is none, circle or square — a pale tint of the icon colour behind it. icon_color is empty to follow the '
+                . 'theme accent, a palette name as token:accent, or a hex. display is grid (all side by side) or slider '
+                . '(columns at a time, with arrows, dots and swipe; it moves only when there are more boxes than columns); '
+                . 'autoplay and interval (milliseconds, at least 2000) apply to a slider only.',
         ]);
 
         $vela->registerBlock('categories_grid', [

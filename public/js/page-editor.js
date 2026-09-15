@@ -1161,38 +1161,274 @@ PageEditor.registerBlockType = function(name, config) {
         syncTestimonialOptions();
     }
 
-    function buildIconBoxRow(item, i) {
+    // --- Icon box ---------------------------------------------------------
+    //
+    // The boxes are edited with their fields named and the icon picked from a
+    // grid, under a drawing of the row as it will look. It used to be a stack
+    // of unlabelled inputs and a box for typing a Font Awesome class name —
+    // which only a developer knows, and a typo in which drew nothing at all.
+
+    // Only names that exist in Font Awesome 5.2, which the admin loads, as well
+    // as in 6, which the page loads and which still answers to the 5 names: the
+    // icon chosen here is then the icon the page draws.
+    var ICON_BOX_ICONS = [
+        'fas fa-star|favourite rating quality', 'fas fa-heart|love care', 'fas fa-check-circle|done tick yes included',
+        'fas fa-thumbs-up|like good approve', 'fas fa-smile|happy customer friendly', 'fas fa-award|award quality best certified',
+        'fas fa-trophy|win best winner', 'fas fa-medal|award prize', 'fas fa-gem|premium luxury value',
+        'fas fa-bolt|fast quick power energy electric', 'fas fa-rocket|launch fast growth start', 'fas fa-shipping-fast|delivery fast express',
+        'fas fa-truck|delivery shipping transport', 'fas fa-box|package product parcel', 'fas fa-gift|gift present bonus',
+        'fas fa-shield-alt|secure safe guarantee warranty protect', 'fas fa-lock|secure private safe', 'fas fa-key|access key property',
+        'fas fa-fingerprint|identity secure', 'fas fa-user-shield|privacy protection insurance', 'fas fa-clock|time hours open',
+        'fas fa-calendar-alt|date booking schedule appointment', 'fas fa-phone|call contact telephone', 'fas fa-envelope|email mail contact',
+        'fas fa-comments|chat talk support message', 'fas fa-headset|support help service call centre', 'fas fa-life-ring|help support rescue',
+        'fas fa-map-marker-alt|location address place map', 'fas fa-globe|world international web online', 'fas fa-home|house home property',
+        'fas fa-building|office company business', 'fas fa-store|shop store retail', 'fas fa-users|team people community',
+        'fas fa-user-tie|professional staff expert consultant', 'fas fa-handshake|partner deal trust agreement', 'fas fa-hands-helping|help volunteer service',
+        'fas fa-hand-holding-heart|care charity donate', 'fas fa-balance-scale|legal law fair justice', 'fas fa-chart-line|growth results analytics',
+        'fas fa-chart-pie|report data share', 'fas fa-coins|money price save cost', 'fas fa-money-bill-wave|money cash payment',
+        'fas fa-piggy-bank|save savings budget', 'fas fa-credit-card|payment card pay', 'fas fa-shopping-cart|shop cart buy order',
+        'fas fa-tag|price sale deal', 'fas fa-percent|discount sale offer', 'fas fa-wrench|repair fix maintenance tools',
+        'fas fa-cog|settings engineering system', 'fas fa-cogs|process engineering automation', 'fas fa-code|code developer software',
+        'fas fa-laptop|computer online web', 'fas fa-mobile-alt|mobile phone app', 'fas fa-wifi|internet wireless connect',
+        'fas fa-database|data storage server', 'fas fa-cloud|cloud hosting online', 'fas fa-search|search find inspect',
+        'fas fa-lightbulb|idea creative innovation', 'fas fa-bullseye|goal target focus', 'fas fa-flag|goal milestone',
+        'fas fa-magic|easy magic automatic', 'fas fa-fire|hot popular trending', 'fas fa-leaf|nature eco green organic',
+        'fas fa-seedling|grow eco plant start', 'fas fa-tree|nature outdoor garden', 'fas fa-recycle|eco recycle sustainable',
+        'fas fa-sun|sun summer solar', 'fas fa-paw|pet animal dog cat', 'fas fa-coffee|coffee cafe break',
+        'fas fa-utensils|food restaurant dining', 'fas fa-camera|photo photography', 'fas fa-music|music sound',
+        'fas fa-paint-brush|design paint creative', 'fas fa-palette|design colour art', 'fas fa-book|learn read guide',
+        'fas fa-graduation-cap|education training course', 'fas fa-heartbeat|health medical fitness', 'fas fa-medkit|health first aid medical',
+        'fas fa-user-md|doctor medical clinic', 'fas fa-tooth|dental dentist', 'fas fa-dumbbell|gym fitness sport',
+        'fas fa-car|car vehicle drive', 'fas fa-bicycle|bike cycle', 'fas fa-plane|travel flight',
+        'fas fa-anchor|marine boat dive sea'
+    ];
+
+    var ICON_BOX_EXAMPLE = [
+        { icon: 'fas fa-bolt', title: 'Same-day callout', description: 'Book before noon and we are with you the same day.' },
+        { icon: 'fas fa-shield-alt', title: '90-day warranty', description: 'If the fix does not hold, we come back at no charge.' },
+        { icon: 'fas fa-headset', title: 'Real people on the phone', description: 'Talk to someone who knows the job, seven days a week.' }
+    ];
+
+    function buildIconBoxRow(item) {
         var icon = item.icon || 'fas fa-star';
-        return '<div class="ib-row" style="margin-bottom:10px;padding:10px;background:#f8f9fa;border-radius:4px;border-left:3px solid #3b82f6;">' +
-            '<div class="form-row align-items-center mb-2">' +
-                '<div class="col-auto">' +
-                    '<div class="ib-icon-preview" style="width:40px;height:40px;background:#e8f0fe;border-radius:6px;display:flex;align-items:center;justify-content:center;">' +
-                        '<i class="' + escHtml(icon) + '" style="font-size:1.2em;color:#3b82f6;"></i>' +
+        return '<div class="ib-row">' +
+            '<div class="pt-row-head">' +
+                '<span class="ib-handle text-muted" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></span>' +
+                '<span class="pt-summary ib-summary"></span>' +
+                '<button type="button" class="btn btn-sm btn-light duplicate-iconbox-item" title="Duplicate this box"><i class="far fa-copy"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-light remove-iconbox-item" title="Remove this box"><i class="fas fa-times"></i></button>' +
+            '</div>' +
+            '<div class="ib-body">' +
+                '<div class="pt-field ib-icon-field"><label>Icon</label>' +
+                    '<button type="button" class="ib-icon-btn" title="Choose an icon"><i class="' + escHtml(icon) + '"></i><span>Change</span></button>' +
+                    '<input type="hidden" class="ib-icon" value="' + escHtml(icon) + '">' +
+                '</div>' +
+                '<div class="ib-words-fields">' +
+                    '<div class="pt-field"><label>Title</label>' +
+                        '<input type="text" class="form-control form-control-sm ib-title" value="' + escHtml(item.title || '') + '" placeholder="e.g. Same-day callout"></div>' +
+                    '<div class="pt-field mt-2"><label>Description <small>— optional, a sentence or two</small></label>' +
+                        '<textarea class="form-control form-control-sm ib-desc" rows="2" placeholder="e.g. Book before noon and we are with you the same day.">' + escHtml(item.description || '') + '</textarea></div>' +
+                    '<div class="ib-link-fields mt-2">' +
+                        '<div class="pt-field"><label>Link <small>— optional</small></label>' +
+                            '<input type="text" class="form-control form-control-sm ib-link vela-link-input" value="' + escHtml(item.link || '') + '" placeholder="e.g. /services/repairs"></div>' +
+                        '<div class="pt-field"><label>Link text <small>— empty makes the whole box the link</small></label>' +
+                            '<input type="text" class="form-control form-control-sm ib-link-text" value="' + escHtml(item.link_text || '') + '" placeholder="e.g. Learn more"></div>' +
                     '</div>' +
                 '</div>' +
-                '<div class="col">' +
-                    '<input type="text" class="form-control form-control-sm ib-icon" placeholder="Icon class (e.g. fas fa-star)" value="' + escHtml(icon) + '">' +
-                '</div>' +
             '</div>' +
-            '<input type="text" class="form-control form-control-sm mb-1 ib-title" placeholder="Title" value="' + escHtml(item.title || '') + '">' +
-            '<textarea class="form-control form-control-sm mb-1 ib-desc" rows="2" placeholder="Description">' + escHtml(item.description || '') + '</textarea>' +
-            '<button type="button" class="btn btn-xs btn-danger remove-iconbox-item"><i class="fas fa-trash"></i> Remove</button>' +
+            '<div class="ib-picker" hidden></div>' +
         '</div>';
     }
 
-    function initIconBoxEditor(block) {
-        $(document).off('click', '#add-iconbox-item').on('click', '#add-iconbox-item', function() {
-            var $list = $('#iconbox-items-list');
-            var count = $list.find('.ib-row').length;
-            $list.append(buildIconBoxRow({ icon: 'fas fa-star', title: '', description: '' }, count));
+    function readIconBoxItem($r) {
+        return {
+            icon: $r.find('.ib-icon').val(),
+            title: $r.find('.ib-title').val(),
+            description: $r.find('.ib-desc').val(),
+            link: $.trim($r.find('.ib-link').val() || ''),
+            link_text: $r.find('.ib-link-text').val()
+        };
+    }
+
+    function iconBoxPickerHtml(current) {
+        var picks = ICON_BOX_ICONS.map(function (entry) {
+            var cls = entry.split('|')[0];
+            var name = cls.replace(/^fas fa-/, '').replace(/-/g, ' ');
+            return '<button type="button" class="ib-pick' + (cls === current ? ' is-on' : '') + '" data-icon="' + cls + '"' +
+                ' data-keys="' + escHtml(name + ' ' + entry.split('|')[1]) + '" title="' + escHtml(name) + '"><i class="' + cls + '"></i></button>';
+        }).join('');
+        return '<input type="search" class="form-control form-control-sm ib-picker-search" placeholder="Search — e.g. fast, phone, safe, team">' +
+            '<div class="ib-picker-grid">' + picks + '</div>' +
+            '<div class="ib-picker-none text-muted" hidden>No icon matches. Try another word, or type a class below.</div>' +
+            '<div class="ib-picker-foot">' +
+                '<small class="text-muted">Not here? Any free Font Awesome class works:</small>' +
+                '<input type="text" class="form-control form-control-sm ib-picker-custom" value="' + escHtml(current) + '" placeholder="fas fa-star">' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary ib-picker-close">Done</button>' +
+            '</div>';
+    }
+
+    // The settings as the page will read them, from the dialog's inputs or
+    // from a saved block.
+    function iconBoxLook(s) {
+        var one = function (value, allowed) { return allowed.indexOf(value) > -1 ? value : allowed[0]; };
+        return {
+            columns: Math.max(1, Math.min(6, parseInt(s.columns, 10) || 3)),
+            layout: one(s.layout, ['vertical', 'horizontal']),
+            style: one(s.card_style, ['plain', 'soft', 'outline']),
+            shape: one(s.icon_shape, ['none', 'circle', 'square']),
+            display: one(s.display, ['grid', 'slider']),
+            autoplay: s.autoplay === true || s.autoplay === 'true' || s.autoplay === 1,
+            interval: Math.max(2000, parseInt(s.interval, 10) || 5000),
+            colour: s.icon_color ? swatchValue(s.icon_color, '') : ''
+        };
+    }
+
+    function iconBoxDialogSettings() {
+        return {
+            columns: $('#iconbox-columns').val(),
+            layout: $('#iconbox-layout').val(),
+            card_style: $('#iconbox-card-style').val(),
+            icon_shape: $('#iconbox-icon-shape').val(),
+            display: $('#iconbox-display').val(),
+            autoplay: $('#iconbox-autoplay').is(':checked'),
+            interval: (parseFloat($('#iconbox-interval').val()) || 5) * 1000,
+            icon_color: $('#iconbox-icon-color-text').val() || ''
+        };
+    }
+
+    // A small copy of the row the page draws.
+    function iconBoxGridHtml(items, look, mini) {
+        items = items.filter(function (it) { return it.icon || it.title; });
+        var cols = Math.max(1, Math.min(look.columns, items.length));
+        var sliding = look.display === 'slider' && items.length > cols;
+        // A slider shows its first few, with the arrows and dots it moves by.
+        if (sliding) {
+            return '<div class="ibp-slider' + (mini ? ' ibp-slider--mini' : '') + '"><span class="ibp-arrow">&#8249;</span>' +
+                iconBoxGridHtml(items.slice(0, cols), $.extend({}, look, { display: 'grid' }), mini) +
+                '<span class="ibp-arrow">&#8250;</span></div>' +
+                '<div class="ibp-dots">' + items.slice(0, items.length - cols + 1).map(function (x, i) { return '<i' + (i ? '' : ' class="on"') + '></i>'; }).join('') + '</div>';
+        }
+        return '<div class="ibp-grid ibp--' + look.layout + ' ibp--' + look.style + ' ibp-shape--' + look.shape + (mini ? ' ibp--mini' : '') + '"' +
+            ' style="--cols:' + cols + (look.colour ? ';--ibp-icon:' + escHtml(look.colour) : '') + '">' +
+            items.map(function (it) {
+                return '<div class="ibp-box"><span class="ibp-icon"><i class="' + escHtml(it.icon || 'fas fa-star') + '"></i></span>' +
+                    '<div class="ibp-words">' +
+                        (it.title ? '<div class="ibp-title">' + escHtml(it.title) + '</div>' : '') +
+                        (it.description ? '<div class="ibp-desc">' + escHtml(it.description) + '</div>' : '') +
+                        (it.link && it.link_text ? '<div class="ibp-link">' + escHtml(it.link_text) + ' &rarr;</div>' : '') +
+                    '</div></div>';
+            }).join('') + '</div>';
+    }
+
+    function drawIconBoxPreview() {
+        var box = document.getElementById('iconbox-live-preview');
+        if (!box) return;
+        var $rows = $('#iconbox-items-list .ib-row');
+        var items = $rows.map(function () { return readIconBoxItem($(this)); }).get();
+        var look = iconBoxLook(iconBoxDialogSettings());
+
+        $rows.each(function (i) {
+            var it = items[i];
+            $(this).find('.ib-summary').html('<i class="' + escHtml(it.icon || 'fas fa-star') + ' ib-summary-icon"></i> <strong>' +
+                escHtml(it.title || 'Box ' + (i + 1)) + '</strong>' +
+                (it.link ? ' <small class="text-muted"><i class="fas fa-link"></i> ' + escHtml(it.link_text ? it.link_text : 'whole box') + '</small>' : ''));
         });
-        $(document).off('click', '.remove-iconbox-item').on('click', '.remove-iconbox-item', function() {
+
+        // "4 in a row" makes room for four; it does not make a fourth.
+        var sliding = look.display === 'slider';
+        $('#iconbox-slider-options').prop('hidden', !sliding);
+        $('#iconbox-interval-group').prop('hidden', !$('#iconbox-autoplay').is(':checked'));
+        $('#iconbox-columns-title').html(sliding ? 'Boxes at a time <small>— the slider moves when there are more boxes than this</small>' : 'Boxes in a row <small>— how many sit side by side; add or remove boxes below</small>');
+        var missing = !sliding && items.length && items.length < look.columns;
+        $('#iconbox-columns-note').prop('hidden', !missing).text(missing
+            ? 'You have ' + items.length + ' box' + (items.length === 1 ? '' : 'es') + ', so ' + items.length + ' show across. Add ' +
+              (look.columns - items.length === 1 ? 'one more box' : (look.columns - items.length) + ' more boxes') + ' below to fill ' + look.columns + ' across.'
+            : '');
+
+        box.innerHTML = items.length
+            ? iconBoxGridHtml(items, look, false) +
+              '<div class="vc-p-foot">' + items.length + ' box' + (items.length === 1 ? '' : 'es') + ' · ' +
+                (sliding
+                    ? (items.length > look.columns ? look.columns + ' at a time, with arrows, dots and swipe' : 'all fit at once, so the slider stands still — add more boxes to make it move') + '; two on a tablet, one on a phone'
+                    : 'up to ' + look.columns + ' in a row on a wide screen, one on a phone') + '</div>'
+            : '<div class="vc-preview-empty">No boxes yet — add one, or start from the example.</div>';
+        $('#iconbox-example').prop('hidden', items.length > 0);
+    }
+
+    function initIconBoxEditor() {
+        var $list = $('#iconbox-items-list');
+        var changed = function () { _blockEditTouched = true; drawIconBoxPreview(); };
+        var setIcon = function ($row, icon) {
+            $row.find('.ib-icon').val(icon);
+            $row.find('.ib-icon-btn i').attr('class', icon);
+            $row.find('.ib-pick').removeClass('is-on').filter(function () { return $(this).data('icon') === icon; }).addClass('is-on');
+            changed();
+        };
+
+        $(document).off('click.iconbox').on('click.iconbox', '#add-iconbox-item', function () {
+            var $row = $(buildIconBoxRow({})).appendTo($list);
+            $row.find('.ib-title').trigger('focus');
+            changed();
+        }).on('click.iconbox', '#iconbox-example', function () {
+            ICON_BOX_EXAMPLE.forEach(function (it) { $list.append(buildIconBoxRow(it)); });
+            changed();
+        }).on('click.iconbox', '.duplicate-iconbox-item', function () {
+            var $row = $(this).closest('.ib-row');
+            $row.after(buildIconBoxRow(readIconBoxItem($row)));
+            changed();
+        }).on('click.iconbox', '.remove-iconbox-item', function () {
             $(this).closest('.ib-row').remove();
+            changed();
+        }).on('click.iconbox', '.ib-icon-btn', function () {
+            var $row = $(this).closest('.ib-row');
+            var $picker = $row.find('.ib-picker');
+            var opening = $picker.prop('hidden');
+            $list.find('.ib-picker').prop('hidden', true).empty();
+            if (!opening) return;
+            $picker.html(iconBoxPickerHtml($row.find('.ib-icon').val())).prop('hidden', false);
+            $picker.find('.ib-picker-search').trigger('focus');
+        }).on('click.iconbox', '.ib-pick', function () {
+            var $row = $(this).closest('.ib-row');
+            setIcon($row, $(this).data('icon'));
+            $row.find('.ib-picker').prop('hidden', true).empty();
+        }).on('click.iconbox', '.ib-picker-close', function () {
+            $(this).closest('.ib-picker').prop('hidden', true).empty();
+        }).on('click.iconbox', '.iconbox-tile', function () {
+            var $tile = $(this);
+            $tile.closest('.vela-tiles').find('.iconbox-tile').removeClass('active').attr('aria-pressed', 'false');
+            $tile.addClass('active').attr('aria-pressed', 'true');
+            $('#' + $tile.data('input')).val($tile.data('value'));
+            changed();
         });
-        $(document).off('input.ibicon', '.ib-icon').on('input.ibicon', '.ib-icon', function() {
-            var val = $(this).val();
-            $(this).closest('.ib-row').find('.ib-icon-preview i').attr('class', val);
+
+        $(document).off('input.iconbox').on('input.iconbox', '.ib-picker-search', function () {
+            var term = $.trim($(this).val()).toLowerCase();
+            var $picker = $(this).closest('.ib-picker');
+            var shown = 0;
+            $picker.find('.ib-pick').each(function () {
+                var hit = !term || String($(this).data('keys')).indexOf(term) > -1;
+                $(this).prop('hidden', !hit);
+                if (hit) shown++;
+            });
+            $picker.find('.ib-picker-none').prop('hidden', shown > 0);
+        }).on('input.iconbox', '.ib-picker-custom', function () {
+            var icon = $.trim($(this).val());
+            if (icon) setIcon($(this).closest('.ib-row'), icon);
+        }).on('input.iconbox change.iconbox', '#iconbox-items-list .ib-title, #iconbox-items-list .ib-desc, #iconbox-items-list .ib-link, #iconbox-items-list .ib-link-text, #iconbox-autoplay, #iconbox-interval', drawIconBoxPreview);
+
+        // Enter in the search picks the only icon left rather than submitting.
+        $(document).off('keydown.iconbox').on('keydown.iconbox', '.ib-picker-search', function (e) {
+            if (e.key !== 'Enter') return;
+            e.preventDefault();
+            var $visible = $(this).closest('.ib-picker').find('.ib-pick:not([hidden])');
+            if ($visible.length) $visible.first().trigger('click');
         });
+
+        if ($list[0] && window.Sortable) {
+            Sortable.create($list[0], { handle: '.ib-handle', animation: 150, onEnd: changed });
+        }
+        bindColourFields('iconbox', changed);
+        drawIconBoxPreview();
     }
 
     // =========================================================================
@@ -5694,18 +5930,36 @@ PageEditor.registerBlockType = function(name, config) {
             : '<div class="vc-preview-empty">No plans yet — add one, or start from the example.</div>';
     }
 
-    // A colour for one part of the cards: empty follows the theme, a chip is
-    // a theme colour (and keeps following it), the picker an exact colour.
-    function pricingColourField(id, label, value) {
+    // A colour for one part of a block: empty follows the theme, a chip is a
+    // theme colour (and keeps following it), the picker an exact colour.
+    // `kind` names the classes its handlers are bound by, per block.
+    function colourField(id, label, value, kind) {
         value = value || '';
         return '<div class="form-group mb-2"><label class="mb-1" style="font-size:12px;font-weight:600;">' + label + '</label>' +
             '<div class="input-group input-group-sm">' +
-                '<input type="color" class="form-control form-control-color pricing-colour-pick" id="' + id + '" data-empty="#ffffff" value="' + escHtml(swatchValue(value, '#ffffff')) + '" style="width:48px;padding:2px;">' +
-                '<input type="text" class="form-control pricing-colour-text" id="' + id + '-text" value="' + escHtml(value) + '" placeholder="From the theme">' +
-                '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary pricing-colour-clear" data-target="' + id + '" title="Back to the theme">Theme</button></div>' +
+                '<input type="color" class="form-control form-control-color ' + kind + '-colour-pick" id="' + id + '" data-empty="#ffffff" value="' + escHtml(swatchValue(value, '#ffffff')) + '" style="width:48px;padding:2px;">' +
+                '<input type="text" class="form-control ' + kind + '-colour-text" id="' + id + '-text" value="' + escHtml(value) + '" placeholder="From the theme">' +
+                '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary ' + kind + '-colour-clear" data-target="' + id + '" title="Back to the theme">Theme</button></div>' +
             '</div>' +
             paletteStrip(id + '-text', 'bg', value) +
         '</div>';
+    }
+
+    function bindColourFields(kind, changed) {
+        var ns = '.' + kind + 'Colour';
+        $(document).off('input' + ns).on('input' + ns, '.' + kind + '-colour-pick', function () {
+            $('#' + this.id + '-text').val(this.value);
+            $(this).closest('.form-group').find('.vela-token-chip').removeClass('is-on');
+            changed();
+        });
+        $(document).off('input' + ns + 'Text change' + ns + 'Text').on('input' + ns + 'Text change' + ns + 'Text', '.' + kind + '-colour-text', changed);
+        $(document).off('click' + ns + 'Clear').on('click' + ns + 'Clear', '.' + kind + '-colour-clear', function () {
+            var id = $(this).data('target');
+            $('#' + id + '-text').val('');
+            $('#' + id).val('#ffffff');
+            $(this).closest('.form-group').find('.vela-token-chip').removeClass('is-on');
+            changed();
+        });
     }
 
     var PRICING_EXAMPLE = [
@@ -5753,9 +6007,9 @@ PageEditor.registerBlockType = function(name, config) {
                 ], 'vela-tiles--3', 'pricing-tile') +
                 '<details class="pricing-colours mb-3"' + (settings.card_color || settings.button_color || settings.featured_color ? ' open' : '') + '>' +
                     '<summary class="vc-section-title" style="cursor:pointer;display:list-item;">Colours <small>— every one follows the theme until you pick one; the text on it is chosen for you so it stays readable</small></summary>' +
-                    pricingColourField('pricing-card-color', 'Cards', settings.card_color) +
-                    pricingColourField('pricing-button-color', 'Buttons, badge and ticks', settings.button_color) +
-                    pricingColourField('pricing-featured-color', 'Highlighted plan', settings.featured_color) +
+                    colourField('pricing-card-color', 'Cards', settings.card_color, 'pricing') +
+                    colourField('pricing-button-color', 'Buttons, badge and ticks', settings.button_color, 'pricing') +
+                    colourField('pricing-featured-color', 'Highlighted plan', settings.featured_color, 'pricing') +
                 '</details>' +
                 '<div class="vc-section-title">Plans <small>— drag <i class="fas fa-grip-vertical"></i> to change the order</small></div>' +
                 '<div id="pricing-tiers-list">' + rowsHtml + '</div>' +
@@ -5803,19 +6057,7 @@ PageEditor.registerBlockType = function(name, config) {
             if ($list[0] && window.Sortable) {
                 Sortable.create($list[0], { handle: '.pt-handle', animation: 150, onEnd: changed });
             }
-            $(document).off('input.pricingColour').on('input.pricingColour', '.pricing-colour-pick', function () {
-                $('#' + this.id + '-text').val(this.value);
-                $(this).closest('.form-group').find('.vela-token-chip').removeClass('is-on');
-                changed();
-            });
-            $(document).off('input.pricingColourText change.pricingColourText').on('input.pricingColourText change.pricingColourText', '.pricing-colour-text', changed);
-            $(document).off('click.pricingColourClear').on('click.pricingColourClear', '.pricing-colour-clear', function () {
-                var id = $(this).data('target');
-                $('#' + id + '-text').val('');
-                $('#' + id).val('#ffffff');
-                $(this).closest('.form-group').find('.vela-token-chip').removeClass('is-on');
-                changed();
-            });
+            bindColourFields('pricing', changed);
             drawPricingPreview();
         },
         collectData: function(block) {
@@ -5836,69 +6078,99 @@ PageEditor.registerBlockType = function(name, config) {
     PageEditor.registerBlockType('icon_box', {
         icon: 'fa-icons',
         label: 'Icon Box',
-        defaults: { content: { items: [] }, settings: { columns: 3, layout: 'vertical' } },
+        defaults: { content: { items: [] }, settings: { columns: 3, layout: 'vertical', card_style: 'plain', icon_shape: 'none', icon_color: '', display: 'grid', autoplay: false, interval: 5000 } },
         renderPreview: function(block) {
             var items = block.content && block.content.items ? block.content.items : [];
             if (!items.length) return '<em class="text-muted">No icon boxes added</em>';
-            var cols = block.settings && block.settings.columns ? block.settings.columns : 3;
-            var gridCols = Math.min(cols, items.length);
-            var ibHtml = '<div style="display:grid;grid-template-columns:repeat(' + gridCols + ',1fr);gap:8px;">';
-            items.forEach(function(item) {
-                var desc = item.description || '';
-                var truncDesc = desc.length > 60 ? desc.substring(0, 60) + '...' : desc;
-                ibHtml += '<div style="text-align:center;padding:10px 8px;background:#f9fafb;border-radius:4px;">';
-                ibHtml += '<i class="' + escHtml(item.icon || 'fas fa-star') + '" style="font-size:1.5em;color:#3b82f6;margin-bottom:6px;display:block;"></i>';
-                ibHtml += '<div style="font-weight:600;font-size:0.85em;margin-bottom:4px;">' + escHtml(item.title || '') + '</div>';
-                ibHtml += '<div style="font-size:0.78em;color:#6b7280;">' + escHtml(truncDesc) + '</div>';
-                ibHtml += '</div>';
-            });
-            ibHtml += '</div>';
-            return ibHtml;
+            return iconBoxGridHtml(items, iconBoxLook(block.settings || {}), true);
         },
         renderEditor: function(block) {
             var items = block.content && block.content.items ? block.content.items : [];
-            var columns = block.settings && block.settings.columns ? block.settings.columns : 3;
-            var layout = block.settings && block.settings.layout ? block.settings.layout : 'vertical';
-            var rowsHtml = '';
-            items.forEach(function(item, i) {
-                rowsHtml += buildIconBoxRow(item, i);
-            });
-            return '<div id="iconbox-items-list">' + rowsHtml + '</div>' +
-                '<button type="button" class="btn btn-sm btn-success mt-2" id="add-iconbox-item">+ Add Icon Box</button>' +
-                '<hr>' +
-                '<div class="form-row">' +
-                    '<div class="form-group col-md-6">' +
-                        '<label>Columns</label>' +
-                        '<input type="number" class="form-control" id="iconbox-columns" value="' + escHtml(String(columns)) + '" min="1" max="6">' +
+            var settings = block.settings || {};
+            var look = iconBoxLook(settings);
+            var rowsHtml = items.map(function (it) { return buildIconBoxRow(it); }).join('');
+            var colsArt = function (n) { var c = ''; for (var i = 0; i < n; i++) c += '<i></i>'; return '<span class="vc-shape vg-cols" style="--n:' + n + '">' + c + '</span>'; };
+            var boxArt = function (cls) { return '<span class="vc-shape ib-art ' + cls + '"><b><s></s><u></u><u class="short"></u></b><b><s></s><u></u><u class="short"></u></b></span>'; };
+            var shapeArt = function (cls) { return '<span class="vc-shape ib-shape-art ' + cls + '"><b><span class="fas fa-star"></span></b></span>'; };
+            return '<div class="vc-section-title">How it will look</div>' +
+                '<div id="iconbox-live-preview" class="vc-preview"></div>' +
+
+                '<div class="vc-section-title">How to show them</div>' +
+                '<input type="hidden" id="iconbox-display" value="' + look.display + '">' +
+                carouselTiles('iconbox-display', look.display, [
+                    { value: 'grid', label: 'Side by side · all at once', art: '<span class="vc-shape vg-cols" style="--n:3"><i></i><i></i><i></i></span>' },
+                    { value: 'slider', label: 'Slider · arrows, dots and swipe', art: '<span class="vc-shape ib-slide-art"><b>&#8249;</b><i></i><i></i><i></i><b>&#8250;</b></span>' }
+                ], 'vela-tiles--2', 'iconbox-tile') +
+                '<div id="iconbox-slider-options" class="mb-3"' + (look.display === 'slider' ? '' : ' hidden') + '>' +
+                    '<div class="form-check">' +
+                        '<input type="checkbox" class="form-check-input" id="iconbox-autoplay"' + (look.autoplay ? ' checked' : '') + '>' +
+                        '<label class="form-check-label" for="iconbox-autoplay">Move on by itself <small class="text-muted">— pauses while someone points at it</small></label>' +
                     '</div>' +
-                    '<div class="form-group col-md-6">' +
-                        '<label>Layout</label>' +
-                        '<select class="form-control" id="iconbox-layout">' +
-                            '<option value="vertical"' + (layout === 'vertical' ? ' selected' : '') + '>Vertical (icon on top)</option>' +
-                            '<option value="horizontal"' + (layout === 'horizontal' ? ' selected' : '') + '>Horizontal (icon on left)</option>' +
-                        '</select>' +
+                    '<div class="form-group mt-2 mb-0" id="iconbox-interval-group"' + (look.autoplay ? '' : ' hidden') + '><label for="iconbox-interval" class="mb-1" style="font-size:12px;font-weight:600;">Seconds per move</label>' +
+                        '<input type="number" class="form-control form-control-sm" id="iconbox-interval" value="' + (Math.round(look.interval / 100) / 10) + '" min="2" step="0.5" style="max-width:120px;">' +
                     '</div>' +
                 '</div>' +
-                '<small class="text-muted">Example FA classes: <code>fas fa-star</code>, <code>fas fa-heart</code>, <code>fas fa-globe</code>, <code>fas fa-anchor</code>, <code>fas fa-water</code></small>';
+
+                '<div class="vc-section-title" id="iconbox-columns-title">Boxes in a row <small>— how many sit side by side; add or remove boxes below</small></div>' +
+                '<input type="hidden" id="iconbox-columns" value="' + look.columns + '">' +
+                carouselTiles('iconbox-columns', look.columns, [2, 3, 4].map(function (n) {
+                    return { value: n, label: n + ' across', art: colsArt(n) };
+                }), 'vela-tiles--3', 'iconbox-tile') +
+                '<div class="alert alert-info py-1 px-2 mb-2" id="iconbox-columns-note" hidden style="font-size:.85rem;"></div>' +
+
+                '<div class="vc-section-title">Icon position</div>' +
+                '<input type="hidden" id="iconbox-layout" value="' + look.layout + '">' +
+                carouselTiles('iconbox-layout', look.layout, [
+                    { value: 'vertical', label: 'On top · words centred', art: boxArt('ib-art--vertical') },
+                    { value: 'horizontal', label: 'On the left · words beside it', art: boxArt('ib-art--horizontal') }
+                ], 'vela-tiles--2', 'iconbox-tile') +
+
+                '<div class="vc-section-title">Box style</div>' +
+                '<input type="hidden" id="iconbox-card-style" value="' + look.style + '">' +
+                carouselTiles('iconbox-card-style', look.style, [
+                    { value: 'plain', label: 'Plain · no box', art: boxArt('ib-art--vertical ib-art--plain') },
+                    { value: 'soft', label: 'Soft · tinted box', art: boxArt('ib-art--vertical ib-art--soft') },
+                    { value: 'outline', label: 'Outline · thin edge', art: boxArt('ib-art--vertical ib-art--outline') }
+                ], 'vela-tiles--3', 'iconbox-tile') +
+
+                '<div class="vc-section-title">Behind the icon</div>' +
+                '<input type="hidden" id="iconbox-icon-shape" value="' + look.shape + '">' +
+                carouselTiles('iconbox-icon-shape', look.shape, [
+                    { value: 'none', label: 'Nothing · icon only', art: shapeArt('ib-shape-art--none') },
+                    { value: 'circle', label: 'Circle', art: shapeArt('ib-shape-art--circle') },
+                    { value: 'square', label: 'Rounded square', art: shapeArt('ib-shape-art--square') }
+                ], 'vela-tiles--3', 'iconbox-tile') +
+
+                '<details class="pricing-colours mb-3"' + (settings.icon_color ? ' open' : '') + '>' +
+                    '<summary class="vc-section-title" style="cursor:pointer;display:list-item;">Icon colour <small>— follows the theme until you pick one; a shape behind the icon takes a pale tint of it</small></summary>' +
+                    colourField('iconbox-icon-color', 'Icons', settings.icon_color, 'iconbox') +
+                '</details>' +
+
+                '<div class="vc-section-title">Boxes <small>— drag <i class="fas fa-grip-vertical"></i> to change the order</small></div>' +
+                '<div id="iconbox-items-list">' + rowsHtml + '</div>' +
+                '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;">' +
+                    '<button type="button" class="btn btn-sm btn-success" id="add-iconbox-item"><i class="fas fa-plus mr-1"></i> Add box</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-info" id="iconbox-example"' + (items.length ? ' hidden' : '') + '><i class="fas fa-magic mr-1"></i> Start from an example (3 boxes)</button>' +
+                '</div>';
         },
         initEditor: function(block) {
             initIconBoxEditor(block);
         },
         collectData: function(block) {
-            var iconBoxItems = [];
-            $('#iconbox-items-list .ib-row').each(function() {
-                iconBoxItems.push({
-                    icon: $(this).find('.ib-icon').val(),
-                    title: $(this).find('.ib-title').val(),
-                    description: $(this).find('.ib-desc').val()
-                });
-            });
+            var items = $('#iconbox-items-list .ib-row').map(function () { return readIconBoxItem($(this)); }).get();
+            var look = iconBoxLook(iconBoxDialogSettings());
             return {
-                content: { items: iconBoxItems },
-                settings: {
-                    columns: parseInt($('#iconbox-columns').val()) || 3,
-                    layout: $('#iconbox-layout').val() || 'vertical'
-                }
+                content: $.extend({}, block.content, { items: items }),
+                settings: $.extend({}, block.settings, {
+                    columns: look.columns,
+                    layout: look.layout,
+                    card_style: look.style,
+                    icon_shape: look.shape,
+                    icon_color: $('#iconbox-icon-color-text').val() || '',
+                    display: look.display,
+                    autoplay: look.autoplay,
+                    interval: look.interval
+                })
             };
         }
     });

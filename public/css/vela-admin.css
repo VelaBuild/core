@@ -594,6 +594,71 @@ body.vela-admin .CodeMirror.vela-code-editor.CodeMirror-focused { border-color: 
 .pp-grid--mini .pp-card { padding: 12px 8px 8px; }
 .pp-grid--mini .pp-list, .pp-grid--mini .pp-desc, .pp-grid--mini .pp-cap { display: none; }
 
+/* Icon box: each box edited with its fields named, the icon picked from a grid. */
+.vela-tiles--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ib-row { margin-bottom: 10px; padding: 10px 12px 12px; background: #f8f9fa; border: 1px solid var(--border-subtle, #e5e7eb); border-left: 3px solid #94a3b8; border-radius: 8px; }
+.ib-handle { cursor: grab; }
+.ib-summary-icon { width: 18px; text-align: center; color: var(--accent, #2563eb); }
+.ib-body { display: grid; grid-template-columns: 84px 1fr; gap: 12px; }
+.ib-icon-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 84px; height: 84px; padding: 0; background: #fff; border: 1px dashed #94a3b8; border-radius: 8px; color: #1f2937; cursor: pointer; }
+.ib-icon-btn i { font-size: 28px; color: var(--accent, #2563eb); }
+.ib-icon-btn span { font-size: 11px; color: var(--fg-muted, #6b7280); }
+.ib-icon-btn:hover, .ib-icon-btn:focus { border-style: solid; border-color: var(--accent, #2563eb); outline: 0; }
+.ib-picker { margin-top: 10px; padding: 10px; background: #fff; border: 1px solid var(--border-subtle, #e5e7eb); border-radius: 8px; }
+.ib-picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px; max-height: 196px; overflow-y: auto; margin: 8px 0; }
+.ib-pick { height: 40px; padding: 0; background: #f8f9fa; border: 1px solid transparent; border-radius: 6px; color: #374151; font-size: 17px; cursor: pointer; }
+.ib-pick:hover { background: #eef2ff; color: var(--accent, #2563eb); }
+.ib-pick.is-on { background: var(--accent, #2563eb); color: #fff; }
+.ib-picker-none { font-size: 12px; padding: 8px 0; }
+.ib-picker-foot { display: grid; grid-template-columns: 1fr 160px auto; gap: 6px; align-items: center; }
+@media (max-width: 600px) { .ib-body { grid-template-columns: 1fr; } .ib-picker-foot { grid-template-columns: 1fr; } }
+.ib-link-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+@media (max-width: 600px) { .ib-link-fields { grid-template-columns: 1fr; } }
+.ib-summary small { font-size: 11px; }
+/* Tile drawings for the icon box options. */
+.ib-art { gap: 6px; padding: 0 10px; }
+.ib-art b { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 3px; border-radius: 4px; }
+.ib-art s { display: block; width: 12px; height: 12px; border-radius: 50%; background: var(--accent, #2563eb); flex-shrink: 0; }
+.ib-art u { display: block; width: 80%; height: 3px; background: #94a3b8; border-radius: 2px; }
+.ib-art u.short { width: 55%; }
+.ib-art--horizontal b { display: grid; grid-template-columns: 12px 1fr; grid-template-rows: auto auto; column-gap: 4px; row-gap: 3px; align-items: center; }
+.ib-art--horizontal s { grid-row: 1 / 3; }
+.ib-art--horizontal u { width: 100%; }
+.ib-art--soft b { background: #e2e8f0; }
+.ib-art--outline b { border: 1px solid #94a3b8; }
+.ib-shape-art b { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; color: var(--accent, #2563eb); font-size: 15px; }
+.ib-shape-art--circle b { border-radius: 50%; background: rgba(37, 99, 235, .14); }
+.ib-shape-art--square b { border-radius: 9px; background: rgba(37, 99, 235, .14); }
+/* Icon box preview — a small copy of the public row. */
+.ibp-grid { --ibp-icon: var(--accent, #2563eb); display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 10px; font-size: 12px; color: #1f2937; }
+.ibp-box { min-width: 0; padding: 14px 10px; border-radius: 10px; }
+.ibp--vertical .ibp-box { text-align: center; }
+.ibp--horizontal .ibp-box { display: flex; align-items: flex-start; gap: 10px; }
+.ibp--soft .ibp-box { background: #f1f3f5; }
+.ibp--outline .ibp-box { border: 1px solid #d1d5db; }
+.ibp-icon { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ibp-icon); font-size: 24px; }
+.ibp--vertical .ibp-icon { margin-bottom: 8px; }
+.ibp-shape--circle .ibp-icon, .ibp-shape--square .ibp-icon { width: 44px; height: 44px; font-size: 18px; background: rgba(37, 99, 235, .12); background: color-mix(in srgb, var(--ibp-icon) 14%, transparent); }
+.ibp-shape--circle .ibp-icon { border-radius: 50%; }
+.ibp-shape--square .ibp-icon { border-radius: 12px; }
+.ibp-words { min-width: 0; }
+.ibp-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; overflow-wrap: anywhere; }
+.ibp-desc { color: #6b7280; line-height: 1.4; overflow-wrap: anywhere; }
+.ibp-link { margin-top: 4px; font-weight: 600; color: var(--ibp-icon); }
+.ibp-slider { display: flex; align-items: center; gap: 6px; }
+.ibp-slider > .ibp-grid { flex: 1; min-width: 0; }
+.ibp-arrow { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; border: 1px solid #d1d5db; background: #fff; color: #6b7280; font-size: 15px; line-height: 1; }
+.ibp-dots { display: flex; justify-content: center; gap: 4px; margin-top: 8px; }
+.ibp-dots i { width: 6px; height: 6px; border-radius: 50%; background: #d1d5db; }
+.ibp-dots i.on { background: var(--accent, #2563eb); }
+.ib-slide-art { gap: 4px; padding: 0 8px; }
+.ib-slide-art i { flex: 1; height: 24px; background: #94a3b8; border: 0; border-radius: 2px; }
+.ib-slide-art b { color: #94a3b8; font-size: 16px; line-height: 1; }
+.ibp--mini .ibp-box { padding: 8px 6px; }
+.ibp--mini .ibp-icon { font-size: 18px; }
+.ibp--mini.ibp-shape--circle .ibp-icon, .ibp--mini.ibp-shape--square .ibp-icon { width: 32px; height: 32px; font-size: 14px; }
+.ibp--mini .ibp-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
 /* The live preview of a gallery in its dialog. */
 .vg-p { display: grid; grid-template-columns: repeat(var(--c), minmax(0, 1fr)); gap: var(--g); max-width: 460px; margin: 0 auto; }
 .vg-p-item { overflow: hidden; border-radius: 4px; background: #e5e7eb; aspect-ratio: var(--r); }
