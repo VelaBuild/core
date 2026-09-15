@@ -107,6 +107,44 @@ class DesignTokens
     }
 
     /**
+     * The text colour to put on a stored background colour, as CSS, or null.
+     *
+     * Asked of a colour someone chose for a card or a button, so the words on
+     * it cannot come out unreadable — the choice is the ground, and the ink
+     * follows. A palette colour takes the ink its theme pairs with it (the
+     * accent's own ink, the band's); a hex is judged by its lightness. For a
+     * colour this cannot judge, the answer is null and the theme's ink stays.
+     */
+    public static function inkFor(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if (str_starts_with($value, self::PREFIX)) {
+            $name = substr($value, strlen(self::PREFIX));
+            $pairs = ['accent' => 'accent-ink', 'band' => 'band-ink'];
+
+            if (!isset(self::PALETTE[$name])) {
+                return null;
+            }
+
+            return self::colour(self::PREFIX . ($pairs[$name] ?? 'ink'));
+        }
+
+        if (!preg_match('/^#([0-9a-f]{3}|[0-9a-f]{6})$/i', $value, $m)) {
+            return null;
+        }
+
+        $hex = strlen($m[1]) === 3 ? preg_replace('/(.)/', '$1$1', $m[1]) : $m[1];
+        [$r, $g, $b] = array_map(fn ($c) => hexdec($c) / 255, str_split($hex, 2));
+        // Relative luminance (WCAG): light grounds get near-black, dark get white.
+        $lin = fn ($c) => $c <= 0.03928 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
+        $luminance = 0.2126 * $lin($r) + 0.7152 * $lin($g) + 0.0722 * $lin($b);
+
+        // 0.179 is where black and white give the same contrast.
+        return $luminance > 0.179 ? '#111827' : '#ffffff';
+    }
+
+    /**
      * A literal colour, or null.
      *
      * The same grammar the theme colour settings use: a hex, one of the CSS

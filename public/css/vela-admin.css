@@ -578,9 +578,19 @@ body.vela-admin .CodeMirror.vela-code-editor.CodeMirror-focused { border-color: 
 .pp-cap { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; opacity: .55; }
 .pp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .pp-list li { position: relative; padding-left: 14px; line-height: 1.35; }
-.pp-list li::before { content: '✓'; position: absolute; left: 0; color: #22A2AB; font-weight: 700; }
+.pp-list li::before { content: '✓'; position: absolute; left: 0; color: var(--pp-tick, var(--accent, #2563eb)); font-weight: 700; }
+.pp-card.is-featured .pp-list li::before { color: currentColor; }
 .pp-list li.is-muted { opacity: .45; }
 .pp-list li.is-muted::before { content: '–'; }
+.pp-grid--soft .pp-card:not(.is-featured) { background: #f3f4f6; border-color: transparent; }
+.pp-grid--outline .pp-card:not(.is-featured) { background: transparent; border: 2px solid #d1d5db; }
+.pp-style { gap: 5px; padding: 0 12px; }
+.pp-style i { flex: 1; height: 34px; border-radius: 4px; background: #fff; border: 1px solid #cbd5e1; }
+.pp-style i.hl { background: #1f2937; border-color: #1f2937; }
+.pp-style--soft i:not(.hl) { background: #e2e8f0; border-color: transparent; }
+.pp-style--outline i:not(.hl) { background: transparent; border: 2px solid #94a3b8; }
+.pricing-colours summary small { font-weight: 400; }
+.pricing-colours .input-group-append .btn { border: 1px solid var(--border-strong, #d1d5db); border-left: 0; background: #fff; font-size: 12px; }
 .pp-grid--mini .pp-card { padding: 12px 8px 8px; }
 .pp-grid--mini .pp-list, .pp-grid--mini .pp-desc, .pp-grid--mini .pp-cap { display: none; }
 

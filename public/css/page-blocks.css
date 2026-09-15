@@ -537,7 +537,8 @@ html.vela-lightbox-open { overflow: hidden; }
 
 .block-pricing-tier {
     position: relative;
-    background: #fff;
+    background: var(--block-bg-white);
+    color: var(--block-text-primary);
     border: 1px solid var(--block-border);
     border-radius: 18px;
     padding: 28px 24px;
@@ -547,19 +548,22 @@ html.vela-lightbox-open { overflow: hidden; }
     transition: transform .2s, border-color .2s, box-shadow .2s;
 }
 .block-pricing-tier:hover { transform: translateY(-2px); border-color: var(--block-text-muted); box-shadow: 0 10px 30px rgba(18,27,46,0.06); }
+/* The highlighted plan is drawn in the theme's band — the dark strip it opens
+   and closes its pages with. It was a fixed navy with teal from one design,
+   and stayed navy and teal on every theme. */
 .block-pricing-tier.is-featured {
-    background: #121B2E;
-    color: #FBF9F5;
+    background: var(--vela-band, #1a1a1a);
+    color: var(--vela-band-ink, #ffffff);
     border-color: transparent;
-    box-shadow: 0 20px 40px rgba(18,27,46,0.18);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.18);
 }
 .block-pricing-tier-badge {
     position: absolute;
     top: -10px;
     left: 50%;
     transform: translateX(-50%);
-    background: #22A2AB;
-    color: #fff;
+    background: var(--block-accent);
+    color: var(--vela-primary-ink, #fff);
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -579,37 +583,57 @@ html.vela-lightbox-open { overflow: hidden; }
     position: absolute;
     left: 2px; top: 7px;
     width: 12px; height: 6px;
-    border-left: 2px solid #22A2AB;
-    border-bottom: 2px solid #22A2AB;
+    border-left: 2px solid var(--block-accent);
+    border-bottom: 2px solid var(--block-accent);
     transform: rotate(-45deg);
 }
-.block-pricing-tier.is-featured .block-pricing-tier-features li::before { border-color: #40B6BD; }
+.block-pricing-tier.is-featured .block-pricing-tier-features li::before { border-color: currentColor; }
 .block-pricing-tier-cta {
     display: inline-block;
     text-align: center;
     padding: 11px 18px;
     border-radius: 10px;
     background: var(--block-accent);
-    color: #fff;
+    color: var(--vela-primary-ink, #fff);
     font-weight: 600;
     font-size: 0.95rem;
     text-decoration: none;
     margin-top: 6px;
     transition: background .15s, transform .1s;
 }
-.block-pricing-tier-cta:hover { background: var(--block-accent-hover); color: #fff; text-decoration: none; }
-.block-pricing-tier.is-featured .block-pricing-tier-cta { background: #40B6BD; color: #0A1020; }
-.block-pricing-tier.is-featured .block-pricing-tier-cta:hover { background: #5FC6CD; }
+.block-pricing-tier-cta:hover { background: var(--block-accent-hover); color: var(--vela-primary-ink, #fff); text-decoration: none; }
+/* On the band, the button turns the band's colours round: a theme whose accent
+   and band are the same colour would otherwise draw the button invisibly. */
+.block-pricing-tier.is-featured .block-pricing-tier-cta { background: var(--vela-band-ink, #fff); color: var(--vela-band, #1a1a1a); }
+.block-pricing-tier.is-featured .block-pricing-tier-cta:hover { background: var(--vela-band-ink, #fff); color: var(--vela-band, #1a1a1a); filter: brightness(.92); }
 
 /* Pricing tier extensions — subtitle, price currency/note, features cap, muted feature */
 .block-pricing-tier-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--block-text-muted); margin-bottom: 4px; }
-.block-pricing-tier.is-featured .block-pricing-tier-label { color: rgba(255,255,255,0.7); }
+.block-pricing-tier.is-featured .block-pricing-tier-label { color: inherit; opacity: 0.7; }
 .block-pricing-tier-headline { font-family: var(--block-heading-font); font-size: 1.5rem; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
 .block-pricing-tier-price-cur { font-size: 1.2rem; font-weight: 500; margin-right: 2px; opacity: 0.7; align-self: flex-start; line-height: 1.2; }
 .block-pricing-tier-price-note { font-size: 0.8rem; color: currentColor; opacity: 0.6; margin-top: -4px; }
 .block-pricing-tier-features-cap { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; color: currentColor; opacity: 0.55; margin-top: 4px; }
 .block-pricing-tier-features li.is-muted { opacity: 0.55; }
 .block-pricing-tier-features li.is-muted::before { opacity: 0.4; }
+
+/* Card styles — settings.card_style. clean is the rules above, which a theme
+   may restyle; these name the block twice to outrank that. */
+.block-pricing-tiers.block-pricing-tiers--soft .block-pricing-tier:not(.is-featured) { background: var(--block-bg-light); border-color: transparent; box-shadow: none; }
+.block-pricing-tiers.block-pricing-tiers--outline .block-pricing-tier:not(.is-featured) { background: transparent; color: inherit; border: 2px solid var(--block-border); box-shadow: none; }
+.block-pricing-tiers.block-pricing-tiers--outline .block-pricing-tier.is-featured { border: 2px solid transparent; }
+
+/* Colours an owner chose — settings.card_color, button_color, featured_color,
+   set on the block as --tier-*-bg with the ink worked out from each. */
+.block-pricing-tiers.has-card-color .block-pricing-tier:not(.is-featured) { background: var(--tier-card-bg); color: var(--tier-card-ink, inherit); border-color: transparent; }
+.block-pricing-tiers.has-card-color .block-pricing-tier:not(.is-featured) .block-pricing-tier-label { color: inherit; opacity: 0.7; }
+.block-pricing-tiers.has-featured-color .block-pricing-tier.is-featured { background: var(--tier-featured-bg); color: var(--tier-featured-ink, inherit); }
+.block-pricing-tiers.has-featured-color .block-pricing-tier.is-featured .block-pricing-tier-cta { background: var(--tier-featured-ink, #fff); color: var(--tier-featured-bg); }
+.block-pricing-tiers.has-button-color .block-pricing-tier .block-pricing-tier-cta,
+.block-pricing-tiers.has-button-color .block-pricing-tier.is-featured .block-pricing-tier-cta { background: var(--tier-button-bg); color: var(--tier-button-ink, #fff); }
+.block-pricing-tiers.has-button-color .block-pricing-tier .block-pricing-tier-cta:hover { background: var(--tier-button-bg); color: var(--tier-button-ink, #fff); filter: brightness(.92); }
+.block-pricing-tiers.has-button-color .block-pricing-tier-badge { background: var(--tier-button-bg); color: var(--tier-button-ink, #fff); }
+.block-pricing-tiers.has-button-color .block-pricing-tier:not(.is-featured) .block-pricing-tier-features li::before { border-color: var(--tier-button-bg); }
 
 /* CTA note — small fine-print line under the buttons */
 .block-cta-note { margin-top: 14px; font-size: 0.85rem; opacity: 0.65; }

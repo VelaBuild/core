@@ -4,9 +4,31 @@
     // Never more columns than plans: four columns for three plans left an
     // empty fourth, and the cards sat to one side of the row.
     $columns  = max(1, min(4, (int) ($settings['columns'] ?? 3), count($tiers)));
+
+    // clean is the card the theme draws, and what every block saved before
+    // there was a choice gets. soft and outline name the block twice in
+    // page-blocks.css so they outrank a theme's own card rule.
+    $style = in_array($settings['card_style'] ?? '', ['clean', 'soft', 'outline'], true) ? $settings['card_style'] : 'clean';
+
+    // Three colours an owner may set; each left empty follows the theme. A
+    // colour is stored as `token:name` or a literal, and the ink on it is
+    // chosen from it, so no choice can make a card or button unreadable.
+    $vars = ['--tier-cols: ' . $columns . ';'];
+    $classes = ['block-pricing-tiers', 'block-pricing-tiers--' . $style];
+    foreach (['card_color' => 'card', 'button_color' => 'button', 'featured_color' => 'featured'] as $key => $part) {
+        $bg = \VelaBuild\Core\Services\DesignTokens::colour($settings[$key] ?? null);
+        if ($bg === null) {
+            continue;
+        }
+        $vars[] = '--tier-' . $part . '-bg: ' . $bg . ';';
+        if ($ink = \VelaBuild\Core\Services\DesignTokens::inkFor($settings[$key])) {
+            $vars[] = '--tier-' . $part . '-ink: ' . $ink . ';';
+        }
+        $classes[] = 'has-' . $part . '-color';
+    }
 @endphp
 @if(count($tiers) > 0)
-    <div class="block-pricing-tiers" style="--tier-cols: {{ $columns }};">
+    <div class="{{ implode(' ', $classes) }}" style="{{ implode(' ', $vars) }}">
 @foreach($tiers as $tier)
 @php
     $name         = $tier['name'] ?? '';

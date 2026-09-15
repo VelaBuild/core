@@ -10,13 +10,13 @@ use VelaBuild\Core\Tests\PackageTestCase;
  */
 class PricingTiersBlockRenderTest extends PackageTestCase
 {
-    private function render(array $tiers, int $columns = 3): string
+    private function render(array $tiers, int $columns = 3, array $settings = []): string
     {
         $slug = 'pricing-check-' . Page::count();
         $page = Page::create(['title' => 'Prices', 'slug' => $slug, 'locale' => 'en', 'status' => 'published']);
         $row = $page->rows()->create(['name' => 'Body', 'width' => 'contained', 'order_column' => 0]);
         $row->blocks()->create([
-            'type' => 'pricing_tiers', 'content' => ['tiers' => $tiers], 'settings' => ['columns' => $columns],
+            'type' => 'pricing_tiers', 'content' => ['tiers' => $tiers], 'settings' => ['columns' => $columns] + $settings,
             'column_index' => 0, 'column_width' => 12, 'order_column' => 0,
         ]);
 
@@ -59,5 +59,37 @@ class PricingTiersBlockRenderTest extends PackageTestCase
         $this->assertStringContainsString('style="--tier-cols: 3;"', $this->render([$plan, $plan, $plan], 4));
         $this->assertStringContainsString('style="--tier-cols: 4;"', $this->render([$plan, $plan, $plan, $plan, $plan], 4));
         $this->assertStringContainsString('style="--tier-cols: 4;"', $this->render([$plan, $plan, $plan, $plan], 9));
+    }
+
+    public function test_a_block_with_no_look_chosen_follows_the_theme(): void
+    {
+        $html = $this->render([['name' => 'A', 'price' => '1', 'features' => [], 'featured' => true]]);
+
+        $this->assertStringContainsString('class="block-pricing-tiers block-pricing-tiers--clean" style="--tier-cols: 1;"', $html);
+    }
+
+    public function test_chosen_colours_carry_an_ink_that_can_be_read_on_them(): void
+    {
+        $plan = ['name' => 'A', 'price' => '1', 'features' => []];
+        $html = $this->render([$plan, $plan], 3, [
+            'card_style' => 'soft', 'card_color' => '#fef3c7', 'button_color' => 'token:accent', 'featured_color' => '#0f172a',
+        ]);
+
+        $this->assertStringContainsString('block-pricing-tiers--soft has-card-color has-button-color has-featured-color', $html);
+        // A light card gets dark words, a dark highlight white ones.
+        $this->assertStringContainsString('--tier-card-bg: #fef3c7; --tier-card-ink: #111827;', $html);
+        $this->assertStringContainsString('--tier-featured-bg: #0f172a; --tier-featured-ink: #ffffff;', $html);
+        // A theme colour stays a theme colour, with the ink the theme pairs it with.
+        $this->assertStringContainsString('--tier-button-bg: var(--vela-primary, #2563eb); --tier-button-ink: var(--vela-primary-ink, #ffffff);', $html);
+    }
+
+    public function test_a_colour_that_is_not_one_is_ignored(): void
+    {
+        $plan = ['name' => 'A', 'price' => '1', 'features' => []];
+        $html = $this->render([$plan], 3, ['card_color' => 'red; position: fixed; inset: 0', 'card_style' => '"><script>']);
+
+        $this->assertStringNotContainsString('has-card-color', $html);
+        $this->assertStringNotContainsString('position: fixed', $html);
+        $this->assertStringContainsString('block-pricing-tiers--clean', $html);
     }
 }

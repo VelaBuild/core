@@ -5610,20 +5610,57 @@ PageEditor.registerBlockType = function(name, config) {
     }
 
     // The same card the page draws, small: name, heading, price, button, list.
-    function pricingCardHtml(t) {
+    // What a stored colour paints and what ink goes on it, for the preview:
+    // the same judgement DesignTokens::inkFor makes on the page.
+    function pricingInk(hex) {
+        var m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+        if (!m) return null;
+        var lin = function (c) { c = parseInt(c, 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+        var l = 0.2126 * lin(m[1].substr(0, 2)) + 0.7152 * lin(m[1].substr(2, 2)) + 0.0722 * lin(m[1].substr(4, 2));
+        return l > 0.179 ? '#111827' : '#ffffff';
+    }
+
+    function pricingLook() {
+        var paint = function (id) {
+            var v = $('#' + id + '-text').val() || '';
+            if (!v) return null;
+            var hex = swatchValue(v, '');
+            if (!hex) return null;
+            // A palette colour carries its own pair on the page; the preview
+            // can only show the default theme's, which is what the swatch is.
+            var pairs = { 'token:accent': 'token:accent-ink', 'token:band': 'token:band-ink' };
+            var ink = pairs[v] ? swatchValue(pairs[v], '#ffffff') : (v.indexOf('token:') === 0 ? swatchValue('token:ink', '#111827') : pricingInk(hex));
+            return { bg: hex, ink: ink || '#111827' };
+        };
+        return {
+            style: $('#pricing-card-style').val() || 'clean',
+            card: paint('pricing-card-color'),
+            button: paint('pricing-button-color'),
+            featured: paint('pricing-featured-color')
+        };
+    }
+
+    function pricingCardHtml(t, look) {
+        look = look || {};
+        var ground = t.featured ? look.featured : look.card;
+        var tick = look.button ? '--pp-tick:' + look.button.bg + ';' : '';
+        var cardStyle = (ground || tick) ? ' style="' + tick + (ground ? 'background:' + ground.bg + ';color:' + ground.ink + ';border-color:transparent' : '') + '"' : '';
+        var btn = look.button || (t.featured ? (look.featured ? { bg: look.featured.ink, ink: look.featured.bg } : null) : null);
+        var btnStyle = btn ? ' style="background:' + btn.bg + ';color:' + btn.ink + '"' : '';
+        var badgeStyle = look.button ? ' style="background:' + look.button.bg + ';color:' + look.button.ink + '"' : '';
         var features = (t.features || []).map(function (f) {
             var muted = f && typeof f === 'object' && f.muted;
             return '<li' + (muted ? ' class="is-muted"' : '') + '>' + escHtml(f && typeof f === 'object' ? f.text : f) + '</li>';
         }).join('');
-        return '<div class="pp-card' + (t.featured ? ' is-featured' : '') + '">' +
-            (t.featured ? '<span class="pp-badge">' + escHtml(t.badge || 'Most popular') + '</span>' : '') +
+        return '<div class="pp-card' + (t.featured ? ' is-featured' : '') + '"' + cardStyle + '>' +
+            (t.featured ? '<span class="pp-badge"' + badgeStyle + '>' + escHtml(t.badge || 'Most popular') + '</span>' : '') +
             (t.name ? '<div class="pp-name">' + escHtml(t.name) + '</div>' : '') +
             (t.subtitle ? '<div class="pp-head">' + escHtml(t.subtitle) + '</div>' : '') +
             (t.description ? '<div class="pp-desc">' + escHtml(t.description) + '</div>' : '') +
             (t.price ? '<div class="pp-price"><span class="pp-cur">' + escHtml(t.price_currency || '') + '</span>' + escHtml(t.price) +
                 (t.period ? ' <span class="pp-per">' + escHtml(t.period) + '</span>' : '') + '</div>' : '') +
             (t.price_note ? '<div class="pp-note">' + escHtml(t.price_note) + '</div>' : '') +
-            '<span class="pp-cta">' + escHtml(t.cta_text || 'Get started') + '</span>' +
+            '<span class="pp-cta"' + btnStyle + '>' + escHtml(t.cta_text || 'Get started') + '</span>' +
             (t.features_cap ? '<div class="pp-cap">' + escHtml(t.features_cap) + '</div>' : '') +
             (features ? '<ul class="pp-list">' + features + '</ul>' : '') +
         '</div>';
@@ -5634,6 +5671,7 @@ PageEditor.registerBlockType = function(name, config) {
         if (!box) return;
         var tiers = $('#pricing-tiers-list .pt-row').map(function () { return readPricingTier($(this)); }).get();
         var cols = parseInt($('#pricing-tiers-columns').val(), 10) || 3;
+        var look = pricingLook();
 
         $('#pricing-tiers-list .pt-row').each(function (i) {
             var t = tiers[i];
@@ -5651,9 +5689,23 @@ PageEditor.registerBlockType = function(name, config) {
             : '');
 
         box.innerHTML = tiers.length
-            ? '<div class="pp-grid" style="--cols:' + Math.min(cols, tiers.length) + '">' + tiers.map(pricingCardHtml).join('') + '</div>' +
+            ? '<div class="pp-grid pp-grid--' + look.style + '" style="--cols:' + Math.min(cols, tiers.length) + '">' + tiers.map(function (t) { return pricingCardHtml(t, look); }).join('') + '</div>' +
               '<div class="vc-p-foot">' + tiers.length + ' plan' + (tiers.length === 1 ? '' : 's') + ' · up to ' + cols + ' in a row on a wide screen, two on a tablet, one on a phone</div>'
             : '<div class="vc-preview-empty">No plans yet — add one, or start from the example.</div>';
+    }
+
+    // A colour for one part of the cards: empty follows the theme, a chip is
+    // a theme colour (and keeps following it), the picker an exact colour.
+    function pricingColourField(id, label, value) {
+        value = value || '';
+        return '<div class="form-group mb-2"><label class="mb-1" style="font-size:12px;font-weight:600;">' + label + '</label>' +
+            '<div class="input-group input-group-sm">' +
+                '<input type="color" class="form-control form-control-color pricing-colour-pick" id="' + id + '" data-empty="#ffffff" value="' + escHtml(swatchValue(value, '#ffffff')) + '" style="width:48px;padding:2px;">' +
+                '<input type="text" class="form-control pricing-colour-text" id="' + id + '-text" value="' + escHtml(value) + '" placeholder="From the theme">' +
+                '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary pricing-colour-clear" data-target="' + id + '" title="Back to the theme">Theme</button></div>' +
+            '</div>' +
+            paletteStrip(id + '-text', 'bg', value) +
+        '</div>';
     }
 
     var PRICING_EXAMPLE = [
@@ -5668,16 +5720,19 @@ PageEditor.registerBlockType = function(name, config) {
     PageEditor.registerBlockType('pricing_tiers', {
         icon: 'fa-tags',
         label: 'Pricing Tiers',
-        defaults: { content: { tiers: [] }, settings: { columns: 3 } },
+        defaults: { content: { tiers: [] }, settings: { columns: 3, card_style: 'clean', card_color: '', button_color: '', featured_color: '' } },
         renderPreview: function(block) {
             var tiers = block.content && block.content.tiers ? block.content.tiers : [];
             if (!tiers.length) return '<em class="text-muted">No tiers added</em>';
             var cols = block.settings && block.settings.columns ? block.settings.columns : 3;
-            return '<div class="pp-grid pp-grid--mini" style="--cols:' + Math.min(cols, tiers.length) + '">' + tiers.map(pricingCardHtml).join('') + '</div>';
+            return '<div class="pp-grid pp-grid--mini pp-grid--' + escHtml((block.settings && block.settings.card_style) || 'clean') + '" style="--cols:' + Math.min(cols, tiers.length) + '">' +
+                tiers.map(function (t) { return pricingCardHtml(t); }).join('') + '</div>';
         },
         renderEditor: function(block) {
             var tiers = block.content && block.content.tiers ? block.content.tiers : [];
             var cols = block.settings && block.settings.columns ? parseInt(block.settings.columns, 10) : 3;
+            var settings = block.settings || {};
+            var cardStyle = ['clean', 'soft', 'outline'].indexOf(settings.card_style) > -1 ? settings.card_style : 'clean';
             var rowsHtml = '';
             tiers.forEach(function(t) { rowsHtml += buildPricingTierRow(t); });
             var colsArt = function (n) { var c = ''; for (var i = 0; i < n; i++) c += '<i></i>'; return '<span class="vc-shape vg-cols" style="--n:' + n + '">' + c + '</span>'; };
@@ -5689,6 +5744,19 @@ PageEditor.registerBlockType = function(name, config) {
                     return { value: n, label: n + ' across', art: colsArt(n) };
                 }), 'vela-tiles--3', 'pricing-tile') +
                 '<div class="alert alert-info py-1 px-2 mb-2" id="pricing-columns-note" hidden style="font-size:.85rem;"></div>' +
+                '<div class="vc-section-title">Card style</div>' +
+                '<input type="hidden" id="pricing-card-style" value="' + escHtml(cardStyle) + '">' +
+                carouselTiles('pricing-card-style', cardStyle, [
+                    { value: 'clean', label: 'Clean · card with a thin edge', art: '<span class="vc-shape pp-style pp-style--clean"><i></i><i class="hl"></i><i></i></span>' },
+                    { value: 'soft', label: 'Soft · tinted, no edge', art: '<span class="vc-shape pp-style pp-style--soft"><i></i><i class="hl"></i><i></i></span>' },
+                    { value: 'outline', label: 'Outline · see-through, bold edge', art: '<span class="vc-shape pp-style pp-style--outline"><i></i><i class="hl"></i><i></i></span>' }
+                ], 'vela-tiles--3', 'pricing-tile') +
+                '<details class="pricing-colours mb-3"' + (settings.card_color || settings.button_color || settings.featured_color ? ' open' : '') + '>' +
+                    '<summary class="vc-section-title" style="cursor:pointer;display:list-item;">Colours <small>— every one follows the theme until you pick one; the text on it is chosen for you so it stays readable</small></summary>' +
+                    pricingColourField('pricing-card-color', 'Cards', settings.card_color) +
+                    pricingColourField('pricing-button-color', 'Buttons, badge and ticks', settings.button_color) +
+                    pricingColourField('pricing-featured-color', 'Highlighted plan', settings.featured_color) +
+                '</details>' +
                 '<div class="vc-section-title">Plans <small>— drag <i class="fas fa-grip-vertical"></i> to change the order</small></div>' +
                 '<div id="pricing-tiers-list">' + rowsHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;">' +
@@ -5735,13 +5803,32 @@ PageEditor.registerBlockType = function(name, config) {
             if ($list[0] && window.Sortable) {
                 Sortable.create($list[0], { handle: '.pt-handle', animation: 150, onEnd: changed });
             }
+            $(document).off('input.pricingColour').on('input.pricingColour', '.pricing-colour-pick', function () {
+                $('#' + this.id + '-text').val(this.value);
+                $(this).closest('.form-group').find('.vela-token-chip').removeClass('is-on');
+                changed();
+            });
+            $(document).off('input.pricingColourText change.pricingColourText').on('input.pricingColourText change.pricingColourText', '.pricing-colour-text', changed);
+            $(document).off('click.pricingColourClear').on('click.pricingColourClear', '.pricing-colour-clear', function () {
+                var id = $(this).data('target');
+                $('#' + id + '-text').val('');
+                $('#' + id).val('#ffffff');
+                $(this).closest('.form-group').find('.vela-token-chip').removeClass('is-on');
+                changed();
+            });
             drawPricingPreview();
         },
         collectData: function(block) {
             var tiers = $('#pricing-tiers-list .pt-row').map(function () { return readPricingTier($(this)); }).get();
             return {
                 content: $.extend({}, block.content, { tiers: tiers }),
-                settings: $.extend({}, block.settings, { columns: parseInt($('#pricing-tiers-columns').val(), 10) || 3 })
+                settings: $.extend({}, block.settings, {
+                    columns: parseInt($('#pricing-tiers-columns').val(), 10) || 3,
+                    card_style: $('#pricing-card-style').val() || 'clean',
+                    card_color: $('#pricing-card-color-text').val() || '',
+                    button_color: $('#pricing-button-color-text').val() || '',
+                    featured_color: $('#pricing-featured-color-text').val() || ''
+                })
             };
         }
     });

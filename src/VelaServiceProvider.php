@@ -710,7 +710,7 @@ class VelaServiceProvider extends ServiceProvider
             'editor' => 'js',
             'defaults' => [
                 'content' => ['tiers' => []],
-                'settings' => ['columns' => 3],
+                'settings' => ['columns' => 3, 'card_style' => 'clean', 'card_color' => '', 'button_color' => '', 'featured_color' => ''],
             ],
             'content_example' => ['tiers' => [[
                 'name' => 'Standard', 'subtitle' => 'For most homes', 'price' => '1500', 'price_currency' => 'THB', 'period' => 'per visit',
@@ -722,7 +722,9 @@ class VelaServiceProvider extends ServiceProvider
                 . 'price_currency and period make one line ("THB 1500 per visit"), price_note sits under it. features is a list '
                 . 'of strings, or {text, muted: true} for something the plan does not include (drawn faded); features_cap is an '
                 . 'optional line above the list. featured draws the tier as the dark highlighted card with badge (default "Most '
-                . 'popular"). settings.columns is 2, 3 or 4.',
+                . 'popular"). settings.columns is 2, 3 or 4. card_style is clean, soft or outline. card_color, button_color and '
+                . 'featured_color are empty to follow the theme, a palette name as token:accent / token:band / token:surface, or a hex; '
+                . 'the text on each is chosen to stay readable.',
         ]);
     }
 
