@@ -322,6 +322,11 @@ return [
         'public_path' => '/vendor/vela/bundles',
         'manifest'    => public_path('vendor/vela/bundles/manifest.json'),
 
+        // Copy the package's public files and rebuild the bundles on the first
+        // web request after velabuild/core changes. Off for a host where the
+        // web user cannot write public/ — run `php artisan vela:update` there.
+        'auto_sync' => env('VELA_ASSETS_AUTO_SYNC', true),
+
         'bundles' => [
 
             // Shared CSS/JS loaded on every public page (any template).

@@ -211,9 +211,15 @@ class VelaServiceProvider extends ServiceProvider
         // skipped by the middleware itself.
         $router->pushMiddlewareToGroup('web', \VelaBuild\Core\Http\Middleware\EmitCacheTags::class);
 
+        // After `composer update velabuild/core`, the first page view copies
+        // the package's public files and rebuilds the bundles. Nothing else
+        // did, and a site served new views against old scripts and styles.
+        $router->pushMiddlewareToGroup('web', \VelaBuild\Core\Http\Middleware\SyncCoreAssets::class);
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \VelaBuild\Core\Commands\VelaInstall::class,
+                \VelaBuild\Core\Commands\VelaUpdate::class,
                 \VelaBuild\Core\Commands\VelaDoctor::class,
                 \VelaBuild\Core\Commands\QueueWork::class,
                 \VelaBuild\Core\Commands\ProcessContentImages::class,
