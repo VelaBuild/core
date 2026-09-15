@@ -520,6 +520,8 @@ return [
     'categories_grid'                => 'Categories Grid',
     'posts_grid'                     => 'Posts Grid',
     'posts'                          => 'posts',
+    'posts_grid_min_read'            => ':count min read',
+    'posts_grid_by'                  => 'By :name',
     'posts_grid_empty_title'         => 'No articles yet',
     'posts_grid_empty_message'       => 'Articles will appear here once published.',
     'posts_grid_empty_cta'           => 'Create your first article',

@@ -655,7 +655,25 @@ class VelaServiceProvider extends ServiceProvider
             'icon' => 'fas fa-newspaper',
             'view' => 'vela::public.pages.blocks.posts_grid',
             'editor' => 'js',
-            'defaults' => ['content' => [], 'settings' => ['columns' => 3, 'max_count' => 12, 'order_by' => 'newest', 'skip' => 0]],
+            'defaults' => [
+                'content' => [],
+                'settings' => [
+                    'source' => 'latest', 'post_ids' => [], 'category_ids' => [], 'category_id' => '',
+                    'order_by' => 'newest', 'max_count' => 12, 'skip' => 0, 'columns' => 3,
+                    'layout' => 'grid', 'card_style' => 'bordered', 'ratio' => 'auto',
+                    'show_image' => true, 'show_excerpt' => true, 'show_date' => true,
+                    'show_category' => false, 'show_author' => false, 'show_reading_time' => false,
+                    'autoplay' => false, 'interval' => 5000, 'button_text' => '', 'button_url' => '',
+                ],
+            ],
+            'shape_note' => 'Lists published posts; everything is a setting, content stays empty. source is latest (filtered by '
+                . 'category_ids — a list of category ids, empty for all — in order_by newest/oldest/title_asc/title_desc, '
+                . 'max_count of them after skipping skip) or chosen (only post_ids, in that order). category_id is the older '
+                . 'single-category filter and still works. layout is grid (columns across), featured (first post large, the '
+                . 'rest beside it), list (picture beside the words) or slider (columns at a time; autoplay, interval ms). '
+                . 'card_style is bordered, soft or plain. ratio is auto, 16x9, 4x3 or 1x1. show_image, show_excerpt, '
+                . 'show_date, show_category, show_author, show_reading_time pick what each card says. button_text adds a '
+                . 'link under the posts to button_url, or to the posts page when that is empty.',
         ]);
 
         $vela->registerBlock('hero', [

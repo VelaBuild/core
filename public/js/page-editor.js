@@ -6404,64 +6404,396 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // --- Posts grid ------------------------------------------------------
+    //
+    // Which posts, laid out how, saying what — with the site's own posts drawn
+    // as it goes. The preview asks the server, which answers with the code
+    // the page renders with (Services\Blocks\PostsGrid). The dialog was five
+    // bare inputs, and skip was only reachable by the AI.
+
+    function postsGridSettings(s) {
+        var one = function (value, allowed) { return allowed.indexOf(value) > -1 ? value : allowed[0]; };
+        var flag = function (value, dflt) {
+            if (value === undefined || value === null || value === '') return dflt;
+            return value === true || value === 'true' || value === 1 || value === '1';
+        };
+        var ids = function (list) {
+            return (Array.isArray(list) ? list : []).map(function (id) { return parseInt(id, 10); })
+                .filter(function (id, i, all) { return id > 0 && all.indexOf(id) === i; });
+        };
+        var categoryIds = ids(s.category_ids);
+        if (!categoryIds.length && s.category_id) categoryIds = ids([s.category_id]);
+        return {
+            source: one(s.source, ['latest', 'chosen']),
+            post_ids: ids(s.post_ids),
+            category_ids: categoryIds,
+            order_by: one(s.order_by, ['newest', 'oldest', 'title_asc', 'title_desc']),
+            max_count: Math.max(1, Math.min(50, parseInt(s.max_count, 10) || 12)),
+            skip: Math.max(0, Math.min(50, parseInt(s.skip, 10) || 0)),
+            columns: Math.max(1, Math.min(6, parseInt(s.columns, 10) || 3)),
+            layout: one(s.layout, ['grid', 'featured', 'list', 'slider']),
+            card_style: one(s.card_style, ['bordered', 'soft', 'plain']),
+            ratio: one(s.ratio, ['auto', '16x9', '4x3', '1x1']),
+            show_image: flag(s.show_image, true),
+            show_excerpt: flag(s.show_excerpt, true),
+            show_date: flag(s.show_date, true),
+            show_category: flag(s.show_category, false),
+            show_author: flag(s.show_author, false),
+            show_reading_time: flag(s.show_reading_time, false),
+            autoplay: flag(s.autoplay, false),
+            interval: Math.max(2000, parseInt(s.interval, 10) || 5000),
+            button_text: $.trim(s.button_text || ''),
+            button_url: $.trim(s.button_url || '')
+        };
+    }
+
+    function postsGridDialogSettings() {
+        return postsGridSettings({
+            source: $('#postgrid-source').val(),
+            post_ids: $('#postgrid-chosen .pg-chosen').map(function () { return $(this).data('id'); }).get(),
+            category_ids: $('#postgrid-cats .pg-cat.is-on').map(function () { return $(this).data('id'); }).get(),
+            order_by: $('#postgrid-order').val(),
+            max_count: $('#postgrid-max').val(),
+            skip: $('#postgrid-skip').val(),
+            columns: $('#postgrid-columns').val(),
+            layout: $('#postgrid-layout').val(),
+            card_style: $('#postgrid-style').val(),
+            ratio: $('#postgrid-ratio').val(),
+            show_image: $('#postgrid-show-image').is(':checked'),
+            show_excerpt: $('#postgrid-show-excerpt').is(':checked'),
+            show_date: $('#postgrid-show-date').is(':checked'),
+            show_category: $('#postgrid-show-category').is(':checked'),
+            show_author: $('#postgrid-show-author').is(':checked'),
+            show_reading_time: $('#postgrid-show-reading').is(':checked'),
+            autoplay: $('#postgrid-autoplay').is(':checked'),
+            interval: (parseFloat($('#postgrid-interval').val()) || 5) * 1000,
+            button_text: $('#postgrid-button-text').val(),
+            button_url: $('#postgrid-button-url').val()
+        });
+    }
+
+    function postGridCardHtml(c, s, variant, panels) {
+        var meta = [];
+        if (s.show_date && c.date) meta.push(c.date);
+        if (s.show_author && c.author) meta.push('By ' + c.author);
+        if (s.show_reading_time) meta.push(c.minutes + ' min read');
+        var media = '';
+        if (s.show_image && c.image) media = '<span class="pgp-media"><img src="' + escHtml(c.image) + '" alt=""></span>';
+        else if (s.show_image && panels) media = '<span class="pgp-media pgp-media--empty"></span>';
+        var limit = variant === 'lead' ? 160 : 90;
+        var excerpt = c.excerpt && c.excerpt.length > limit ? c.excerpt.substring(0, limit) + '…' : c.excerpt;
+        return '<span class="pgp-card pgp-card--' + variant + '">' + media +
+            '<span class="pgp-body">' +
+                (s.show_category && c.category ? '<span class="pgp-cat">' + escHtml(c.category) + '</span>' : '') +
+                '<span class="pgp-title">' + escHtml(c.title) + '</span>' +
+                (s.show_excerpt && excerpt ? '<span class="pgp-excerpt">' + escHtml(excerpt) + '</span>' : '') +
+                (meta.length ? '<span class="pgp-meta">' + escHtml(meta.join(' · ')) + '</span>' : '') +
+            '</span></span>';
+    }
+
+    function postsGridPreviewHtml(cards, s) {
+        if (!cards.length) return '';
+        var panels = s.show_image && cards.some(function (c) { return c.image; }) && cards.some(function (c) { return !c.image; });
+        var cls = 'pgp pgp--' + s.layout + ' pgp--' + s.card_style + ' pgp--ratio-' + s.ratio;
+        var cols = Math.max(1, Math.min(s.columns, cards.length));
+        if (s.layout === 'featured' && cards.length > 1) {
+            return '<div class="' + cls + '">' + postGridCardHtml(cards[0], s, 'lead', panels) +
+                '<span class="pgp-rest">' + cards.slice(1, 5).map(function (c) { return postGridCardHtml(c, s, 'row', panels); }).join('') + '</span></div>';
+        }
+        if (s.layout === 'list') {
+            return '<div class="' + cls + '">' + cards.slice(0, 4).map(function (c) { return postGridCardHtml(c, s, 'row', panels); }).join('') + '</div>';
+        }
+        if (s.layout === 'slider') {
+            var per = Math.min(4, cols);
+            var moving = cards.length > per;
+            return '<div class="pgp-slider">' + (moving ? '<span class="ibp-arrow">&#8249;</span>' : '') +
+                '<div class="' + cls.replace('pgp--slider', 'pgp--grid') + '" style="--cols:' + per + '">' + cards.slice(0, per).map(function (c) { return postGridCardHtml(c, s, 'card', panels); }).join('') + '</div>' +
+                (moving ? '<span class="ibp-arrow">&#8250;</span>' : '') + '</div>' +
+                (moving ? '<div class="ibp-dots">' + cards.slice(0, cards.length - per + 1).map(function (x, i) { return '<i' + (i ? '' : ' class="on"') + '></i>'; }).join('') + '</div>' : '');
+        }
+        return '<div class="' + cls.replace('pgp--featured', 'pgp--grid') + '" style="--cols:' + cols + '">' +
+            cards.slice(0, cols * 2).map(function (c) { return postGridCardHtml(c, s, 'card', panels); }).join('') + '</div>';
+    }
+
+    var _postsGridPreviewTimer = null;
+    var _postsGridPreviewSeq = 0;
+    var _postsGridLastCards = null;
+
+    function drawPostsGridPreview(refetch) {
+        var box = document.getElementById('postgrid-live-preview');
+        if (!box) return;
+        var s = postsGridDialogSettings();
+        var chosen = s.source === 'chosen';
+
+        $('#postgrid-latest-options').prop('hidden', chosen);
+        $('#postgrid-chosen-wrap').prop('hidden', !chosen);
+        $('#postgrid-columns-wrap').prop('hidden', s.layout === 'featured' || s.layout === 'list');
+        $('#postgrid-columns-title').text(s.layout === 'slider' ? 'Cards at a time' : 'Cards in a row');
+        $('#postgrid-slider-options').prop('hidden', s.layout !== 'slider');
+        $('#postgrid-interval-group').prop('hidden', !s.autoplay);
+        $('#postgrid-ratio-wrap').prop('hidden', !s.show_image);
+        $('#postgrid-cats .pg-cat-all').toggleClass('is-on', !s.category_ids.length);
+
+        var paint = function (cards) {
+            var foot = cards.length + ' post' + (cards.length === 1 ? '' : 's');
+            if (chosen && !s.post_ids.length) foot = 'Nothing picked yet, so the page shows the latest posts — search below to pick some.';
+            else if (s.layout === 'featured') foot += ' · the first large, the rest beside it; stacked on a phone';
+            else if (s.layout === 'list') foot += ' · one under another, picture beside the words';
+            else if (s.layout === 'slider') foot += cards.length > Math.min(4, s.columns) ? ' · ' + Math.min(4, s.columns) + ' at a time, with arrows, dots and swipe' : ' · all fit at once, so the slider stands still';
+            else foot += ' · up to ' + s.columns + ' in a row, two on a tablet, one on a phone';
+            if (s.button_text) foot += ' · with a "' + s.button_text + '" link underneath';
+            box.innerHTML = cards.length
+                ? postsGridPreviewHtml(cards, s) + '<div class="vc-p-foot">' + escHtml(foot) + '</div>'
+                : '<div class="vc-preview-empty">No published post matches' + (s.category_ids.length ? ' these categories' : '') + (s.skip ? ' after skipping ' + s.skip : '') + '.</div>';
+        };
+
+        // Only which posts needs the server; how they look is drawn from what
+        // it last sent, so clicking through styles does not wait on a request.
+        if (!refetch && _postsGridLastCards) {
+            paint(_postsGridLastCards);
+            return;
+        }
+        var url = window.PageEditorConfig && window.PageEditorConfig.postsGridPreviewUrl;
+        if (!url) { box.innerHTML = '<div class="vc-preview-empty">Preview unavailable.</div>'; return; }
+        clearTimeout(_postsGridPreviewTimer);
+        _postsGridPreviewTimer = setTimeout(function () {
+            var seq = ++_postsGridPreviewSeq;
+            if (!_postsGridLastCards) box.innerHTML = '<div class="vc-preview-empty"><i class="fas fa-spinner fa-spin"></i> Loading your posts…</div>';
+            var query = $.extend({}, s, chosen && !s.post_ids.length ? { source: 'latest' } : {});
+            $.getJSON(url, { settings: JSON.stringify(query) }).done(function (res) {
+                if (seq !== _postsGridPreviewSeq) return; // a newer answer is on its way
+                _postsGridLastCards = (res && res.cards) || [];
+                drawPostsGridPreview(false);
+            }).fail(function () {
+                if (seq === _postsGridPreviewSeq) box.innerHTML = '<div class="vc-preview-empty">The preview could not load. The block still saves.</div>';
+            });
+        }, 250);
+    }
+
+    function postsGridChosenRow(p) {
+        return '<div class="pg-chosen" data-id="' + p.id + '">' +
+            '<span class="cg-handle" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></span>' +
+            (p.image ? '<img class="cg-thumb" src="' + escHtml(p.image) + '" alt="">' : '<span class="cg-thumb cg-thumb--icon"><i class="far fa-file-alt"></i></span>') +
+            '<span class="cg-name">' + escHtml(p.title) + '</span>' +
+            '<span class="cg-posts">' + escHtml(p.date || '') + '</span>' +
+            '<button type="button" class="btn btn-sm btn-light pg-unpick" title="Take it off the list"><i class="fas fa-times"></i></button>' +
+        '</div>';
+    }
+
     PageEditor.registerBlockType('posts_grid', {
         icon: 'fa-newspaper',
         label: 'Posts Grid',
-        defaults: { content: {}, settings: { columns: 3, max_count: 12, category_id: '', order_by: 'newest', show_excerpt: true } },
+        defaults: { content: {}, settings: {
+            source: 'latest', post_ids: [], category_ids: [], order_by: 'newest', max_count: 12, skip: 0, columns: 3,
+            layout: 'grid', card_style: 'bordered', ratio: 'auto',
+            show_image: true, show_excerpt: true, show_date: true, show_category: false, show_author: false, show_reading_time: false,
+            autoplay: false, interval: 5000, button_text: '', button_url: ''
+        } },
         renderPreview: function(block) {
-            var s = block.settings || {};
-            var cols = s.columns || 3;
-            var max = s.max_count || 12;
-            var order = s.order_by || 'newest';
-            var catId = s.category_id || 'all';
-            return '<div style="padding:8px;background:#f0f4f8;border-radius:4px;text-align:center;">' +
-                '<i class="fas fa-newspaper" style="font-size:1.5em;color:#6c757d;"></i>' +
-                '<div style="font-size:0.85em;color:#555;margin-top:4px;">Posts Grid &mdash; ' + cols + ' cols, max ' + max +
-                ', ' + order + ', cat: ' + catId + '</div></div>';
+            var s = postsGridSettings(block.settings || {});
+            var cats = (window.PageEditorConfig && window.PageEditorConfig.categories) || [];
+            var which = s.source === 'chosen' && s.post_ids.length
+                ? s.post_ids.length + ' picked post' + (s.post_ids.length === 1 ? '' : 's')
+                : 'Latest ' + s.max_count + (s.category_ids.length ? ' in ' + s.category_ids.map(function (id) {
+                    var c = cats.filter(function (x) { return x.id === id; })[0]; return c ? c.name : '#' + id;
+                }).join(', ') : '') + (s.skip ? ', skipping ' + s.skip : '');
+            var how = { grid: s.columns + ' across', featured: 'first one large', list: 'as a list', slider: 'slider, ' + Math.min(4, s.columns) + ' at a time' }[s.layout];
+            return '<div class="pg-canvas pg-canvas--' + s.layout + '"><span class="pg-canvas-art">' +
+                (s.layout === 'featured' ? '<i class="big"></i><i></i><i></i>' : s.layout === 'list' ? '<i class="row"></i><i class="row"></i><i class="row"></i>' : '<i></i><i></i><i></i>') +
+                '</span><span><strong>Posts Grid</strong><br><small class="text-muted">' + escHtml(which) + ' · ' + escHtml(how) + '</small></span></div>';
         },
         renderEditor: function(block) {
-            var s = block.settings || {};
-            var columns = s.columns || 3;
-            var maxCount = s.max_count || 12;
-            var categoryId = s.category_id || '';
-            var orderBy = s.order_by || 'newest';
-            var showExcerpt = s.show_excerpt !== false;
-            var catOptions = '<option value="">All categories</option>';
-            if (window.PageEditorConfig && window.PageEditorConfig.categories) {
-                window.PageEditorConfig.categories.forEach(function(cat) {
-                    catOptions += '<option value="' + cat.id + '"' + (String(categoryId) === String(cat.id) ? ' selected' : '') + '>' + escHtml(cat.name) + '</option>';
-                });
-            }
-            return '<div class="form-group"><label>Columns</label>' +
-                '<input type="number" class="form-control" id="postgrid-columns" value="' + columns + '" min="1" max="6"></div>' +
-                '<div class="form-group"><label>Max Posts</label>' +
-                '<input type="number" class="form-control" id="postgrid-max" value="' + maxCount + '" min="1" max="50"></div>' +
-                '<div class="form-group"><label>Category Filter</label>' +
-                '<select class="form-control" id="postgrid-category">' + catOptions + '</select></div>' +
-                '<div class="form-group"><label>Order By</label>' +
-                '<select class="form-control" id="postgrid-order">' +
-                    '<option value="newest"' + (orderBy === 'newest' ? ' selected' : '') + '>Newest first</option>' +
-                    '<option value="oldest"' + (orderBy === 'oldest' ? ' selected' : '') + '>Oldest first</option>' +
-                    '<option value="title_asc"' + (orderBy === 'title_asc' ? ' selected' : '') + '>Title A-Z</option>' +
-                    '<option value="title_desc"' + (orderBy === 'title_desc' ? ' selected' : '') + '>Title Z-A</option>' +
-                '</select></div>' +
-                '<div class="form-check">' +
-                    '<input type="checkbox" class="form-check-input" id="postgrid-excerpt"' + (showExcerpt ? ' checked' : '') + '>' +
-                    '<label class="form-check-label" for="postgrid-excerpt">Show excerpt</label>' +
+            var s = postsGridSettings(block.settings || {});
+            var cats = (window.PageEditorConfig && window.PageEditorConfig.categories) || [];
+            _postsGridLastCards = null;
+            var colsArt = function (n) { var c = ''; for (var i = 0; i < n; i++) c += '<i></i>'; return '<span class="vc-shape vg-cols" style="--n:' + n + '">' + c + '</span>'; };
+            var layoutArt = {
+                grid: '<span class="vc-shape pga pga--grid"><b></b><b></b><b></b></span>',
+                featured: '<span class="vc-shape pga pga--featured"><b class="big"></b><span><b></b><b></b><b></b></span></span>',
+                list: '<span class="vc-shape pga pga--list"><b></b><b></b><b></b></span>',
+                slider: '<span class="vc-shape ib-slide-art"><b>&#8249;</b><i></i><i></i><i></i><b>&#8250;</b></span>'
+            };
+            var styleArt = function (kind) { return '<span class="vc-shape pgs pgs--' + kind + '"><b><s></s><u></u></b><b><s></s><u></u></b><b><s></s><u></u></b></span>'; };
+            var ratioArt = function (r) { return '<span class="vc-shape cgr"><b class="cgr-box cgr-box--' + r + '"></b></span>'; };
+            var check = function (id, label, on, hint) {
+                return '<div class="form-check pg-check"><input type="checkbox" class="form-check-input" id="' + id + '"' + (on ? ' checked' : '') + '>' +
+                    '<label class="form-check-label" for="' + id + '">' + label + (hint ? ' <small class="text-muted">— ' + hint + '</small>' : '') + '</label></div>';
+            };
+            return '<div class="vc-section-title">How it will look</div>' +
+                '<div id="postgrid-live-preview" class="vc-preview"></div>' +
+
+                '<div class="vc-section-title">Which posts</div>' +
+                '<input type="hidden" id="postgrid-source" value="' + s.source + '">' +
+                carouselTiles('postgrid-source', s.source, [
+                    { value: 'latest', label: 'Latest · new posts appear by themselves', art: colsArt(4) },
+                    { value: 'chosen', label: 'Pick them · and their order', art: '<span class="vc-shape cg-pick-art"><b class="on"></b><b></b><b class="on"></b><b></b></span>' }
+                ], 'vela-tiles--2', 'postgrid-tile') +
+
+                '<div id="postgrid-latest-options"' + (s.source === 'latest' ? '' : ' hidden') + '>' +
+                    '<label class="pg-label">From <small class="text-muted">— click to pick one or more</small></label>' +
+                    '<div id="postgrid-cats" class="pg-cats">' +
+                        '<button type="button" class="pg-cat pg-cat-all' + (s.category_ids.length ? '' : ' is-on') + '">All categories</button>' +
+                        cats.map(function (c) {
+                            return '<button type="button" class="pg-cat' + (s.category_ids.indexOf(c.id) > -1 ? ' is-on' : '') + '" data-id="' + c.id + '">' + escHtml(c.name) + ' <small>' + c.posts + '</small></button>';
+                        }).join('') +
+                    '</div>' +
+                    '<div class="pg-fields">' +
+                        '<div><label class="pg-label" for="postgrid-order">Order</label><select class="form-control form-control-sm" id="postgrid-order">' +
+                            [['newest', 'Newest first'], ['oldest', 'Oldest first'], ['title_asc', 'Title A–Z'], ['title_desc', 'Title Z–A']].map(function (o) {
+                                return '<option value="' + o[0] + '"' + (s.order_by === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+                            }).join('') + '</select></div>' +
+                        '<div><label class="pg-label" for="postgrid-max">How many</label><input type="number" class="form-control form-control-sm" id="postgrid-max" value="' + s.max_count + '" min="1" max="50"></div>' +
+                        '<div><label class="pg-label" for="postgrid-skip">Skip the first</label><input type="number" class="form-control form-control-sm" id="postgrid-skip" value="' + s.skip + '" min="0" max="50"></div>' +
+                    '</div>' +
+                    '<small class="text-muted d-block mb-3">Skip when a post above already shows the newest one, so it does not appear twice.</small>' +
+                '</div>' +
+
+                '<div id="postgrid-chosen-wrap" class="mb-3"' + (s.source === 'chosen' ? '' : ' hidden') + '>' +
+                    '<div class="pg-search"><i class="fas fa-search"></i><input type="search" class="form-control form-control-sm" id="postgrid-search" placeholder="Search published posts by title"></div>' +
+                    '<div id="postgrid-results" class="pg-results" hidden></div>' +
+                    '<div id="postgrid-chosen" class="mt-2"></div>' +
+                    '<small class="text-muted d-block" id="postgrid-chosen-hint">Drag <i class="fas fa-grip-vertical"></i> to set the order.</small>' +
+                '</div>' +
+
+                '<div class="vc-section-title">Layout</div>' +
+                '<input type="hidden" id="postgrid-layout" value="' + s.layout + '">' +
+                carouselTiles('postgrid-layout', s.layout, [
+                    { value: 'grid', label: 'Grid', art: layoutArt.grid },
+                    { value: 'featured', label: 'First one large', art: layoutArt.featured },
+                    { value: 'list', label: 'List', art: layoutArt.list },
+                    { value: 'slider', label: 'Slider', art: layoutArt.slider }
+                ], 'vela-tiles--4', 'postgrid-tile') +
+                '<div id="postgrid-slider-options" class="mb-3"' + (s.layout === 'slider' ? '' : ' hidden') + '>' +
+                    check('postgrid-autoplay', 'Move on by itself', s.autoplay, 'pauses while someone points at it') +
+                    '<div class="form-group mt-2 mb-0" id="postgrid-interval-group"' + (s.autoplay ? '' : ' hidden') + '><label class="pg-label" for="postgrid-interval">Seconds per move</label>' +
+                        '<input type="number" class="form-control form-control-sm" id="postgrid-interval" value="' + (Math.round(s.interval / 100) / 10) + '" min="2" step="0.5" style="max-width:120px;"></div>' +
+                '</div>' +
+
+                '<div id="postgrid-columns-wrap"' + (s.layout === 'featured' || s.layout === 'list' ? ' hidden' : '') + '>' +
+                    '<div class="vc-section-title" id="postgrid-columns-title">' + (s.layout === 'slider' ? 'Cards at a time' : 'Cards in a row') + '</div>' +
+                    '<input type="hidden" id="postgrid-columns" value="' + s.columns + '">' +
+                    carouselTiles('postgrid-columns', s.columns, [2, 3, 4].map(function (n) {
+                        return { value: n, label: n + ' across', art: colsArt(n) };
+                    }), 'vela-tiles--3', 'postgrid-tile') +
+                '</div>' +
+
+                '<div class="vc-section-title">Card style</div>' +
+                '<input type="hidden" id="postgrid-style" value="' + s.card_style + '">' +
+                carouselTiles('postgrid-style', s.card_style, [
+                    { value: 'bordered', label: 'Thin edge', art: styleArt('bordered') },
+                    { value: 'soft', label: 'Tinted', art: styleArt('soft') },
+                    { value: 'plain', label: 'No card', art: styleArt('plain') }
+                ], 'vela-tiles--3', 'postgrid-tile') +
+
+                '<div class="vc-section-title">Each card shows</div>' +
+                '<div class="pg-checks">' +
+                    check('postgrid-show-image', 'Picture', s.show_image) +
+                    check('postgrid-show-excerpt', 'Excerpt', s.show_excerpt) +
+                    check('postgrid-show-date', 'Date', s.show_date) +
+                    check('postgrid-show-category', 'Category', s.show_category) +
+                    check('postgrid-show-author', 'Author', s.show_author) +
+                    check('postgrid-show-reading', 'Reading time', s.show_reading_time) +
+                '</div>' +
+
+                '<div id="postgrid-ratio-wrap"' + (s.show_image ? '' : ' hidden') + '>' +
+                    '<div class="vc-section-title">Picture shape</div>' +
+                    '<input type="hidden" id="postgrid-ratio" value="' + s.ratio + '">' +
+                    carouselTiles('postgrid-ratio', s.ratio, [
+                        { value: 'auto', label: 'Short strip', art: ratioArt('auto') },
+                        { value: '16x9', label: 'Wide · 16:9', art: ratioArt('16x9') },
+                        { value: '4x3', label: 'Classic · 4:3', art: ratioArt('4x3') },
+                        { value: '1x1', label: 'Square', art: ratioArt('1x1') }
+                    ], 'vela-tiles--4', 'postgrid-tile') +
+                '</div>' +
+
+                '<div class="vc-section-title">Link underneath <small>— optional, e.g. to every post</small></div>' +
+                '<div class="pg-fields pg-fields--2">' +
+                    '<div><label class="pg-label" for="postgrid-button-text">Link text</label><input type="text" class="form-control form-control-sm" id="postgrid-button-text" value="' + escHtml(s.button_text) + '" placeholder="e.g. See all posts"></div>' +
+                    '<div><label class="pg-label" for="postgrid-button-url">Goes to <small class="text-muted">— empty for the posts page</small></label><input type="text" class="form-control form-control-sm vela-link-input" id="postgrid-button-url" value="' + escHtml(s.button_url) + '" placeholder="/posts"></div>' +
                 '</div>';
         },
-        initEditor: function(block) {},
+        initEditor: function(block) {
+            var s0 = postsGridSettings((block && block.settings) || {});
+            var refetch = function () { _blockEditTouched = true; drawPostsGridPreview(true); };
+            var redraw = function () { _blockEditTouched = true; drawPostsGridPreview(false); };
+            var searchUrl = window.PageEditorConfig && window.PageEditorConfig.postsGridSearchUrl;
+            var $chosen = $('#postgrid-chosen');
+            var syncChosenHint = function () { $('#postgrid-chosen-hint').prop('hidden', !$chosen.children().length); };
+
+            // Fetching changes which posts; the rest only how they look.
+            var fetchTiles = ['postgrid-source'];
+            $(document).off('click.postgrid').on('click.postgrid', '.postgrid-tile', function () {
+                var $tile = $(this);
+                $tile.closest('.vela-tiles').find('.postgrid-tile').removeClass('active').attr('aria-pressed', 'false');
+                $tile.addClass('active').attr('aria-pressed', 'true');
+                $('#' + $tile.data('input')).val($tile.data('value'));
+                (fetchTiles.indexOf($tile.data('input')) > -1 ? refetch : redraw)();
+            }).on('click.postgrid', '.pg-cat', function () {
+                if ($(this).hasClass('pg-cat-all')) $('#postgrid-cats .pg-cat').removeClass('is-on');
+                else $(this).toggleClass('is-on');
+                refetch();
+            }).on('click.postgrid', '.pg-result', function () {
+                var p = $(this).data('post');
+                if (!$chosen.find('.pg-chosen[data-id="' + p.id + '"]').length) $chosen.append(postsGridChosenRow(p));
+                // Picked: the search has done its job, and is ready for the next.
+                $('#postgrid-search').val('').trigger('focus');
+                $('#postgrid-results').prop('hidden', true).empty();
+                syncChosenHint();
+                refetch();
+            }).on('click.postgrid', '.pg-unpick', function () {
+                $(this).closest('.pg-chosen').remove();
+                syncChosenHint();
+                refetch();
+            });
+
+            $(document).off('input.postgrid change.postgrid')
+                .on('input.postgrid change.postgrid', '#postgrid-order, #postgrid-max, #postgrid-skip', refetch)
+                .on('input.postgrid change.postgrid', '#postgrid-autoplay, #postgrid-interval, #postgrid-button-text, #postgrid-button-url, .pg-checks input', redraw);
+
+            var searchTimer = null;
+            $(document).off('input.postgridSearch').on('input.postgridSearch', '#postgrid-search', function () {
+                var q = $.trim($(this).val());
+                clearTimeout(searchTimer);
+                if (!q || !searchUrl) { $('#postgrid-results').prop('hidden', true).empty(); return; }
+                searchTimer = setTimeout(function () {
+                    $.getJSON(searchUrl, { q: q }).done(function (res) {
+                        var taken = $chosen.find('.pg-chosen').map(function () { return $(this).data('id'); }).get();
+                        var rows = ((res && res.results) || []).filter(function (p) { return taken.indexOf(p.id) === -1; });
+                        var $r = $('#postgrid-results').prop('hidden', false).empty();
+                        if (!rows.length) { $r.append('<div class="pg-results-none">No other published post matches.</div>'); return; }
+                        rows.forEach(function (p) {
+                            $('<button type="button" class="pg-result"></button>').data('post', p)
+                                .html('<i class="fas fa-plus"></i> <span>' + escHtml(p.title) + '</span> <small>' + escHtml(p.date || '') + '</small>')
+                                .appendTo($r);
+                        });
+                    });
+                }, 250);
+            });
+
+            // The picked posts are stored as ids; their titles come back from
+            // the server, in the stored order.
+            if (s0.post_ids.length && searchUrl) {
+                $chosen.html('<div class="text-muted small"><i class="fas fa-spinner fa-spin"></i> Loading…</div>');
+                $.getJSON(searchUrl, { ids: s0.post_ids.join(',') }).done(function (res) {
+                    $chosen.html(((res && res.results) || []).map(postsGridChosenRow).join(''));
+                    syncChosenHint();
+                    drawPostsGridPreview(true);
+                });
+            }
+            syncChosenHint();
+            if ($chosen[0] && window.Sortable) {
+                Sortable.create($chosen[0], { handle: '.cg-handle', animation: 150, onEnd: refetch });
+            }
+            drawPostsGridPreview(true);
+        },
         collectData: function(block) {
-            return {
-                content: {},
-                settings: {
-                    columns: parseInt($('#postgrid-columns').val()) || 3,
-                    max_count: parseInt($('#postgrid-max').val()) || 12,
-                    category_id: $('#postgrid-category').val() || '',
-                    order_by: $('#postgrid-order').val() || 'newest',
-                    show_excerpt: $('#postgrid-excerpt').is(':checked')
-                }
-            };
+            var s = postsGridDialogSettings();
+            // Picked posts still loading are not the same as none picked.
+            if ($('#postgrid-chosen .fa-spinner').length) s.post_ids = postsGridSettings(block.settings || {}).post_ids;
+            var settings = $.extend({}, block.settings, s);
+            // category_ids replaces the single category_id it grew out of.
+            delete settings.category_id;
+            return { content: {}, settings: settings };
         }
     });
 

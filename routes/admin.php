@@ -9,6 +9,10 @@ Route::post('dashboard/preferences', [Admin\HomeController::class, 'savePreferen
 // What a link in the editor could point at, by title rather than by slug.
 Route::get('link-suggest', Admin\LinkSuggestController::class)->name('link-suggest');
 
+// The posts grid dialog: its live preview, and posts to pick by title.
+Route::get('posts-grid/preview', [Admin\PostsGridPreviewController::class, 'preview'])->name('posts-grid.preview');
+Route::get('posts-grid/search', [Admin\PostsGridPreviewController::class, 'search'])->name('posts-grid.search');
+
 // Permissions
 Route::delete('permissions/destroy', [Admin\PermissionsController::class, 'massDestroy'])->name('permissions.massDestroy');
 Route::resource('permissions', Admin\PermissionsController::class);

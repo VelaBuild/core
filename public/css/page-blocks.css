@@ -396,6 +396,82 @@ html.vela-lightbox-open { overflow: hidden; }
     .block-testimonials--slider .carousel-viewport { margin: 0; }
     .block-testimonials--slider .carousel-arrow { display: none; }
 }
+/* Posts grid — settings.layout, .card_style and .ratio. The grid layout's
+   column count is inline, since a theme lays the block out as a grid of its
+   own; every other rule names the block twice to outrank a theme's. */
+.block-posts-grid { display: grid; gap: 20px; }
+.block-posts-grid .post-card { display: flex; flex-direction: column; min-width: 0; text-decoration: none; color: inherit; border: 1px solid var(--block-border); border-radius: 8px; overflow: hidden; transition: box-shadow .2s; }
+.block-posts-grid .post-card:hover { box-shadow: 0 8px 24px rgba(0, 0, 0, .08); text-decoration: none; color: inherit; }
+.block-posts-grid .post-card:focus-visible { outline: 2px solid var(--block-accent); outline-offset: 2px; }
+.post-card-media { position: relative; display: block; flex-shrink: 0; height: 180px; overflow: hidden; background: var(--block-bg-light); }
+.post-card-media picture, .post-card-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* Tinted from the text colour, not the theme's light ground: a theme often
+   paints its cards that same ground, and the panel vanished into them. */
+.block-posts-grid .post-card-media.post-card-media--empty { background: rgba(0, 0, 0, .06); background: linear-gradient(135deg, color-mix(in srgb, var(--block-text-primary) 5%, transparent), color-mix(in srgb, var(--block-text-primary) 11%, transparent)); }
+.post-card-body { display: flex; flex-direction: column; gap: 8px; padding: 16px; min-width: 0; }
+.post-card-category { align-self: flex-start; font-size: .72em; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--block-accent); }
+.block-posts-grid .post-card-title { margin: 0; font-size: 1.05em; line-height: 1.35; color: inherit; }
+.post-card-excerpt { margin: 0; font-size: .9em; line-height: 1.55; opacity: .85; }
+.post-card-meta { margin-top: auto; font-size: .8em; opacity: .75; }
+
+.block-posts-grid.block-posts-grid--soft .post-card { background: var(--block-bg-light); border-color: transparent; border-radius: 12px; }
+.block-posts-grid.block-posts-grid--plain .post-card { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.block-posts-grid.block-posts-grid--plain .post-card-media { border-radius: 10px; }
+.block-posts-grid.block-posts-grid--plain .post-card-body { padding: 14px 0 0; }
+.block-posts-grid.block-posts-grid--plain .post-card:hover .post-card-title { text-decoration: underline; }
+
+/* featured: the first post large on the left, the rest in a column beside it. */
+.block-posts-grid.block-posts-grid--featured { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; gap: 24px; }
+.block-posts-grid--featured .post-card--lead .post-card-media { height: 320px; }
+.block-posts-grid--featured .post-card--lead .post-card-title { font-size: 1.5em; line-height: 1.25; }
+.posts-grid-rest { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+/* row: picture beside the words — the featured column and the list layout. */
+.block-posts-grid .post-card--row { flex-direction: row; align-items: stretch; }
+.block-posts-grid .post-card--row .post-card-media { width: 34%; max-width: 260px; height: auto; min-height: 110px; }
+.block-posts-grid .post-card--row .post-card-body { flex: 1; }
+.block-posts-grid.block-posts-grid--plain .post-card--row .post-card-body { padding: 0 0 0 16px; }
+.block-posts-grid--featured .posts-grid-rest .post-card--row .post-card-media { width: 38%; min-height: 96px; }
+.block-posts-grid--featured .posts-grid-rest .post-card-title { font-size: 1em; }
+.block-posts-grid.block-posts-grid--list { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+
+/* A chosen picture shape wins over each layout's own height. */
+.block-posts-grid.block-posts-grid--ratio-16x9 .post-card-media { height: auto; aspect-ratio: 16 / 9; }
+.block-posts-grid.block-posts-grid--ratio-4x3 .post-card-media { height: auto; aspect-ratio: 4 / 3; }
+.block-posts-grid.block-posts-grid--ratio-1x1 .post-card-media { height: auto; aspect-ratio: 1 / 1; }
+.block-posts-grid.block-posts-grid--ratio-16x9 .post-card--row .post-card-media,
+.block-posts-grid.block-posts-grid--ratio-4x3 .post-card--row .post-card-media,
+.block-posts-grid.block-posts-grid--ratio-1x1 .post-card--row .post-card-media { align-self: flex-start; }
+
+/* slider: the carousel's rules move it. */
+.block-posts-grid.block-carousel { display: block; position: relative; }
+.block-posts-grid.block-carousel .carousel-track { padding-block: 4px; }
+.block-posts-grid.block-carousel .carousel-slide { display: flex; }
+.block-posts-grid.block-carousel .carousel-slide > .post-card { flex: 1; }
+.block-posts-grid.block-carousel .carousel-viewport { margin: 0 56px; }
+.block-posts-grid.block-carousel .carousel-arrow { top: calc(50% - 22px); background: var(--block-bg-light); color: var(--block-text-primary); border: 1px solid var(--block-border); }
+.block-posts-grid.block-carousel .carousel-arrow:hover { background: var(--block-bg-hover); }
+.block-posts-grid.block-carousel .carousel-prev { left: 4px; }
+.block-posts-grid.block-carousel .carousel-next { right: 4px; }
+
+.block-posts-grid-footer { margin-top: 24px; text-align: center; }
+.block-posts-grid-more { display: inline-block; padding: 10px 22px; border: 1px solid var(--block-border); border-radius: 999px; font-weight: 600; color: inherit; text-decoration: none; }
+.block-posts-grid-more:hover { border-color: var(--block-accent); color: var(--block-accent); text-decoration: none; }
+
+@media (max-width: 900px) {
+    .block-posts-grid.block-posts-grid--multi { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .block-posts-grid.block-posts-grid--featured { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+    .block-posts-grid.block-carousel .carousel-viewport { margin: 0; }
+    .block-posts-grid.block-carousel .carousel-arrow { display: none; }
+}
+@media (max-width: 560px) {
+    .block-posts-grid.block-posts-grid--multi { grid-template-columns: minmax(0, 1fr) !important; }
+    .block-posts-grid--featured .post-card--lead .post-card-media { height: 220px; }
+    .block-posts-grid .post-card--row .post-card-media { width: 36%; min-height: 90px; }
+    .block-posts-grid .post-card--row .post-card-excerpt { display: none; }
+}
+
 /* Categories grid — settings.card_style and settings.ratio. The column count
    is inline on the block, since a theme lays it out as a grid of its own.
    Every look names the block twice so it outranks a theme's card rule. */

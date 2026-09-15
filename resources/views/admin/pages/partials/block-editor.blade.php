@@ -211,6 +211,8 @@ window.PageEditorConfig = {
     linkSuggestUrl: '{{ route("vela.admin.link-suggest") }}',
     categories: @json($editorCategories),
     categoriesCreateUrl: '{{ route("vela.admin.categories.create") }}',
+    postsGridPreviewUrl: '{{ route("vela.admin.posts-grid.preview") }}',
+    postsGridSearchUrl: '{{ route("vela.admin.posts-grid.search") }}',
     i18n: {
         discardBlockChanges: @json(trans('vela::global.discard_block_changes'))
     }

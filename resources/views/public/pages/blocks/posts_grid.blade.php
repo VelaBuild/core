@@ -1,63 +1,87 @@
 @php
-    $settings = $block->settings ?? [];
-    $maxCount = (int)($settings['max_count'] ?? 12);
-    $columns = (int)($settings['columns'] ?? 3);
-    $categoryId = $settings['category_id'] ?? '';
-    $orderBy = $settings['order_by'] ?? 'newest';
-    $showExcerpt = $settings['show_excerpt'] ?? true;
-    // A page that leads with a featured post and follows it with a grid needs
-    // the grid to start after it, or the same article appears twice.
-    $skip = max(0, (int)($settings['skip'] ?? 0));
+    // Which posts and what their cards say come from PostsGrid, which the
+    // editor's live preview asks as well — so the two cannot drift apart.
+    $s     = \VelaBuild\Core\Services\Blocks\PostsGrid::settings($block->settings ?? []);
+    $cards = \VelaBuild\Core\Services\Blocks\PostsGrid::cards(\VelaBuild\Core\Services\Blocks\PostsGrid::posts($s));
+    $total = count($cards);
 
-    $query = \VelaBuild\Core\Models\Content::where('status', 'published');
+    $layout  = $s['layout'];
+    $columns = max(1, min($s['columns'], max(1, $total)));
+    // A card without a picture keeps its room only when another card has one;
+    // a grid of text-only posts stays the compact grid it always was.
+    $withPanels = $s['show_image'] && collect($cards)->contains(fn ($c) => $c['image']) && collect($cards)->contains(fn ($c) => !$c['image']);
+    // The first picture is routinely the page's largest paint. A grid that
+    // skips posts follows something above it, so its first is not.
+    $eagerFirst = $s['skip'] === 0 && $s['source'] === 'latest';
 
-    if ($categoryId) {
-        $query->whereHas('categories', function ($q) use ($categoryId) {
-            $q->where('vela_categories.id', (int)$categoryId);
-        });
+    $classes = 'block-posts-grid block-posts-grid--' . $layout . ' block-posts-grid--' . $s['card_style'] . ' block-posts-grid--ratio-' . $s['ratio'];
+    $moving  = $layout === 'slider' && $total > min(4, $columns);
+    $perView = min(4, $columns);
+
+    $buttonUrl = $s['button_url'];
+    if (preg_match('/^\s*(javascript|data|vbscript):/i', $buttonUrl)) {
+        $buttonUrl = '';
     }
-
-    switch ($orderBy) {
-        case 'oldest':
-            $query->orderByRaw('COALESCE(published_at, created_at) ASC');
-            break;
-        case 'title_asc':
-            $query->orderBy('title', 'asc');
-            break;
-        case 'title_desc':
-            $query->orderBy('title', 'desc');
-            break;
-        default:
-            $query->orderByRaw('COALESCE(published_at, created_at) DESC');
+    if ($s['button_text'] !== '' && $buttonUrl === '') {
+        $buttonUrl = url('/posts');
     }
-
-    $posts = $query->skip($skip)->take($maxCount)->get();
 @endphp
-@if($posts->isNotEmpty())
-<div class="block-posts-grid" style="display:grid;grid-template-columns:repeat({{ $columns }},1fr);gap:20px;">
-@foreach($posts as $i => $post)
-    <a href="{{ url('/posts/' . $post->slug) }}" class="post-card" style="display:block;text-decoration:none;color:inherit;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;transition:box-shadow .2s;">
-@if($post->main_image)
-        {{-- The first card is routinely the page's largest paint. Lazy-loading
-             it delays that paint by a whole round trip, so the lead image is
-             fetched eagerly and the rest stay lazy. --}}
-        {!! vela_image($post->main_image->url, $post->translated_title, [320, 480, 640, 960], 'crop', ['style' => 'width:100%;height:180px;object-fit:cover;'], $loop->first && $skip === 0 ? 'preload' : 'lazy') !!}
-@endif
-        <div style="padding:16px;">
-            {{-- h2, not h3: a grid placed straight under the page's h1 has no
-                 h2 above it to descend from, and h2 stays valid when it does. --}}
-            <h2 style="margin:0 0 8px;font-size:1.05em;">{{ $post->translated_title }}</h2>
-@if($showExcerpt && $post->translated_description)
-            {{-- currentColor, not a fixed grey: this block is dropped into rows
-                 of any colour, and the #4b5563 it used to be measured 2.61:1
-                 against a dark theme's near-black row. --}}
-            <p style="margin:0 0 8px;font-size:0.9em;opacity:0.85;">{{ \Illuminate\Support\Str::limit(strip_tags($post->translated_description), 120) }}</p>
-@endif
-            <small style="opacity:0.9;">{{ ($post->published_at ?? $post->created_at)->format('M j, Y') }}</small>
+@if($total > 0)
+@if($layout === 'slider')
+@once
+<script src="{{ asset('vendor/vela/js/vela-carousel.js') }}?v={{ is_file(public_path('vendor/vela/js/vela-carousel.js')) ? filemtime(public_path('vendor/vela/js/vela-carousel.js')) : '1' }}" defer></script>
+@endonce
+<div class="{{ $classes }} block-carousel block-carousel--slide{{ $perView > 1 ? ' block-carousel--multi' : '' }}"
+    data-vela-carousel data-autoplay="{{ $s['autoplay'] && $moving ? '1' : '0' }}" data-interval="{{ $s['interval'] }}" data-per-view="{{ $perView }}"
+    role="region" aria-roledescription="carousel" aria-label="{{ trans('vela::global.posts_grid') }}"
+    style="--carousel-per-view: {{ $perView }};">
+    <div class="carousel-viewport">
+        <div class="carousel-track">
+@foreach($cards as $i => $card)
+            <div class="carousel-slide{{ $i < $perView ? ' is-active' : '' }}" role="group" aria-roledescription="slide" aria-label="{{ $i + 1 }} / {{ $total }}">
+                @include('vela::public.pages.blocks._post_card', ['card' => $card, 'variant' => 'card', 'eager' => false])
+            </div>
+@endforeach
         </div>
-    </a>
+    </div>
+@if($moving)
+    <button type="button" class="carousel-arrow carousel-prev" aria-label="{{ trans('vela::global.carousel_previous') }}">&#8249;</button>
+    <button type="button" class="carousel-arrow carousel-next" aria-label="{{ trans('vela::global.carousel_next') }}">&#8250;</button>
+    <div class="carousel-dots">
+@for($d = 0; $d <= $total - $perView; $d++)
+        <button type="button" class="carousel-dot{{ $d === 0 ? ' active' : '' }}" aria-label="{{ $d + 1 }}"></button>
+@endfor
+    </div>
+@endif
+</div>
+@elseif($layout === 'featured' && $total > 1)
+<div class="{{ $classes }}">
+    @include('vela::public.pages.blocks._post_card', ['card' => $cards[0], 'variant' => 'lead', 'eager' => $eagerFirst])
+    <div class="posts-grid-rest">
+@foreach(array_slice($cards, 1) as $card)
+        @include('vela::public.pages.blocks._post_card', ['card' => $card, 'variant' => 'row', 'eager' => false])
+@endforeach
+    </div>
+</div>
+@elseif($layout === 'list')
+<div class="{{ $classes }}">
+@foreach($cards as $i => $card)
+    @include('vela::public.pages.blocks._post_card', ['card' => $card, 'variant' => 'row', 'eager' => $i === 0 && $eagerFirst])
 @endforeach
 </div>
+@else
+{{-- grid, and a featured layout with a single post to feature. --}}
+<div class="{{ $classes }}{{ $columns > 1 ? ' block-posts-grid--multi' : '' }}" style="grid-template-columns:repeat({{ $columns }},minmax(0,1fr));">
+@foreach($cards as $i => $card)
+    @include('vela::public.pages.blocks._post_card', ['card' => $card, 'variant' => 'card', 'eager' => $i === 0 && $eagerFirst])
+@endforeach
+</div>
+@endif
+@if($s['button_text'] !== '')
+<div class="block-posts-grid-footer">
+    <a href="{{ $buttonUrl }}" class="block-posts-grid-more"{!! vela_external_link_attrs($buttonUrl) !!}>{{ $s['button_text'] }} <span aria-hidden="true">&rarr;</span></a>
+</div>
+@endif
 @else
     @include('vela::public.pages.blocks._empty_state', [
         'icon'    => 'fa-newspaper',
