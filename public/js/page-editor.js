@@ -7098,52 +7098,220 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // --- Call to action --------------------------------------------------
+    //
+    // The dialog had no box for the note the page shows under the buttons, and
+    // saved its content from scratch — so opening a call to action that had
+    // one and pressing Save deleted it. It keeps what it does not edit now,
+    // and draws the strip as it goes. Services\Blocks\Cta is the page's side.
+
+    function ctaSettings(s) {
+        var one = function (value, allowed) { return allowed.indexOf(value) > -1 ? value : allowed[0]; };
+        return {
+            text_alignment: one(s.text_alignment, ['center', 'left', 'right']),
+            layout: one(s.layout, ['stacked', 'split', 'card']),
+            size: one(s.size, ['normal', 'compact', 'large']),
+            background: s.background || '',
+            button_style: one(s.button_style, ['solid', 'pill', 'outline']),
+            button_color: s.button_color || ''
+        };
+    }
+
+    // The same rule as Cta::heading(): everything escaped, bare emphasis back.
+    function ctaHeadingHtml(heading) {
+        var bare = String(heading || '').replace(/<(\/?)(em|strong|i|b)\b[^>]*>/gi, '<$1$2>');
+        return escHtml(bare).replace(/&lt;(\/?)(em|strong|i|b)&gt;/gi, '<$1$2>');
+    }
+
+    function ctaPreviewHtml(c, s, mini) {
+        var bg = s.background ? swatchValue(s.background, '') : '';
+        var pairs = { 'token:accent': 'token:accent-ink', 'token:band': 'token:band-ink' };
+        var ink = bg ? (pairs[s.background] ? swatchValue(pairs[s.background], '#ffffff') : (s.background.indexOf('token:') === 0 ? swatchValue('token:ink', '#1f2937') : (pricingInk(bg) || '#1f2937'))) : '';
+        var btn = s.button_color ? swatchValue(s.button_color, '') : '';
+        var btnInk = btn ? (pricingInk(btn) || '#ffffff') : '';
+        var vars = (bg ? '--cp-bg:' + bg + ';--cp-ink:' + ink + ';' : '') + (btn ? '--cp-btn:' + btn + ';--cp-btn-ink:' + btnInk + ';' : '');
+        var buttons = (c.primary_button_text || c.secondary_button_text)
+            ? '<span class="cp-actions">' +
+                (c.primary_button_text ? '<span class="cp-btn cp-btn--1">' + escHtml(c.primary_button_text) + '</span>' : '') +
+                (c.secondary_button_text ? '<span class="cp-btn cp-btn--2">' + escHtml(c.secondary_button_text) + '</span>' : '') +
+              '</span>' : '';
+        return '<div class="cp cp--' + s.layout + ' cp--' + s.size + ' cp--align-' + s.text_alignment + ' cp--btn-' + s.button_style + (bg ? ' has-bg' : '') + (s.background === 'token:accent' ? ' is-accent-bg' : '') + (btn ? ' has-btn' : '') + (mini ? ' cp--mini' : '') + '" style="' + vars + '">' +
+            '<span class="cp-inner">' +
+                '<span class="cp-words">' +
+                    '<span class="cp-heading">' + (c.heading ? ctaHeadingHtml(c.heading) : (mini ? 'Call to Action' : 'Your heading')) + '</span>' +
+                    (c.description ? '<span class="cp-desc">' + escHtml(c.description) + '</span>' : '') +
+                '</span>' +
+                ((buttons || c.note) ? '<span class="cp-side">' + buttons + (c.note ? '<span class="cp-note">' + escHtml(c.note) + '</span>' : '') + '</span>' : '') +
+            '</span></div>';
+    }
+
+    function ctaDialogContent() {
+        return {
+            heading: $('#cta-heading').val(),
+            description: $('#cta-description').val(),
+            note: $('#cta-note').val(),
+            primary_button_text: $('#cta-btn1-text').val(),
+            primary_button_url: $('#cta-btn1-url').val(),
+            secondary_button_text: $('#cta-btn2-text').val(),
+            secondary_button_url: $('#cta-btn2-url').val()
+        };
+    }
+
+    function ctaDialogSettings() {
+        return ctaSettings({
+            text_alignment: $('#cta-align').val(),
+            layout: $('#cta-layout').val(),
+            size: $('#cta-size').val(),
+            background: $('#cta-background-text').val() || '',
+            button_style: $('#cta-btn-style').val(),
+            button_color: $('#cta-button-color-text').val() || ''
+        });
+    }
+
+    function drawCtaPreview() {
+        var box = document.getElementById('cta-live-preview');
+        if (!box) return;
+        var s = ctaDialogSettings();
+        box.innerHTML = ctaPreviewHtml(ctaDialogContent(), s, false);
+        $('.cta-bg-tile').each(function () {
+            var on = String($(this).data('value')) === s.background;
+            $(this).toggleClass('active', on).attr('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
     PageEditor.registerBlockType('cta', {
         icon: 'fa-bullhorn',
         label: 'Call to Action',
         defaults: {
-            content: { heading: '', description: '', primary_button_text: '', primary_button_url: '', secondary_button_text: '', secondary_button_url: '' },
-            settings: { text_alignment: 'center' }
+            content: { heading: '', description: '', note: '', primary_button_text: '', primary_button_url: '', secondary_button_text: '', secondary_button_url: '' },
+            settings: { text_alignment: 'center', layout: 'stacked', size: 'normal', background: '', button_style: 'solid', button_color: '' }
         },
         renderPreview: function(block) {
-            var c = block.content || {};
-            var heading = c.heading || 'Call to Action';
-            var desc = c.description || '';
-            return '<div style="padding:16px;background:#f0f4f8;border-radius:6px;text-align:' + ((block.settings || {}).text_alignment || 'center') + ';">' +
-                '<div style="font-size:1.2em;font-weight:700;margin-bottom:4px;">' + escHtml(heading) + '</div>' +
-                (desc ? '<div style="font-size:0.85em;color:#555;">' + escHtml(desc.length > 100 ? desc.substring(0, 100) + '...' : desc) + '</div>' : '') +
-                '</div>';
+            return ctaPreviewHtml(block.content || {}, ctaSettings(block.settings || {}), true);
         },
         renderEditor: function(block) {
             var c = block.content || {};
-            var s = block.settings || {};
-            return '<div class="form-group"><label>Heading</label><input type="text" class="form-control" id="cta-heading" value="' + escHtml(c.heading || '') + '"></div>' +
-                '<div class="form-group"><label>Description</label><textarea class="form-control" id="cta-description" rows="2">' + escHtml(c.description || '') + '</textarea></div>' +
-                '<hr><strong>Buttons</strong>' +
-                '<div class="form-row mt-2"><div class="form-group col-md-6"><label>Primary Button Text</label><input type="text" class="form-control" id="cta-btn1-text" value="' + escHtml(c.primary_button_text || '') + '"></div>' +
-                '<div class="form-group col-md-6"><label>Primary Button URL</label><input type="text" class="form-control vela-link-input" id="cta-btn1-url" value="' + escHtml(c.primary_button_url || '') + '"></div></div>' +
-                '<div class="form-row"><div class="form-group col-md-6"><label>Secondary Button Text</label><input type="text" class="form-control" id="cta-btn2-text" value="' + escHtml(c.secondary_button_text || '') + '"></div>' +
-                '<div class="form-group col-md-6"><label>Secondary Button URL</label><input type="text" class="form-control vela-link-input" id="cta-btn2-url" value="' + escHtml(c.secondary_button_url || '') + '"></div></div>' +
-                '<hr>' +
-                '<div class="form-group"><label>Text Alignment</label><select class="form-control" id="cta-align">' +
-                    '<option value="left"' + (s.text_alignment === 'left' ? ' selected' : '') + '>Left</option>' +
-                    '<option value="center"' + (s.text_alignment !== 'left' && s.text_alignment !== 'right' ? ' selected' : '') + '>Center</option>' +
-                    '<option value="right"' + (s.text_alignment === 'right' ? ' selected' : '') + '>Right</option></select></div>';
+            var s = ctaSettings(block.settings || {});
+            var text = function (id, label, value, placeholder, extra) {
+                return '<div class="pt-field"><label for="' + id + '">' + label + '</label><input type="text" class="form-control form-control-sm ' + (extra || '') + '" id="' + id + '" value="' + escHtml(value || '') + '" placeholder="' + escHtml(placeholder || '') + '"></div>';
+            };
+            var layoutArt = {
+                stacked: '<span class="vc-shape ca ca--stacked"><b class="h"></b><b class="t"></b><b class="btn"></b></span>',
+                split: '<span class="vc-shape ca ca--split"><span><b class="h"></b><b class="t"></b></span><b class="btn"></b></span>',
+                card: '<span class="vc-shape ca ca--card"><span><b class="h"></b><b class="t"></b><b class="btn"></b></span></span>'
+            };
+            var sizeArt = function (n) { return '<span class="vc-shape cs"><b style="height:' + n + 'px"></b></span>'; };
+            var bgTile = function (value, label, swatch) {
+                var on = value === s.background;
+                return '<button type="button" class="vela-tile cta-bg-tile' + (on ? ' active' : '') + '" aria-pressed="' + on + '" data-value="' + escHtml(value) + '">' +
+                    '<span class="vc-shape cb" style="' + swatch + '"><b></b></span><span class="vela-tile-label">' + label + '</span></button>';
+            };
+            var tokenSwatch = function (token, fallback) { return 'background:' + escHtml(swatchValue(token, fallback)) + ';'; };
+            return '<div class="vc-section-title">How it will look</div>' +
+                '<div id="cta-live-preview" class="vc-preview cta-live-preview"></div>' +
+
+                '<div class="vc-section-title">Words</div>' +
+                '<div class="pt-grid mb-2">' +
+                    '<div class="pt-field pt-field--wide"><label for="cta-heading">Heading <small>— select a word and press I or B to lean or bold it</small></label>' +
+                        '<div class="input-group input-group-sm"><input type="text" class="form-control" id="cta-heading" value="' + escHtml(c.heading || '') + '" placeholder="e.g. Ready for your first dive?">' +
+                        '<div class="input-group-append"><button type="button" class="btn btn-outline-secondary cta-wrap" data-tag="em" title="Italic"><i class="fas fa-italic"></i></button>' +
+                        '<button type="button" class="btn btn-outline-secondary cta-wrap" data-tag="strong" title="Bold"><i class="fas fa-bold"></i></button></div></div></div>' +
+                    '<div class="pt-field pt-field--wide"><label for="cta-description">Text under it <small>— optional</small></label><textarea class="form-control form-control-sm" id="cta-description" rows="2">' + escHtml(c.description || '') + '</textarea></div>' +
+                    text('cta-btn1-text', 'Main button', c.primary_button_text, 'e.g. Book now') +
+                    text('cta-btn1-url', 'Main button link', c.primary_button_url, '/contact-us', 'vela-link-input') +
+                    text('cta-btn2-text', 'Second button <small>— optional</small>', c.secondary_button_text, 'e.g. See prices') +
+                    text('cta-btn2-url', 'Second button link', c.secondary_button_url, '/pricing', 'vela-link-input') +
+                    '<div class="pt-field pt-field--wide">' + '<label for="cta-note">Small print under the buttons <small>— optional, e.g. No card needed · Cancel any time</small></label><input type="text" class="form-control form-control-sm" id="cta-note" value="' + escHtml(c.note || '') + '"></div>' +
+                '</div>' +
+
+                '<div class="vc-section-title">Layout</div>' +
+                '<input type="hidden" id="cta-layout" value="' + s.layout + '">' +
+                carouselTiles('cta-layout', s.layout, [
+                    { value: 'stacked', label: 'One column', art: layoutArt.stacked },
+                    { value: 'split', label: 'Words left · buttons right', art: layoutArt.split },
+                    { value: 'card', label: 'Raised card', art: layoutArt.card }
+                ], 'vela-tiles--3', 'cta-tile') +
+
+                '<div class="vc-section-title">Background <small>— the text colour is chosen to stay readable</small></div>' +
+                '<div class="vela-tiles vela-tiles--4 mb-2">' +
+                    bgTile('', 'Theme\'s own', 'background:repeating-linear-gradient(45deg,#f3f4f6 0 6px,#fff 6px 12px);') +
+                    bgTile('token:band', 'Band', tokenSwatch('token:band', '#1a1a1a')) +
+                    bgTile('token:accent', 'Accent', tokenSwatch('token:accent', '#2563eb')) +
+                    bgTile('token:surface', 'Soft', tokenSwatch('token:surface', '#f9fafb')) +
+                '</div>' +
+                '<details class="pricing-colours mb-3" id="cta-bg-custom"' + (s.background && ['token:band', 'token:accent', 'token:surface'].indexOf(s.background) === -1 ? ' open' : '') + '><summary class="vc-section-title" style="cursor:pointer;display:list-item;">Another colour</summary>' +
+                    colourField('cta-background', 'Background', s.background, 'cta') +
+                '</details>' +
+
+                '<div class="hero-two">' +
+                    '<div><div class="vc-section-title">Alignment</div>' +
+                        '<input type="hidden" id="cta-align" value="' + s.text_alignment + '">' +
+                        carouselTiles('cta-align', s.text_alignment, [
+                            { value: 'left', label: 'Left', art: '<span class="vc-shape cal cal--left"><b></b><b></b></span>' },
+                            { value: 'center', label: 'Centre', art: '<span class="vc-shape cal cal--center"><b></b><b></b></span>' },
+                            { value: 'right', label: 'Right', art: '<span class="vc-shape cal cal--right"><b></b><b></b></span>' }
+                        ], 'vela-tiles--3', 'cta-tile') + '</div>' +
+                    '<div><div class="vc-section-title">Size</div>' +
+                        '<input type="hidden" id="cta-size" value="' + s.size + '">' +
+                        carouselTiles('cta-size', s.size, [
+                            { value: 'compact', label: 'Compact', art: sizeArt(16) },
+                            { value: 'normal', label: 'Normal', art: sizeArt(26) },
+                            { value: 'large', label: 'Large', art: sizeArt(38) }
+                        ], 'vela-tiles--3', 'cta-tile') + '</div>' +
+                '</div>' +
+
+                '<div class="vc-section-title mt-2">Buttons</div>' +
+                '<input type="hidden" id="cta-btn-style" value="' + s.button_style + '">' +
+                carouselTiles('cta-btn-style', s.button_style, [
+                    { value: 'solid', label: 'Solid', art: '<span class="vc-shape hb hb--solid"><b></b><b></b></span>' },
+                    { value: 'pill', label: 'Rounded', art: '<span class="vc-shape hb hb--pill"><b></b><b></b></span>' },
+                    { value: 'outline', label: 'Outline', art: '<span class="vc-shape hb hb--outline"><b></b><b></b></span>' }
+                ], 'vela-tiles--3', 'cta-tile') +
+                '<details class="pricing-colours mb-3"' + (s.button_color ? ' open' : '') + '><summary class="vc-section-title" style="cursor:pointer;display:list-item;">Main button colour <small>— the theme accent unless you pick one. The second button always takes the text colour, so it stays readable on any background.</small></summary>' +
+                    colourField('cta-button-color', 'Main button', s.button_color, 'cta') +
+                '</details>';
         },
-        initEditor: function(block) {},
+        initEditor: function() {
+            var changed = function () { _blockEditTouched = true; drawCtaPreview(); };
+            $(document).off('click.cta').on('click.cta', '.cta-tile', function () {
+                var $tile = $(this);
+                $tile.closest('.vela-tiles').find('.cta-tile').removeClass('active').attr('aria-pressed', 'false');
+                $tile.addClass('active').attr('aria-pressed', 'true');
+                $('#' + $tile.data('input')).val($tile.data('value'));
+                changed();
+            }).on('click.cta', '.cta-bg-tile', function () {
+                var v = String($(this).data('value'));
+                $('#cta-background-text').val(v);
+                $('#cta-background').val(swatchValue(v, '#ffffff'));
+                $('#cta-bg-custom .vela-token-chip').removeClass('is-on');
+                changed();
+            }).on('click.cta', '.cta-wrap', function () {
+                // Wrap the selected words, or the whole heading when nothing is
+                // selected; pressing it on an already wrapped selection unwraps.
+                var input = document.getElementById('cta-heading');
+                var tag = $(this).data('tag');
+                var v = input.value, a = input.selectionStart, b = input.selectionEnd;
+                if (a === b) { a = 0; b = v.length; }
+                var picked = v.slice(a, b);
+                var open = '<' + tag + '>', close = '</' + tag + '>';
+                var wrapped = picked.indexOf(open) === 0 && picked.lastIndexOf(close) === picked.length - close.length
+                    ? picked.slice(open.length, picked.length - close.length)
+                    : open + picked + close;
+                input.value = v.slice(0, a) + wrapped + v.slice(b);
+                input.focus();
+                input.setSelectionRange(a, a + wrapped.length);
+                changed();
+            });
+            $(document).off('input.cta change.cta')
+                .on('input.cta change.cta', '#cta-heading, #cta-description, #cta-note, #cta-btn1-text, #cta-btn2-text', changed);
+            bindColourFields('cta', changed);
+            drawCtaPreview();
+        },
         collectData: function(block) {
+            // Kept, not rebuilt: a key this dialog does not show survives a save.
             return {
-                content: {
-                    heading: $('#cta-heading').val(),
-                    description: $('#cta-description').val(),
-                    primary_button_text: $('#cta-btn1-text').val(),
-                    primary_button_url: $('#cta-btn1-url').val(),
-                    secondary_button_text: $('#cta-btn2-text').val(),
-                    secondary_button_url: $('#cta-btn2-url').val()
-                },
-                settings: {
-                    text_alignment: $('#cta-align').val() || 'center'
-                }
+                content: $.extend({}, block.content, ctaDialogContent()),
+                settings: $.extend({}, block.settings, ctaDialogSettings())
             };
         }
     });

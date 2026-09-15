@@ -719,8 +719,17 @@ class VelaServiceProvider extends ServiceProvider
                 // and must be declared here — the defaults are what add_block /
                 // update_block validate incoming content against.
                 'content' => ['heading' => '', 'description' => '', 'note' => '', 'primary_button_text' => '', 'primary_button_url' => '', 'secondary_button_text' => '', 'secondary_button_url' => ''],
-                'settings' => ['text_alignment' => 'center'],
+                'settings' => [
+                    'text_alignment' => 'center', 'layout' => 'stacked', 'size' => 'normal', 'background' => '',
+                    'button_style' => 'solid', 'button_color' => '',
+                ],
             ],
+            'shape_note' => 'content: heading (may carry <em> or <strong> around a word, nothing else), description, up to two '
+                . 'buttons (primary_/secondary_button_text + _url), and note — small print under the buttons. settings: '
+                . 'text_alignment left/center/right. layout is stacked (everything in one column), split (words left, buttons '
+                . 'right) or card (a raised panel). size is compact, normal or large. background is empty for the theme\'s own '
+                . 'look, or token:band / token:accent / token:surface / a hex — the text on it is chosen to stay readable. '
+                . 'button_style is solid, pill or outline; button_color is empty for the theme accent.',
         ]);
 
         $vela->registerBlock('app_download', [
