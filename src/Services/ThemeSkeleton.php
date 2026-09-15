@@ -687,7 +687,7 @@ BLADE;
         return <<<'BLADE'
         <a class="card" href="{{ route('vela.public.posts.show', $post->slug) }}">
             @if($post->main_image)
-                {!! vela_image($post->main_image, $post->translated_title, [400, 800]) !!}
+                {!! vela_image($post->main_image->url, $post->translated_title, [400, 800]) !!}
             @endif
             <div class="card-body">
                 <h3>{{ $post->translated_title }}</h3>
@@ -756,7 +756,7 @@ BLADE;
     </div>
 
     @if($post->main_image)
-        {!! vela_image($post->main_image, $post->translated_title, [800, 1200], 'fit', [], 'preload') !!}
+        {!! vela_image($post->main_image->url, $post->translated_title, [800, 1200], 'fit', [], 'preload') !!}
     @endif
 
     <div class="prose">
@@ -772,7 +772,7 @@ BLADE;
     @foreach($relatedPosts as $post)
         <a class="card" href="{{ route('vela.public.posts.show', $post->slug) }}">
             @if($post->main_image)
-                {!! vela_image($post->main_image, $post->translated_title, [400, 800]) !!}
+                {!! vela_image($post->main_image->url, $post->translated_title, [400, 800]) !!}
             @endif
             <div class="card-body">
                 <h3>{{ $post->translated_title }}</h3>

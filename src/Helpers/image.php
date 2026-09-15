@@ -13,15 +13,44 @@ if (!function_exists('vela_image')) {
      *               in <head> via vela_image_preload() for best results.
      *   false     — Skip loading attr entirely (legacy compat, same as 'eager').
      *
-     * @param string $src      Image URL, absolute path, or relative path
+     * @param mixed  $src      Image URL, absolute path, or relative path — or a media
+     *                         item such as $post->main_image, whose url is used
      * @param string $alt      Alt text
      * @param array  $sizes    Responsive widths (px)
-     * @param string $mode     'fit' or 'crop'
-     * @param array  $attrs    Extra HTML attributes (e.g. ['class' => '...'])
-     * @param string|false $loading  'lazy' (default), 'eager', 'preload', or false
+     * @param string|null $mode  'fit' or 'crop'; empty means 'fit'
+     * @param array|string|null $attrs  Extra HTML attributes (e.g. ['class' => '...'])
+     * @param string|false|null $loading  'lazy' (default), 'eager', 'preload', or false
      */
-    function vela_image(string $src, string $alt = '', array $sizes = [400, 800, 1200], string $mode = 'fit', array $attrs = [], string|false $loading = 'lazy'): string
+    function vela_image(mixed $src, string $alt = '', array $sizes = [400, 800, 1200], ?string $mode = 'fit', array|string|null $attrs = [], string|false|null $loading = 'lazy'): string
     {
+        // Theme templates, many of them written by an AI build, call this in
+        // shapes the signature did not allow. Each of these took a public page
+        // down or broke its picture, so they are read for what they meant:
+        //
+        // - the media item itself ($post->main_image) rather than its url. A
+        //   model turns into its JSON when made a string, and that JSON went
+        //   out as the src of every card in a listing.
+        // - the loading keyword one place early ('', 'eager'), which was a
+        //   TypeError and a 500 on the article page.
+        if (is_object($src)) {
+            $src = isset($src->url) && is_string($src->url) ? $src->url
+                : (method_exists($src, 'getUrl') ? $src->getUrl() : '');
+        }
+        $src = is_string($src) ? $src : '';
+        if (is_string($attrs)) {
+            if (in_array($attrs, ['lazy', 'eager', 'preload'], true) && $loading === 'lazy') {
+                $loading = $attrs;
+            }
+            $attrs = [];
+        }
+        $attrs ??= [];
+        $mode = in_array($mode, ['fit', 'crop'], true) ? $mode : 'fit';
+        $loading ??= 'lazy';
+
+        if ($src === '') {
+            return '';
+        }
+
         $relativePath = vela_image_relative_path($src);
 
         // Vector files have no pixels to resample. Sending one through the

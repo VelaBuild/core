@@ -863,9 +863,11 @@ META TAGS
         @section('og_image', $metaTags['og_image'])
 
 IMAGES
-    {!! vela_image($post->main_image, $post->translated_title, [400, 800, 1200]) !!}
-    gives a responsive, lazy-loaded picture. For a hero, pass 'preload' as the
-    sixth argument.
+    {!! vela_image($post->main_image->url, $post->translated_title, [400, 800, 1200]) !!}
+    gives a responsive, lazy-loaded picture. main_image is a media item: pass
+    its ->url. For a hero, the loading keyword is the SIXTH argument, after the
+    mode and the attributes array:
+    {!! vela_image($post->main_image->url, $post->translated_title, [800, 1200], 'fit', [], 'preload') !!}
 
 RULES
     Write plain HTML and your own CSS. Do not link to a CSS framework or any
