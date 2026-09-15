@@ -64,7 +64,9 @@ $gridFr     = implode(' ', $columns->map(fn($blocks) => $blocks->first()->column
 @php
 $blockStyle = '';
 if ($c = $__tokens::colour($block->background_color)) $blockStyle .= 'background-color:' . e($c) . ';';
-if ($block->background_image) $blockStyle .= 'background-image:url(' . e(vela_background_url($block->background_image)) . ');background-size:cover;background-position:center;';
+// A hero draws its own picture — sized per screen, focused, prioritised —
+// so painting it here as well would download it twice.
+if ($block->background_image && $block->type !== 'hero') $blockStyle .= 'background-image:url(' . e(vela_background_url($block->background_image)) . ');background-size:cover;background-position:center;';
 if ($c = $__tokens::colour($block->text_color)) $blockStyle .= 'color:' . e($c) . ';--vela-text-color:' . e($c) . ';';
 if ($a = $__tokens::alignment($block->text_alignment)) $blockStyle .= 'text-align:' . $a . ';';
 $blockPadding = $__tokens::spacing($block->padding);

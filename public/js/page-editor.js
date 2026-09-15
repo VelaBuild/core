@@ -6797,62 +6797,303 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // --- Hero banner -----------------------------------------------------
+    //
+    // Height and overlay were typed as CSS (80vh, rgba(0,0,0,0.4)), nothing
+    // showed whether the words could be read over the picture, and "left"
+    // aligned text inside a centred column. The choices are drawings now, the
+    // banner is drawn as it goes, and the picture has a point to keep in frame.
+    // What the page does with each setting is Services\Blocks\Hero.
+
+    function heroSettings(s) {
+        var one = function (value, allowed, dflt) { return allowed.indexOf(value) > -1 ? value : (dflt === undefined ? allowed[0] : dflt); };
+        var pct = function (v) { v = parseFloat(v); return isNaN(v) ? 50 : Math.max(0, Math.min(100, Math.round(v))); };
+        var height = String(s.min_height || '80vh').toLowerCase().trim();
+        if (['auto', '50vh', '80vh', '100vh'].indexOf(height) === -1 && !/^[0-9]{1,4}(\.[0-9]+)?(px|vh|svh|dvh|lvh|rem|em)$/.test(height)) height = '80vh';
+        return {
+            min_height: height,
+            text_alignment: one(s.text_alignment, ['center', 'left', 'right']),
+            vertical_align: one(s.vertical_align, ['center', 'top', 'bottom']),
+            overlay_style: one(s.overlay_style, ['none', 'light', 'medium', 'dark', 'gradient_bottom', 'gradient_left'], null),
+            overlay_color: s.overlay_color || '',
+            background_overlay: s.background_overlay || 'rgba(0,0,0,0.4)',
+            text_color_mode: one(s.text_color_mode, ['auto', 'light', 'dark']),
+            focal_x: pct(s.focal_x),
+            focal_y: pct(s.focal_y),
+            mobile_background_image: s.mobile_background_image || '',
+            heading_level: one(s.heading_level, ['auto', 'h1', 'h2']),
+            button_style: one(s.button_style, ['solid', 'pill', 'outline']),
+            button_color: s.button_color || ''
+        };
+    }
+
+    // A hero saved as rgba(0,0,0,a) reads as the nearest strength; one that
+    // is something else (a gradient an AI build wrote) keeps its own value
+    // until an overlay is chosen.
+    function heroLegacyOverlay(value) {
+        var m = /^rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*([0-9.]+)\s*\)$/i.exec(String(value || '').trim());
+        if (!m) return null;
+        var a = parseFloat(m[1]);
+        return a <= 0.05 ? 'none' : a < 0.35 ? 'light' : a < 0.55 ? 'medium' : 'dark';
+    }
+
+    function heroOverlayCss(s) {
+        if (s.overlay_style === null) return s.background_overlay;
+        var c = s.overlay_color ? swatchValue(s.overlay_color, '#000000') : '#000000';
+        var mix = function (p) { return 'color-mix(in srgb, ' + c + ' ' + p + '%, transparent)'; };
+        return {
+            none: '', light: mix(25), medium: mix(45), dark: mix(65),
+            gradient_bottom: 'linear-gradient(to top, ' + mix(80) + ', ' + mix(30) + ' 55%, transparent)',
+            gradient_left: 'linear-gradient(to right, ' + mix(80) + ', ' + mix(35) + ' 55%, transparent)'
+        }[s.overlay_style];
+    }
+
+    function heroInk(s, hasImage) {
+        if (s.text_color_mode !== 'auto') return s.text_color_mode;
+        // `theme` on the page; the dialog cannot know the theme, and the
+        // block stylesheet's own colour for it is white.
+        if (s.overlay_style === null || hasImage) return 'light';
+        return ['medium', 'dark', 'gradient_bottom', 'gradient_left'].indexOf(s.overlay_style) > -1 ? 'light' : 'dark';
+    }
+
+    function heroPreviewHtml(c, s, image, mini) {
+        var ink = heroInk(s, !!image);
+        var overlay = heroOverlayCss(s);
+        var h = { auto: mini ? 110 : 190, '50vh': mini ? 120 : 220, '80vh': mini ? 140 : 280, '100vh': mini ? 160 : 330 }[s.min_height] || (mini ? 140 : 260);
+        var btnColour = s.button_color ? swatchValue(s.button_color, '') : '';
+        var btnInk = btnColour ? (pricingInk(btnColour) || '#ffffff') : '';
+        return '<div class="hp hp--x-' + s.text_alignment + ' hp--y-' + s.vertical_align + ' hp--ink-' + ink + ' hp--btn-' + s.button_style + (mini ? ' hp--mini' : '') + '" style="min-height:' + h + 'px;' +
+                (btnColour ? '--hp-btn:' + escHtml(btnColour) + ';--hp-btn-ink:' + btnInk + ';' : '') + '">' +
+            (image ? '<img class="hp-media" src="' + escHtml(image) + '" alt="" style="object-position:' + s.focal_x + '% ' + s.focal_y + '%">' : '') +
+            (overlay ? '<span class="hp-overlay" style="background:' + escHtml(overlay) + '"></span>' : '') +
+            '<span class="hp-inner">' +
+                (c.eyebrow ? '<span class="hp-eyebrow">' + escHtml(c.eyebrow) + '</span>' : '') +
+                '<span class="hp-title">' + escHtml(c.title || (mini ? 'Hero Banner' : 'Your headline')) + '</span>' +
+                (c.subtitle ? '<span class="hp-sub">' + escHtml(c.subtitle) + '</span>' : '') +
+                ((c.primary_button_text || c.secondary_button_text) ? '<span class="hp-actions">' +
+                    (c.primary_button_text ? '<span class="hp-btn hp-btn--1">' + escHtml(c.primary_button_text) + '</span>' : '') +
+                    (c.secondary_button_text ? '<span class="hp-btn hp-btn--2">' + escHtml(c.secondary_button_text) + '</span>' : '') +
+                '</span>' : '') +
+            '</span></div>';
+    }
+
+    function heroDialogContent() {
+        return {
+            eyebrow: $('#hero-eyebrow').val(),
+            title: $('#hero-title').val(),
+            subtitle: $('#hero-subtitle').val(),
+            primary_button_text: $('#hero-btn1-text').val(),
+            primary_button_url: $('#hero-btn1-url').val(),
+            secondary_button_text: $('#hero-btn2-text').val(),
+            secondary_button_url: $('#hero-btn2-url').val()
+        };
+    }
+
+    function heroDialogSettings(base) {
+        var overlay = $('#hero-overlay-style').val();
+        return heroSettings($.extend({}, base, {
+            min_height: $('#hero-height').val(),
+            text_alignment: $('#hero-align').val(),
+            vertical_align: $('#hero-valign').val(),
+            overlay_style: overlay || null,
+            overlay_color: $('#hero-overlay-color-text').val() || '',
+            text_color_mode: $('#hero-ink').val(),
+            focal_x: $('#hero-focal-x').val(),
+            focal_y: $('#hero-focal-y').val(),
+            mobile_background_image: $.trim($('#hero-mobile-image').val() || ''),
+            heading_level: $('#hero-heading').val(),
+            button_style: $('#hero-btn-style').val(),
+            button_color: $('#hero-button-color-text').val() || ''
+        }));
+    }
+
+    function drawHeroPreview() {
+        var box = document.getElementById('hero-live-preview');
+        if (!box) return;
+        var base = $('#hero-live-preview').data('base') || {};
+        var s = heroDialogSettings(base);
+        var image = $.trim($('#block-bg-image').val() || '');
+        box.innerHTML = heroPreviewHtml(heroDialogContent(), s, image, false);
+
+        // The focal point only means something with a picture to put it on.
+        $('#hero-focal-wrap').prop('hidden', !image);
+        if (image) {
+            $('#hero-focal-img').attr('src', image);
+            $('#hero-focal-dot').css({ left: s.focal_x + '%', top: s.focal_y + '%' });
+            $('#hero-focal-label').text(s.focal_x + '% across, ' + s.focal_y + '% down');
+        }
+        $('#hero-position .hero-pos').each(function () {
+            $(this).toggleClass('active', $(this).data('x') === s.text_alignment && $(this).data('y') === s.vertical_align);
+        });
+        var custom = ['auto', '50vh', '80vh', '100vh'].indexOf(s.min_height) === -1;
+        $('#hero-height-custom').val(custom ? s.min_height : '');
+        // Only an old shade with no tile of its own needs saying.
+        $('#hero-legacy-overlay').prop('hidden', s.overlay_style !== null || $('#hero-legacy-overlay').data('mapped') === 1);
+        var auto = heroInk($.extend({}, s, { text_color_mode: 'auto' }), !!image);
+        $('#hero-ink-auto-note').text('Automatic is ' + (auto === 'light' ? 'light words' : 'the theme\'s dark words') + ' for this banner.');
+    }
+
     PageEditor.registerBlockType('hero', {
         icon: 'fa-flag',
         label: 'Hero Banner',
         defaults: {
-            content: { title: '', subtitle: '', primary_button_text: '', primary_button_url: '', secondary_button_text: '', secondary_button_url: '' },
-            settings: { background_overlay: 'rgba(0,0,0,0.4)', text_alignment: 'center', min_height: '80vh' }
+            content: { eyebrow: '', title: '', subtitle: '', primary_button_text: '', primary_button_url: '', secondary_button_text: '', secondary_button_url: '' },
+            settings: {
+                background_overlay: 'rgba(0,0,0,0.4)', overlay_style: 'medium', overlay_color: '',
+                text_alignment: 'center', vertical_align: 'center', min_height: '80vh',
+                text_color_mode: 'auto', focal_x: 50, focal_y: 50, mobile_background_image: '',
+                heading_level: 'auto', button_style: 'solid', button_color: ''
+            }
         },
         renderPreview: function(block) {
-            var c = block.content || {};
-            var s = block.settings || {};
-            var title = c.title || 'Hero Banner';
-            var subtitle = c.subtitle || '';
-            var overlay = s.background_overlay || 'rgba(0,0,0,0.4)';
-            return '<div style="position:relative;padding:24px 16px;background:linear-gradient(135deg,#1e3a5f,#2d5f8a);color:#fff;border-radius:6px;text-align:' + (s.text_alignment || 'center') + ';">' +
-                '<div style="position:relative;z-index:1;">' +
-                '<div style="font-size:1.3em;font-weight:700;margin-bottom:6px;">' + escHtml(title) + '</div>' +
-                (subtitle ? '<div style="font-size:0.9em;opacity:0.85;">' + escHtml(subtitle) + '</div>' : '') +
-                '</div></div>';
+            return heroPreviewHtml(block.content || {}, heroSettings(block.settings || {}), block.background_image || '', true);
         },
         renderEditor: function(block) {
             var c = block.content || {};
-            var s = block.settings || {};
-            return '<div class="form-group"><label>Title</label><input type="text" class="form-control" id="hero-title" value="' + escHtml(c.title || '') + '"></div>' +
-                '<div class="form-group"><label>Subtitle</label><textarea class="form-control" id="hero-subtitle" rows="2">' + escHtml(c.subtitle || '') + '</textarea></div>' +
-                '<hr><strong>Buttons</strong>' +
-                '<div class="form-row mt-2"><div class="form-group col-md-6"><label>Primary Button Text</label><input type="text" class="form-control" id="hero-btn1-text" value="' + escHtml(c.primary_button_text || '') + '"></div>' +
-                '<div class="form-group col-md-6"><label>Primary Button URL</label><input type="text" class="form-control vela-link-input" id="hero-btn1-url" value="' + escHtml(c.primary_button_url || '') + '"></div></div>' +
-                '<div class="form-row"><div class="form-group col-md-6"><label>Secondary Button Text</label><input type="text" class="form-control" id="hero-btn2-text" value="' + escHtml(c.secondary_button_text || '') + '"></div>' +
-                '<div class="form-group col-md-6"><label>Secondary Button URL</label><input type="text" class="form-control vela-link-input" id="hero-btn2-url" value="' + escHtml(c.secondary_button_url || '') + '"></div></div>' +
-                '<hr><strong>Settings</strong>' +
-                '<div class="form-row mt-2"><div class="form-group col-md-4"><label>Overlay Color</label><input type="text" class="form-control" id="hero-overlay" value="' + escHtml(s.background_overlay || 'rgba(0,0,0,0.4)') + '" placeholder="rgba(0,0,0,0.4)"></div>' +
-                '<div class="form-group col-md-4"><label>Text Alignment</label><select class="form-control" id="hero-align">' +
-                    '<option value="left"' + (s.text_alignment === 'left' ? ' selected' : '') + '>Left</option>' +
-                    '<option value="center"' + (s.text_alignment !== 'left' && s.text_alignment !== 'right' ? ' selected' : '') + '>Center</option>' +
-                    '<option value="right"' + (s.text_alignment === 'right' ? ' selected' : '') + '>Right</option></select></div>' +
-                '<div class="form-group col-md-4"><label>Min Height</label><input type="text" class="form-control" id="hero-height" value="' + escHtml(s.min_height || '80vh') + '" placeholder="80vh"></div></div>' +
-                // The banner image is what people come here to change, so it sits in the
-                // block form itself rather than behind the collapsed Block Style panel.
-                imageField('block-bg-image', 'Background Image', block.background_image);
+            var raw = block.settings || {};
+            var s = heroSettings(raw);
+            // An old hero's rgba overlay is shown as the strength it is.
+            var overlayChoice = s.overlay_style !== null ? s.overlay_style : heroLegacyOverlay(raw.background_overlay || 'rgba(0,0,0,0.4)');
+            var text = function (id, label, value, placeholder, extra) {
+                return '<div class="pt-field"><label for="' + id + '">' + label + '</label><input type="text" class="form-control form-control-sm ' + (extra || '') + '" id="' + id + '" value="' + escHtml(value || '') + '" placeholder="' + escHtml(placeholder || '') + '"></div>';
+            };
+            var shade = function (kind) { return '<span class="vc-shape ho ho--' + kind + '"><b></b></span>'; };
+            var heightArt = function (h) { return '<span class="vc-shape hh"><b style="height:' + h + 'px"></b></span>'; };
+            var positions = '';
+            ['top', 'center', 'bottom'].forEach(function (y) {
+                ['left', 'center', 'right'].forEach(function (x) {
+                    positions += '<button type="button" class="hero-pos" data-x="' + x + '" data-y="' + y + '" title="' + y + ' ' + x + '"><i></i><i></i></button>';
+                });
+            });
+            return '<div class="vc-section-title">How it will look</div>' +
+                '<div id="hero-live-preview" class="vc-preview hero-live-preview"></div>' +
+
+                '<div class="vc-section-title">Words</div>' +
+                '<div class="pt-grid mb-2">' +
+                    '<div class="pt-field pt-field--wide">' + '<label for="hero-eyebrow">Small line above <small>— optional, e.g. New season · Since 2010</small></label><input type="text" class="form-control form-control-sm" id="hero-eyebrow" value="' + escHtml(c.eyebrow || '') + '"></div>' +
+                    '<div class="pt-field pt-field--wide"><label for="hero-title">Headline</label><input type="text" class="form-control" id="hero-title" value="' + escHtml(c.title || '') + '" placeholder="e.g. Dive the Gulf of Thailand"></div>' +
+                    '<div class="pt-field pt-field--wide"><label for="hero-subtitle">Text under it <small>— optional</small></label><textarea class="form-control form-control-sm" id="hero-subtitle" rows="2">' + escHtml(c.subtitle || '') + '</textarea></div>' +
+                    text('hero-btn1-text', 'Main button', c.primary_button_text, 'e.g. Book a dive') +
+                    text('hero-btn1-url', 'Main button link', c.primary_button_url, '/contact-us', 'vela-link-input') +
+                    text('hero-btn2-text', 'Second button <small>— optional</small>', c.secondary_button_text, 'e.g. See courses') +
+                    text('hero-btn2-url', 'Second button link', c.secondary_button_url, '/courses', 'vela-link-input') +
+                '</div>' +
+
+                '<div class="vc-section-title">Background picture</div>' +
+                imageField('block-bg-image', 'Picture', block.background_image) +
+                '<div id="hero-focal-wrap" class="mb-3" hidden>' +
+                    '<label class="pg-label">Keep this point in frame <small class="text-muted">— click the picture; phones crop a wide banner hard</small></label>' +
+                    '<div class="hero-focal" id="hero-focal"><img id="hero-focal-img" alt=""><span id="hero-focal-dot" class="hero-focal-dot"></span></div>' +
+                    '<small class="text-muted" id="hero-focal-label"></small>' +
+                    '<input type="hidden" id="hero-focal-x" value="' + s.focal_x + '"><input type="hidden" id="hero-focal-y" value="' + s.focal_y + '">' +
+                '</div>' +
+                imageField('hero-mobile-image', 'Picture for phones <small class="text-muted">— optional; a taller crop of the same scene works best</small>', s.mobile_background_image) +
+
+                '<div class="vc-section-title">Shade over the picture <small>— so the words can be read</small></div>' +
+                // Stays empty for an old hero until a tile is clicked, so opening
+                // and saving one does not quietly restate its shade.
+                '<input type="hidden" id="hero-overlay-style" value="' + (s.overlay_style || '') + '">' +
+                carouselTiles('hero-overlay-style', overlayChoice || '', [
+                    { value: 'none', label: 'None', art: shade('none') },
+                    { value: 'light', label: 'Light', art: shade('light') },
+                    { value: 'medium', label: 'Medium', art: shade('medium') },
+                    { value: 'dark', label: 'Dark', art: shade('dark') },
+                    { value: 'gradient_bottom', label: 'Fade from bottom', art: shade('gradient_bottom') },
+                    { value: 'gradient_left', label: 'Fade from left', art: shade('gradient_left') }
+                ], 'vela-tiles--6', 'hero-tile') +
+                '<div class="alert alert-secondary py-1 px-2 mb-2 small" id="hero-legacy-overlay"' + (overlayChoice ? ' data-mapped="1"' : '') + '>This banner keeps its own shade (<code>' + escHtml(raw.background_overlay || '') + '</code>) until you pick one above.</div>' +
+                '<details class="pricing-colours mb-3"' + (s.overlay_color ? ' open' : '') + '><summary class="vc-section-title" style="cursor:pointer;display:list-item;">Shade colour <small>— black unless you pick one</small></summary>' +
+                    colourField('hero-overlay-color', 'Shade', s.overlay_color, 'hero') +
+                '</details>' +
+
+                '<div class="hero-two">' +
+                    '<div><div class="vc-section-title">Where the words sit</div>' +
+                        '<input type="hidden" id="hero-align" value="' + s.text_alignment + '"><input type="hidden" id="hero-valign" value="' + s.vertical_align + '">' +
+                        '<div class="hero-position" id="hero-position">' + positions + '</div></div>' +
+                    '<div><div class="vc-section-title">Height</div>' +
+                        '<input type="hidden" id="hero-height" value="' + escHtml(s.min_height) + '">' +
+                        carouselTiles('hero-height', s.min_height, [
+                            { value: 'auto', label: 'Fits the words', art: heightArt(14) },
+                            { value: '50vh', label: 'Half the screen', art: heightArt(22) },
+                            { value: '80vh', label: 'Most of it', art: heightArt(32) },
+                            { value: '100vh', label: 'Full screen', art: heightArt(40) }
+                        ], 'vela-tiles--2', 'hero-tile') +
+                        '<div class="d-flex align-items-center" style="gap:6px;"><small class="text-muted">or exactly</small><input type="text" class="form-control form-control-sm" id="hero-height-custom" placeholder="e.g. 600px" style="max-width:110px;"></div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="vc-section-title mt-3">Words colour</div>' +
+                '<input type="hidden" id="hero-ink" value="' + s.text_color_mode + '">' +
+                carouselTiles('hero-ink', s.text_color_mode, [
+                    { value: 'auto', label: 'Automatic', art: '<span class="vc-shape hi hi--auto"><b>Aa</b><b>Aa</b></span>' },
+                    { value: 'light', label: 'Light', art: '<span class="vc-shape hi hi--light"><b>Aa</b></span>' },
+                    { value: 'dark', label: 'Dark', art: '<span class="vc-shape hi hi--dark"><b>Aa</b></span>' }
+                ], 'vela-tiles--3', 'hero-tile') +
+                '<small class="text-muted d-block mb-3" id="hero-ink-auto-note"></small>' +
+
+                '<div class="vc-section-title">Buttons</div>' +
+                '<input type="hidden" id="hero-btn-style" value="' + s.button_style + '">' +
+                carouselTiles('hero-btn-style', s.button_style, [
+                    { value: 'solid', label: 'Solid', art: '<span class="vc-shape hb hb--solid"><b></b><b></b></span>' },
+                    { value: 'pill', label: 'Rounded', art: '<span class="vc-shape hb hb--pill"><b></b><b></b></span>' },
+                    { value: 'outline', label: 'Outline', art: '<span class="vc-shape hb hb--outline"><b></b><b></b></span>' }
+                ], 'vela-tiles--3', 'hero-tile') +
+                '<details class="pricing-colours mb-3"' + (s.button_color ? ' open' : '') + '><summary class="vc-section-title" style="cursor:pointer;display:list-item;">Main button colour <small>— the theme accent unless you pick one; its text colour is worked out to stay readable</small></summary>' +
+                    colourField('hero-button-color', 'Main button', s.button_color, 'hero') +
+                '</details>' +
+
+                '<div class="vc-section-title">Headline level <small>— for search engines and screen readers</small></div>' +
+                '<input type="hidden" id="hero-heading" value="' + s.heading_level + '">' +
+                carouselTiles('hero-heading', s.heading_level, [
+                    { value: 'auto', label: 'Automatic · page heading if first', art: '<span class="vc-shape hl"><b>H1</b>/<b>H2</b></span>' },
+                    { value: 'h1', label: 'Page heading · H1', art: '<span class="vc-shape hl"><b>H1</b></span>' },
+                    { value: 'h2', label: 'Section heading · H2', art: '<span class="vc-shape hl"><b>H2</b></span>' }
+                ], 'vela-tiles--3', 'hero-tile');
         },
-        initEditor: function(block) {},
+        initEditor: function(block) {
+            $('#hero-live-preview').data('base', (block && block.settings) || {});
+            var changed = function () { _blockEditTouched = true; drawHeroPreview(); };
+
+            $(document).off('click.hero').on('click.hero', '.hero-tile', function () {
+                var $tile = $(this);
+                $tile.closest('.vela-tiles').find('.hero-tile').removeClass('active').attr('aria-pressed', 'false');
+                $tile.addClass('active').attr('aria-pressed', 'true');
+                $('#' + $tile.data('input')).val($tile.data('value'));
+                changed();
+            }).on('click.hero', '.hero-pos', function () {
+                $('#hero-align').val($(this).data('x'));
+                $('#hero-valign').val($(this).data('y'));
+                changed();
+            }).on('click.hero', '#hero-focal', function (e) {
+                var r = this.getBoundingClientRect();
+                $('#hero-focal-x').val(Math.round(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * 100));
+                $('#hero-focal-y').val(Math.round(Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)) * 100));
+                changed();
+            });
+
+            $(document).off('input.hero change.hero')
+                .on('input.hero change.hero', '#hero-eyebrow, #hero-title, #hero-subtitle, #hero-btn1-text, #hero-btn2-text, #block-bg-image, #hero-mobile-image', changed)
+                .on('input.hero', '#hero-height-custom', function () {
+                    var v = $.trim($(this).val()).toLowerCase();
+                    if (!/^[0-9]{1,4}(\.[0-9]+)?(px|vh|svh|dvh|lvh|rem|em)$/.test(v)) return;
+                    $('#hero-height').val(v);
+                    $('.hero-tile[data-input="hero-height"]').removeClass('active').attr('aria-pressed', 'false');
+                    _blockEditTouched = true;
+                    // Redraw without overwriting the box being typed in.
+                    var keep = this.value; drawHeroPreview(); this.value = keep;
+                });
+            bindColourFields('hero', changed);
+            drawHeroPreview();
+        },
         collectData: function(block) {
+            var s = heroDialogSettings(block.settings || {});
+            var settings = $.extend({}, block.settings, s);
+            // Chosen: the overlay is overlay_style from now on. Not chosen: the
+            // old free colour stays exactly as it was.
+            if (s.overlay_style === null) delete settings.overlay_style;
             return {
-                content: {
-                    title: $('#hero-title').val(),
-                    subtitle: $('#hero-subtitle').val(),
-                    primary_button_text: $('#hero-btn1-text').val(),
-                    primary_button_url: $('#hero-btn1-url').val(),
-                    secondary_button_text: $('#hero-btn2-text').val(),
-                    secondary_button_url: $('#hero-btn2-url').val()
-                },
-                settings: {
-                    background_overlay: $('#hero-overlay').val() || 'rgba(0,0,0,0.4)',
-                    text_alignment: $('#hero-align').val() || 'center',
-                    min_height: $('#hero-height').val() || '80vh'
-                }
+                content: $.extend({}, block.content, heroDialogContent()),
+                settings: settings
             };
         }
     });

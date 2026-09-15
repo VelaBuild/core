@@ -604,6 +604,43 @@ html.vela-lightbox-open { overflow: hidden; }
 .block-hero-btn-primary:hover { background: var(--block-accent-hover); }
 .block-hero-btn-secondary { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,0.5); }
 .block-hero-btn-secondary:hover { background: rgba(255,255,255,0.15); border-color: #fff; }
+/* The picture, drawn by the block (see hero.blade.php) so it can be sized per
+   screen and kept on its focal point; object-position is set inline. */
+.block-hero-media { position: absolute; inset: 0; margin: 0; display: block; }
+.block-hero-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.block-hero--y-top { align-items: flex-start; }
+.block-hero--y-bottom { align-items: flex-end; }
+/* Left and right move the words to that side of the banner, inside the page's
+   measure. They used to align text within a centred 900px column, so "left"
+   still sat in the middle of a wide hero. */
+/* Named twice: a theme may centre .block-hero-inner itself, and the choice
+   made in the editor has to beat that. */
+.block-hero.block-hero--x-left .block-hero-inner { text-align: left; }
+.block-hero.block-hero--x-center .block-hero-inner { text-align: center; }
+.block-hero.block-hero--x-right .block-hero-inner { text-align: right; }
+.block-hero--x-left .block-hero-inner,
+.block-hero--x-right .block-hero-inner { width: 100%; max-width: var(--vela-page-width, 1200px); }
+.block-hero--x-left .block-hero-inner > * { max-width: 680px; margin-right: auto; }
+.block-hero--x-right .block-hero-inner > * { max-width: 680px; margin-left: auto; }
+.block-hero--x-left .block-hero-actions,
+.block-hero--x-right .block-hero-actions { max-width: none; }
+.block-hero-eyebrow { display: inline-block; margin: 0 0 16px; padding: 4px 14px; border: 1px solid currentColor; border-radius: 999px; font-size: .78rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; opacity: .9; }
+/* Words colour, once it has been chosen or worked out: named twice to beat a
+   theme's own .block-hero colour, which is right for the theme's picture and
+   not for every picture and shade. A text colour set on the block still wins
+   through --vela-text-color. A hero saved before the choice is --ink-theme,
+   and gets no rule here. */
+.block-hero.block-hero--ink-light { color: var(--vela-text-color, #fff); }
+.block-hero.block-hero--ink-dark { color: var(--vela-text-color, var(--block-text-primary)); }
+.block-hero--ink-dark .block-hero-btn-secondary { color: inherit; border-color: currentColor; }
+.block-hero--ink-dark .block-hero-btn-secondary:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
+/* A chosen button colour carries the ink worked out for it. Only then: a
+   theme styles the primary button in its own accent, and that must stand. */
+.block-hero.has-btn-color .block-hero-btn-primary { background: var(--hero-btn-bg); color: var(--hero-btn-ink, #fff); }
+.block-hero.has-btn-color .block-hero-btn-primary:hover { background: var(--hero-btn-bg); filter: brightness(.94); }
+.block-hero--btn-pill .block-hero-btn { border-radius: 999px; }
+.block-hero.block-hero--btn-outline .block-hero-btn-primary { background: transparent; color: inherit; border: 2px solid var(--hero-btn-bg, currentColor); }
+.block-hero.block-hero--btn-outline .block-hero-btn-primary:hover { background: color-mix(in srgb, currentColor 12%, transparent); filter: none; }
 /* CTA block */
 .block-cta { padding: 60px 20px; }
 .block-cta-inner { max-width: 700px; margin: 0 auto; }
@@ -619,8 +656,10 @@ html.vela-lightbox-open { overflow: hidden; }
 .page-content--home .page-row-public.home-row-hero,
 .page-content--home .page-row-public.home-row-cta { max-width: none; padding: 0; }
 @media (max-width: 768px) {
+    .block-hero { padding: 48px 20px; }
     .block-hero-title { font-size: 2rem; }
-    .block-hero-subtitle { font-size: 1rem; }
+    .block-hero-subtitle { font-size: 1rem; margin-bottom: 24px; }
+    .block-hero-btn { padding: 12px 24px; }
     .block-cta-heading { font-size: 1.6rem; }
 }
 

@@ -686,9 +686,23 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::public.pages.blocks.hero',
             'editor' => 'js',
             'defaults' => [
-                'content' => ['title' => '', 'subtitle' => '', 'primary_button_text' => '', 'primary_button_url' => '', 'secondary_button_text' => '', 'secondary_button_url' => ''],
-                'settings' => ['background_overlay' => 'rgba(0,0,0,0.4)', 'text_alignment' => 'center', 'min_height' => '80vh'],
+                'content' => ['eyebrow' => '', 'title' => '', 'subtitle' => '', 'primary_button_text' => '', 'primary_button_url' => '', 'secondary_button_text' => '', 'secondary_button_url' => ''],
+                'settings' => [
+                    'background_overlay' => 'rgba(0,0,0,0.4)', 'overlay_style' => 'medium', 'overlay_color' => '',
+                    'text_alignment' => 'center', 'vertical_align' => 'center', 'min_height' => '80vh',
+                    'text_color_mode' => 'auto', 'focal_x' => 50, 'focal_y' => 50, 'mobile_background_image' => '',
+                    'heading_level' => 'auto', 'button_style' => 'solid', 'button_color' => '',
+                ],
             ],
+            'shape_note' => 'A banner: the picture is the block\'s background_image. content: eyebrow is an optional short line above '
+                . 'the title; title, subtitle, and up to two buttons (primary_/secondary_button_text + _url). settings: '
+                . 'min_height is auto, 50vh, 80vh or 100vh (or one length such as 600px). text_alignment left/center/right and '
+                . 'vertical_align top/center/bottom place the words. overlay_style is none, light, medium, dark, gradient_bottom '
+                . 'or gradient_left, in overlay_color (empty for black, a token:name or hex). text_color_mode auto picks light '
+                . 'words over a picture or dark overlay and the theme\'s ink otherwise; light or dark force it. focal_x/focal_y '
+                . '(0-100) is the point of the picture kept in frame; mobile_background_image is an optional picture for phones. '
+                . 'heading_level auto makes the first hero on a page its h1. button_style is solid, pill or outline; button_color '
+                . 'is empty for the theme accent. background_overlay is the older free colour, used only when overlay_style is absent.',
         ]);
 
         $vela->registerBlock('cta', [

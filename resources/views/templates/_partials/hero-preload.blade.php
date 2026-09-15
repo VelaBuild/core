@@ -12,8 +12,12 @@
      partial the layout itself includes would be too late. --}}
 @php
     $velaHeroRow = $page->rows->first() ?? null;
+    $velaHeroBlock = $velaHeroRow?->blocks->first();
+    // A hero block's picture is an <img> with fetchpriority="high" in the
+    // markup, found by the parser without waiting on CSS — and at the width
+    // that fits the screen, which a preload of one URL would not match.
     $velaHeroBg = $velaHeroRow?->background_image
-        ?: optional($velaHeroRow?->blocks->first())->background_image;
+        ?: ($velaHeroBlock && $velaHeroBlock->type !== 'hero' ? $velaHeroBlock->background_image : null);
 @endphp
 @if($velaHeroBg)
 @push('head')
