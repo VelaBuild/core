@@ -713,10 +713,16 @@ class VelaServiceProvider extends ServiceProvider
                 'settings' => ['columns' => 3],
             ],
             'content_example' => ['tiers' => [[
-                'name' => 'Standard', 'price' => '1500', 'price_currency' => 'THB', 'period' => 'per visit',
-                'description' => 'Callout and basic repair.', 'features' => ['Same-day callout', '90-day warranty'],
-                'cta_text' => 'Book now', 'cta_url' => '/contact-us', 'featured' => false,
+                'name' => 'Standard', 'subtitle' => 'For most homes', 'price' => '1500', 'price_currency' => 'THB', 'period' => 'per visit',
+                'price_note' => '', 'description' => 'Callout and basic repair.', 'features_cap' => '',
+                'features' => ['Same-day callout', '90-day warranty', ['text' => 'Weekend visits', 'muted' => true]],
+                'cta_text' => 'Book now', 'cta_url' => '/contact-us', 'featured' => false, 'badge' => '',
             ]]],
+            'shape_note' => 'Each tier: name is the small label on top, subtitle an optional heading under it; price, '
+                . 'price_currency and period make one line ("THB 1500 per visit"), price_note sits under it. features is a list '
+                . 'of strings, or {text, muted: true} for something the plan does not include (drawn faded); features_cap is an '
+                . 'optional line above the list. featured draws the tier as the dark highlighted card with badge (default "Most '
+                . 'popular"). settings.columns is 2, 3 or 4.',
         ]);
     }
 

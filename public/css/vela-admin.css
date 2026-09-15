@@ -544,6 +544,46 @@ body.vela-admin .CodeMirror.vela-code-editor.CodeMirror-focused { border-color: 
 .vt-card--big .vt-l { width: 90%; height: 4px; }
 .vt-arrow { font-size: 14px; line-height: 1; color: #94a3b8; }
 
+/* Pricing tiers: each plan edited in the shape of its card. */
+.pt-row { margin-bottom: 10px; padding: 10px 12px 12px; background: #f8f9fa; border: 1px solid var(--border-subtle, #e5e7eb); border-left: 3px solid #94a3b8; border-radius: 8px; }
+.pt-row.is-featured { border-left-color: #22A2AB; background: #f0fbfb; }
+.pt-row-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.pt-handle { cursor: grab; }
+.pt-summary { flex: 1; min-width: 0; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.pt-field { min-width: 0; }
+.pt-field--wide { grid-column: 1 / -1; }
+.pt-field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+.pt-field label small { font-weight: 400; color: var(--fg-muted, #6b7280); }
+.pt-field label code { font-size: 11px; padding: 0 4px; }
+.pt-price-line { display: grid; grid-template-columns: 64px 1fr 1fr; gap: 6px; }
+.pt-featured-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pt-featured-line .pt-badge { max-width: 220px; }
+@media (max-width: 600px) { .pt-grid { grid-template-columns: 1fr; } }
+
+/* Pricing preview cards — a small copy of the public card. */
+.pp-grid { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 10px; padding-top: 10px; align-items: stretch; }
+.pp-card { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 16px 12px 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 12px; color: #1f2937; min-width: 0; }
+.pp-card.is-featured { background: #121B2E; color: #FBF9F5; border-color: transparent; }
+.pp-badge { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 2px 8px; border-radius: 999px; background: #22A2AB; color: #fff; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.pp-name { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; opacity: .65; }
+.pp-head { font-size: 14px; font-weight: 600; }
+.pp-desc { opacity: .75; line-height: 1.4; }
+.pp-price { font-size: 22px; font-weight: 600; line-height: 1.1; word-break: break-word; }
+.pp-cur { font-size: 12px; opacity: .7; vertical-align: top; margin-right: 2px; }
+.pp-per { font-size: 11px; font-weight: 400; opacity: .7; }
+.pp-note { font-size: 10px; opacity: .6; }
+.pp-cta { display: block; margin-top: 2px; padding: 6px; border-radius: 6px; background: var(--accent, #2563eb); color: #fff; font-weight: 600; text-align: center; }
+.pp-card.is-featured .pp-cta { background: #40B6BD; color: #0A1020; }
+.pp-cap { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; opacity: .55; }
+.pp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.pp-list li { position: relative; padding-left: 14px; line-height: 1.35; }
+.pp-list li::before { content: '✓'; position: absolute; left: 0; color: #22A2AB; font-weight: 700; }
+.pp-list li.is-muted { opacity: .45; }
+.pp-list li.is-muted::before { content: '–'; }
+.pp-grid--mini .pp-card { padding: 12px 8px 8px; }
+.pp-grid--mini .pp-list, .pp-grid--mini .pp-desc, .pp-grid--mini .pp-cap { display: none; }
+
 /* The live preview of a gallery in its dialog. */
 .vg-p { display: grid; grid-template-columns: repeat(var(--c), minmax(0, 1fr)); gap: var(--g); max-width: 460px; margin: 0 auto; }
 .vg-p-item { overflow: hidden; border-radius: 4px; background: #e5e7eb; aspect-ratio: var(--r); }

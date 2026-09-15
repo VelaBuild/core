@@ -1,7 +1,9 @@
 @php
     $tiers    = ($block->content)['tiers'] ?? [];
     $settings = $block->settings ?? [];
-    $columns  = (int) ($settings['columns'] ?? 3);
+    // Never more columns than plans: four columns for three plans left an
+    // empty fourth, and the cards sat to one side of the row.
+    $columns  = max(1, min(4, (int) ($settings['columns'] ?? 3), count($tiers)));
 @endphp
 @if(count($tiers) > 0)
     <div class="block-pricing-tiers" style="--tier-cols: {{ $columns }};">
@@ -16,10 +18,13 @@
     $description  = $tier['description'] ?? '';
     $featuresCap  = $tier['features_cap'] ?? '';
     $features     = $tier['features'] ?? [];
-    $ctaText      = $tier['cta_text'] ?? 'Get started';
-    $ctaUrl       = $tier['cta_url'] ?? '#';
+    // `?:`, not `??`: the block editor saves a box left empty as '', and an
+    // empty string is not null — the button came out with no words, the
+    // highlighted card with an empty badge.
+    $ctaText      = ($tier['cta_text'] ?? '') ?: 'Get started';
+    $ctaUrl       = ($tier['cta_url'] ?? '') ?: '#';
     $featured     = ! empty($tier['featured']);
-    $badge        = $tier['badge'] ?? 'Most popular';
+    $badge        = ($tier['badge'] ?? '') ?: 'Most popular';
 @endphp
         <div class="block-pricing-tier{{ $featured ? ' is-featured' : '' }}">
 @if($featured)

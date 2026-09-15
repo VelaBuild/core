@@ -5533,27 +5533,137 @@ PageEditor.registerBlockType = function(name, config) {
     // includes, and a way to act on it. Registered late in the day — the
     // block rendered on the public site from the start, but with no editor
     // its owner opened the page to "Unknown block type".
+    // Features are a list of lines. A line starting with "-" is one the plan
+    // does not include, drawn faded — the view has always taken
+    // {text, muted} for that, and the form had no way to say it.
+    function pricingFeaturesToText(features) {
+        return (Array.isArray(features) ? features : []).map(function (f) {
+            if (f && typeof f === 'object') return (f.muted ? '- ' : '') + (f.text || '');
+            return String(f);
+        }).join('\n');
+    }
+
+    function pricingTextToFeatures(text) {
+        return (text || '').split('\n').map(function (line) { return line.trim(); }).filter(Boolean).map(function (line) {
+            return /^-\s*/.test(line) ? { text: line.replace(/^-\s*/, ''), muted: true } : line;
+        });
+    }
+
+    // Each plan is edited in the shape of the card it becomes: the small name
+    // on top, the price as one line, the button, then what is included.
+    // Placeholders alone used to say what a box was for, and once filled in
+    // nothing did.
     function buildPricingTierRow(t) {
-        var features = Array.isArray(t.features) ? t.features.join('\n') : (t.features || '');
-        return '<div class="pt-row" style="margin-bottom:10px;padding:10px;background:#f8f9fa;border-radius:6px;border-left:3px solid #3b82f6;">' +
-            '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">' +
-                '<input type="text" class="form-control form-control-sm pt-name" placeholder="Name" value="' + escHtml(t.name || '') + '" style="flex:2;">' +
-                '<input type="text" class="form-control form-control-sm pt-currency" placeholder="$" value="' + escHtml(t.price_currency || '') + '" style="flex:0 0 64px;">' +
-                '<input type="text" class="form-control form-control-sm pt-price" placeholder="Price" value="' + escHtml(t.price || '') + '" style="flex:1;">' +
-                '<input type="text" class="form-control form-control-sm pt-period" placeholder="per month" value="' + escHtml(t.period || '') + '" style="flex:1;">' +
-                '<button type="button" class="btn btn-sm btn-outline-danger remove-pricing-tier" title="Remove"><i class="fas fa-times"></i></button>' +
+        var field = function (cls, label, value, placeholder, extra) {
+            return '<div class="pt-field ' + (extra || '') + '"><label>' + label + '</label>' +
+                '<input type="text" class="form-control form-control-sm ' + cls + '" value="' + escHtml(value || '') + '" placeholder="' + escHtml(placeholder || '') + '"></div>';
+        };
+        return '<div class="pt-row' + (t.featured ? ' is-featured' : '') + '">' +
+            '<div class="pt-row-head">' +
+                '<span class="pt-handle text-muted" title="Drag to reorder"><i class="fas fa-grip-vertical"></i></span>' +
+                '<span class="pt-summary"></span>' +
+                '<button type="button" class="btn btn-sm btn-light duplicate-pricing-tier" title="Duplicate this plan"><i class="far fa-copy"></i></button>' +
+                '<button type="button" class="btn btn-sm btn-light remove-pricing-tier" title="Remove this plan"><i class="fas fa-times"></i></button>' +
             '</div>' +
-            '<textarea class="form-control form-control-sm mb-2 pt-desc" rows="2" placeholder="Description">' + escHtml(t.description || '') + '</textarea>' +
-            '<textarea class="form-control form-control-sm mb-2 pt-features" rows="3" placeholder="One feature per line">' + escHtml(features) + '</textarea>' +
-            '<div style="display:flex;gap:8px;align-items:center;">' +
-                '<input type="text" class="form-control form-control-sm pt-cta-text" placeholder="Button text" value="' + escHtml(t.cta_text || '') + '" style="flex:1;">' +
-                '<input type="text" class="form-control form-control-sm pt-cta-url" placeholder="Button link" value="' + escHtml(t.cta_url || '') + '" style="flex:2;">' +
-                '<label class="mb-0 small text-nowrap" style="cursor:pointer;">' +
-                    '<input type="checkbox" class="pt-featured"' + (t.featured ? ' checked' : '') + '> Featured' +
-                '</label>' +
+            '<div class="pt-grid">' +
+                field('pt-name', 'Plan name <small>— small, on top</small>', t.name, 'e.g. Standard') +
+                field('pt-subtitle', 'Heading <small>— optional</small>', t.subtitle, 'e.g. For growing teams') +
+                '<div class="pt-field pt-field--wide"><label>Short description <small>— optional</small></label>' +
+                    '<textarea class="form-control form-control-sm pt-desc" rows="2" placeholder="e.g. Everything a small shop needs.">' + escHtml(t.description || '') + '</textarea></div>' +
+                '<div class="pt-field pt-field--wide"><label>Price</label>' +
+                    '<div class="pt-price-line">' +
+                        '<input type="text" class="form-control form-control-sm pt-currency" value="' + escHtml(t.price_currency || '') + '" placeholder="฿" title="Currency">' +
+                        '<input type="text" class="form-control form-control-sm pt-price" value="' + escHtml(t.price || '') + '" placeholder="1,500" title="Amount">' +
+                        '<input type="text" class="form-control form-control-sm pt-period" value="' + escHtml(t.period || '') + '" placeholder="/ month" title="Per">' +
+                    '</div>' +
+                    '<small class="text-muted">currency · amount · per (month, visit, year…)</small></div>' +
+                field('pt-price-note', 'Under the price <small>— optional</small>', t.price_note, 'e.g. Billed yearly', 'pt-field--wide') +
+                field('pt-cta-text', 'Button text', t.cta_text, 'e.g. Get started') +
+                field('pt-cta-url vela-link-input', 'Button link', t.cta_url, 'e.g. /contact-us') +
+                field('pt-features-cap', 'Above the list <small>— optional</small>', t.features_cap, 'e.g. Everything in Basic, plus', 'pt-field--wide') +
+                '<div class="pt-field pt-field--wide"><label>What is included <small>— one per line; start a line with <code>-</code> for something not included</small></label>' +
+                    '<textarea class="form-control form-control-sm pt-features" rows="4" placeholder="Same-day callout&#10;90-day warranty&#10;- Weekend visits">' + escHtml(pricingFeaturesToText(t.features)) + '</textarea></div>' +
+                '<div class="pt-field pt-field--wide pt-featured-line">' +
+                    '<label class="mb-0" style="cursor:pointer;"><input type="checkbox" class="pt-featured"' + (t.featured ? ' checked' : '') + '> Highlight this plan <small>— dark card with a badge</small></label>' +
+                    '<input type="text" class="form-control form-control-sm pt-badge" value="' + escHtml(t.badge || '') + '" placeholder="Badge text, e.g. Most popular"' + (t.featured ? '' : ' hidden') + '>' +
+                '</div>' +
             '</div>' +
         '</div>';
     }
+
+    function readPricingTier($r) {
+        return {
+            name: $r.find('.pt-name').val(),
+            subtitle: $r.find('.pt-subtitle').val(),
+            description: $r.find('.pt-desc').val(),
+            price: $r.find('.pt-price').val(),
+            price_currency: $r.find('.pt-currency').val(),
+            period: $r.find('.pt-period').val(),
+            price_note: $r.find('.pt-price-note').val(),
+            features_cap: $r.find('.pt-features-cap').val(),
+            features: pricingTextToFeatures($r.find('.pt-features').val()),
+            cta_text: $r.find('.pt-cta-text').val(),
+            cta_url: $r.find('.pt-cta-url').val(),
+            featured: $r.find('.pt-featured').is(':checked'),
+            badge: $r.find('.pt-badge').val()
+        };
+    }
+
+    // The same card the page draws, small: name, heading, price, button, list.
+    function pricingCardHtml(t) {
+        var features = (t.features || []).map(function (f) {
+            var muted = f && typeof f === 'object' && f.muted;
+            return '<li' + (muted ? ' class="is-muted"' : '') + '>' + escHtml(f && typeof f === 'object' ? f.text : f) + '</li>';
+        }).join('');
+        return '<div class="pp-card' + (t.featured ? ' is-featured' : '') + '">' +
+            (t.featured ? '<span class="pp-badge">' + escHtml(t.badge || 'Most popular') + '</span>' : '') +
+            (t.name ? '<div class="pp-name">' + escHtml(t.name) + '</div>' : '') +
+            (t.subtitle ? '<div class="pp-head">' + escHtml(t.subtitle) + '</div>' : '') +
+            (t.description ? '<div class="pp-desc">' + escHtml(t.description) + '</div>' : '') +
+            (t.price ? '<div class="pp-price"><span class="pp-cur">' + escHtml(t.price_currency || '') + '</span>' + escHtml(t.price) +
+                (t.period ? ' <span class="pp-per">' + escHtml(t.period) + '</span>' : '') + '</div>' : '') +
+            (t.price_note ? '<div class="pp-note">' + escHtml(t.price_note) + '</div>' : '') +
+            '<span class="pp-cta">' + escHtml(t.cta_text || 'Get started') + '</span>' +
+            (t.features_cap ? '<div class="pp-cap">' + escHtml(t.features_cap) + '</div>' : '') +
+            (features ? '<ul class="pp-list">' + features + '</ul>' : '') +
+        '</div>';
+    }
+
+    function drawPricingPreview() {
+        var box = document.getElementById('pricing-live-preview');
+        if (!box) return;
+        var tiers = $('#pricing-tiers-list .pt-row').map(function () { return readPricingTier($(this)); }).get();
+        var cols = parseInt($('#pricing-tiers-columns').val(), 10) || 3;
+
+        $('#pricing-tiers-list .pt-row').each(function (i) {
+            var t = tiers[i];
+            var price = t.price ? ' · ' + (t.price_currency || '') + t.price + (t.period ? ' ' + t.period : '') : '';
+            $(this).find('.pt-summary').html('<strong>' + escHtml(t.name || 'Plan ' + (i + 1)) + '</strong>' + escHtml(price) +
+                (t.featured ? ' <span class="badge badge-info">highlighted</span>' : ''));
+            $(this).toggleClass('is-featured', t.featured);
+        });
+
+        // Choosing "4 across" makes room for four; it does not make a fourth.
+        var missing = tiers.length && tiers.length < cols;
+        $('#pricing-columns-note').prop('hidden', !missing).text(missing
+            ? 'You have ' + tiers.length + ' plan' + (tiers.length === 1 ? '' : 's') + ', so ' + tiers.length + ' show across. Add ' +
+              (cols - tiers.length === 1 ? 'one more plan' : (cols - tiers.length) + ' more plans') + ' below to fill ' + cols + ' across.'
+            : '');
+
+        box.innerHTML = tiers.length
+            ? '<div class="pp-grid" style="--cols:' + Math.min(cols, tiers.length) + '">' + tiers.map(pricingCardHtml).join('') + '</div>' +
+              '<div class="vc-p-foot">' + tiers.length + ' plan' + (tiers.length === 1 ? '' : 's') + ' · up to ' + cols + ' in a row on a wide screen, two on a tablet, one on a phone</div>'
+            : '<div class="vc-preview-empty">No plans yet — add one, or start from the example.</div>';
+    }
+
+    var PRICING_EXAMPLE = [
+        { name: 'Basic', description: 'For a quick job.', price_currency: '฿', price: '990', period: '/ visit', cta_text: 'Book', cta_url: '/contact-us',
+          features: ['Same-day callout', '30-day warranty', { text: 'Weekend visits', muted: true }] },
+        { name: 'Standard', subtitle: 'Most chosen', description: 'Repairs with parts included.', price_currency: '฿', price: '1,500', period: '/ visit', cta_text: 'Book', cta_url: '/contact-us',
+          features_cap: 'Everything in Basic, plus', features: ['Parts included', '90-day warranty', 'Weekend visits'], featured: true, badge: 'Most popular' },
+        { name: 'Premium', description: 'Ongoing care for a business.', price_currency: '฿', price: '4,900', period: '/ month', price_note: 'Billed yearly', cta_text: 'Talk to us', cta_url: '/contact-us',
+          features_cap: 'Everything in Standard, plus', features: ['Priority callout', '1-year warranty', 'Monthly check-up'] }
+    ];
 
     PageEditor.registerBlockType('pricing_tiers', {
         icon: 'fa-tags',
@@ -5563,68 +5673,75 @@ PageEditor.registerBlockType = function(name, config) {
             var tiers = block.content && block.content.tiers ? block.content.tiers : [];
             if (!tiers.length) return '<em class="text-muted">No tiers added</em>';
             var cols = block.settings && block.settings.columns ? block.settings.columns : 3;
-            var html = '<div style="display:grid;grid-template-columns:repeat(' + Math.min(cols, tiers.length) + ',1fr);gap:8px;">';
-            tiers.forEach(function(t) {
-                html += '<div style="padding:10px;background:#f9fafb;border-radius:4px;border:1px solid ' + (t.featured ? '#3b82f6' : '#e5e7eb') + ';">';
-                html += '<div style="font-weight:600;font-size:0.85em;margin-bottom:4px;">' + escHtml(t.name || '') + '</div>';
-                html += '<div style="font-size:1.1em;font-weight:700;color:#3b82f6;">' + escHtml((t.price_currency || '') + (t.price || '')) + '<span style="font-size:0.6em;font-weight:400;color:#6b7280;"> ' + escHtml(t.period || '') + '</span></div>';
-                if (t.description) {
-                    var d = t.description.length > 60 ? t.description.substring(0, 60) + '...' : t.description;
-                    html += '<div style="font-size:0.78em;color:#6b7280;margin-top:4px;">' + escHtml(d) + '</div>';
-                }
-                var count = Array.isArray(t.features) ? t.features.length : 0;
-                if (count) html += '<div style="font-size:0.72em;color:#9ca3af;margin-top:4px;">' + count + ' feature' + (count === 1 ? '' : 's') + '</div>';
-                html += '</div>';
-            });
-            return html + '</div>';
+            return '<div class="pp-grid pp-grid--mini" style="--cols:' + Math.min(cols, tiers.length) + '">' + tiers.map(pricingCardHtml).join('') + '</div>';
         },
         renderEditor: function(block) {
             var tiers = block.content && block.content.tiers ? block.content.tiers : [];
-            var cols = block.settings && block.settings.columns ? block.settings.columns : 3;
+            var cols = block.settings && block.settings.columns ? parseInt(block.settings.columns, 10) : 3;
             var rowsHtml = '';
             tiers.forEach(function(t) { rowsHtml += buildPricingTierRow(t); });
-            return '<div id="pricing-tiers-list">' + rowsHtml + '</div>' +
+            var colsArt = function (n) { var c = ''; for (var i = 0; i < n; i++) c += '<i></i>'; return '<span class="vc-shape vg-cols" style="--n:' + n + '">' + c + '</span>'; };
+            return '<div class="vc-section-title">How it will look</div>' +
+                '<div id="pricing-live-preview" class="vc-preview"></div>' +
+                '<input type="hidden" id="pricing-tiers-columns" value="' + cols + '">' +
+                '<div class="vc-section-title">Cards in a row <small>— how many sit side by side; add or remove plans below</small></div>' +
+                carouselTiles('pricing-tiers-columns', cols, [2, 3, 4].map(function (n) {
+                    return { value: n, label: n + ' across', art: colsArt(n) };
+                }), 'vela-tiles--3', 'pricing-tile') +
+                '<div class="alert alert-info py-1 px-2 mb-2" id="pricing-columns-note" hidden style="font-size:.85rem;"></div>' +
+                '<div class="vc-section-title">Plans <small>— drag <i class="fas fa-grip-vertical"></i> to change the order</small></div>' +
+                '<div id="pricing-tiers-list">' + rowsHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;margin-top:8px;">' +
-                    '<button type="button" class="btn btn-sm btn-success" id="add-pricing-tier">+ Add Tier</button>' +
-                    '<label class="mb-0 small text-nowrap">Columns</label>' +
-                    '<select class="form-control form-control-sm" id="pricing-tiers-columns" style="width:auto;">' +
-                        [2, 3, 4].map(function(n) {
-                            return '<option value="' + n + '"' + (cols === n ? ' selected' : '') + '>' + n + '</option>';
-                        }).join('') +
-                    '</select>' +
+                    '<button type="button" class="btn btn-sm btn-success" id="add-pricing-tier"><i class="fas fa-plus mr-1"></i> Add plan</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-info" id="pricing-example"' + (tiers.length ? ' hidden' : '') + '><i class="fas fa-magic mr-1"></i> Start from an example (3 plans)</button>' +
                 '</div>';
         },
         initEditor: function(block) {
+            var $list = $('#pricing-tiers-list');
+            var changed = function () { _blockEditTouched = true; drawPricingPreview(); $('#pricing-example').prop('hidden', $list.find('.pt-row').length > 0); };
+
             $(document).off('click', '#add-pricing-tier').on('click', '#add-pricing-tier', function() {
-                $('#pricing-tiers-list').append(buildPricingTierRow({ features: [] }));
+                var $row = $(buildPricingTierRow({ features: [] })).appendTo($list);
+                $row.find('.pt-name').trigger('focus');
+                changed();
+            });
+            $(document).off('click', '#pricing-example').on('click', '#pricing-example', function() {
+                PRICING_EXAMPLE.forEach(function (t) { $list.append(buildPricingTierRow(t)); });
+                changed();
+            });
+            $(document).off('click', '.duplicate-pricing-tier').on('click', '.duplicate-pricing-tier', function() {
+                var $row = $(this).closest('.pt-row');
+                var copy = readPricingTier($row);
+                copy.featured = false;
+                $row.after(buildPricingTierRow(copy));
+                changed();
             });
             $(document).off('click', '.remove-pricing-tier').on('click', '.remove-pricing-tier', function() {
                 $(this).closest('.pt-row').remove();
+                changed();
             });
+            $(document).off('change.pricingFeatured').on('change.pricingFeatured', '.pt-featured', function () {
+                $(this).closest('.pt-row').find('.pt-badge').prop('hidden', !this.checked);
+            });
+            $(document).off('click.pricingTile').on('click.pricingTile', '.pricing-tile', function () {
+                var $tile = $(this);
+                $tile.closest('.vela-tiles').find('.pricing-tile').removeClass('active').attr('aria-pressed', 'false');
+                $tile.addClass('active').attr('aria-pressed', 'true');
+                $('#pricing-tiers-columns').val($tile.data('value'));
+                changed();
+            });
+            $(document).off('input.pricingPreview change.pricingPreview')
+                .on('input.pricingPreview change.pricingPreview', '#pricing-tiers-list input, #pricing-tiers-list textarea', drawPricingPreview);
+            if ($list[0] && window.Sortable) {
+                Sortable.create($list[0], { handle: '.pt-handle', animation: 150, onEnd: changed });
+            }
+            drawPricingPreview();
         },
         collectData: function(block) {
-            var tiers = [];
-            $('#pricing-tiers-list .pt-row').each(function() {
-                var $r = $(this);
-                var features = ($r.find('.pt-features').val() || '')
-                    .split('\n')
-                    .map(function(line) { return line.trim(); })
-                    .filter(function(line) { return line !== ''; });
-                tiers.push({
-                    name: $r.find('.pt-name').val(),
-                    price: $r.find('.pt-price').val(),
-                    price_currency: $r.find('.pt-currency').val(),
-                    period: $r.find('.pt-period').val(),
-                    description: $r.find('.pt-desc').val(),
-                    features: features,
-                    cta_text: $r.find('.pt-cta-text').val(),
-                    cta_url: $r.find('.pt-cta-url').val(),
-                    featured: $r.find('.pt-featured').is(':checked')
-                });
-            });
+            var tiers = $('#pricing-tiers-list .pt-row').map(function () { return readPricingTier($(this)); }).get();
             return {
-                content: { tiers: tiers },
-                settings: { columns: parseInt($('#pricing-tiers-columns').val(), 10) || 3 }
+                content: $.extend({}, block.content, { tiers: tiers }),
+                settings: $.extend({}, block.settings, { columns: parseInt($('#pricing-tiers-columns').val(), 10) || 3 })
             };
         }
     });
