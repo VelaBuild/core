@@ -182,6 +182,20 @@ class ThemeCheck extends Command
                 }
             }
             $checks[] = ['check' => 'responsive', 'status' => $hasResponsive ? 'pass' : 'warn', 'message' => $hasResponsive ? '' : 'No media queries found'];
+
+            // 8b. The --vela-* contract the blocks paint from. A layout built
+            // on the skeleton's tokens but missing it looks right itself while
+            // every block on it takes the fallback colours. Only a theme the
+            // site owns is rewritten: a package theme is not ours to edit.
+            $withContract = app(\VelaBuild\Core\Services\ThemeAuthor::class)->withContract($layoutContent);
+            if ($withContract === $layoutContent) {
+                $checks[] = ['check' => 'design_token_contract', 'status' => 'pass', 'message' => ''];
+            } elseif ($fix && str_starts_with(realpath($layoutPath) ?: '', realpath(resource_path('views/templates')) ?: "\0")) {
+                file_put_contents($layoutPath, $withContract);
+                $checks[] = ['check' => 'design_token_contract', 'status' => 'pass', 'message' => 'Fixed: added the missing --vela-* declarations, pointed at the theme\'s own tokens'];
+            } else {
+                $checks[] = ['check' => 'design_token_contract', 'status' => 'fail', 'message' => 'Layout declares the theme tokens but not the --vela-* contract, so blocks use fallback colours. Run with --fix.'];
+            }
         }
 
         // 9. Check views extend the layout

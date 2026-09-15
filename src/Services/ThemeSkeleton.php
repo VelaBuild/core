@@ -120,6 +120,43 @@ class ThemeSkeleton
     ];
 
     /**
+     * The `--vela-*` contract, each named for the skeleton token it follows.
+     *
+     * page-blocks.css and the editor's `token:` colours read only these, so a
+     * theme that does not declare them has its blocks painted in the fallback
+     * colours whatever the theme says. Kept as a list because a theme can be
+     * without them: every theme written before the skeleton carried them has
+     * none, and a model rewriting a layout from memory drops them.
+     */
+    public const CONTRACT = [
+        '--vela-primary' => 'accent',
+        '--vela-primary-ink' => 'accent-ink',
+        '--vela-band' => 'band',
+        '--vela-band-ink' => 'band-ink',
+        '--vela-font-body' => 'font-body',
+        '--vela-ink' => 'ink',
+        '--vela-ink-soft' => 'ink',
+        '--vela-muted' => 'muted',
+        '--vela-line' => 'line',
+        '--vela-input-line' => 'line',
+        '--vela-surface' => 'surface',
+        '--vela-surface-hover' => 'surface',
+        '--vela-card-bg' => 'bg',
+        '--vela-background' => 'bg',
+        '--vela-page-width' => 'page-width',
+        '--vela-font-display' => 'font-display',
+    ];
+
+    /** The declarations for the named contract properties, one per line. */
+    public static function contractDeclarations(array $properties): string
+    {
+        return implode("\n", array_map(
+            fn ($property) => '            ' . $property . ': var(--' . self::CONTRACT[$property] . ');',
+            $properties
+        ));
+    }
+
+    /**
      * A complete layout: the frame, the navigation, the footer, and a
      * stylesheet covering every block, all of it driven by the tokens.
      */
@@ -133,6 +170,7 @@ class ThemeSkeleton
             $tokens[] = '            --' . $name . ': ' . ($overrides[$name] ?? $default) . ';';
         }
         $tokenBlock = implode("\n", $tokens);
+        $contractBlock = self::contractDeclarations(array_keys(self::CONTRACT));
         $kindStyles = $this->kindStyles($kind);
 
         return <<<BLADE
@@ -181,22 +219,7 @@ class ThemeSkeleton
                and gave `.block-text code` a hard-coded grey. Naming the
                contract instead means every alias in page-blocks.css follows,
                including the ones added after this file was written. */
-            --vela-primary: var(--accent);
-            --vela-primary-ink: var(--accent-ink);
-            --vela-band: var(--band);
-            --vela-band-ink: var(--band-ink);
-            --vela-font-body: var(--font-body);
-            --vela-ink: var(--ink);
-            --vela-ink-soft: var(--ink);
-            --vela-muted: var(--muted);
-            --vela-line: var(--line);
-            --vela-input-line: var(--line);
-            --vela-surface: var(--surface);
-            --vela-surface-hover: var(--surface);
-            --vela-card-bg: var(--bg);
-            --vela-background: var(--bg);
-            --vela-page-width: var(--page-width);
-            --vela-font-display: var(--font-display);
+{$contractBlock}
         }
 
         *, *::before, *::after { box-sizing: border-box; }

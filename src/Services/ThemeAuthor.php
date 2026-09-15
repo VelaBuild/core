@@ -478,10 +478,52 @@ class ThemeAuthor
         $path = $this->directory($theme) . '/' . $view . '.blade.php';
         $existing = is_file($path) ? (string) file_get_contents($path) : '';
 
+        if ($view === 'layout') {
+            $contents = $this->withContract($contents);
+        }
+
         $this->assertCompiles($contents);
         $this->assertUsable($view, $contents, $existing);
 
         file_put_contents($path, $contents);
+    }
+
+    /**
+     * Add the `--vela-*` properties a layout is missing.
+     *
+     * Each is only a pointer at a skeleton token, so there is nothing to
+     * decide: where the layout declares `--accent` and not `--vela-primary`,
+     * the second is `var(--accent)`. Without them the theme itself looks
+     * right and the blocks on it do not. The four themes written before the
+     * skeleton carried them had none: every block that follows the theme — a
+     * pricing card's button, a row's `token:` colour, a form field — painted
+     * in the fallback blue and near-black, and on Flowblox a text block ran
+     * 1200px wide against sections of 1100.
+     *
+     * A property the layout already declares is left alone, as is one whose
+     * token it does not have: a hand-written layout has nothing to point at.
+     * The declarations go at the top of the first stylesheet; custom
+     * properties resolve where they are used, so their place among the
+     * theme's rules changes nothing.
+     */
+    public function withContract(string $contents): string
+    {
+        $missing = array_keys(array_filter(
+            ThemeSkeleton::CONTRACT,
+            fn ($token, $property) => !preg_match('/' . preg_quote($property, '/') . '\s*:/', $contents)
+                && preg_match('/(?<![\w-])--' . preg_quote($token, '/') . '\s*:/', $contents),
+            ARRAY_FILTER_USE_BOTH
+        ));
+
+        if (!$missing || !preg_match('/<style[^>]*>/i', $contents, $open, PREG_OFFSET_CAPTURE)) {
+            return $contents;
+        }
+
+        $at = $open[0][1] + strlen($open[0][0]);
+        $block = "\n        /* The --vela-* contract the blocks paint from, pointed at this theme's tokens. */\n"
+            . "        :root {\n" . ThemeSkeleton::contractDeclarations($missing) . "\n        }\n";
+
+        return substr($contents, 0, $at) . $block . substr($contents, $at);
     }
 
     /**
@@ -629,6 +671,7 @@ class ThemeAuthor
             '<style' => 'the theme\'s own stylesheet',
             'scripts-footer' => 'the scripts partial, which carries the image fallback',
             'alpinejs' => 'Alpine, without which a gallery lightbox renders as a black sheet over the page',
+            '--vela-primary' => 'the --vela-* declarations in :root, which every block reads its colours and width from',
         ];
 
         $lost = [];
