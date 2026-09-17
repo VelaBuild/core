@@ -7405,6 +7405,31 @@ PageEditor.registerBlockType = function(name, config) {
         return $el.val();
     }
 
+    // What a schema-built block depends on outside itself, said on the block
+    // instead of a fixed note. The app download block drew nothing on the
+    // page without a store link, and nothing in the editor said whether one
+    // was set — it looked broken.
+    var fieldBlockStatus = {
+        app_download: function () {
+            var cfg = (window.PageEditorConfig && window.PageEditorConfig.appStore) || null;
+            if (!cfg) return null;
+            var link = cfg.settingsUrl ? ' <a href="' + escHtml(cfg.settingsUrl) + '" target="_blank">Settings → Native App</a>' : ' Settings → Native App';
+            var set = [cfg.ios ? 'App Store' : null, cfg.android ? 'Google Play' : null].filter(Boolean);
+            if (!set.length) {
+                return {
+                    level: 'warn',
+                    short: '<i class="fas fa-exclamation-triangle"></i> Hidden on the page — no store link set',
+                    long: '<strong>Visitors see nothing yet.</strong> This block shows its badges only once a store link is set in' + link + '.'
+                };
+            }
+            return {
+                level: 'ok',
+                short: '<i class="fas fa-check"></i> Shows ' + set.join(' and '),
+                long: 'Shows the ' + set.join(' and ') + ' badge' + (set.length > 1 ? 's' : '') + '. The links themselves are set in' + link + '.'
+            };
+        }
+    };
+
     function registerFieldBlocks() {
         var schemas = window.VelaBlockFields || {};
 
@@ -7428,12 +7453,18 @@ PageEditor.registerBlockType = function(name, config) {
                         return f.type === 'text' || f.type === 'textarea' || f.type === 'code';
                     })[0];
                     var text = first ? fieldValue(block, first) : '';
-                    return text
+                    var status = fieldBlockStatus[type] ? fieldBlockStatus[type]() : null;
+                    return (text
                         ? escHtml(String(text).slice(0, 120))
-                        : '<em>' + escHtml(schema.label) + '</em>';
+                        : '<em>' + escHtml(schema.label) + '</em>') +
+                        (status ? '<div class="vela-field-status vela-field-status--' + status.level + '">' + status.short + '</div>' : '');
                 },
                 renderEditor: function (block) {
-                    var note = schema.note
+                    var status = fieldBlockStatus[type] ? fieldBlockStatus[type]() : null;
+                    var note = status
+                        // One span: the admin's .alert lays its children out with a gap.
+                        ? '<div class="alert alert-' + (status.level === 'ok' ? 'success' : 'warning') + ' py-2 px-3" style="font-size:.85rem;"><span>' + status.long + '</span></div>'
+                        : schema.note
                         ? '<div class="alert alert-info py-2 px-3" style="font-size:.85rem;">' +
                           escHtml(schema.note) + '</div>'
                         : '';

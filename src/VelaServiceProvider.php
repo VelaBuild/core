@@ -745,7 +745,7 @@ class VelaServiceProvider extends ServiceProvider
             // The store badges come from Settings, not from the block, and
             // the whole block renders nothing at all until one is filled in —
             // which looks like a broken block rather than a missing setting.
-            'editor_note' => 'The App Store and Google Play links come from Settings → Tools. '
+            'editor_note' => 'The App Store and Google Play links come from Settings → Native App. '
                 . 'This block renders nothing until at least one of them is set.',
             'label' => 'vela::global.block_type_app_download',
             'icon' => 'fas fa-download',

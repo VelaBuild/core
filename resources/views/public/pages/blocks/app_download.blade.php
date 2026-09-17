@@ -3,11 +3,16 @@
     $settings    = $block->settings ?? [];
     $heading     = $content['heading'] ?? '';
     $description = $content['description'] ?? '';
-    $alignment   = $settings['text_alignment'] ?? 'center';
+    // One of three, never the stored string: it reaches two style attributes,
+    // and a value like `center;position:fixed;inset:0` covered the whole page.
+    $alignment   = in_array($settings['text_alignment'] ?? null, ['left', 'center', 'right'], true) ? $settings['text_alignment'] : 'center';
+    $justify     = ['left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end'][$alignment];
 
     $iosUrl     = vela_config('app_ios_url');
     $androidUrl = vela_config('app_android_url');
 @endphp
+{{-- Nothing for a visitor until a store link is set in Settings → Native App;
+     the page editor says so on the block. --}}
 @if($iosUrl || $androidUrl)
 <div class="block-app-download" style="text-align:{{ $alignment }};">
     <div class="block-app-download-inner">
@@ -17,17 +22,19 @@
 @if($description)
         <p class="block-app-download-description">{{ $description }}</p>
 @endif
-        <div class="block-app-download-badges" style="display:flex;gap:12px;justify-content:{{ $alignment }};flex-wrap:wrap;">
+        <div class="block-app-download-badges" style="justify-content:{{ $justify }};">
 @if($iosUrl)
-            <a href="{{ $iosUrl }}" target="_blank" rel="noopener noreferrer" class="block-app-download-badge" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#000;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;">
-                <i class="fab fa-apple" style="font-size:24px;"></i>
-                <span><small style="display:block;font-size:11px;">Download on the</small>App Store</span>
+            <a href="{{ $iosUrl }}" target="_blank" rel="noopener noreferrer" class="block-app-download-badge block-app-download-badge--ios">
+                {{-- Drawn inline rather than from an icon font the page may
+                     never have loaded, which left the badge a blank gap. --}}
+                <svg class="block-app-download-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
+                <span class="block-app-download-label"><small>Download on the</small>App Store</span>
             </a>
 @endif
 @if($androidUrl)
-            <a href="{{ $androidUrl }}" target="_blank" rel="noopener noreferrer" class="block-app-download-badge" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:#000;color:#fff;border-radius:8px;text-decoration:none;font-size:14px;">
-                <i class="fab fa-google-play" style="font-size:24px;"></i>
-                <span><small style="display:block;font-size:11px;">Get it on</small>Google Play</span>
+            <a href="{{ $androidUrl }}" target="_blank" rel="noopener noreferrer" class="block-app-download-badge block-app-download-badge--android">
+                <svg class="block-app-download-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594zM1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924zm12.207 10.065l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973zm0 2.067l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z"/></svg>
+                <span class="block-app-download-label"><small>Get it on</small>Google Play</span>
             </a>
 @endif
         </div>

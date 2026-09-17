@@ -213,6 +213,13 @@ window.PageEditorConfig = {
     categoriesCreateUrl: '{{ route("vela.admin.categories.create") }}',
     postsGridPreviewUrl: '{{ route("vela.admin.posts-grid.preview") }}',
     postsGridSearchUrl: '{{ route("vela.admin.posts-grid.search") }}',
+    {{-- Whether the app download block has anything to show: its badges come
+         from Settings, and without a link it draws nothing on the page. --}}
+    appStore: {
+        ios: @json((bool) vela_config('app_ios_url')),
+        android: @json((bool) vela_config('app_android_url')),
+        settingsUrl: '{{ route("vela.admin.settings.group", "app") }}'
+    },
     i18n: {
         discardBlockChanges: @json(trans('vela::global.discard_block_changes'))
     }
