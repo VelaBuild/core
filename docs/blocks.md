@@ -55,9 +55,8 @@ $vela->registerBlock('code', [
 - Every key must also appear in `defaults` under the same bag. A control writing
   a key the view never reads is a control that does nothing, and
   `BlockManifestTest` refuses it.
-- `editor_note` is for what the form cannot say for itself — `app_download`
-  renders nothing until the store links are filled in under Settings → Tools,
-  which otherwise looks like a broken block.
+- `editor_note` is for what the form cannot say for itself — a dependency
+  outside the block that would otherwise make it look broken.
 
 The schema also decides the block's preview in the editor's column: the first
 `text`, `textarea` or `code` field, or the block's label if it has none yet.

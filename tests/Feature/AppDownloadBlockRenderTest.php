@@ -8,8 +8,8 @@ use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Tests\PackageTestCase;
 
 /**
- * What an app download block puts on the page. Its badges come from the
- * app_ios_url / app_android_url settings, not from the block.
+ * What an app download block puts on the page. Its badges link to the block's
+ * own ios_url / android_url, or else the app_ios_url / app_android_url settings.
  */
 class AppDownloadBlockRenderTest extends PackageTestCase
 {
@@ -45,18 +45,99 @@ class AppDownloadBlockRenderTest extends PackageTestCase
         $this->assertStringNotContainsString('block-app-download', $this->render());
     }
 
-    public function test_css_in_the_alignment_does_not_reach_the_style(): void
+    private function wrapper(string $html): string
     {
-        // This covered the whole page in red.
+        preg_match('/<div class="block-app-download[ "][^>]*>/', $html, $tag);
+
+        return $tag[0] ?? '';
+    }
+
+    public function test_a_block_saved_before_there_were_choices_looks_as_it_did(): void
+    {
         $this->links('https://apps.apple.com/app/id1', null);
 
-        $html = $this->render(['text_alignment' => 'center;background:red;position:fixed;inset:0']);
+        $html = $this->render(['text_alignment' => 'center'], ['heading' => 'Get the app', 'description' => 'On your phone']);
 
-        preg_match_all('/<div class="block-app-download[^"]*"[^>]*>/', $html, $tags);
-        $this->assertNotEmpty($tags[0]);
-        $this->assertStringNotContainsString('position:fixed', implode('', $tags[0]));
-        $this->assertStringContainsString('<div class="block-app-download" style="text-align:center;">', $html);
+        $this->assertSame('<div class="block-app-download block-app-download--stacked block-app-download--normal block-app-download--align-center block-app-download--badge-dark" style="text-align:center;">', $this->wrapper($html));
         $this->assertStringContainsString('<div class="block-app-download-badges" style="justify-content:center;">', $html);
+        $this->assertStringNotContainsString('block-app-download-media', $html);
+        $this->assertStringNotContainsString('block-app-download-eyebrow', $html);
+    }
+
+    public function test_css_in_a_setting_does_not_reach_the_style(): void
+    {
+        // The alignment once covered the whole page in red.
+        $this->links('https://apps.apple.com/app/id1', null);
+
+        $html = $this->render([
+            'text_alignment' => 'center;background:red;position:fixed;inset:0', 'background' => 'red;position:fixed',
+            'layout' => '"><x', 'size' => 'huge', 'badge_style' => 'url(x)', 'image_side' => 'top',
+        ]);
+        $tag = $this->wrapper($html);
+
+        $this->assertStringNotContainsString('position:fixed', $tag);
+        $this->assertStringNotContainsString('url(', $tag);
+        $this->assertSame('<div class="block-app-download block-app-download--stacked block-app-download--normal block-app-download--align-center block-app-download--badge-dark" style="text-align:center;">', $tag);
+        $this->assertStringContainsString('<div class="block-app-download-badges" style="justify-content:center;">', $html);
+    }
+
+    public function test_a_blocks_own_store_link_wins_and_needs_no_setting(): void
+    {
+        $this->links(null, null);
+
+        $html = $this->render([], ['heading' => 'Hi', 'ios_url' => 'https://apps.apple.com/app/own', 'android_url' => '']);
+
+        $this->assertStringContainsString('<a href="https://apps.apple.com/app/own"', $html);
+        $this->assertStringNotContainsString('block-app-download-badge--android', $html);
+
+        $this->links('https://apps.apple.com/app/site', 'https://play.google.com/store/apps/details?id=site');
+        $html = $this->render([], ['heading' => 'Hi', 'ios_url' => 'https://apps.apple.com/app/own']);
+
+        $this->assertStringContainsString('href="https://apps.apple.com/app/own"', $html);
+        $this->assertStringNotContainsString('app/site', $html);
+        // An empty own link falls back to the site's.
+        $this->assertStringContainsString('href="https://play.google.com/store/apps/details?id=site"', $html);
+    }
+
+    public function test_a_store_link_that_is_not_a_web_address_is_not_used(): void
+    {
+        $this->links(null, 'javascript:alert(1)');
+
+        $this->assertStringNotContainsString('block-app-download', $this->render([], ['heading' => 'Hi', 'ios_url' => 'javascript:alert(2)']));
+
+        $this->links('https://apps.apple.com/app/site', null);
+        $html = $this->render([], ['heading' => 'Hi', 'ios_url' => 'data:text/html,x', 'android_url' => ' JavaScript:alert(3)']);
+
+        $this->assertStringContainsString('href="https://apps.apple.com/app/site"', $html);
+        $this->assertStringNotContainsString('alert', $html);
+        $this->assertStringNotContainsString('data:text', $html);
+    }
+
+    public function test_the_words_picture_and_look_that_were_chosen(): void
+    {
+        $this->links('https://apps.apple.com/app/id1', null);
+
+        $html = $this->render(
+            ['layout' => 'split', 'size' => 'large', 'text_alignment' => 'left', 'background' => '#0f172a', 'badge_style' => 'outline', 'image_side' => 'left'],
+            ['eyebrow' => 'New <b>', 'heading' => 'Take us with you', 'note' => 'Free · No ads', 'image' => 'https://example.com/phone.png', 'image_alt' => 'The booking "screen"']
+        );
+
+        $this->assertSame('<div class="block-app-download block-app-download--split block-app-download--large block-app-download--align-left block-app-download--badge-outline has-app-image block-app-download--image-left has-app-bg" style="text-align:left;--app-bg:#0f172a;--app-ink:#ffffff;">', $this->wrapper($html));
+        $this->assertStringContainsString('<div class="block-app-download-eyebrow">New &lt;b&gt;</div>', $html);
+        $this->assertStringContainsString('<div class="block-app-download-note">Free · No ads</div>', $html);
+        $this->assertMatchesRegularExpression('#<div class="block-app-download-media">\s*<img[^>]*alt="The booking &quot;screen&quot;"#', $html);
+    }
+
+    public function test_a_token_background_is_kept_and_a_picture_side_only_comes_with_a_picture(): void
+    {
+        $this->links('https://apps.apple.com/app/id1', null);
+
+        $tag = $this->wrapper($this->render(['layout' => 'card', 'background' => 'token:accent', 'image_side' => 'left']));
+
+        $this->assertStringContainsString('block-app-download--card', $tag);
+        $this->assertStringContainsString('has-app-bg', $tag);
+        $this->assertStringContainsString('--app-bg:var(', $tag);
+        $this->assertStringNotContainsString('image-left', $tag);
     }
 
     public function test_badges_carry_their_own_icons_and_only_the_stores_set(): void

@@ -213,11 +213,17 @@ window.PageEditorConfig = {
     categoriesCreateUrl: '{{ route("vela.admin.categories.create") }}',
     postsGridPreviewUrl: '{{ route("vela.admin.posts-grid.preview") }}',
     postsGridSearchUrl: '{{ route("vela.admin.posts-grid.search") }}',
-    {{-- Whether the app download block has anything to show: its badges come
-         from Settings, and without a link it draws nothing on the page. --}}
+    {{-- The site's store links, which an app download block uses unless it
+         has its own; without either it draws nothing on the page. --}}
+    {{-- Loaded out of sight to read the active theme's real colours for the
+         palette swatches; the key keeps one theme's reading from another's. --}}
+    siteUrl: @json(url('/')),
+    themeKey: @json((string) config('vela.template.active', '')),
     appStore: {
         ios: @json((bool) vela_config('app_ios_url')),
         android: @json((bool) vela_config('app_android_url')),
+        iosUrl: @json((string) vela_config('app_ios_url')),
+        androidUrl: @json((string) vela_config('app_android_url')),
         settingsUrl: '{{ route("vela.admin.settings.group", "app") }}'
     },
     i18n: {

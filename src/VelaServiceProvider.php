@@ -733,28 +733,35 @@ class VelaServiceProvider extends ServiceProvider
         ]);
 
         $vela->registerBlock('app_download', [
-            // No hand-written editor in page-editor.js, so the admin builds one
-            // from this. Before it existed, a page carrying this block showed
-            // "Unknown block type" and its owner could not change a word.
-            'fields' => [
-                ['key' => 'heading',        'in' => 'content',  'type' => 'text',     'label' => 'Heading'],
-                ['key' => 'description',    'in' => 'content',  'type' => 'textarea', 'label' => 'Description'],
-                ['key' => 'text_alignment', 'in' => 'settings', 'type' => 'select',   'label' => 'Alignment',
-                 'options' => ['left' => 'Left', 'center' => 'Centre', 'right' => 'Right']],
-            ],
-            // The store badges come from Settings, not from the block, and
-            // the whole block renders nothing at all until one is filled in —
-            // which looks like a broken block rather than a missing setting.
-            'editor_note' => 'The App Store and Google Play links come from Settings → Native App. '
-                . 'This block renders nothing until at least one of them is set.',
             'label' => 'vela::global.block_type_app_download',
+            // A banner like the call to action: a chosen background runs to
+            // both edges of a full-width row, the words keep their own frame.
+            'bleed' => true,
             'icon' => 'fas fa-download',
             'view' => 'vela::public.pages.blocks.app_download',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => [
-                'content' => ['heading' => '', 'description' => ''],
-                'settings' => ['text_alignment' => 'center'],
+                // Every key the view reads — add_block / update_block validate
+                // incoming content against these.
+                'content' => [
+                    'eyebrow' => '', 'heading' => '', 'description' => '', 'note' => '',
+                    'image' => '', 'image_alt' => '', 'ios_url' => '', 'android_url' => '',
+                ],
+                'settings' => [
+                    'text_alignment' => 'center', 'layout' => 'stacked', 'size' => 'normal',
+                    'background' => '', 'badge_style' => 'dark', 'image_side' => 'right',
+                ],
             ],
+            'shape_note' => 'Store badges linking to the app. content: eyebrow (small line above the heading), heading, '
+                . 'description, note (small print under the badges, e.g. "Free · No ads"), image (a URL of a phone '
+                . 'screenshot or app picture, optional) with image_alt, and ios_url / android_url — leave both empty '
+                . 'to use the site\'s links in Settings → Native App; a link given here must start with https://. The '
+                . 'block shows nothing unless at least one store link exists. settings: text_alignment left/center/right. '
+                . 'layout is stacked (one column, the picture under the badges), split (words one side, the picture — or '
+                . 'the badges when there is no picture — the other) or card (a raised panel). image_side left/right. '
+                . 'size is compact, normal or large. background is empty for the theme\'s own look, or token:band / '
+                . 'token:accent / token:surface / a hex — the text on it is chosen to stay readable. badge_style is dark, '
+                . 'light or outline.',
         ]);
 
         $vela->registerBlock('code', [

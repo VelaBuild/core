@@ -82,7 +82,11 @@ class BlockManifestTest extends PackageTestCase
     {
         $schemas = app(Vela::class)->blocks()->fieldSchemas();
 
-        foreach (['app_download', 'code', 'review-summary', 'review-carousel', 'review-grid'] as $name) {
+        // app_download started as one of them and has a hand-written editor
+        // now; the test above holds it to that.
+        $this->assertSame('js', app(Vela::class)->blocks()->get('app_download')['editor']);
+
+        foreach (['code', 'review-summary', 'review-carousel', 'review-grid'] as $name) {
             $this->assertArrayHasKey($name, $schemas, "The {$name} block lost its field schema.");
             $this->assertNotEmpty($schemas[$name]['fields']);
         }

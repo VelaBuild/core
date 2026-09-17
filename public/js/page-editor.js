@@ -378,6 +378,102 @@ PageEditor.registerBlockType = function(name, config) {
         return token ? token.swatch : fallback;
     }
 
+    // --- The site's own colours ------------------------------------------
+    //
+    // The palette's swatches are the colours the default theme paints each
+    // token, fixed in PHP. The active theme paints them its own way — through
+    // its layout's inline style, var() chains and the colours in Settings — so
+    // Flowblox's "Accent" was a blue tile and a blue preview in the editor and
+    // near-black on the site. Only a browser can resolve all of that, so the
+    // site's home page is loaded out of sight, with scripts off, and each
+    // token read back as the colour it computes to.
+
+    var THEME_COLOURS_KEY = 'vela-theme-colours:';
+
+    function applyThemeColours(colours) {
+        var changed = false;
+        (window.VelaDesignPalette || []).forEach(function (t) {
+            var hex = colours[t.property];
+            if (/^#[0-9a-f]{6}$/i.test(hex || '') && t.swatch !== hex) {
+                t.swatch = hex;
+                changed = true;
+            }
+        });
+        return changed;
+    }
+
+    // Any colour a browser understands, as #rrggbb; null when it is not a
+    // solid colour a swatch can show. Drawn to a pixel so oklch() and
+    // color-mix() come out as plain sRGB too.
+    function solidHex(css, ctx) {
+        if (!css) return null;
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = '#010203';
+        ctx.fillStyle = css;
+        ctx.fillRect(0, 0, 1, 1);
+        var d = ctx.getImageData(0, 0, 1, 1).data;
+        if (d[3] < 255) return null;
+        return '#' + [d[0], d[1], d[2]].map(function (n) { return ('0' + n.toString(16)).slice(-2); }).join('');
+    }
+
+    function loadThemeColours(redraw) {
+        var cfg = window.PageEditorConfig || {};
+        var palette = window.VelaDesignPalette || [];
+        if (!cfg.siteUrl || !palette.length) return;
+        var key = THEME_COLOURS_KEY + (cfg.themeKey || '');
+
+        // Last time's reading first, so a second visit does not flash the
+        // default colours; the fresh one below corrects it if it moved.
+        try {
+            var cached = JSON.parse(window.sessionStorage.getItem(key) || 'null');
+            if (cached && applyThemeColours(cached)) redraw();
+        } catch (e) {}
+
+        var frame = document.createElement('iframe');
+        // Same origin so it can be read; no allow-scripts, so the page's own
+        // JavaScript and anything it would report never run.
+        frame.setAttribute('sandbox', 'allow-same-origin');
+        frame.setAttribute('aria-hidden', 'true');
+        frame.tabIndex = -1;
+        frame.style.cssText = 'position:absolute;left:-10000px;top:0;width:1280px;height:800px;border:0;visibility:hidden;';
+        var done = false;
+        var finish = function () {
+            if (done) return;
+            done = true;
+            try {
+                var doc = frame.contentDocument;
+                if (!doc || !doc.body) return;
+                var probe = doc.createElement('span');
+                doc.body.appendChild(probe);
+                var canvas = document.createElement('canvas');
+                canvas.width = canvas.height = 1;
+                var ctx = canvas.getContext('2d', { willReadFrequently: true });
+                var colours = {};
+                palette.forEach(function (t) {
+                    // Unset on this theme: keep the default, which is also
+                    // what the block CSS falls back to.
+                    probe.style.color = '';
+                    probe.style.color = 'var(' + t.property + ', rgba(0, 0, 0, 0))';
+                    var hex = solidHex(frame.contentWindow.getComputedStyle(probe).color, ctx);
+                    if (hex) colours[t.property] = hex;
+                });
+                try { window.sessionStorage.setItem(key, JSON.stringify(colours)); } catch (e) {}
+                if (applyThemeColours(colours)) redraw();
+            } catch (e) {
+                // Unreadable (another origin, a login wall): the defaults stay.
+            } finally {
+                frame.remove();
+            }
+        };
+        frame.addEventListener('load', function () {
+            // Stylesheets linked from the page have loaded by now.
+            setTimeout(finish, 50);
+        });
+        setTimeout(function () { if (!done) { done = true; frame.remove(); } }, 15000);
+        frame.src = cfg.siteUrl;
+        document.body.appendChild(frame);
+    }
+
     // --- Theme palette ---------------------------------------------------
     //
     // A colour picked here used to be stored as the hex it was on the day it
@@ -7316,6 +7412,280 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // --- App download -----------------------------------------------------
+    //
+    // Was a plain form of heading, description and alignment, and its badges
+    // came only from Settings. It is drawn as it goes now, can carry a picture
+    // of the app, and a page can link a store of its own.
+    // Services\Blocks\AppDownload is the page's side.
+
+    function appDownloadSettings(s) {
+        var one = function (value, allowed) { return allowed.indexOf(value) > -1 ? value : allowed[0]; };
+        return {
+            text_alignment: one(s.text_alignment, ['center', 'left', 'right']),
+            layout: one(s.layout, ['stacked', 'split', 'card']),
+            size: one(s.size, ['normal', 'compact', 'large']),
+            background: s.background || '',
+            badge_style: one(s.badge_style, ['dark', 'light', 'outline']),
+            image_side: one(s.image_side, ['right', 'left'])
+        };
+    }
+
+    // The same rule as AppDownload::links(): a block's own link must be a web
+    // address, and an empty one falls back to Settings → Native App.
+    function appDownloadOwnLink(value) {
+        return /^https?:\/\/[^\s"<>]+$/i.test($.trim(value || ''));
+    }
+
+    function appDownloadStatus(c) {
+        var cfg = (window.PageEditorConfig && window.PageEditorConfig.appStore) || {};
+        var link = cfg.settingsUrl ? '<a href="' + escHtml(cfg.settingsUrl) + '" target="_blank">Settings → Native App</a>' : 'Settings → Native App';
+        var stores = [
+            { name: 'App Store', own: appDownloadOwnLink(c.ios_url), site: !!cfg.ios },
+            { name: 'Google Play', own: appDownloadOwnLink(c.android_url), site: !!cfg.android }
+        ].filter(function (st) { return st.own || st.site; });
+        if (!stores.length) {
+            return {
+                level: 'warn', ios: false, android: false,
+                short: '<i class="fas fa-exclamation-triangle"></i> Hidden on the page — no store link',
+                long: '<strong>Visitors see nothing yet.</strong> Add a store link below, or set the site\'s links in ' + link + '.'
+            };
+        }
+        var said = stores.map(function (st) { return st.name + (st.own ? ' (this block\'s link)' : ' (from Settings)'); });
+        return {
+            level: 'ok',
+            ios: stores.some(function (st) { return st.name === 'App Store'; }),
+            android: stores.some(function (st) { return st.name === 'Google Play'; }),
+            short: '<i class="fas fa-check"></i> Shows ' + stores.map(function (st) { return st.name; }).join(' and '),
+            long: 'Shows ' + said.join(' and ') + '. The site\'s links are set in ' + link + '.'
+        };
+    }
+
+    function appDownloadPreviewHtml(c, s, mini) {
+        var status = appDownloadStatus(c);
+        var bg = s.background ? swatchValue(s.background, '') : '';
+        var pairs = { 'token:accent': 'token:accent-ink', 'token:band': 'token:band-ink' };
+        var ink = bg ? (pairs[s.background] ? swatchValue(pairs[s.background], '#ffffff') : (s.background.indexOf('token:') === 0 ? swatchValue('token:ink', '#1f2937') : (pricingInk(bg) || '#1f2937'))) : '';
+        var image = $.trim(c.image || '');
+        var badge = function (kind, small, big) {
+            return '<span class="ap-badge"><i class="' + kind + '"></i><span><small>' + small + '</small>' + big + '</span></span>';
+        };
+        // A store with no link is not drawn on the page; the preview shows it
+        // faded so the look can still be judged.
+        var badges = '<span class="ap-badges">' +
+            (status.ios || !status.android ? '<span class="' + (status.ios ? '' : 'ap-off') + '">' + badge('fab fa-apple', 'Download on the', 'App Store') + '</span>' : '') +
+            (status.android || !status.ios ? '<span class="' + (status.android ? '' : 'ap-off') + '">' + badge('fab fa-google-play', 'Get it on', 'Google Play') + '</span>' : '') +
+            '</span>';
+        var cls = 'ap ap--' + s.layout + ' ap--' + s.size + ' ap--align-' + s.text_alignment + ' ap--badge-' + s.badge_style +
+            (bg ? ' has-bg' : '') + (image ? ' has-image ap--image-' + s.image_side : '') + (mini ? ' ap--mini' : '');
+        return '<div class="' + cls + '" style="' + (bg ? '--ap-bg:' + bg + ';--ap-ink:' + ink + ';' : '') + '">' +
+            '<span class="ap-inner">' +
+                '<span class="ap-copy">' +
+                    '<span class="ap-words">' +
+                        (c.eyebrow ? '<span class="ap-eyebrow">' + escHtml(c.eyebrow) + '</span>' : '') +
+                        '<span class="ap-heading">' + (c.heading ? escHtml(c.heading) : (mini ? 'App Download' : 'Your heading')) + '</span>' +
+                        (c.description ? '<span class="ap-desc">' + escHtml(c.description) + '</span>' : '') +
+                    '</span>' +
+                    '<span class="ap-side">' + badges + (c.note ? '<span class="ap-note">' + escHtml(c.note) + '</span>' : '') + '</span>' +
+                '</span>' +
+                (image ? '<span class="ap-media"><img src="' + escHtml(image) + '" alt=""></span>' : '') +
+            '</span></div>' +
+            // The dialog says it in full above its form.
+            (mini ? '<div class="vela-field-status vela-field-status--' + status.level + '">' + status.short + '</div>' : '');
+    }
+
+    function appDownloadDialogContent() {
+        return {
+            eyebrow: $('#app-eyebrow').val(),
+            heading: $('#app-heading').val(),
+            description: $('#app-description').val(),
+            note: $('#app-note').val(),
+            image: $('#app-image').val(),
+            image_alt: $('#app-image-alt').val(),
+            ios_url: $.trim($('#app-ios-url').val() || ''),
+            android_url: $.trim($('#app-android-url').val() || '')
+        };
+    }
+
+    function appDownloadDialogSettings() {
+        return appDownloadSettings({
+            text_alignment: $('#app-align').val(),
+            layout: $('#app-layout').val(),
+            size: $('#app-size').val(),
+            background: $('#app-background-text').val() || '',
+            badge_style: $('#app-badge-style').val(),
+            image_side: $('#app-image-side').val()
+        });
+    }
+
+    function drawAppDownloadPreview() {
+        var box = document.getElementById('app-live-preview');
+        if (!box) return;
+        var c = appDownloadDialogContent();
+        var s = appDownloadDialogSettings();
+        box.innerHTML = appDownloadPreviewHtml(c, s, false);
+        var status = appDownloadStatus(c);
+        $('#app-status').attr('class', 'alert alert-' + (status.level === 'ok' ? 'success' : 'warning') + ' py-2 px-3 mb-2')
+            // One span: the admin's .alert lays its children out with a gap.
+            .html('<span>' + status.long + '</span>');
+        ['ios', 'android'].forEach(function (store) {
+            var v = $.trim($('#app-' + store + '-url').val() || '');
+            var bad = v !== '' && !appDownloadOwnLink(v);
+            $('#app-' + store + '-url').toggleClass('is-invalid', bad).siblings('.app-link-invalid').prop('hidden', !bad);
+        });
+        $('.app-bg-tile').each(function () {
+            var on = String($(this).data('value')) === s.background;
+            $(this).toggleClass('active', on).attr('aria-pressed', on ? 'true' : 'false');
+        });
+        $('#app-image-side-wrap').prop('hidden', !$.trim(c.image || '') || s.layout === 'stacked');
+        $('#app-example').prop('hidden', !!(c.heading || c.description || c.eyebrow || c.note));
+    }
+
+    PageEditor.registerBlockType('app_download', {
+        icon: 'fa-download',
+        label: 'App Download',
+        defaults: {
+            content: { eyebrow: '', heading: '', description: '', note: '', image: '', image_alt: '', ios_url: '', android_url: '' },
+            settings: { text_alignment: 'center', layout: 'stacked', size: 'normal', background: '', badge_style: 'dark', image_side: 'right' }
+        },
+        renderPreview: function(block) {
+            return appDownloadPreviewHtml(block.content || {}, appDownloadSettings(block.settings || {}), true);
+        },
+        renderEditor: function(block) {
+            var c = block.content || {};
+            var s = appDownloadSettings(block.settings || {});
+            var cfg = (window.PageEditorConfig && window.PageEditorConfig.appStore) || {};
+            var text = function (id, label, value, placeholder, wide) {
+                return '<div class="pt-field' + (wide ? ' pt-field--wide' : '') + '"><label for="' + id + '">' + label + '</label><input type="text" class="form-control form-control-sm" id="' + id + '" value="' + escHtml(value || '') + '" placeholder="' + escHtml(placeholder || '') + '"></div>';
+            };
+            var storeField = function (id, label, value, site, example) {
+                return '<div class="pt-field"><label for="' + id + '">' + label + '</label>' +
+                    '<input type="url" class="form-control form-control-sm" id="' + id + '" value="' + escHtml(value || '') + '" placeholder="' + escHtml(site ? 'From Settings: ' + site : 'e.g. ' + example) + '">' +
+                    '<small class="text-danger app-link-invalid" hidden>A store link starts with https:// — this one is not used.</small></div>';
+            };
+            var layoutArt = {
+                stacked: '<span class="vc-shape ad ad--stacked"><span><b class="h"></b><b class="t"></b><span class="bd"><b></b><b></b></span></span></span>',
+                split: '<span class="vc-shape ad ad--split"><span><b class="h"></b><b class="t"></b><span class="bd"><b></b><b></b></span></span><i class="ph"></i></span>',
+                card: '<span class="vc-shape ad ad--card"><span><b class="h"></b><b class="t"></b><span class="bd"><b></b><b></b></span></span></span>'
+            };
+            var badgeArt = function (kind) { return '<span class="vc-shape abd abd--' + kind + '"><b></b><b></b></span>'; };
+            var sizeArt = function (n) { return '<span class="vc-shape cs"><b style="height:' + n + 'px"></b></span>'; };
+            var bgTile = function (value, label, swatch) {
+                var on = value === s.background;
+                return '<button type="button" class="vela-tile app-bg-tile' + (on ? ' active' : '') + '" aria-pressed="' + on + '" data-value="' + escHtml(value) + '">' +
+                    '<span class="vc-shape cb" style="' + swatch + '"><b></b></span><span class="vela-tile-label">' + label + '</span></button>';
+            };
+            var tokenSwatch = function (token, fallback) { return 'background:' + escHtml(swatchValue(token, fallback)) + ';'; };
+            return '<div class="vc-section-title">How it will look</div>' +
+                '<div id="app-live-preview" class="vc-preview app-live-preview"></div>' +
+                '<div id="app-status" class="alert py-2 px-3 mb-2" style="font-size:.85rem;"></div>' +
+                '<button type="button" class="btn btn-sm btn-outline-info mb-2" id="app-example" hidden><i class="fas fa-magic mr-1"></i> Start from an example</button>' +
+
+                '<div class="vc-section-title">Words</div>' +
+                '<div class="pt-grid mb-2">' +
+                    text('app-eyebrow', 'Small line above <small>— optional, e.g. New · Free on iPhone and Android</small>', c.eyebrow, '', true) +
+                    text('app-heading', 'Heading', c.heading, 'e.g. Take us with you', true) +
+                    '<div class="pt-field pt-field--wide"><label for="app-description">Text under it <small>— optional</small></label><textarea class="form-control form-control-sm" id="app-description" rows="2">' + escHtml(c.description || '') + '</textarea></div>' +
+                    text('app-note', 'Small print under the badges <small>— optional, e.g. Free · No ads</small>', c.note, '', true) +
+                '</div>' +
+
+                '<div class="vc-section-title">Store links <small>— leave empty to use the site\'s links from Settings</small></div>' +
+                '<div class="pt-grid mb-2">' +
+                    storeField('app-ios-url', '<i class="fab fa-apple mr-1"></i> App Store', c.ios_url, cfg.iosUrl, 'https://apps.apple.com/app/id123456789') +
+                    storeField('app-android-url', '<i class="fab fa-google-play mr-1"></i> Google Play', c.android_url, cfg.androidUrl, 'https://play.google.com/store/apps/details?id=com.example') +
+                '</div>' +
+
+                '<div class="vc-section-title">Picture of the app <small>— optional; a phone screenshot works best</small></div>' +
+                imageField('app-image', 'Picture', c.image) +
+                '<div class="pt-grid mb-2">' + text('app-image-alt', 'Describe the picture <small>— for screen readers</small>', c.image_alt, 'e.g. The booking screen of the app', true) + '</div>' +
+
+                '<div class="vc-section-title">Layout</div>' +
+                '<input type="hidden" id="app-layout" value="' + s.layout + '">' +
+                carouselTiles('app-layout', s.layout, [
+                    { value: 'stacked', label: 'One column', art: layoutArt.stacked },
+                    { value: 'split', label: 'Side by side', art: layoutArt.split },
+                    { value: 'card', label: 'Raised card', art: layoutArt.card }
+                ], 'vela-tiles--3', 'app-tile') +
+                '<div id="app-image-side-wrap" hidden>' +
+                    '<div class="vc-section-title">Picture on the</div>' +
+                    '<input type="hidden" id="app-image-side" value="' + s.image_side + '">' +
+                    carouselTiles('app-image-side', s.image_side, [
+                        { value: 'left', label: 'Left', art: '<span class="vc-shape ad ad--split ad--flip"><span><b class="h"></b><b class="t"></b></span><i class="ph"></i></span>' },
+                        { value: 'right', label: 'Right', art: '<span class="vc-shape ad ad--split"><span><b class="h"></b><b class="t"></b></span><i class="ph"></i></span>' }
+                    ], 'vela-tiles--2', 'app-tile') +
+                '</div>' +
+
+                '<div class="vc-section-title">Background <small>— the text colour is chosen to stay readable</small></div>' +
+                '<div class="vela-tiles vela-tiles--4 mb-2">' +
+                    bgTile('', 'Theme\'s own', 'background:repeating-linear-gradient(45deg,#f3f4f6 0 6px,#fff 6px 12px);') +
+                    bgTile('token:band', 'Band', tokenSwatch('token:band', '#1a1a1a')) +
+                    bgTile('token:accent', 'Accent', tokenSwatch('token:accent', '#2563eb')) +
+                    bgTile('token:surface', 'Soft', tokenSwatch('token:surface', '#f9fafb')) +
+                '</div>' +
+                '<details class="pricing-colours mb-3" id="app-bg-custom"' + (s.background && ['token:band', 'token:accent', 'token:surface'].indexOf(s.background) === -1 ? ' open' : '') + '><summary class="vc-section-title" style="cursor:pointer;display:list-item;">Another colour</summary>' +
+                    colourField('app-background', 'Background', s.background, 'app') +
+                '</details>' +
+
+                '<div class="vc-section-title">Badges</div>' +
+                '<input type="hidden" id="app-badge-style" value="' + s.badge_style + '">' +
+                carouselTiles('app-badge-style', s.badge_style, [
+                    { value: 'dark', label: 'Black', art: badgeArt('dark') },
+                    { value: 'light', label: 'White', art: badgeArt('light') },
+                    { value: 'outline', label: 'Outline', art: badgeArt('outline') }
+                ], 'vela-tiles--3', 'app-tile') +
+
+                '<div class="hero-two">' +
+                    '<div><div class="vc-section-title">Alignment</div>' +
+                        '<input type="hidden" id="app-align" value="' + s.text_alignment + '">' +
+                        carouselTiles('app-align', s.text_alignment, [
+                            { value: 'left', label: 'Left', art: '<span class="vc-shape cal cal--left"><b></b><b></b></span>' },
+                            { value: 'center', label: 'Centre', art: '<span class="vc-shape cal cal--center"><b></b><b></b></span>' },
+                            { value: 'right', label: 'Right', art: '<span class="vc-shape cal cal--right"><b></b><b></b></span>' }
+                        ], 'vela-tiles--3', 'app-tile') + '</div>' +
+                    '<div><div class="vc-section-title">Size</div>' +
+                        '<input type="hidden" id="app-size" value="' + s.size + '">' +
+                        carouselTiles('app-size', s.size, [
+                            { value: 'compact', label: 'Compact', art: sizeArt(16) },
+                            { value: 'normal', label: 'Normal', art: sizeArt(26) },
+                            { value: 'large', label: 'Large', art: sizeArt(38) }
+                        ], 'vela-tiles--3', 'app-tile') + '</div>' +
+                '</div>';
+        },
+        initEditor: function() {
+            var changed = function () { _blockEditTouched = true; drawAppDownloadPreview(); };
+            $(document).off('click.appdl').on('click.appdl', '.app-tile', function () {
+                var $tile = $(this);
+                $tile.closest('.vela-tiles').find('.app-tile').removeClass('active').attr('aria-pressed', 'false');
+                $tile.addClass('active').attr('aria-pressed', 'true');
+                $('#' + $tile.data('input')).val($tile.data('value'));
+                changed();
+            }).on('click.appdl', '.app-bg-tile', function () {
+                var v = String($(this).data('value'));
+                $('#app-background-text').val(v);
+                $('#app-background').val(swatchValue(v, '#ffffff'));
+                $('#app-bg-custom .vela-token-chip').removeClass('is-on');
+                changed();
+            }).on('click.appdl', '#app-example', function () {
+                $('#app-eyebrow').val('New');
+                $('#app-heading').val('Take us with you');
+                $('#app-description').val('Book, check your plans and get reminders — all from your phone.');
+                $('#app-note').val('Free · iPhone and Android');
+                changed();
+            });
+            $(document).off('input.appdl change.appdl')
+                .on('input.appdl change.appdl', '#app-eyebrow, #app-heading, #app-description, #app-note, #app-image, #app-image-alt, #app-ios-url, #app-android-url', changed);
+            bindColourFields('app', changed);
+            drawAppDownloadPreview();
+        },
+        collectData: function(block) {
+            // Kept, not rebuilt: a key this dialog does not show survives a save.
+            return {
+                content: $.extend({}, block.content, appDownloadDialogContent()),
+                settings: $.extend({}, block.settings, appDownloadDialogSettings())
+            };
+        }
+    });
+
     // =========================================================================
     // Core editor functions (use registry)
     // =========================================================================
@@ -7330,6 +7700,9 @@ PageEditor.registerBlockType = function(name, config) {
         initRowSortable();
         bindFormEvents();
         bindLinkSuggest();
+        // The canvas previews are drawn from the swatches; a dialog opened
+        // afterwards picks them up as it is drawn.
+        loadThemeColours(renderRows);
     }
 
     // --- Blocks whose editing is a plain form -------------------------------
@@ -7405,31 +7778,6 @@ PageEditor.registerBlockType = function(name, config) {
         return $el.val();
     }
 
-    // What a schema-built block depends on outside itself, said on the block
-    // instead of a fixed note. The app download block drew nothing on the
-    // page without a store link, and nothing in the editor said whether one
-    // was set — it looked broken.
-    var fieldBlockStatus = {
-        app_download: function () {
-            var cfg = (window.PageEditorConfig && window.PageEditorConfig.appStore) || null;
-            if (!cfg) return null;
-            var link = cfg.settingsUrl ? ' <a href="' + escHtml(cfg.settingsUrl) + '" target="_blank">Settings → Native App</a>' : ' Settings → Native App';
-            var set = [cfg.ios ? 'App Store' : null, cfg.android ? 'Google Play' : null].filter(Boolean);
-            if (!set.length) {
-                return {
-                    level: 'warn',
-                    short: '<i class="fas fa-exclamation-triangle"></i> Hidden on the page — no store link set',
-                    long: '<strong>Visitors see nothing yet.</strong> This block shows its badges only once a store link is set in' + link + '.'
-                };
-            }
-            return {
-                level: 'ok',
-                short: '<i class="fas fa-check"></i> Shows ' + set.join(' and '),
-                long: 'Shows the ' + set.join(' and ') + ' badge' + (set.length > 1 ? 's' : '') + '. The links themselves are set in' + link + '.'
-            };
-        }
-    };
-
     function registerFieldBlocks() {
         var schemas = window.VelaBlockFields || {};
 
@@ -7453,18 +7801,12 @@ PageEditor.registerBlockType = function(name, config) {
                         return f.type === 'text' || f.type === 'textarea' || f.type === 'code';
                     })[0];
                     var text = first ? fieldValue(block, first) : '';
-                    var status = fieldBlockStatus[type] ? fieldBlockStatus[type]() : null;
-                    return (text
+                    return text
                         ? escHtml(String(text).slice(0, 120))
-                        : '<em>' + escHtml(schema.label) + '</em>') +
-                        (status ? '<div class="vela-field-status vela-field-status--' + status.level + '">' + status.short + '</div>' : '');
+                        : '<em>' + escHtml(schema.label) + '</em>';
                 },
                 renderEditor: function (block) {
-                    var status = fieldBlockStatus[type] ? fieldBlockStatus[type]() : null;
-                    var note = status
-                        // One span: the admin's .alert lays its children out with a gap.
-                        ? '<div class="alert alert-' + (status.level === 'ok' ? 'success' : 'warning') + ' py-2 px-3" style="font-size:.85rem;"><span>' + status.long + '</span></div>'
-                        : schema.note
+                    var note = schema.note
                         ? '<div class="alert alert-info py-2 px-3" style="font-size:.85rem;">' +
                           escHtml(schema.note) + '</div>'
                         : '';
