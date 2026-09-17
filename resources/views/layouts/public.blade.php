@@ -54,8 +54,8 @@
     <link href="https://fonts.bunny.net/css?family=playfair+display:400,500,600,700%7Cinter:300,400,500,600,700&display=swap" rel="stylesheet">
 
     <!-- Styles -->
-    <link href="{{ asset('vendor/vela/css/premium.css') }}" rel="stylesheet">
-    <link href="{{ asset('vendor/vela/css/page-blocks.css') }}" rel="stylesheet">
+    <link href="{{ vela_asset('vendor/vela/css/premium.css') }}" rel="stylesheet">
+    <link href="{{ vela_asset('vendor/vela/css/page-blocks.css') }}" rel="stylesheet">
 
     <!-- Alpine.js -->
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>

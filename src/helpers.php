@@ -24,6 +24,24 @@ if (!function_exists('vela_config')) {
     }
 }
 
+if (!function_exists('vela_asset')) {
+    /**
+     * URL of a published core asset that changes when the file does.
+     *
+     * A bare asset() URL never changes, so a browser keeps the copy it cached:
+     * after an update the admin ran new page-editor.js against old
+     * vela-admin.css, and a block editor's previews and choice drawings came
+     * out unstyled — every option looked the same. Guarded, because on a fresh
+     * install the published file is not there yet.
+     */
+    function vela_asset(string $path): string
+    {
+        $file = public_path($path);
+
+        return asset($path) . '?v=' . (is_file($file) ? filemtime($file) : config('vela.version', '1'));
+    }
+}
+
 if (!function_exists('renderMarkdown')) {
     // Template views define this in a trailing @php block, but PHP does not hoist
     // functions inside `if` blocks — the first render fails because the helper

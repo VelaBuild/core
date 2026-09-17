@@ -21,7 +21,7 @@
     <link href="https://unpkg.com/@coreui/coreui@3.2/dist/css/coreui.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.5.1/min/dropzone.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/jquery.perfect-scrollbar/1.5.0/css/perfect-scrollbar.min.css" rel="stylesheet" />
-    <link href="{{ asset('vendor/vela/css/vela-admin.css') }}" rel="stylesheet" />
+    <link href="{{ vela_asset('vendor/vela/css/vela-admin.css') }}" rel="stylesheet" />
     {{-- Guarded: on a fresh install, and in the test app, the published file
          is not there yet and filemtime() 500s the whole admin. --}}
     @if(file_exists(public_path('vendor/vela/css/custom.css')))
@@ -175,8 +175,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datetimepicker/4.17.47/js/bootstrap-datetimepicker.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.5/js/select2.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.5.1/min/dropzone.min.js"></script>
-    <script src="{{ asset('vendor/vela/js/main.js') }}"></script>
-    <script src="{{ asset('vendor/vela/js/vela-code-editor.js') }}"></script>
+    <script src="{{ vela_asset('vendor/vela/js/main.js') }}"></script>
+    <script src="{{ vela_asset('vendor/vela/js/vela-code-editor.js') }}"></script>
     <script>
         $(function() {
   let copyButtonTrans = '{{ trans('vela::global.datatables.copy') }}'
@@ -275,8 +275,8 @@
     @can('ai_chat_access')
         <div id="ai-chat-toggle" style="position:fixed;right:0;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;text-orientation:mixed;background:linear-gradient(180deg, var(--vela-teal-400), var(--vela-teal-600));color:#fff;padding:12px 6px;border-radius:8px 0 0 8px;cursor:pointer;font-size:13px;font-weight:600;letter-spacing:1px;z-index:1050;box-shadow:-2px 0 8px rgba(0,0,0,.15);transition:background .2s;">{{ trans('vela::ai.helper_title') }}</div>
         @include('vela::partials.ai-chatbot')
-        <link href="{{ asset('vendor/vela/css/ai-chatbot.css') }}" rel="stylesheet" />
-        <script src="{{ asset('vendor/vela/js/ai-chatbot.js') }}"></script>
+        <link href="{{ vela_asset('vendor/vela/css/ai-chatbot.css') }}" rel="stylesheet" />
+        <script src="{{ vela_asset('vendor/vela/js/ai-chatbot.js') }}"></script>
     @endcan
 </body>
 
