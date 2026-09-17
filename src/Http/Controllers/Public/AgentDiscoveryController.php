@@ -6,6 +6,16 @@ use VelaBuild\Core\Http\Controllers\Controller;
 
 class AgentDiscoveryController extends Controller
 {
+    public function mcpDiscovery()
+    {
+        return response()->json([
+            'mcp_version' => '2026-07-28',
+            'endpoint' => url('/api/mcp'),
+            'adapter_version' => '1.0.0',
+            'auth' => ['type' => 'bearer'],
+        ]);
+    }
+
     /**
      * Serve /.well-known/api-catalog
      *
@@ -48,6 +58,7 @@ class AgentDiscoveryController extends Controller
             'transport' => [
                 'type' => 'http',
                 'url' => url('/api/mcp'),
+                'protocol_version' => '2026-07-28',
             ],
             'capabilities' => [
                 'tools' => true,

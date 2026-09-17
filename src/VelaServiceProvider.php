@@ -347,6 +347,9 @@ class VelaServiceProvider extends ServiceProvider
 
     protected function registerMcpRoutes(): void
     {
+        \Laravel\Mcp\Facades\Mcp::web('/api/mcp', \VelaBuild\Core\Mcp\VelaServer::class)
+            ->middleware('vela.mcp');
+
         Route::group([
             'prefix' => 'api/mcp',
             'as' => 'vela.api.mcp.',
@@ -378,6 +381,7 @@ class VelaServiceProvider extends ServiceProvider
     {
         Route::middleware('web')->group(function () {
             $c = \VelaBuild\Core\Http\Controllers\Public\AgentDiscoveryController::class;
+            Route::get('/.well-known/mcp', [$c, 'mcpDiscovery'])->name('vela.well-known.mcp');
             Route::get('/.well-known/api-catalog', [$c, 'apiCatalog'])->name('vela.well-known.api-catalog');
             Route::get('/.well-known/mcp/server-card.json', [$c, 'mcpServerCard'])->name('vela.well-known.mcp-server-card');
             Route::get('/.well-known/agent-skills/index.json', [$c, 'agentSkillsIndex'])->name('vela.well-known.agent-skills');
