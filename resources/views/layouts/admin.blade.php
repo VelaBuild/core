@@ -133,6 +133,7 @@
 
         {{-- Main content --}}
         <main class="vela-content">
+            @include('vela::admin.partials.health-notices')
             @if(session('message'))
                 <div class="alert alert-success" role="alert">{{ session('message') }}</div>
             @endif

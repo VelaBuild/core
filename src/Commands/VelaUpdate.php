@@ -24,6 +24,9 @@ class VelaUpdate extends Command
             $this->call('migrate', ['--force' => true]);
         }
 
+        // Whatever the admin was warning about has just been dealt with.
+        \VelaBuild\Core\Services\SiteHealth::forget();
+
         try {
             $done = $sync->syncIfStale(force: true) ?? ['copied' => false, 'bundles' => 0, 'themes' => []];
         } catch (\Throwable $e) {

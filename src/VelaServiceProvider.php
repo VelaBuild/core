@@ -347,8 +347,16 @@ class VelaServiceProvider extends ServiceProvider
 
     protected function registerMcpRoutes(): void
     {
-        \Laravel\Mcp\Facades\Mcp::web('/api/mcp', \VelaBuild\Core\Mcp\VelaServer::class)
-            ->middleware('vela.mcp');
+        // laravel/mcp became a requirement of this package after sites were
+        // already running. One whose vendor folder arrives any way other than
+        // composer — a deployed build, a path checkout, a git pull — gets this
+        // file without the package, and calling into it here took down every
+        // page of the site, the admin among them. Without it the gateway is
+        // simply not registered; the admin says so (see SiteHealth).
+        if (!app(\VelaBuild\Core\Services\SiteHealth::class)->mcpGatewayMissing()) {
+            \Laravel\Mcp\Facades\Mcp::web('/api/mcp', \VelaBuild\Core\Mcp\VelaServer::class)
+                ->middleware('vela.mcp');
+        }
 
         Route::group([
             'prefix' => 'api/mcp',
