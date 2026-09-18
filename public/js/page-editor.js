@@ -7861,6 +7861,368 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // --- Reviews: summary, carousel and grid -------------------------------
+    //
+    // The three of them show what the Reviews section holds, so their dialogs
+    // are built from one place and drawn with real reviews. Their stars were
+    // an icon font no public layout loads; here and on the page they are SVG.
+    // Services\Blocks\Reviews is the page's side.
+
+    function reviewData() {
+        var cfg = (window.PageEditorConfig && window.PageEditorConfig.reviews) || {};
+        return { byMin: cfg.byMin || {}, samples: cfg.samples || [] };
+    }
+
+    function reviewTotals(minRating) {
+        return reviewData().byMin[minRating] || { count: 0, average: 0 };
+    }
+
+    // The same five stars as the page, half ones and all.
+    function reviewStarsHtml(rating) {
+        var path = 'M12 2.6l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.4l-5.8 3.06 1.11-6.46-4.7-4.58 6.49-.94z';
+        var out = '<span class="review-stars">';
+        for (var i = 1; i <= 5; i++) {
+            var fill = Math.max(0, Math.min(1, rating - (i - 1)));
+            var state = fill >= 0.75 ? 'full' : (fill >= 0.25 ? 'half' : 'empty');
+            var id = 'rp-half-' + (reviewStarsHtml.n = (reviewStarsHtml.n || 0) + 1);
+            out += '<svg class="review-star review-star--' + state + '" viewBox="0 0 24 24">';
+            out += state === 'half'
+                ? '<defs><linearGradient id="' + id + '"><stop offset="50%" stop-color="currentColor"></stop>' +
+                  '<stop offset="50%" stop-color="currentColor" stop-opacity="0"></stop></linearGradient></defs>' +
+                  '<path d="' + path + '" fill="url(#' + id + ')" stroke="currentColor" stroke-width="1.2"></path>'
+                : '<path d="' + path + '" fill="' + (state === 'full' ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="1.2"></path>';
+            out += '</svg>';
+        }
+        return out + '</span>';
+    }
+
+    function reviewStatus(minRating) {
+        var cfg = window.PageEditorConfig || {};
+        var totals = reviewTotals(minRating);
+        var link = cfg.reviewsUrl ? '<a href="' + escHtml(cfg.reviewsUrl) + '" target="_blank">Tools → Reviews</a>' : 'Tools → Reviews';
+        // "1 stars or more" is every review there is; say that instead.
+        if (!totals.count) {
+            return {
+                level: 'warn',
+                short: '<i class="fas fa-exclamation-triangle"></i> Nothing to show yet',
+                long: '<strong>Visitors see nothing here yet.</strong> ' + (minRating > 1
+                    ? 'No published review is ' + minRating + ' stars or more.'
+                    : 'There is no published review.') + ' Reviews live in ' + link + '.'
+            };
+        }
+        var reviews = totals.count + ' review' + (totals.count === 1 ? '' : 's');
+        var many = minRating > 1 ? reviews + ' of ' + minRating + ' stars or more' : 'all ' + reviews;
+        return {
+            level: 'ok',
+            short: '<i class="fas fa-check"></i> ' + many + ', ' + totals.average.toFixed(1) + ' average',
+            long: 'Shows ' + many + ', averaging ' + totals.average.toFixed(1) + '. They are kept in ' + link + '.'
+        };
+    }
+
+    function reviewBackground(background) {
+        var bg = background ? swatchValue(background, '') : '';
+        var pairs = { 'token:accent': 'token:accent-ink', 'token:band': 'token:band-ink' };
+        var ink = bg ? (pairs[background] ? swatchValue(pairs[background], '#ffffff') : (background.indexOf('token:') === 0 ? swatchValue('token:ink', '#1f2937') : (pricingInk(bg) || '#1f2937'))) : '';
+        return { bg: bg, vars: bg ? '--rp-bg:' + bg + ';--rp-ink:' + ink + ';' : '' };
+    }
+
+    function reviewSummarySettings(s) {
+        var one = function (value, allowed) { return allowed.indexOf(value) > -1 ? value : allowed[0]; };
+        var n = parseInt(s.min_rating, 10);
+        return {
+            min_rating: isNaN(n) ? 1 : Math.max(1, Math.min(5, n)),
+            layout: one(s.layout, ['row', 'card', 'large']),
+            text_alignment: one(s.text_alignment, ['center', 'left', 'right']),
+            background: s.background || '',
+            show_count: s.show_count === undefined ? true : !!s.show_count,
+            button_style: one(s.button_style, ['solid', 'pill', 'outline'])
+        };
+    }
+
+    function reviewListSettings(s, defaultCount, withColumns) {
+        var one = function (value, allowed) { return allowed.indexOf(value) > -1 ? value : allowed[0]; };
+        var num = function (value, fallback, min, max) {
+            var n = parseInt(value, 10);
+            return isNaN(n) ? fallback : Math.max(min, Math.min(max, n));
+        };
+        var out = {
+            min_rating: num(s.min_rating, 1, 1, 5),
+            max_count: num(s.max_count, defaultCount, 1, 50),
+            card_style: one(s.card_style, ['bordered', 'soft', 'plain']),
+            text_alignment: one(s.text_alignment, ['left', 'center', 'right']),
+            background: s.background || '',
+            show_date: s.show_date === undefined ? true : !!s.show_date,
+            show_source: s.show_source === undefined ? false : !!s.show_source
+        };
+        if (withColumns) out.columns = num(s.columns, 3, 1, 4);
+        return out;
+    }
+
+    function reviewSummaryPreviewHtml(c, s, mini) {
+        var totals = reviewTotals(s.min_rating);
+        var paint = reviewBackground(s.background);
+        var average = totals.count ? totals.average : 4.5;
+        return '<div class="rp rp--summary rp--' + s.layout + ' rp--align-' + s.text_alignment + (paint.bg ? ' has-bg' : '') + (mini ? ' rp--mini' : '') + '" style="' + paint.vars + '">' +
+            (c.heading ? '<span class="rp-heading">' + escHtml(c.heading) + '</span>' : '') +
+            '<span class="rp-rating">' + reviewStarsHtml(average) +
+                '<span class="rp-text"><b>' + average.toFixed(1) + '</b> out of 5' +
+                (s.show_count ? '<span class="rp-count"> based on ' + (totals.count || 0) + ' review' + (totals.count === 1 ? '' : 's') + '</span>' : '') +
+                '</span>' +
+            '</span>' +
+            (c.note ? '<span class="rp-note">' + escHtml(c.note) + '</span>' : '') +
+            (c.button_text ? '<span class="rp-btn rp-btn--' + s.button_style + '">' + escHtml(c.button_text) + '</span>' : '') +
+        '</div>' + (mini ? reviewMiniStatus(s.min_rating) : '');
+    }
+
+    function reviewMiniStatus(minRating) {
+        var status = reviewStatus(minRating);
+        return '<div class="vela-field-status vela-field-status--' + status.level + '">' + status.short + '</div>';
+    }
+
+    function reviewCardsPreviewHtml(kind, c, s, mini) {
+        var data = reviewData();
+        var paint = reviewBackground(s.background);
+        var samples = data.samples.filter(function (r) { return r.rating >= s.min_rating; }).slice(0, Math.min(s.max_count, mini ? 2 : (s.columns || 3)));
+        if (!samples.length) {
+            samples = [{ author: 'A visitor', rating: 5, text: 'Their words appear here.', date: '' }];
+        }
+        var cards = samples.map(function (r) {
+            return '<span class="rp-card">' +
+                '<span class="rp-card-head"><b>' + escHtml(r.author) + '</b>' + reviewStarsHtml(r.rating) + '</span>' +
+                (r.text ? '<span class="rp-card-text">' + escHtml(r.text) + '</span>' : '') +
+                ((s.show_date && r.date) || (s.show_source && r.source)
+                    ? '<span class="rp-card-meta">' + (s.show_date && r.date ? escHtml(r.date) : '') +
+                      (s.show_source && r.source ? ' · ' + escHtml(r.source.charAt(0).toUpperCase() + r.source.slice(1)) : '') + '</span>'
+                    : '') +
+            '</span>';
+        }).join('');
+        return '<div class="rp rp--' + kind + ' rp--' + s.card_style + ' rp--align-' + s.text_alignment + (paint.bg ? ' has-bg' : '') + (mini ? ' rp--mini' : '') + '" style="' + paint.vars + (s.columns ? '--rp-columns:' + s.columns + ';' : '') + '">' +
+            (c.heading ? '<span class="rp-heading">' + escHtml(c.heading) + '</span>' : '') +
+            '<span class="rp-items">' + cards + '</span>' +
+        '</div>' + (mini ? reviewMiniStatus(s.min_rating) : '');
+    }
+
+    function reviewStarTiles(id, value) {
+        return carouselTiles(id, String(value), [1, 2, 3, 4, 5].map(function (n) {
+            return { value: String(n), label: n === 1 ? 'All reviews' : n + ' stars and up', art: '<span class="vc-shape rst">' + reviewStarsHtml(n) + '</span>' };
+        }), 'vela-tiles--5', 'review-tile');
+    }
+
+    function reviewBackgroundPicker(prefix, background) {
+        var bgTile = function (value, label, swatch) {
+            var on = value === background;
+            return '<button type="button" class="vela-tile review-bg-tile' + (on ? ' active' : '') + '" aria-pressed="' + on + '" data-value="' + escHtml(value) + '">' +
+                '<span class="vc-shape cb" style="' + swatch + '"><b></b></span><span class="vela-tile-label">' + label + '</span></button>';
+        };
+        var token = function (name, fallback) { return 'background:' + escHtml(swatchValue(name, fallback)) + ';'; };
+        return '<div class="vc-section-title">Background <small>— the text colour is chosen to stay readable</small></div>' +
+            '<div class="vela-tiles vela-tiles--4 mb-2">' +
+                bgTile('', 'Theme\'s own', 'background:repeating-linear-gradient(45deg,#f3f4f6 0 6px,#fff 6px 12px);') +
+                bgTile('token:band', 'Band', token('token:band', '#1a1a1a')) +
+                bgTile('token:accent', 'Accent', token('token:accent', '#2563eb')) +
+                bgTile('token:surface', 'Soft', token('token:surface', '#f9fafb')) +
+            '</div>' +
+            '<details class="pricing-colours mb-3" id="review-bg-custom"' + (background && ['token:band', 'token:accent', 'token:surface'].indexOf(background) === -1 ? ' open' : '') + '>' +
+                '<summary class="vc-section-title" style="cursor:pointer;display:list-item;">Another colour</summary>' +
+                colourField(prefix + '-background', 'Background', background, 'review') +
+            '</details>';
+    }
+
+    function reviewAlignTiles(id, value) {
+        return carouselTiles(id, value, [
+            { value: 'left', label: 'Left', art: '<span class="vc-shape cal cal--left"><b></b><b></b></span>' },
+            { value: 'center', label: 'Centre', art: '<span class="vc-shape cal cal--center"><b></b><b></b></span>' },
+            { value: 'right', label: 'Right', art: '<span class="vc-shape cal cal--right"><b></b><b></b></span>' }
+        ], 'vela-tiles--3', 'review-tile');
+    }
+
+    function reviewCheck(id, label, on, help) {
+        return '<div class="custom-control custom-checkbox mb-2">' +
+            '<input type="checkbox" class="custom-control-input" id="' + id + '"' + (on ? ' checked' : '') + '>' +
+            '<label class="custom-control-label" for="' + id + '">' + label + '</label>' + (help || '') + '</div>';
+    }
+
+    function drawReviewPreview() {
+        var box = document.getElementById('review-live-preview');
+        if (!box || !box.dataset.kind) return;
+        var kind = box.dataset.kind;
+        var c = reviewDialogContent(kind);
+        var s = reviewDialogSettings(kind);
+        box.innerHTML = kind === 'summary' ? reviewSummaryPreviewHtml(c, s, false) : reviewCardsPreviewHtml(kind, c, s, false);
+        var status = reviewStatus(s.min_rating);
+        $('#review-status').attr('class', 'alert alert-' + (status.level === 'ok' ? 'success' : 'warning') + ' py-2 px-3 mb-2')
+            .html('<span>' + status.long + '</span>');
+        $('.review-bg-tile').each(function () {
+            var on = String($(this).data('value')) === s.background;
+            $(this).toggleClass('active', on).attr('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
+    function reviewDialogContent(kind) {
+        var c = { heading: $('#review-heading').val() };
+        if (kind === 'summary') {
+            c.note = $('#review-note').val();
+            c.button_text = $('#review-btn-text').val();
+            c.button_url = $('#review-btn-url').val();
+        }
+        return c;
+    }
+
+    function reviewDialogSettings(kind) {
+        var common = {
+            min_rating: $('#review-min-rating').val(),
+            text_alignment: $('#review-align').val(),
+            background: $('#review-background-text').val() || ''
+        };
+        if (kind === 'summary') {
+            return reviewSummarySettings($.extend(common, {
+                layout: $('#review-layout').val(),
+                show_count: $('#review-show-count').is(':checked'),
+                button_style: $('#review-btn-style').val()
+            }));
+        }
+        return reviewListSettings($.extend(common, {
+            max_count: $('#review-max-count').val(),
+            columns: $('#review-columns').val(),
+            card_style: $('#review-card-style').val(),
+            show_date: $('#review-show-date').is(':checked'),
+            show_source: $('#review-show-source').is(':checked')
+        }), kind === 'grid' ? 12 : 10, kind === 'grid');
+    }
+
+    function reviewEditorHtml(kind, block) {
+        var c = block.content || {};
+        var s = kind === 'summary'
+            ? reviewSummarySettings(block.settings || {})
+            : reviewListSettings(block.settings || {}, kind === 'grid' ? 12 : 10, kind === 'grid');
+        var head = '<div class="vc-section-title">How it will look</div>' +
+            '<div id="review-live-preview" class="vc-preview review-live-preview" data-kind="' + kind + '"></div>' +
+            '<div id="review-status" class="alert py-2 px-3 mb-2" style="font-size:.85rem;"></div>' +
+            '<div class="pt-grid mb-2"><div class="pt-field pt-field--wide"><label for="review-heading">Heading <small>— optional, e.g. What our guests say</small></label>' +
+                '<input type="text" class="form-control form-control-sm" id="review-heading" value="' + escHtml(c.heading || '') + '"></div></div>' +
+            '<div class="vc-section-title">Which reviews <small>— they are kept in Tools → Reviews</small></div>' +
+            '<input type="hidden" id="review-min-rating" value="' + s.min_rating + '">' +
+            reviewStarTiles('review-min-rating', s.min_rating);
+
+        if (kind === 'summary') {
+            return head +
+                '<div class="pt-grid mb-2">' +
+                    '<div class="pt-field pt-field--wide"><label for="review-note">Line under the stars <small>— optional</small></label>' +
+                        '<input type="text" class="form-control form-control-sm" id="review-note" value="' + escHtml(c.note || '') + '"></div>' +
+                    '<div class="pt-field"><label for="review-btn-text">Button <small>— optional</small></label>' +
+                        '<input type="text" class="form-control form-control-sm" id="review-btn-text" value="' + escHtml(c.button_text || '') + '" placeholder="e.g. Read all reviews"></div>' +
+                    '<div class="pt-field"><label for="review-btn-url">Button link</label>' +
+                        '<input type="text" class="form-control form-control-sm vela-link-input" id="review-btn-url" value="' + escHtml(c.button_url || '') + '" placeholder="/reviews"></div>' +
+                '</div>' +
+                '<div class="vc-section-title">Layout</div>' +
+                '<input type="hidden" id="review-layout" value="' + s.layout + '">' +
+                carouselTiles('review-layout', s.layout, [
+                    { value: 'row', label: 'One line', art: '<span class="vc-shape rl rl--row"><b></b><b></b></span>' },
+                    { value: 'card', label: 'Raised card', art: '<span class="vc-shape rl rl--card"><span><b></b><b></b></span></span>' },
+                    { value: 'large', label: 'Large', art: '<span class="vc-shape rl rl--large"><b></b><b></b></span>' }
+                ], 'vela-tiles--3', 'review-tile') +
+                reviewBackgroundPicker('review', s.background) +
+                '<div class="hero-two">' +
+                    '<div><div class="vc-section-title">Alignment</div>' +
+                        '<input type="hidden" id="review-align" value="' + s.text_alignment + '">' + reviewAlignTiles('review-align', s.text_alignment) + '</div>' +
+                    '<div><div class="vc-section-title">Button</div>' +
+                        '<input type="hidden" id="review-btn-style" value="' + s.button_style + '">' +
+                        carouselTiles('review-btn-style', s.button_style, [
+                            { value: 'solid', label: 'Solid', art: '<span class="vc-shape hb hb--solid"><b></b><b></b></span>' },
+                            { value: 'pill', label: 'Rounded', art: '<span class="vc-shape hb hb--pill"><b></b><b></b></span>' },
+                            { value: 'outline', label: 'Outline', art: '<span class="vc-shape hb hb--outline"><b></b><b></b></span>' }
+                        ], 'vela-tiles--3', 'review-tile') + '</div>' +
+                '</div>' +
+                reviewCheck('review-show-count', 'Say how many reviews it is based on', s.show_count);
+        }
+
+        return head +
+            '<div class="pt-grid mb-2">' +
+                '<div class="pt-field"><label for="review-max-count">How many to show <small>— newest first</small></label>' +
+                    '<input type="number" class="form-control form-control-sm" id="review-max-count" min="1" max="50" value="' + s.max_count + '"></div>' +
+            '</div>' +
+            (kind === 'grid'
+                ? '<div class="vc-section-title">Columns <small>— fewer as the screen narrows</small></div>' +
+                  '<input type="hidden" id="review-columns" value="' + s.columns + '">' +
+                  carouselTiles('review-columns', String(s.columns), [1, 2, 3, 4].map(function (n) {
+                      return { value: String(n), label: n + (n === 1 ? ' column' : ' columns'), art: '<span class="vc-shape rc rc--' + n + '"><b></b><b></b><b></b><b></b></span>' };
+                  }), 'vela-tiles--4', 'review-tile')
+                : '') +
+            '<div class="vc-section-title">Cards</div>' +
+            '<input type="hidden" id="review-card-style" value="' + s.card_style + '">' +
+            carouselTiles('review-card-style', s.card_style, [
+                { value: 'bordered', label: 'Bordered', art: '<span class="vc-shape rk rk--bordered"><b></b></span>' },
+                { value: 'soft', label: 'Soft', art: '<span class="vc-shape rk rk--soft"><b></b></span>' },
+                { value: 'plain', label: 'Plain', art: '<span class="vc-shape rk rk--plain"><b></b></span>' }
+            ], 'vela-tiles--3', 'review-tile') +
+            reviewBackgroundPicker('review', s.background) +
+            '<div class="vc-section-title">Alignment</div>' +
+            '<input type="hidden" id="review-align" value="' + s.text_alignment + '">' + reviewAlignTiles('review-align', s.text_alignment) +
+            reviewCheck('review-show-date', 'The date of each review', s.show_date) +
+            reviewCheck('review-show-source', 'Where each review came from <small class="text-muted">— e.g. Google</small>', s.show_source);
+    }
+
+    function reviewBlockConfig(kind, icon, label) {
+        var defaults = kind === 'summary'
+            ? {
+                content: { heading: '', note: '', button_text: '', button_url: '' },
+                settings: { min_rating: 1, layout: 'row', text_alignment: 'center', background: '', show_count: true, button_style: 'solid' }
+            }
+            : {
+                content: { heading: '' },
+                settings: $.extend({
+                    min_rating: 1, max_count: kind === 'grid' ? 12 : 10, card_style: 'bordered',
+                    text_alignment: 'left', background: '', show_date: true, show_source: false
+                }, kind === 'grid' ? { columns: 3 } : {})
+            };
+
+        return {
+            icon: icon,
+            label: label,
+            defaults: defaults,
+            renderPreview: function (block) {
+                var c = block.content || {};
+                return kind === 'summary'
+                    ? reviewSummaryPreviewHtml(c, reviewSummarySettings(block.settings || {}), true)
+                    : reviewCardsPreviewHtml(kind, c, reviewListSettings(block.settings || {}, kind === 'grid' ? 12 : 10, kind === 'grid'), true);
+            },
+            renderEditor: function (block) { return reviewEditorHtml(kind, block); },
+            initEditor: function () {
+                var changed = function () { _blockEditTouched = true; drawReviewPreview(); };
+                $(document).off('click.review').on('click.review', '.review-tile', function () {
+                    var $tile = $(this);
+                    $tile.closest('.vela-tiles').find('.review-tile').removeClass('active').attr('aria-pressed', 'false');
+                    $tile.addClass('active').attr('aria-pressed', 'true');
+                    $('#' + $tile.data('input')).val($tile.data('value'));
+                    changed();
+                }).on('click.review', '.review-bg-tile', function () {
+                    var v = String($(this).data('value'));
+                    $('#review-background-text').val(v);
+                    $('#review-background').val(swatchValue(v, '#ffffff'));
+                    $('#review-bg-custom .vela-token-chip').removeClass('is-on');
+                    changed();
+                });
+                $(document).off('input.review change.review')
+                    .on('input.review change.review', '#review-heading, #review-note, #review-btn-text, #review-max-count, #review-show-count, #review-show-date, #review-show-source', changed);
+                bindColourFields('review', changed);
+                drawReviewPreview();
+            },
+            collectData: function (block) {
+                // Kept, not rebuilt: a key this dialog does not show survives a save.
+                return {
+                    content: $.extend({}, block.content, reviewDialogContent(kind)),
+                    settings: $.extend({}, block.settings, reviewDialogSettings(kind))
+                };
+            }
+        };
+    }
+
+    // Spelled out one by one: the three of them share a dialog, but each still
+    // registers under its own name, which is what BlockManifestTest looks for.
+    PageEditor.registerBlockType('review-summary', reviewBlockConfig('summary', 'fa-star-half-alt', 'Review Summary'));
+    PageEditor.registerBlockType('review-carousel', reviewBlockConfig('carousel', 'fa-star', 'Review Carousel'));
+    PageEditor.registerBlockType('review-grid', reviewBlockConfig('grid', 'fa-th', 'Review Grid'));
+
     // =========================================================================
     // Core editor functions (use registry)
     // =========================================================================

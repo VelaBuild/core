@@ -1342,49 +1342,63 @@ class VelaServiceProvider extends ServiceProvider
         ]);
 
         // Register review blocks
+        $reviewLook = 'settings: min_rating is the lowest rating a review must have to be counted (1-5). text_alignment left/center/right. background is empty for the theme\'s own look, or token:band / token:accent / token:surface / a hex — the text on it is chosen to stay readable. ';
+
         $vela->registerBlock('review-summary', [
-            'fields' => [
-                ['key' => 'min_rating', 'in' => 'settings', 'type' => 'number', 'label' => 'Lowest rating to include',
-                 'min' => 1, 'max' => 5],
-            ],
-            'editor_note' => 'Reviews come from the Reviews section; this block has no wording of its own.',
             'label' => 'vela::global.review_summary',
             'icon' => 'fas fa-star-half-alt',
             'view' => 'vela::public.pages.blocks.review-summary',
-            'editor' => null,
-            'defaults' => ['content' => [], 'settings' => ['min_rating' => 1]],
+            'editor' => 'js',
+            'defaults' => [
+                'content' => ['heading' => '', 'note' => '', 'button_text' => '', 'button_url' => ''],
+                'settings' => [
+                    'min_rating' => 1, 'layout' => 'row', 'text_alignment' => 'center',
+                    'background' => '', 'show_count' => true, 'button_style' => 'solid',
+                ],
+            ],
+            'shape_note' => 'The average rating of the site\'s published reviews, as stars. The reviews themselves come '
+                . 'from the Reviews section (Tools → Reviews) — this block never carries any. It shows nothing to a '
+                . 'visitor until there is at least one published review. content: heading, note (a line under the '
+                . 'stars) and an optional button (button_text + button_url). ' . $reviewLook
+                . 'layout is row (stars beside the score), card (a raised panel) or large. show_count says whether '
+                . '"based on N reviews" is shown.',
         ]);
 
         $vela->registerBlock('review-carousel', [
-            'fields' => [
-                ['key' => 'max_count',  'in' => 'settings', 'type' => 'number', 'label' => 'How many to show',
-                 'min' => 1, 'max' => 50],
-                ['key' => 'min_rating', 'in' => 'settings', 'type' => 'number', 'label' => 'Lowest rating to include',
-                 'min' => 1, 'max' => 5],
-            ],
-            'editor_note' => 'Reviews come from the Reviews section; this block has no wording of its own.',
             'label' => 'vela::global.review_carousel',
             'icon' => 'fas fa-star',
             'view' => 'vela::public.pages.blocks.review-carousel',
-            'editor' => null,
-            'defaults' => ['content' => [], 'settings' => ['max_count' => 10, 'min_rating' => 1]],
+            'editor' => 'js',
+            'defaults' => [
+                'content' => ['heading' => ''],
+                'settings' => [
+                    'min_rating' => 1, 'max_count' => 10, 'card_style' => 'bordered',
+                    'text_alignment' => 'left', 'background' => '', 'show_date' => true, 'show_source' => false,
+                ],
+            ],
+            'shape_note' => 'The newest reviews as a strip that scrolls sideways. The reviews come from the Reviews '
+                . 'section (Tools → Reviews) — this block never carries any. content: heading. ' . $reviewLook
+                . 'max_count is how many to show (1-50). card_style is bordered, soft or plain. show_date and '
+                . 'show_source say whether each card carries its date and where it came from.',
         ]);
 
         $vela->registerBlock('review-grid', [
-            'fields' => [
-                ['key' => 'max_count',  'in' => 'settings', 'type' => 'number', 'label' => 'How many to show',
-                 'min' => 1, 'max' => 50],
-                ['key' => 'columns',    'in' => 'settings', 'type' => 'number', 'label' => 'Columns',
-                 'min' => 1, 'max' => 4],
-                ['key' => 'min_rating', 'in' => 'settings', 'type' => 'number', 'label' => 'Lowest rating to include',
-                 'min' => 1, 'max' => 5],
-            ],
-            'editor_note' => 'Reviews come from the Reviews section; this block has no wording of its own.',
             'label' => 'vela::global.review_grid',
             'icon' => 'fas fa-th',
             'view' => 'vela::public.pages.blocks.review-grid',
-            'editor' => null,
-            'defaults' => ['content' => [], 'settings' => ['max_count' => 12, 'columns' => 3, 'min_rating' => 1]],
+            'editor' => 'js',
+            'defaults' => [
+                'content' => ['heading' => ''],
+                'settings' => [
+                    'min_rating' => 1, 'max_count' => 12, 'columns' => 3, 'card_style' => 'bordered',
+                    'text_alignment' => 'left', 'background' => '', 'show_date' => true, 'show_source' => false,
+                ],
+            ],
+            'shape_note' => 'The newest reviews in a grid. The reviews come from the Reviews section (Tools → Reviews) '
+                . '— this block never carries any. content: heading. ' . $reviewLook
+                . 'max_count is how many to show (1-50). columns is 1-4 on a wide screen, and fewer as the screen '
+                . 'narrows. card_style is bordered, soft or plain. show_date and show_source say whether each card '
+                . 'carries its date and where it came from.',
         ]);
     }
 }

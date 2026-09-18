@@ -68,6 +68,10 @@ class BlockManifestTest extends PackageTestCase
     {
         $script = $this->editorScript();
 
+        // Every block ended up hand-written; the check still stands for any
+        // schema a plugin or a later block adds.
+        $this->assertIsArray(app(Vela::class)->blocks()->fieldSchemas());
+
         foreach (app(Vela::class)->blocks()->fieldSchemas() as $name => $schema) {
             $this->assertDoesNotMatchRegularExpression(
                 "/registerBlockType\(\s*'" . preg_quote($name, '/') . "'/",
@@ -80,22 +84,21 @@ class BlockManifestTest extends PackageTestCase
 
     public function test_the_five_blocks_that_had_no_form_now_have_one(): void
     {
-        $schemas = app(Vela::class)->blocks()->fieldSchemas();
-
-        // app_download and code started as two of them and have hand-written
-        // editors now; the test above holds them to that.
-        foreach (['app_download', 'code'] as $name) {
-            $this->assertSame('js', app(Vela::class)->blocks()->get($name)['editor']);
-        }
-
-        foreach (['review-summary', 'review-carousel', 'review-grid'] as $name) {
-            $this->assertArrayHasKey($name, $schemas, "The {$name} block lost its field schema.");
-            $this->assertNotEmpty($schemas[$name]['fields']);
+        // All five ended up with a hand-written editor rather than a schema
+        // form; the two tests above hold each of them to the claim it makes.
+        foreach (['app_download', 'code', 'review-summary', 'review-carousel', 'review-grid'] as $name) {
+            $this->assertSame(
+                'js',
+                app(Vela::class)->blocks()->get($name)['editor'],
+                "The {$name} block had no form at all once. It must keep the one it was given."
+            );
         }
     }
 
     public function test_a_schema_only_names_keys_the_block_actually_stores(): void
     {
+        $this->assertIsArray(app(Vela::class)->blocks()->fieldSchemas());
+
         foreach (app(Vela::class)->blocks()->fieldSchemas() as $name => $schema) {
             foreach ($schema['fields'] as $field) {
                 $bag = $field['in'] === 'settings' ? 'settings' : 'content';

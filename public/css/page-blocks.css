@@ -915,6 +915,74 @@ html.vela-lightbox-open { overflow: hidden; }
 .block-code--light .hljs-deletion { color: #B91C1C; }
 
 /* ========================================================================
+   Review blocks — shared stars and cards, see Services\Blocks\Reviews.
+   The stars were an icon font and Bootstrap colour classes; no public
+   layout loads either, so they drew five blank gaps.
+   ======================================================================== */
+.review-stars { display: inline-flex; align-items: center; gap: 2px; color: #F5A524; line-height: 1; }
+.review-star { width: 1.05em; height: 1.05em; flex: 0 0 auto; }
+.review-star--empty { opacity: .35; }
+.block-review-summary, .block-review-grid, .block-review-carousel { padding: 32px 20px; }
+.block-review-summary.has-review-bg, .block-review-grid.has-review-bg, .block-review-carousel.has-review-bg {
+    background: var(--review-bg); color: var(--vela-text-color, var(--review-ink, inherit));
+}
+.block-review-heading, .block-review-summary-heading {
+    font-family: var(--block-heading-font); font-size: 1.8rem; font-weight: 700; line-height: 1.2; margin: 0 0 20px; color: inherit;
+}
+/* The summary: stars, the score, and what it is based on. */
+.block-review-summary-rating { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.block-review-summary .review-stars { font-size: 1.5rem; }
+.block-review-summary-text { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 1rem; }
+.block-review-summary-score { font-size: 1.5rem; font-weight: 700; }
+.block-review-summary-outof, .block-review-summary-count { opacity: .75; }
+.block-review-summary-note { margin: 12px 0 0; opacity: .8; }
+.block-review-summary-btn {
+    display: inline-block; margin-top: 18px; padding: 10px 22px; border-radius: 8px;
+    background: var(--block-accent); color: var(--vela-primary-ink, #fff); font-weight: 600; text-decoration: none;
+}
+.block-review-summary-btn:hover { background: var(--block-accent-hover); color: var(--vela-primary-ink, #fff); text-decoration: none; }
+.block-review-summary--btn-pill .block-review-summary-btn { border-radius: 999px; }
+.block-review-summary--btn-outline .block-review-summary-btn { background: transparent; color: inherit; border: 2px solid currentColor; }
+.block-review-summary--align-center .block-review-summary-rating { justify-content: center; }
+.block-review-summary--align-right .block-review-summary-rating { justify-content: flex-end; }
+/* Everything in one line for a strip under a hero; a card to set it apart;
+   large when the rating is the point of the section. */
+.block-review-summary.block-review-summary--card .block-review-summary-inner,
+.block-review-summary.block-review-summary--card { border-radius: 16px; }
+.block-review-summary.block-review-summary--card:not(.has-review-bg) { background: var(--block-bg-light); }
+.block-review-summary.block-review-summary--large { padding: 56px 20px; }
+.block-review-summary.block-review-summary--large .review-stars { font-size: 2.4rem; }
+.block-review-summary.block-review-summary--large .block-review-summary-score { font-size: 2.6rem; }
+.block-review-summary.block-review-summary--large .block-review-summary-rating { flex-direction: column; gap: 8px; }
+.block-review-summary.block-review-summary--large.block-review-summary--align-left .block-review-summary-rating { align-items: flex-start; }
+.block-review-summary.block-review-summary--large.block-review-summary--align-right .block-review-summary-rating { align-items: flex-end; }
+/* One review. The colours were hard-coded greys, unreadable on a dark theme. */
+.review-card { padding: 20px; border-radius: 10px; color: inherit; }
+.block-review-grid--bordered .review-card, .block-review-carousel--bordered .review-card { border: 1px solid var(--block-border, rgba(127, 127, 127, .25)); }
+.block-review-grid--soft .review-card, .block-review-carousel--soft .review-card { background: var(--block-bg-light); }
+.block-review-grid--plain .review-card, .block-review-carousel--plain .review-card { padding: 20px 0; }
+.review-card-head { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.review-card-author { font-weight: 600; }
+.review-card-text { margin: 0; line-height: 1.6; opacity: .9; overflow-wrap: anywhere; }
+.review-card-meta { display: flex; gap: 10px; margin-top: 12px; font-size: .85rem; opacity: .6; }
+.block-review-grid--align-center .review-card-head, .block-review-carousel--align-center .review-card-head { align-items: center; }
+.block-review-grid--align-center .review-card-meta, .block-review-carousel--align-center .review-card-meta { justify-content: center; }
+.block-review-grid--align-right .review-card-head, .block-review-carousel--align-right .review-card-head { align-items: flex-end; }
+.block-review-grid--align-right .review-card-meta, .block-review-carousel--align-right .review-card-meta { justify-content: flex-end; }
+.block-review-grid-items { display: grid; gap: 20px; grid-template-columns: repeat(var(--review-columns, 3), minmax(0, 1fr)); }
+.block-review-carousel-strip { display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+.block-review-carousel-strip .review-card { flex: 0 0 min(320px, 80%); scroll-snap-align: start; }
+.block-review-carousel-strip:focus-visible { outline: 2px solid var(--block-accent); outline-offset: 4px; }
+@media (max-width: 900px) {
+    .block-review-grid-items { grid-template-columns: repeat(min(var(--review-columns, 3), 2), minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+    .block-review-grid-items { grid-template-columns: 1fr; }
+    .block-review-summary.block-review-summary--large { padding: 40px 20px; }
+    .block-review-heading, .block-review-summary-heading { font-size: 1.5rem; }
+}
+
+/* ========================================================================
    Pricing tiers — responsive grid, optional "featured" tier, CTA per tier.
    Card inverts on the featured tier (dark navy on light page).
    ======================================================================== */

@@ -1026,6 +1026,64 @@ body.vela-admin .pg-search input.form-control { padding-left: 30px; }
 .cdh { align-items: flex-end; }
 .cdh b { display: block; width: 70%; background: #94a3b8; border-radius: 3px 3px 0 0; }
 
+/* Review dialogs: a small copy of the block, drawn with real reviews. */
+.review-live-preview { padding: 10px; }
+.rp { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 6px; color: #1f2937; text-align: center; }
+.rp.has-bg { background: var(--rp-bg); color: var(--rp-ink); }
+.rp .review-stars { display: inline-flex; gap: 2px; color: #F5A524; }
+.rp .review-star { width: 16px; height: 16px; }
+.rp .review-star--empty { opacity: .35; }
+.rp-heading { font-size: 15px; font-weight: 700; }
+.rp-rating { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.rp-text { font-size: 12px; }
+.rp-text b { font-size: 15px; }
+.rp-count { opacity: .75; }
+.rp-note { font-size: 11px; opacity: .8; }
+.rp-btn { align-self: center; padding: 4px 12px; border-radius: 6px; background: var(--accent, #22A2AB); color: #fff; font-size: 11px; font-weight: 600; }
+.rp-btn--pill { border-radius: 999px; }
+.rp-btn--outline { background: transparent; color: inherit; border: 1.5px solid currentColor; }
+.rp--align-left { text-align: left; align-items: flex-start; }
+.rp--align-left .rp-rating { justify-content: flex-start; }
+.rp--align-right { text-align: right; align-items: flex-end; }
+.rp--align-right .rp-rating { justify-content: flex-end; }
+.rp--large .review-star { width: 24px; height: 24px; }
+.rp--large .rp-rating { flex-direction: column; gap: 4px; }
+.rp--card { background: #f3f4f6; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.rp--card.has-bg { background: var(--rp-bg); }
+.rp-items { display: grid; gap: 8px; grid-template-columns: repeat(var(--rp-columns, 2), minmax(0, 1fr)); }
+.rp--carousel .rp-items { display: flex; overflow: hidden; }
+.rp--carousel .rp-card { flex: 0 0 50%; }
+.rp-card { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 6px; font-size: 11px; text-align: inherit; }
+.rp--bordered .rp-card { border: 1px solid rgba(127,127,127,.3); }
+.rp--soft .rp-card { background: rgba(127,127,127,.12); }
+.rp--plain .rp-card { padding: 8px 0; }
+.rp-card-head { display: flex; flex-direction: column; gap: 3px; }
+.rp--align-center .rp-card-head { align-items: center; }
+.rp--align-right .rp-card-head { align-items: flex-end; }
+.rp-card-text { opacity: .85; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.rp-card-meta { font-size: 10px; opacity: .6; }
+.rp--mini { padding: 10px; gap: 6px; }
+.rp--mini .rp-note, .rp--mini .rp-btn, .rp--mini .rp-card-meta { display: none; }
+.rst { padding: 4px; color: #F5A524; }
+.rst .review-stars { display: inline-flex; gap: 1px; }
+.rst .review-star { width: 13px; height: 13px; }
+.rst .review-star--empty { opacity: .3; }
+.rl { gap: 4px; flex-direction: column; padding: 8px 14px; }
+.rl b { display: block; height: 5px; border-radius: 2px; background: #94a3b8; }
+.rl b:first-child { width: 70%; background: #F5A524; }
+.rl b + b { width: 45%; background: #cbd5e1; }
+.rl--row { flex-direction: row; align-items: center; gap: 6px; }
+.rl--row b:first-child { width: 40%; }
+.rl--card > span { display: flex; flex-direction: column; gap: 4px; width: 70%; padding: 7px 8px; background: #fff; border-radius: 6px; box-shadow: 0 3px 8px rgba(0,0,0,.12); }
+.rl--large b:first-child { height: 9px; }
+.rc { gap: 3px; padding: 6px 10px; }
+.rc b { display: block; height: 22px; border-radius: 2px; background: #cbd5e1; flex: 1 1 0; }
+.rc--1 b:nth-child(n+2), .rc--2 b:nth-child(n+3), .rc--3 b:nth-child(n+4) { display: none; }
+.rk b { display: block; width: 60%; height: 26px; border-radius: 4px; }
+.rk--bordered b { border: 2px solid #94a3b8; }
+.rk--soft b { background: #e2e8f0; }
+.rk--plain b { border-left: 2px solid #cbd5e1; border-radius: 0; }
+
 /* The live preview of a gallery in its dialog. */
 .vg-p { display: grid; grid-template-columns: repeat(var(--c), minmax(0, 1fr)); gap: var(--g); max-width: 460px; margin: 0 auto; }
 .vg-p-item { overflow: hidden; border-radius: 4px; background: #e5e7eb; aspect-ratio: var(--r); }

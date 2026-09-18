@@ -213,6 +213,10 @@ window.PageEditorConfig = {
     categoriesCreateUrl: '{{ route("vela.admin.categories.create") }}',
     postsGridPreviewUrl: '{{ route("vela.admin.posts-grid.preview") }}',
     postsGridSearchUrl: '{{ route("vela.admin.posts-grid.search") }}',
+    {{-- What the review blocks would show: how many reviews each "lowest
+         rating" leaves, and a few real ones to draw the preview with. --}}
+    reviews: @json(\VelaBuild\Core\Services\Blocks\Reviews::forEditor()),
+    reviewsUrl: '{{ route("vela.admin.tools.reviews") }}',
     {{-- The site's store links, which an app download block uses unless it
          has its own; without either it draws nothing on the page. --}}
     {{-- Loaded out of sight to read the active theme's real colours for the

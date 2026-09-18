@@ -1,39 +1,30 @@
 @php
-    $settings = $block->settings ?? [];
-    $maxCount = $settings['max_count'] ?? 12;
-    $columns = $settings['columns'] ?? 3;
-    $minRating = $settings['min_rating'] ?? 1;
-    $reviews = \VelaBuild\Core\Models\Review::published()
-        ->where('rating', '>=', $minRating)
-        ->orderBy('review_date', 'desc')
-        ->take($maxCount)
-        ->get();
+    $content = $block->content ?? [];
+    $s       = \VelaBuild\Core\Services\Blocks\Reviews::listSettings($block->settings ?? [], 12, true);
+    $heading = trim((string) ($content['heading'] ?? ''));
+    $reviews = \VelaBuild\Core\Services\Blocks\Reviews::newest($s['min_rating'], $s['max_count']);
+    $look    = \VelaBuild\Core\Services\Blocks\Reviews::look('block-review-grid', $s);
+    // The count is a number, not a class: the grid drops to fewer columns as
+    // the screen narrows, which a fixed repeat(3) never did.
+    $look['style'] .= '--review-columns:' . $s['columns'] . ';';
 @endphp
 @if($reviews->isNotEmpty())
-<div class="block-review-grid" data-ga-section="reviews" style="display:grid;grid-template-columns:repeat({{ (int)$columns }},1fr);gap:20px;">
+<div class="{{ implode(' ', $look['classes']) }}" style="{{ $look['style'] }}" data-ga-section="reviews">
+@if($heading !== '')
+    <h2 class="block-review-heading">{{ $heading }}</h2>
+@endif
+    <div class="block-review-grid-items">
 @foreach($reviews as $review)
-    <div class="review-card" style="border:1px solid #e5e7eb;border-radius:8px;padding:20px;">
-        <div style="margin-bottom:10px;">
-            <strong>{{ $review->author }}</strong>
-            <div>
-@for($i = 1; $i <= 5; $i++)
-                <i class="fas fa-star {{ $i <= $review->rating ? 'text-warning' : 'text-muted' }}" style="font-size:0.85em;"></i>
-@endfor
-            </div>
-        </div>
-@if($review->text)
-        <p style="color:#4b5563;">{{ $review->text }}</p>
-@endif
-@if($review->review_date)
-        <small class="text-muted">{{ $review->review_date->format('M j, Y') }}</small>
-@endif
-    </div>
+        @include('vela::public.pages.blocks._review_card', ['review' => $review, 's' => $s])
 @endforeach
+    </div>
 </div>
 @else
     @include('vela::public.pages.blocks._empty_state', [
         'icon'    => 'fa-star',
         'title'   => trans('vela::global.reviews_empty_title'),
         'message' => trans('vela::global.reviews_empty_message'),
+        'ctaText' => trans('vela::global.review_manage_cta'),
+        'ctaUrl'  => route('vela.admin.tools.reviews'),
     ])
 @endif

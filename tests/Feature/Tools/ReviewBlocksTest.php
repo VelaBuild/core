@@ -20,8 +20,8 @@ class ReviewBlocksTest extends TestCase
         $view = view('vela::public.pages.blocks.review-summary', ['block' => $block])->render();
 
         $this->assertStringContainsString('5.0', $view); // Only published 5-star
-        $this->assertStringContainsString('>1<', $view); // Count of 1 published review
-        $this->assertStringContainsString('review', $view);
+        $this->assertStringContainsString('based on 1 review', $view); // The unpublished one is not counted
+        $this->assertStringContainsString('review-stars', $view);
     }
 
     public function test_review_grid_respects_max_count(): void
@@ -33,7 +33,8 @@ class ReviewBlocksTest extends TestCase
         $block = (object) ['content' => [], 'settings' => ['max_count' => 3, 'columns' => 3]];
         $view = view('vela::public.pages.blocks.review-grid', ['block' => $block])->render();
 
-        // Should only show 3 reviews
-        $this->assertEquals(3, substr_count($view, 'review-card'));
+        // Should only show 3 reviews. The class name alone appears on each
+        // card's parts too, so count the cards themselves.
+        $this->assertEquals(3, substr_count($view, 'class="review-card"'));
     }
 }

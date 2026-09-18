@@ -1,33 +1,20 @@
 @php
-    $settings = $block->settings ?? [];
-    $maxCount = $settings['max_count'] ?? 10;
-    $minRating = $settings['min_rating'] ?? 1;
-    $reviews = \VelaBuild\Core\Models\Review::published()
-        ->where('rating', '>=', $minRating)
-        ->orderBy('review_date', 'desc')
-        ->take($maxCount)
-        ->get();
+    $content = $block->content ?? [];
+    $s       = \VelaBuild\Core\Services\Blocks\Reviews::listSettings($block->settings ?? [], 10, false);
+    $heading = trim((string) ($content['heading'] ?? ''));
+    $reviews = \VelaBuild\Core\Services\Blocks\Reviews::newest($s['min_rating'], $s['max_count']);
+    $look    = \VelaBuild\Core\Services\Blocks\Reviews::look('block-review-carousel', $s);
 @endphp
 @if($reviews->isNotEmpty())
-<div class="block-review-carousel" data-ga-section="reviews" style="overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;">
-    <div style="display:inline-flex;gap:20px;padding:10px 0;">
+<div class="{{ implode(' ', $look['classes']) }}" style="{{ $look['style'] }}" data-ga-section="reviews">
+@if($heading !== '')
+    <h2 class="block-review-heading">{{ $heading }}</h2>
+@endif
+    {{-- A strip that scrolls and snaps, reachable from a keyboard: it is a
+         scrolling region, and one a keyboard cannot reach cannot be read. --}}
+    <div class="block-review-carousel-strip" tabindex="0" role="region" aria-label="{{ $heading !== '' ? $heading : trans('vela::global.review_strip_label') }}">
 @foreach($reviews as $review)
-        <div class="review-card" style="min-width:300px;max-width:350px;white-space:normal;border:1px solid #e5e7eb;border-radius:8px;padding:20px;">
-            <div class="review-card-header" style="margin-bottom:10px;">
-                <strong>{{ $review->author }}</strong>
-                <div>
-@for($i = 1; $i <= 5; $i++)
-                    <i class="fas fa-star {{ $i <= $review->rating ? 'text-warning' : 'text-muted' }}" style="font-size:0.85em;"></i>
-@endfor
-                </div>
-            </div>
-@if($review->text)
-            <p class="review-card-text" style="color:#4b5563;">{{ $review->text }}</p>
-@endif
-@if($review->review_date)
-            <small class="text-muted">{{ $review->review_date->format('M j, Y') }}</small>
-@endif
-        </div>
+        @include('vela::public.pages.blocks._review_card', ['review' => $review, 's' => $s])
 @endforeach
     </div>
 </div>
@@ -36,5 +23,7 @@
         'icon'    => 'fa-star',
         'title'   => trans('vela::global.reviews_empty_title'),
         'message' => trans('vela::global.reviews_empty_message'),
+        'ctaText' => trans('vela::global.review_manage_cta'),
+        'ctaUrl'  => route('vela.admin.tools.reviews'),
     ])
 @endif
