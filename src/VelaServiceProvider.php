@@ -769,26 +769,24 @@ class VelaServiceProvider extends ServiceProvider
         ]);
 
         $vela->registerBlock('code', [
-            'fields' => [
-                ['key' => 'code',      'in' => 'content',  'type' => 'code',     'label' => 'Code'],
-                ['key' => 'filename',  'in' => 'content',  'type' => 'text',     'label' => 'Filename',
-                 'help' => 'Shown above the code. Leave empty for none.'],
-                ['key' => 'caption',   'in' => 'content',  'type' => 'text',     'label' => 'Caption'],
-                ['key' => 'language',  'in' => 'settings', 'type' => 'select',   'label' => 'Language',
-                 'options' => ['bash' => 'Shell', 'php' => 'PHP', 'js' => 'JavaScript', 'json' => 'JSON',
-                               'html' => 'HTML', 'css' => 'CSS', 'sql' => 'SQL', 'yaml' => 'YAML', 'text' => 'Plain text']],
-                ['key' => 'theme',     'in' => 'settings', 'type' => 'select',   'label' => 'Theme',
-                 'options' => ['dark' => 'Dark', 'light' => 'Light']],
-                ['key' => 'show_copy', 'in' => 'settings', 'type' => 'toggle',   'label' => 'Show a copy button'],
-            ],
             'label' => 'vela::global.block_type_code',
             'icon' => 'fas fa-code',
             'view' => 'vela::public.pages.blocks.code',
-            'editor' => null,
+            'editor' => 'js',
             'defaults' => [
                 'content' => ['code' => '', 'filename' => '', 'caption' => ''],
-                'settings' => ['language' => 'bash', 'theme' => 'dark', 'show_copy' => true],
+                'settings' => [
+                    'language' => 'bash', 'theme' => 'dark', 'show_copy' => true,
+                    'line_numbers' => false, 'wrap' => false, 'max_height' => 'full',
+                ],
             ],
+            'shape_note' => 'A code snippet, shown as written. content: code (the snippet itself, newlines and all), '
+                . 'filename (shown above it; the language name is shown when this is empty) and caption (under it). '
+                . 'settings: language is one of ' . implode(', ', array_keys(\VelaBuild\Core\Services\Blocks\Code::LANGUAGES))
+                . ' — it decides the colouring. theme is dark or light. show_copy puts a copy button on it. line_numbers '
+                . 'draws a numbered gutter (ignored when wrap is on). wrap breaks long lines instead of scrolling '
+                . 'sideways. max_height is full, medium (16 lines) or short (8 lines) — a longer snippet is folded '
+                . 'with a button to show the rest.',
         ]);
 
         $vela->registerBlock('pricing_tiers', [

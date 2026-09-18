@@ -36,6 +36,11 @@
         'mode/shell/shell.min.js',
         'mode/sql/sql.min.js',
         'mode/yaml/yaml.min.js',
+        'mode/python/python.min.js',
+        'mode/go/go.min.js',
+        'mode/ruby/ruby.min.js',
+        'mode/markdown/markdown.min.js',
+        'mode/diff/diff.min.js',
         'addon/hint/show-hint.min.js',
         'addon/hint/xml-hint.min.js',
         'addon/hint/html-hint.min.js',
@@ -64,6 +69,17 @@
         shell: 'shell',
         sql: 'text/x-sql',
         yaml: 'yaml',
+        ts: 'application/typescript',
+        typescript: 'application/typescript',
+        xml: 'xml',
+        scss: 'text/x-scss',
+        python: 'python',
+        go: 'go',
+        // Java comes from clike, which is already loaded for PHP.
+        java: 'text/x-java',
+        ruby: 'ruby',
+        markdown: 'markdown',
+        diff: 'diff',
         text: null
     };
 

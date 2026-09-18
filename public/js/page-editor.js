@@ -7686,6 +7686,181 @@ PageEditor.registerBlockType = function(name, config) {
         }
     });
 
+    // --- Code snippet -----------------------------------------------------
+    //
+    // Was a plain form: a code box, two text fields and three selects, with
+    // nothing to show what the snippet would look like. Services\Blocks\Code
+    // is the page's side, and holds the list of languages.
+
+    var CODE_LANGUAGES = [
+        ['text', 'Plain text'], ['bash', 'Shell'], ['php', 'PHP'], ['js', 'JavaScript'],
+        ['ts', 'TypeScript'], ['json', 'JSON'], ['html', 'HTML'], ['xml', 'XML'],
+        ['css', 'CSS'], ['scss', 'SCSS'], ['sql', 'SQL'], ['yaml', 'YAML'],
+        ['python', 'Python'], ['go', 'Go'], ['java', 'Java'], ['ruby', 'Ruby'],
+        ['markdown', 'Markdown'], ['diff', 'Diff']
+    ];
+    var CODE_LINES = { full: 0, medium: 16, short: 8 };
+    var CODE_EXAMPLE = 'npm install\nnpm run build\n\n# Then start the site\nphp artisan serve';
+
+    function codeSettings(s) {
+        var one = function (value, allowed) { return allowed.indexOf(value) > -1 ? value : allowed[0]; };
+        var on = function (key, fallback) { return s[key] === undefined ? fallback : !!s[key]; };
+        return {
+            language: CODE_LANGUAGES.some(function (l) { return l[0] === s.language; }) ? s.language : 'bash',
+            theme: one(s.theme, ['dark', 'light']),
+            show_copy: on('show_copy', true),
+            line_numbers: on('line_numbers', false),
+            wrap: on('wrap', false),
+            max_height: one(s.max_height, ['full', 'medium', 'short'])
+        };
+    }
+
+    function codeLanguageLabel(value) {
+        var found = CODE_LANGUAGES.filter(function (l) { return l[0] === value; })[0];
+        return found ? found[1] : value;
+    }
+
+    function codePreviewHtml(c, s, mini) {
+        var code = String(c.code || '');
+        var lines = code === '' ? [] : code.replace(/\n+$/, '').split('\n');
+        var limit = mini ? 4 : (CODE_LINES[s.max_height] || lines.length);
+        var shown = lines.slice(0, limit);
+        var numbers = s.line_numbers && !s.wrap;
+        var head = (c.filename || codeLanguageLabel(s.language));
+        return '<div class="cdp cdp--' + s.theme + (s.wrap ? ' cdp--wrap' : '') + (mini ? ' cdp--mini' : '') + '">' +
+            '<div class="cdp-head"><span class="cdp-name">' + escHtml(head) + '</span>' +
+                (s.show_copy ? '<span class="cdp-copy">Copy</span>' : '') + '</div>' +
+            '<div class="cdp-body">' +
+                (numbers ? '<span class="cdp-gutter">' + shown.map(function (l, i) { return i + 1; }).join('\n') + '</span>' : '') +
+                '<pre class="cdp-pre">' + (code === ''
+                    ? '<span class="cdp-empty">' + (mini ? 'Code Snippet' : 'Your code will appear here') + '</span>'
+                    : escHtml(shown.join('\n'))) + '</pre>' +
+            '</div>' +
+            (lines.length > shown.length ? '<div class="cdp-more">Show all ' + lines.length + ' lines</div>' : '') +
+            (c.caption ? '<div class="cdp-caption">' + escHtml(c.caption) + '</div>' : '') +
+        '</div>';
+    }
+
+    function codeDialogContent() {
+        return {
+            code: $('#code-code').val(),
+            filename: $('#code-filename').val(),
+            caption: $('#code-caption').val()
+        };
+    }
+
+    function codeDialogSettings() {
+        return codeSettings({
+            language: $('#code-language').val(),
+            theme: $('#code-theme').val(),
+            show_copy: $('#code-show-copy').is(':checked'),
+            line_numbers: $('#code-line-numbers').is(':checked'),
+            wrap: $('#code-wrap').is(':checked'),
+            max_height: $('#code-height').val()
+        });
+    }
+
+    function drawCodePreview() {
+        var box = document.getElementById('code-live-preview');
+        if (!box) return;
+        var c = codeDialogContent();
+        var s = codeDialogSettings();
+        box.innerHTML = codePreviewHtml(c, s, false);
+        // Numbers cannot line up with lines that wrap, so the page drops them;
+        // the dialog says so rather than offering a choice that does nothing.
+        $('#code-line-numbers').prop('disabled', s.wrap);
+        $('#code-numbers-note').prop('hidden', !s.wrap);
+        $('#code-example').prop('hidden', $.trim(c.code || '') !== '');
+    }
+
+    PageEditor.registerBlockType('code', {
+        icon: 'fa-code',
+        label: 'Code Snippet',
+        defaults: {
+            content: { code: '', filename: '', caption: '' },
+            settings: { language: 'bash', theme: 'dark', show_copy: true, line_numbers: false, wrap: false, max_height: 'full' }
+        },
+        renderPreview: function(block) {
+            return codePreviewHtml(block.content || {}, codeSettings(block.settings || {}), true);
+        },
+        renderEditor: function(block) {
+            var c = block.content || {};
+            var s = codeSettings(block.settings || {});
+            var check = function (id, label, on, help) {
+                return '<div class="custom-control custom-checkbox mb-2">' +
+                    '<input type="checkbox" class="custom-control-input" id="' + id + '"' + (on ? ' checked' : '') + '>' +
+                    '<label class="custom-control-label" for="' + id + '">' + label + '</label>' +
+                    (help || '') + '</div>';
+            };
+            return '<div class="vc-section-title">How it will look</div>' +
+                '<div id="code-live-preview" class="vc-preview code-live-preview"></div>' +
+
+                '<div class="vc-section-title">Language <small>— it decides the colours on the page; typing usually picks it for you</small></div>' +
+                '<select class="form-control form-control-sm mb-2" id="code-language">' +
+                    CODE_LANGUAGES.map(function (l) {
+                        return '<option value="' + l[0] + '"' + (l[0] === s.language ? ' selected' : '') + '>' + escHtml(l[1]) + '</option>';
+                    }).join('') +
+                '</select>' +
+
+                '<div class="vc-section-title">Code</div>' +
+                '<textarea class="form-control vela-code-input" id="code-code" rows="12" spellcheck="false" ' +
+                    'data-code-mode="' + escHtml(s.language) + '" data-code-mode-from="#code-language">' + escHtml(c.code || '') + '</textarea>' +
+                '<button type="button" class="btn btn-sm btn-outline-info mt-2 mb-3" id="code-example" hidden><i class="fas fa-magic mr-1"></i> Start from an example</button>' +
+
+                '<div class="pt-grid mb-2">' +
+                    '<div class="pt-field"><label for="code-filename">Filename <small>— optional; the language is shown when empty</small></label>' +
+                        '<input type="text" class="form-control form-control-sm" id="code-filename" value="' + escHtml(c.filename || '') + '" placeholder="e.g. routes/web.php"></div>' +
+                    '<div class="pt-field"><label for="code-caption">Caption <small>— optional, under the code</small></label>' +
+                        '<input type="text" class="form-control form-control-sm" id="code-caption" value="' + escHtml(c.caption || '') + '"></div>' +
+                '</div>' +
+
+                '<div class="vc-section-title">Look</div>' +
+                '<input type="hidden" id="code-theme" value="' + s.theme + '">' +
+                carouselTiles('code-theme', s.theme, [
+                    { value: 'dark', label: 'Dark', art: '<span class="vc-shape cdt cdt--dark"><b></b><b></b><b></b></span>' },
+                    { value: 'light', label: 'Light', art: '<span class="vc-shape cdt cdt--light"><b></b><b></b><b></b></span>' }
+                ], 'vela-tiles--2', 'code-tile') +
+
+                '<div class="vc-section-title">How much to show <small>— a longer snippet is folded, with a button for the rest</small></div>' +
+                '<input type="hidden" id="code-height" value="' + s.max_height + '">' +
+                carouselTiles('code-height', s.max_height, [
+                    { value: 'full', label: 'All of it', art: '<span class="vc-shape cdh"><b style="height:34px"></b></span>' },
+                    { value: 'medium', label: 'About 16 lines', art: '<span class="vc-shape cdh"><b style="height:22px"></b></span>' },
+                    { value: 'short', label: 'About 8 lines', art: '<span class="vc-shape cdh"><b style="height:12px"></b></span>' }
+                ], 'vela-tiles--3', 'code-tile') +
+
+                check('code-show-copy', 'A copy button', s.show_copy) +
+                check('code-wrap', 'Break long lines <small class="text-muted">— instead of scrolling sideways</small>', s.wrap) +
+                check('code-line-numbers', 'Line numbers', s.line_numbers,
+                    '<small class="form-text text-muted" id="code-numbers-note" hidden>Numbers cannot line up with broken lines, so they are left off while lines break.</small>');
+        },
+        initEditor: function() {
+            var changed = function () { _blockEditTouched = true; drawCodePreview(); };
+            $(document).off('click.code').on('click.code', '.code-tile', function () {
+                var $tile = $(this);
+                $tile.closest('.vela-tiles').find('.code-tile').removeClass('active').attr('aria-pressed', 'false');
+                $tile.addClass('active').attr('aria-pressed', 'true');
+                $('#' + $tile.data('input')).val($tile.data('value'));
+                changed();
+            }).on('click.code', '#code-example', function () {
+                // Through jQuery: the code editor's valHooks entry is what
+                // carries a value into CodeMirror.
+                $('#code-code').val(CODE_EXAMPLE);
+                changed();
+            });
+            $(document).off('input.code change.code')
+                .on('input.code change.code', '#code-code, #code-filename, #code-caption, #code-language, #code-show-copy, #code-wrap, #code-line-numbers', changed);
+            drawCodePreview();
+        },
+        collectData: function(block) {
+            // Kept, not rebuilt: a key this dialog does not show survives a save.
+            return {
+                content: $.extend({}, block.content, codeDialogContent()),
+                settings: $.extend({}, block.settings, codeDialogSettings())
+            };
+        }
+    });
+
     // =========================================================================
     // Core editor functions (use registry)
     // =========================================================================
