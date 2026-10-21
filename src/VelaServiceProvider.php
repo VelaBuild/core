@@ -1153,15 +1153,18 @@ class VelaServiceProvider extends ServiceProvider
             'view' => 'vela::admin.widgets.stats',
             'width' => 'col-12',
             'order' => 10,
+            // Each figure only for someone who may open the list it links to.
             'data' => function () {
-                return [
-                    ['label' => __('vela::global.articles'), 'count' => \VelaBuild\Core\Models\Content::count(), 'icon' => 'fas fa-newspaper', 'color' => 'primary', 'route' => 'vela.admin.contents.index'],
-                    ['label' => __('vela::global.pages'), 'count' => \VelaBuild\Core\Models\Page::count(), 'icon' => 'fas fa-file', 'color' => 'success', 'route' => 'vela.admin.pages.index'],
-                    ['label' => __('vela::global.categories'), 'count' => \VelaBuild\Core\Models\Category::count(), 'icon' => 'fas fa-tags', 'color' => 'warning', 'route' => 'vela.admin.categories.index'],
-                    ['label' => __('vela::global.users'), 'count' => \VelaBuild\Core\Models\VelaUser::count(), 'icon' => 'fas fa-users', 'color' => 'info', 'route' => 'vela.admin.users.index'],
-                    ['label' => __('vela::global.comments'), 'count' => \VelaBuild\Core\Models\Comment::count(), 'icon' => 'fas fa-comments', 'color' => 'secondary', 'route' => 'vela.admin.comments.index'],
-                    ['label' => __('vela::global.ideas'), 'count' => \VelaBuild\Core\Models\Idea::count(), 'icon' => 'fas fa-lightbulb', 'color' => 'dark', 'route' => 'vela.admin.ideas.index'],
+                $stats = [
+                    ['label' => __('vela::global.articles'), 'count' => \VelaBuild\Core\Models\Content::count(), 'icon' => 'fas fa-newspaper', 'color' => 'primary', 'route' => 'vela.admin.contents.index', 'gate' => 'article_access'],
+                    ['label' => __('vela::global.pages'), 'count' => \VelaBuild\Core\Models\Page::count(), 'icon' => 'fas fa-file', 'color' => 'success', 'route' => 'vela.admin.pages.index', 'gate' => 'page_access'],
+                    ['label' => __('vela::global.categories'), 'count' => \VelaBuild\Core\Models\Category::count(), 'icon' => 'fas fa-tags', 'color' => 'warning', 'route' => 'vela.admin.categories.index', 'gate' => 'category_access'],
+                    ['label' => __('vela::global.users'), 'count' => \VelaBuild\Core\Models\VelaUser::count(), 'icon' => 'fas fa-users', 'color' => 'info', 'route' => 'vela.admin.users.index', 'gate' => 'user_access'],
+                    ['label' => __('vela::global.comments'), 'count' => \VelaBuild\Core\Models\Comment::count(), 'icon' => 'fas fa-comments', 'color' => 'secondary', 'route' => 'vela.admin.comments.index', 'gate' => 'comment_access'],
+                    ['label' => __('vela::global.ideas'), 'count' => \VelaBuild\Core\Models\Idea::count(), 'icon' => 'fas fa-lightbulb', 'color' => 'dark', 'route' => 'vela.admin.ideas.index', 'gate' => 'idea_access'],
                 ];
+
+                return array_values(array_filter($stats, fn ($stat) => \Illuminate\Support\Facades\Gate::allows($stat['gate'])));
             },
         ]);
 
@@ -1169,6 +1172,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.recent_content',
             'icon' => 'fas fa-newspaper',
             'view' => 'vela::admin.widgets.recent_content',
+            'gate' => 'article_access',
             'width' => 'col-md-6',
             'order' => 20,
             'data' => function () {
@@ -1183,6 +1187,7 @@ class VelaServiceProvider extends ServiceProvider
             'label' => 'vela::global.recent_comments',
             'icon' => 'fas fa-comments',
             'view' => 'vela::admin.widgets.recent_comments',
+            'gate' => 'comment_access',
             'width' => 'col-md-6',
             'order' => 30,
             'data' => function () {

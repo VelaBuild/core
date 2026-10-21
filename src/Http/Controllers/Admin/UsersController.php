@@ -12,6 +12,7 @@ use VelaBuild\Core\Models\Role;
 use VelaBuild\Core\Models\VelaUser;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
@@ -19,6 +20,14 @@ use Yajra\DataTables\Facades\DataTables;
 class UsersController extends Controller
 {
     use MediaUploadingTrait, CsvImportTrait;
+
+    /** Who may upload through storeMedia(). */
+    protected array $mediaUploadGates = ['user_create', 'user_edit'];
+
+    /** What CSV import writes, and who may run it. */
+    protected string $csvImportModel = 'VelaUser';
+
+    protected string $csvImportGate = 'user_create';
 
     public function index(Request $request)
     {
@@ -171,11 +180,12 @@ class UsersController extends Controller
 
     public function massDestroy(MassDestroyUserRequest $request)
     {
-        $users = VelaUser::find(request('ids'));
-
-        foreach ($users as $user) {
-            $user->delete();
-        }
+        // All or none: one row at a time, a failure part way through left the
+        // first users deleted and the rest not, and the page only found out on
+        // the next try.
+        DB::transaction(function () use ($request) {
+            VelaUser::whereIn('id', $request->input('ids'))->get()->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

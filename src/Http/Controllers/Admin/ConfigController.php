@@ -225,6 +225,8 @@ class ConfigController extends Controller
             VelaConfig::updateOrCreate(['key' => 'x402_network'], ['value' => $request->input('x402_network', 'base')]);
             VelaConfig::updateOrCreate(['key' => 'x402_description'], ['value' => $request->input('x402_description', '')]);
 
+            VelaConfig::updateOrCreate(['key' => 'registration_enabled'], ['value' => $request->boolean('registration_enabled') ? '1' : '0']);
+
             // Content Signals (robots.txt directives)
             $signals = ['ai_train', 'search', 'ai_input'];
             foreach ($signals as $key) {

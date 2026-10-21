@@ -11,6 +11,7 @@ use VelaBuild\Core\Http\Requests\UpdateCategoryRequest;
 use VelaBuild\Core\Models\Category;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
@@ -18,6 +19,14 @@ use Yajra\DataTables\Facades\DataTables;
 class CategoriesController extends Controller
 {
     use MediaUploadingTrait, CsvImportTrait;
+
+    /** Who may upload through storeMedia(). */
+    protected array $mediaUploadGates = ['category_create', 'category_edit'];
+
+    /** What CSV import writes, and who may run it. */
+    protected string $csvImportModel = 'Category';
+
+    protected string $csvImportGate = 'category_create';
 
     public function index(Request $request)
     {
@@ -142,11 +151,11 @@ class CategoriesController extends Controller
 
     public function massDestroy(MassDestroyCategoryRequest $request)
     {
-        $categories = Category::find(request('ids'));
-
-        foreach ($categories as $category) {
-            $category->delete();
-        }
+        // All or none, so a failure part way through cannot leave some
+        // selected rows deleted and others not.
+        DB::transaction(function () {
+            Category::find(request('ids'))->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

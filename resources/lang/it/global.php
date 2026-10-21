@@ -80,6 +80,7 @@ return [
         'colvis'        => 'Colonne',
         'delete'        => 'Elimina selezionati',
         'zero_selected' => 'Nessuna riga selezionata',
+        'delete_failed' => 'Non è stato eliminato nulla — riprova',
     ],
     'billing' => [
         'menu'                        => 'Fatturazione',

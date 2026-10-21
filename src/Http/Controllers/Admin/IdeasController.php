@@ -16,12 +16,18 @@ use VelaBuild\Core\Services\AiProviderManager;
 use VelaBuild\Core\Services\SiteContext;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
 
 class IdeasController extends Controller
 {
     use CsvImportTrait;
+
+    /** What CSV import writes, and who may run it. */
+    protected string $csvImportModel = 'Idea';
+
+    protected string $csvImportGate = 'idea_create';
 
     public function index(Request $request)
     {
@@ -138,11 +144,11 @@ class IdeasController extends Controller
 
     public function massDestroy(MassDestroyIdeaRequest $request)
     {
-        $ideas = Idea::find(request('ids'));
-
-        foreach ($ideas as $idea) {
-            $idea->delete();
-        }
+        // All or none, so a failure part way through cannot leave some
+        // selected rows deleted and others not.
+        DB::transaction(function () {
+            Idea::find(request('ids'))->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

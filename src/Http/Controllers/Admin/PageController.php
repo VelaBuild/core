@@ -22,6 +22,9 @@ class PageController extends Controller
 {
     use MediaUploadingTrait;
 
+    /** Who may upload through storeMedia(). */
+    protected array $mediaUploadGates = ['page_create', 'page_edit'];
+
     public function index(Request $request)
     {
         abort_if(Gate::denies('page_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
@@ -434,11 +437,11 @@ class PageController extends Controller
 
     public function massDestroy(MassDestroyPageRequest $request)
     {
-        $pages = Page::find(request('ids'));
-
-        foreach ($pages as $page) {
-            $page->delete();
-        }
+        // All or none, so a failure part way through cannot leave some
+        // selected rows deleted and others not.
+        DB::transaction(function () {
+            Page::find(request('ids'))->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

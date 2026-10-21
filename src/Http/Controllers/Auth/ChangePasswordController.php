@@ -13,6 +13,10 @@ use Symfony\Component\HttpFoundation\Response;
 class ChangePasswordController extends Controller
 {
     use MediaUploadingTrait;
+
+    /** Who may upload through storeMedia(). */
+    protected array $mediaUploadGates = ['profile_password_edit'];
+
     public function edit()
     {
         abort_if(Gate::denies('profile_password_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');

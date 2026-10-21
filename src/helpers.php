@@ -24,6 +24,26 @@ if (!function_exists('vela_config')) {
     }
 }
 
+if (!function_exists('vela_registration_enabled')) {
+    /**
+     * Whether anyone may create an account at the register page.
+     *
+     * Off unless an administrator turns it on in Settings > Visibility; the
+     * saved setting wins over VELA_REGISTRATION_ENABLED, which only supplies
+     * the default for a site that has never saved one.
+     */
+    function vela_registration_enabled(): bool
+    {
+        $saved = vela_config('registration_enabled');
+
+        if ($saved !== null) {
+            return $saved === '1';
+        }
+
+        return (bool) config('vela.registration_enabled', false);
+    }
+}
+
 if (!function_exists('vela_asset')) {
     /**
      * URL of a published core asset that changes when the file does.

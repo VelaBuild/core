@@ -58,4 +58,8 @@ return [
     'cs_ai_input_help'        => 'Allow AI to use content as input for chat responses.',
     'cs_yes'                  => 'Yes — Allow',
     'cs_no'                   => 'No — Disallow',
+
+    'registration_title'      => 'Account Registration',
+    'registration_intro'      => 'Let anyone create an account from the register page. New accounts get the User role, which can only see the dashboard and edit their own profile — give them anything more yourself under Users.',
+    'registration_enable'     => 'Allow public registration',
 ];

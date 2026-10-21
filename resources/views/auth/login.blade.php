@@ -44,7 +44,7 @@
         @if(Route::has('vela.auth.password.request'))
             <a href="{{ route('vela.auth.password.request') }}" class="btn-link">{{ trans('vela::global.forgot_password') }}</a>
         @endif
-        @if(config('vela.registration_enabled', false) && Route::has('vela.auth.register'))
+        @if(vela_registration_enabled() && Route::has('vela.auth.register'))
             <a href="{{ route('vela.auth.register') }}" class="btn-link">{{ trans('vela::global.register') }}</a>
         @endif
     </div>

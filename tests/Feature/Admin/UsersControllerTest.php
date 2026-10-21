@@ -66,4 +66,43 @@ class UsersControllerTest extends TestCase
         $response->assertRedirect();
         $this->assertSoftDeleted('vela_users', ['id' => $user->id]);
     }
+
+    public function test_mass_destroy_deletes_every_selected_user(): void
+    {
+        $this->loginAsAdmin();
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
+
+        $first = VelaUser::factory()->create();
+        $second = VelaUser::factory()->create();
+        $kept = VelaUser::factory()->create();
+
+        // As the list page sends them: strings, newest first.
+        $this->post('/admin/users/destroy', ['ids' => [(string) $second->id, (string) $first->id], '_method' => 'DELETE'])
+            ->assertNoContent();
+
+        $this->assertSoftDeleted('vela_users', ['id' => $first->id]);
+        $this->assertSoftDeleted('vela_users', ['id' => $second->id]);
+        $this->assertNotSoftDeleted('vela_users', ['id' => $kept->id]);
+    }
+
+    public function test_mass_destroy_deletes_none_when_one_fails(): void
+    {
+        $this->loginAsAdmin();
+        $this->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
+
+        $first = VelaUser::factory()->create();
+        $second = VelaUser::factory()->create();
+
+        VelaUser::deleting(function (VelaUser $user) use ($second) {
+            if ($user->id === $second->id) {
+                throw new \RuntimeException('database went away');
+            }
+        });
+
+        $this->post('/admin/users/destroy', ['ids' => [$first->id, $second->id], '_method' => 'DELETE'])
+            ->assertStatus(500);
+
+        $this->assertNotSoftDeleted('vela_users', ['id' => $first->id]);
+        $this->assertNotSoftDeleted('vela_users', ['id' => $second->id]);
+    }
 }

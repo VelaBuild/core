@@ -102,6 +102,23 @@
 
             <hr class="my-4">
 
+            {{-- Public account registration --}}
+            <div class="form-group">
+                <label class="d-block mb-2"><strong>{{ __('vela::visibility.registration_title') }}</strong></label>
+                <small class="form-text text-muted mb-3 d-block">{{ __('vela::visibility.registration_intro') }}</small>
+
+                <div class="custom-control custom-switch mb-3">
+                    <input type="hidden" name="registration_enabled" value="0">
+                    <input type="checkbox" class="custom-control-input" id="registration-enabled" name="registration_enabled" value="1"
+                        {{ old('registration_enabled', vela_registration_enabled() ? '1' : '0') === '1' ? 'checked' : '' }}>
+                    <label class="custom-control-label" for="registration-enabled">
+                        {{ __('vela::visibility.registration_enable') }}
+                    </label>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
             {{-- x402 AI Payment --}}
             @php
                 $x402Enabled = old('x402_enabled', $settings['x402_enabled'] ?? '0') === '1';

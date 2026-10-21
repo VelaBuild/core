@@ -9,6 +9,7 @@ use VelaBuild\Core\Http\Requests\UpdatePermissionRequest;
 use VelaBuild\Core\Models\Permission;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class PermissionsController extends Controller
@@ -68,11 +69,11 @@ class PermissionsController extends Controller
 
     public function massDestroy(MassDestroyPermissionRequest $request)
     {
-        $permissions = Permission::find(request('ids'));
-
-        foreach ($permissions as $permission) {
-            $permission->delete();
-        }
+        // All or none, so a failure part way through cannot leave some
+        // selected rows deleted and others not.
+        DB::transaction(function () {
+            Permission::find(request('ids'))->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

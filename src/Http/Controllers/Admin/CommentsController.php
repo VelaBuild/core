@@ -10,6 +10,7 @@ use VelaBuild\Core\Models\Comment;
 use VelaBuild\Core\Models\VelaUser;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
 
@@ -120,11 +121,11 @@ class CommentsController extends Controller
 
     public function massDestroy(MassDestroyCommentRequest $request)
     {
-        $comments = Comment::find(request('ids'));
-
-        foreach ($comments as $comment) {
-            $comment->delete();
-        }
+        // All or none, so a failure part way through cannot leave some
+        // selected rows deleted and others not.
+        DB::transaction(function () {
+            Comment::find(request('ids'))->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

@@ -10,12 +10,18 @@ use VelaBuild\Core\Http\Requests\UpdateTranslationRequest;
 use VelaBuild\Core\Models\Translation;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
 
 class TranslationsController extends Controller
 {
     use CsvImportTrait;
+
+    /** What CSV import writes, and who may run it. */
+    protected string $csvImportModel = 'Translation';
+
+    protected string $csvImportGate = 'translation_create';
 
     public function index(Request $request)
     {
@@ -116,11 +122,11 @@ class TranslationsController extends Controller
 
     public function massDestroy(MassDestroyTranslationRequest $request)
     {
-        $translations = Translation::find(request('ids'));
-
-        foreach ($translations as $translation) {
-            $translation->delete();
-        }
+        // All or none, so a failure part way through cannot leave some
+        // selected rows deleted and others not.
+        DB::transaction(function () {
+            Translation::find(request('ids'))->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

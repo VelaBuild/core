@@ -8,6 +8,13 @@ use Illuminate\Database\Seeder;
 
 class VelaRolesSeeder extends Seeder
 {
+    /**
+     * Everything the default User role starts with.
+     */
+    public const USER_ROLE_PERMISSIONS = [
+        'profile_password_edit',
+    ];
+
     public function run(): void
     {
         $admin = Role::firstOrCreate(['id' => 1], ['title' => 'Admin']);
@@ -22,26 +29,20 @@ class VelaRolesSeeder extends Seeder
             $admin->permissions()->attach($newPermIds);
         }
 
-        // User: only assign default permissions if user role has NO permissions yet (first run)
-        // This preserves any manual changes admins have made to the User role
-        if ($user->permissions()->count() === 0) {
-            $userExcluded = [
-                'user_management_access',
-                'permission_access', 'permission_create', 'permission_edit', 'permission_show', 'permission_delete',
-                'role_access', 'role_create', 'role_edit', 'role_show', 'role_delete',
-                'user_create', 'user_edit', 'user_delete',
-                'config_access', 'config_create', 'config_edit', 'config_show', 'config_delete',
-                'ai_chat_template_edit', 'ai_chat_config_manage',
-                // Form submissions hold personal data supplied by site visitors.
-                'form_submission_access', 'form_submission_show', 'form_submission_delete',
-                // Installing/managing marketplace packages means running third-party code.
-                'marketplace_install', 'marketplace_manage',
-                // Admin tools configure credentials (Cloudflare, Search Console, ...).
-                'admin_tools_access',
-            ];
-
-            $userPermissions = Permission::whereNotIn('title', $userExcluded)->pluck('id')->toArray();
-            $user->permissions()->sync($userPermissions);
+        // User: the role every account an admin makes gets. It starts with
+        // the least an account can usefully have: the dashboard (which needs
+        // no permission) and its own profile. Anything more — editing pages,
+        // posts, media — is given by an administrator, on this role or another.
+        //
+        // Only seeded when the role is first made, so changes admins make to
+        // it stand — including taking everything away.
+        if ($user->wasRecentlyCreated) {
+            $user->permissions()->sync(
+                Permission::whereIn('title', self::USER_ROLE_PERMISSIONS)->pluck('id')->toArray()
+            );
         }
+
+        // Guest: what accounts that sign themselves up get, and nothing else.
+        Role::guest();
     }
 }

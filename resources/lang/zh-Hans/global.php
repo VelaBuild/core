@@ -80,6 +80,7 @@ return [
         'colvis'        => '列可见性',
         'delete'        => '删除所选',
         'zero_selected' => '未选中任何行',
+        'delete_failed' => '未删除任何内容，请重试',
     ],
     'billing' => [
         'menu'                        => '账单',

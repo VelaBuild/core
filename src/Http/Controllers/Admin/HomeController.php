@@ -2,6 +2,7 @@
 
 namespace VelaBuild\Core\Http\Controllers\Admin;
 
+use Illuminate\Support\Facades\Gate;
 use VelaBuild\Core\Http\Controllers\Controller;
 use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Vela;
@@ -40,9 +41,13 @@ class HomeController extends Controller
             $allWidgets = $ordered;
         }
 
-        // Resolve data for enabled widgets
+        // Resolve data for enabled widgets this user may see. The view hides
+        // a gated widget too, but its data should not be fetched for nobody.
         $widgetDataMap = [];
         foreach ($allWidgets as $name => $widget) {
+            if (!empty($widget['gate']) && Gate::denies($widget['gate'])) {
+                continue;
+            }
             if (!in_array($name, $disabledWidgets) && is_callable($widget['data'])) {
                 $widgetDataMap[$name] = call_user_func($widget['data']);
             }

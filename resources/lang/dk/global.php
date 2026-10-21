@@ -80,6 +80,7 @@ return [
         'colvis'        => 'Kolonner',
         'delete'        => 'Slet valgte',
         'zero_selected' => 'Ingen rækker valgt',
+        'delete_failed' => 'Intet blev slettet – prøv igen',
     ],
     'billing' => [
         'menu'                        => 'Fakturering',

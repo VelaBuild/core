@@ -80,6 +80,7 @@ return [
         'colvis'        => 'Kolommen',
         'delete'        => 'Geselecteerde verwijderen',
         'zero_selected' => 'Geen rijen geselecteerd',
+        'delete_failed' => 'Er is niets verwijderd — probeer het opnieuw',
     ],
     'billing' => [
         'menu'                        => 'Facturering',

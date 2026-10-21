@@ -91,8 +91,8 @@ class DefaultRolesSeederTest extends TestCase
         $this->assertNotContains('permission_access', $userPermTitles);
         $this->assertNotContains('role_access', $userPermTitles);
         $this->assertNotContains('config_access', $userPermTitles);
-        $this->assertContains('article_access', $userPermTitles);
-        $this->assertContains('page_access', $userPermTitles);
+        $this->assertNotContains('article_access', $userPermTitles);
+        $this->assertNotContains('page_access', $userPermTitles);
     }
 
     public function test_admin_gets_new_permissions_on_rerun(): void

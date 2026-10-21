@@ -281,6 +281,7 @@
         replacementFailed: '{{ trans('vela::media.replacement_failed') }}',
         uploadFileFirst: '{{ trans('vela::media.upload_file_first') }}',
         deleteSelectedConfirm: '{{ trans('vela::media.delete_selected_confirm') }}',
+        deleteFailed: '{{ trans('vela::global.datatables.delete_failed') }}',
         errorGenerating: '{{ trans('vela::media.error_generating') }}',
         imageReplaced: '{{ trans('vela::media.image_replaced') }}',
         referencesUpdated: '{{ trans('vela::media.references_updated') }}',
@@ -605,7 +606,12 @@
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF },
             body: JSON.stringify({ ids: ids })
-        }).then(r => r.json()).then(() => { resetGrid(); loadGridPage(); if (dtInitialized) $('#media-datatable').DataTable().ajax.reload(); });
+        }).then(r => r.json().catch(() => ({})).then(data => {
+            if (!r.ok) alert(data.message || translations.deleteFailed);
+        })).catch(() => alert(translations.deleteFailed)).then(() => {
+            // Refresh either way: on a failure some files may already be gone.
+            resetGrid(); loadGridPage(); if (dtInitialized) $('#media-datatable').DataTable().ajax.reload();
+        });
     });
 
     // --- AI Generate ---

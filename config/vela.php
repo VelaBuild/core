@@ -84,8 +84,13 @@ return [
     // Public self-registration is disabled by default: this is a CMS, so accounts
     // should normally be created by an administrator. Only enable it if you really
     // want anyone on the internet to be able to create a back-office account.
+    // This is only the default: the switch in Settings > Visibility, once saved,
+    // takes precedence (see vela_registration_enabled()).
     'registration_enabled' => env('VELA_REGISTRATION_ENABLED', false),
 
+    // Given to every account an admin makes. Accounts that sign themselves up
+    // get the Guest role instead (see Role::guest()): the dashboard and their
+    // own profile, nothing more.
     'registration_default_role' => '2',
 
     /*

@@ -14,6 +14,7 @@ use VelaBuild\Core\Models\Translation;
 use VelaBuild\Core\Models\VelaUser;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
@@ -21,6 +22,14 @@ use Yajra\DataTables\Facades\DataTables;
 class ArticleController extends Controller
 {
     use MediaUploadingTrait, CsvImportTrait;
+
+    /** Who may upload through storeMedia(). */
+    protected array $mediaUploadGates = ['article_create', 'article_edit'];
+
+    /** What CSV import writes, and who may run it. */
+    protected string $csvImportModel = 'Content';
+
+    protected string $csvImportGate = 'article_create';
 
     public function index(Request $request)
     {
@@ -306,11 +315,11 @@ class ArticleController extends Controller
 
     public function massDestroy(MassDestroyContentRequest $request)
     {
-        $contents = Content::find(request('ids'));
-
-        foreach ($contents as $content) {
-            $content->delete();
-        }
+        // All or none, so a failure part way through cannot leave some
+        // selected rows deleted and others not.
+        DB::transaction(function () {
+            Content::find(request('ids'))->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

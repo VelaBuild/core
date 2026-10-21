@@ -27,8 +27,8 @@ class VelaRolesSeederTest extends PackageTestCase
     }
 
     /**
-     * The default "User" role is what public self-registration hands out, so it
-     * must not carry anything that exposes personal data or executes code.
+     * The default "User" role is what every admin-made account starts with, so
+     * it must not carry anything that exposes personal data or executes code.
      */
     public function test_default_user_role_excludes_sensitive_permissions(): void
     {
@@ -51,14 +51,58 @@ class VelaRolesSeederTest extends PackageTestCase
         }
     }
 
-    public function test_default_user_role_keeps_content_permissions(): void
+    /**
+     * It holds the dashboard (which needs no permission) and the account's own
+     * profile, and nothing else. Everything more is given by an administrator.
+     */
+    public function test_default_user_role_has_only_its_own_profile(): void
     {
         $this->seedRoles();
 
-        $titles = Role::find(2)->permissions->pluck('title')->all();
+        $this->assertSame(
+            ['profile_password_edit'],
+            Role::find(2)->permissions->pluck('title')->sort()->values()->all()
+        );
+    }
 
-        foreach (['page_access', 'page_edit', 'article_access', 'article_edit', 'profile_password_edit'] as $allowed) {
-            $this->assertContains($allowed, $titles, "User role should keep {$allowed}");
-        }
+    public function test_default_user_role_is_left_alone_once_an_admin_has_changed_it(): void
+    {
+        $this->seedRoles();
+
+        $user = Role::find(2);
+        $user->permissions()->syncWithoutDetaching(
+            \VelaBuild\Core\Models\Permission::where('title', 'page_edit')->pluck('id')
+        );
+
+        (new VelaRolesSeeder())->run();
+
+        $this->assertContains('page_edit', $user->fresh()->permissions->pluck('title')->all());
+    }
+
+    /**
+     * Accounts that sign themselves up get Guest, never User, and Guest holds
+     * only the account's own profile.
+     */
+    public function test_seeder_makes_a_guest_role_with_only_its_own_profile(): void
+    {
+        $this->seedRoles();
+
+        $guest = Role::where('title', Role::GUEST_TITLE)->firstOrFail();
+
+        $this->assertNotContains((int) $guest->id, [1, 2]);
+        $this->assertSame(['profile_password_edit'], $guest->permissions->pluck('title')->all());
+    }
+
+    public function test_guest_role_is_left_alone_once_an_admin_has_changed_it(): void
+    {
+        $this->seedRoles();
+
+        $guest = Role::guest();
+        $guest->permissions()->detach();
+
+        (new VelaRolesSeeder())->run();
+
+        $this->assertSame(1, Role::where('title', Role::GUEST_TITLE)->count());
+        $this->assertSame([], $guest->fresh()->permissions->pluck('title')->all());
     }
 }

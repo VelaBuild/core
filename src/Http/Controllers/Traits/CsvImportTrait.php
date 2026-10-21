@@ -4,35 +4,56 @@ namespace VelaBuild\Core\Http\Controllers\Traits;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use SpreadsheetReader;
 
+/**
+ * CSV import for a controller's own records.
+ *
+ * The controller says what it imports and who may: $csvImportModel (a model
+ * under VelaBuild\Core\Models) and $csvImportGate (the permission needed).
+ * The model used to come from the request, with no permission checked at
+ * all, so any account that could sign in could write rows straight into
+ * vela_users, vela_roles or vela_configs.
+ */
 trait CsvImportTrait
 {
+    /**
+     * The model this controller imports into, once the user may do so.
+     */
+    protected function csvImportModelName(): string
+    {
+        $model = property_exists($this, 'csvImportModel') ? $this->csvImportModel : null;
+        $gate  = property_exists($this, 'csvImportGate') ? $this->csvImportGate : null;
+
+        abort_unless($model && $gate && Gate::allows($gate), 403, '403 Forbidden');
+
+        return $model;
+    }
+
     public function processCsvImport(Request $request)
     {
+        $modelName = $this->csvImportModelName();
+
         try {
-            $filename = $request->input('filename', false);
-            $path     = storage_path('app/csv_import/' . $filename);
+            // Only a file parseCsvImport stored, never a path of the caller's choosing.
+            $filename = basename((string) $request->input('filename', ''));
+            $path     = Storage::disk('local')->path('csv_import/' . $filename);
+
+            abort_unless($filename !== '' && is_file($path), 404);
 
             $hasHeader = $request->input('hasHeader', false);
 
-            $fields = $request->input('fields', false);
-            $fields = array_flip(array_filter($fields));
-
-            $modelName = $request->input('modelName', false);
-
-            $allowedModels = [
-                'VelaUser', 'Role', 'Permission', 'Category', 'Content',
-                'Idea', 'Translation', 'Comment', 'VelaConfig', 'Page',
-                'PageRow', 'PageBlock', 'FormSubmission',
-            ];
-
-            if (!in_array($modelName, $allowedModels)) {
-                abort(403, 'Invalid model name for CSV import.');
-            }
-
             $model = "VelaBuild\\Core\\Models\\" . $modelName;
+
+            // insert() skips mass-assignment protection, so the columns are
+            // limited to what the model would accept from a form anyway.
+            $fillable = (new $model())->getFillable();
+            // fields[column index] = column name.
+            $fields = array_filter((array) $request->input('fields', []));
+            $fields = array_flip(array_intersect($fields, $fillable));
 
             $reader = new SpreadsheetReader($path);
             $insert = [];
@@ -67,7 +88,13 @@ trait CsvImportTrait
 
             session()->flash('message', trans('vela::global.app_imported_rows_to_table', ['rows' => $rows, 'table' => $table]));
 
-            return redirect($request->input('redirect'));
+            // Back to the list the import started from, and never off this site.
+            $to = (string) $request->input('redirect', '');
+            if (! str_starts_with($to, url('/') . '/') && $to !== url('/')) {
+                $to = url()->previous();
+            }
+
+            return redirect($to);
         } catch (\Exception $ex) {
             throw $ex;
         }
@@ -75,6 +102,8 @@ trait CsvImportTrait
 
     public function parseCsvImport(Request $request)
     {
+        $modelName = $this->csvImportModelName();
+
         $file = $request->file('csv_file');
         $request->validate([
             'csv_file' => 'mimes:csv,txt',
@@ -94,19 +123,7 @@ trait CsvImportTrait
         }
 
         $filename = Str::random(10) . '.csv';
-        $file->storeAs('csv_import', $filename);
-
-        $modelName = $request->input('model', false);
-
-        $allowedModels = [
-            'VelaUser', 'Role', 'Permission', 'Category', 'Content',
-            'Idea', 'Translation', 'Comment', 'VelaConfig', 'Page',
-            'PageRow', 'PageBlock', 'FormSubmission',
-        ];
-
-        if (!in_array($modelName, $allowedModels)) {
-            abort(403, 'Invalid model name for CSV import.');
-        }
+        $file->storeAs('csv_import', $filename, 'local');
 
         $fullModelName = "VelaBuild\\Core\\Models\\" . $modelName;
 
@@ -115,7 +132,8 @@ trait CsvImportTrait
 
         $redirect = url()->previous();
 
-        $routeName = 'vela.admin.' . strtolower(Str::plural(Str::kebab($modelName))) . '.processCsvImport';
+        // The import posts back to this controller's own process route.
+        $routeName = Str::replaceLast('parseCsvImport', 'processCsvImport', (string) $request->route()?->getName());
 
         return view('vela::csvImport.parseInput', compact('headers', 'filename', 'fillables', 'hasHeader', 'modelName', 'lines', 'redirect', 'routeName'));
     }

@@ -8,6 +8,8 @@ use VelaBuild\Core\Models\VelaConfig;
 
 class UpdateSiteConfigTool extends BaseTool
 {
+    private const ADMIN_ONLY_KEYS = ['registration_enabled'];
+
     public function execute(array $parameters, ?AiActionLog $actionLog = null): array
     {
         $key = $parameters['key'] ?? null;
@@ -15,6 +17,16 @@ class UpdateSiteConfigTool extends BaseTool
 
         if (!$key) {
             return ['error' => 'Key parameter is required'];
+        }
+
+        // Who may create an account is for an administrator to decide in
+        // Settings, never for the assistant: one injected instruction in a
+        // fetched page would otherwise open the back office to the internet.
+        if (in_array($key, self::ADMIN_ONLY_KEYS, true)) {
+            return [
+                'error' => "'{$key}' can only be changed by an administrator in Settings > Visibility. "
+                    . 'Tell the user where to find it rather than changing it.',
+            ];
         }
 
         $current = VelaConfig::where('key', $key)->first();

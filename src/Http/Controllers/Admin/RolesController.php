@@ -10,6 +10,7 @@ use VelaBuild\Core\Models\Permission;
 use VelaBuild\Core\Models\Role;
 use Gate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 class RolesController extends Controller
@@ -79,11 +80,11 @@ class RolesController extends Controller
 
     public function massDestroy(MassDestroyRoleRequest $request)
     {
-        $roles = Role::find(request('ids'));
-
-        foreach ($roles as $role) {
-            $role->delete();
-        }
+        // All or none, so a failure part way through cannot leave some
+        // selected rows deleted and others not.
+        DB::transaction(function () {
+            Role::find(request('ids'))->each->delete();
+        });
 
         return response(null, Response::HTTP_NO_CONTENT);
     }

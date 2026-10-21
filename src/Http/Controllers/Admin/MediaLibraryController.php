@@ -24,6 +24,9 @@ class MediaLibraryController extends Controller
 {
     use MediaUploadingTrait;
 
+    /** Who may upload through storeMedia(). */
+    protected array $mediaUploadGates = ['article_edit'];
+
     public function __construct(private AiProviderManager $aiManager) {}
 
     public function index(Request $request)

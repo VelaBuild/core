@@ -108,6 +108,10 @@
           url: config.url,
           data: { ids: ids, _method: 'DELETE' }})
           .done(function () { location.reload() })
+          .fail(function (xhr) {
+            alert((xhr.responseJSON && xhr.responseJSON.message) || '{{ trans('vela::global.datatables.delete_failed') }}')
+            location.reload()
+          })
       }
     }
   }

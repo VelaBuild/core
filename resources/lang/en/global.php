@@ -84,6 +84,7 @@ return [
         'colvis'        => 'Columns',
         'delete'        => 'Delete selected',
         'zero_selected' => 'No rows selected',
+        'delete_failed' => 'Nothing was deleted — please try again',
     ],
     'billing' => [
         'menu'                        => 'Billing',

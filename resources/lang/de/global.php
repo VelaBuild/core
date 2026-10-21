@@ -80,6 +80,7 @@ return [
         'colvis'        => 'Spalten',
         'delete'        => 'Markierte löschen',
         'zero_selected' => 'Keine Zeile ausgewählt',
+        'delete_failed' => 'Es wurde nichts gelöscht – bitte erneut versuchen',
     ],
     'billing' => [
         'menu'                        => 'Abrechnung',
