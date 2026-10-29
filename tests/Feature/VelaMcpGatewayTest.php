@@ -21,6 +21,28 @@ class VelaMcpGatewayTest extends PackageTestCase
             ->assertStructuredContent(fn ($json) => $json->where('platform', 'vela')->etc());
     }
 
+    public function test_site_and_content_bodies_use_a_body_format_clients_recognise(): void
+    {
+        // Page rows and article Editor.js documents are both structured blocks. Clients such
+        // as Gemma accept only html, markdown, mdx or blocks and refuse the whole connection
+        // on anything else.
+        $gateway = app(VelaMcpGateway::class);
+        $article = Content::create(['title' => 'Blocks', 'slug' => 'blocks', 'content' => '{"blocks":[]}', 'status' => 'published']);
+
+        $this->assertSame('blocks', $gateway->call('site.describe', [])['preferred_body_format']);
+        $this->assertSame('blocks', $gateway->call('content.get', ['external_id' => 'article:'.$article->id])['data']['body_format']);
+    }
+
+    public function test_an_article_is_reported_at_the_address_it_is_served_from(): void
+    {
+        // Articles are public at /posts/{slug}; reporting /{slug} sent clients to a 404.
+        $article = Content::create(['title' => 'Served', 'slug' => 'served-here', 'content' => '{"blocks":[]}', 'status' => 'published']);
+        $data = app(VelaMcpGateway::class)->call('content.get', ['external_id' => 'article:'.$article->id])['data'];
+
+        $this->assertSame(url('/posts/served-here'), $data['url']);
+        $this->assertSame('/posts/served-here', $data['path']);
+    }
+
     public function test_public_discovery_names_the_native_current_protocol_endpoint(): void
     {
         $this->getJson('/.well-known/mcp')
