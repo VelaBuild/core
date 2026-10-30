@@ -75,6 +75,12 @@ return [
         'th'      => 'Thai',
     ],
 
+    // The admin panel's language, apart from the languages above that the site
+    // is published in. Each account can choose its own on its profile page (an
+    // administrator can also set it under Users); this one is for accounts that
+    // have not, and for the login page. Empty: primary_language.
+    'admin_locale' => env('VELA_ADMIN_LOCALE'),
+
     /*
     |--------------------------------------------------------------------------
     | Registration

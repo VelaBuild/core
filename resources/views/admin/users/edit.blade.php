@@ -88,6 +88,19 @@
                     <small>Product updates and release notes.</small>
                 </span>
             </label>
+            @php
+                $adminLanguages = app(\VelaBuild\Core\Services\AdminLanguage::class);
+            @endphp
+            <div class="form-group mt-3 mb-0">
+                <label for="admin_locale">{{ trans('vela::global.admin_language') }}</label>
+                <select class="form-control {{ $errors->has('admin_locale') ? 'is-invalid' : '' }}" name="admin_locale" id="admin_locale">
+                    <option value="">{{ trans('vela::global.admin_language_default', ['language' => $adminLanguages->name($adminLanguages->default())]) }}</option>
+                    @foreach($adminLanguages->available() as $code => $name)
+                        <option value="{{ $code }}" {{ old('admin_locale', $user->admin_locale) === $code ? 'selected' : '' }}>{{ $name }}</option>
+                    @endforeach
+                </select>
+                @if($errors->has('admin_locale'))<div class="invalid-feedback">{{ $errors->first('admin_locale') }}</div>@endif
+            </div>
         </x-vela::meta-card>
 
         <x-vela::meta-card title="Session" :status="$user->last_login_at ? true : false" :body-padding="false">

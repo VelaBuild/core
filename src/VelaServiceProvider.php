@@ -425,7 +425,8 @@ class VelaServiceProvider extends ServiceProvider
         Route::group([
             'prefix' => config('vela.auth_prefix', 'vela'),
             'as' => 'vela.auth.',
-            'middleware' => ['web'],
+            // vela.locale: the login and password pages speak the admin language.
+            'middleware' => ['web', 'vela.locale'],
         ], function () {
             $this->loadRoutesFrom(__DIR__.'/../routes/auth.php');
         });

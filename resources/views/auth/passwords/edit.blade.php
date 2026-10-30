@@ -84,6 +84,40 @@
                 </form>
             </div>
         </div>
+        @php
+            $adminLanguages = app(\VelaBuild\Core\Services\AdminLanguage::class);
+        @endphp
+        <div class="card">
+            <div class="card-header">
+                {{ trans('vela::global.admin_language') }}
+            </div>
+
+            <div class="card-body">
+                <form method="POST" action="{{ route("vela.auth.profile.password.updateLanguage") }}">
+                    @csrf
+                    <div class="form-group">
+                        <label for="admin_locale">{{ trans('vela::global.admin_language') }}</label>
+                        <select class="form-control {{ $errors->has('admin_locale') ? 'is-invalid' : '' }}" name="admin_locale" id="admin_locale">
+                            <option value="">{{ trans('vela::global.admin_language_default', ['language' => $adminLanguages->name($adminLanguages->default())]) }}</option>
+                            @foreach($adminLanguages->available() as $code => $name)
+                                <option value="{{ $code }}" {{ old('admin_locale', auth('vela')->user()->admin_locale) === $code ? 'selected' : '' }}>{{ $name }}</option>
+                            @endforeach
+                        </select>
+                        @if($errors->has('admin_locale'))
+                            <div class="invalid-feedback">
+                                {{ $errors->first('admin_locale') }}
+                            </div>
+                        @endif
+                        <small class="form-text text-muted">{{ trans('vela::global.admin_language_helper') }}</small>
+                    </div>
+                    <div class="form-group">
+                        <button class="btn btn-danger" type="submit">
+                            {{ trans('vela::global.save') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 <div class="row">

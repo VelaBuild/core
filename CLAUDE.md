@@ -60,6 +60,21 @@ Usage in Blade templates:
 - `getSpeedSettings()` returns combined status of all three in one call
 - Zone status, SSL, page rules, cache level queries
 
+## Admin Language
+The admin panel's language is separate from the languages the site is published in (`available_languages` /
+Settings > Languages): a site with English content can be run in a German admin. `AdminLanguage`
+(`src/Services/AdminLanguage.php`) decides it, and `VelaSetLocale` (`vela.locale`) applies it to the admin and to the
+login and password pages. In order:
+1. the account's own choice, `vela_users.admin_locale`: set on the profile page (card under Change password), by an
+   administrator under Users (Preferences), or with the top-bar language switch, which saves it to the account;
+2. the session's choice, from `?change_language=<code>` while nobody is signed in (the login page);
+3. `vela.admin_locale` / `VELA_ADMIN_LOCALE`, the site's default admin language;
+4. `vela.primary_language`.
+
+The languages on offer are the ones the admin has translations for: a `resources/lang/<code>` folder here or an
+app-level `lang/vendor/vela/<code>`. They never depend on the content languages (`SiteConfigWriter` narrows
+`available_languages` to the active content languages at boot). The top-bar switch lists them too.
+
 ## MCP Browser Rendering
 
 Cloudflare Browser Rendering Workers can be used for:
