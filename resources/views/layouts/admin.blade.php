@@ -98,10 +98,8 @@
                 @endcan
 
                 @php
-                    $allLangs = config('vela.available_languages', []);
-                    $activeJson = \VelaBuild\Core\Models\VelaConfig::where('key', 'active_languages')->value('value');
-                    $activeLangs = $activeJson ? json_decode($activeJson, true) : array_keys($allLangs);
-                    $visibleLangs = array_intersect_key($allLangs, array_flip($activeLangs));
+                    // The admin's languages, not the site's: see AdminLanguage.
+                    $visibleLangs = app(\VelaBuild\Core\Services\AdminLanguage::class)->available();
                 @endphp
                 @if(count($visibleLangs) > 1)
                 <div class="dropdown">

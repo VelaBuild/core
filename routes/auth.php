@@ -35,6 +35,7 @@ Route::middleware(config('vela.middleware.admin', ['web', 'vela.auth', 'vela.2fa
     Route::get('password', [Auth\ChangePasswordController::class, 'edit'])->name('password.edit');
     Route::post('password', [Auth\ChangePasswordController::class, 'update'])->name('password.update');
     Route::post('profile', [Auth\ChangePasswordController::class, 'updateProfile'])->name('password.updateProfile');
+    Route::post('language', [Auth\ChangePasswordController::class, 'updateLanguage'])->name('password.updateLanguage');
     Route::post('profile/media', [Auth\ChangePasswordController::class, 'storeMedia'])->name('password.storeMedia');
     Route::post('profile/destroy', [Auth\ChangePasswordController::class, 'destroy'])->name('password.destroyProfile');
     Route::post('profile/two-factor', [Auth\ChangePasswordController::class, 'toggleTwoFactor'])->name('password.toggleTwoFactor');

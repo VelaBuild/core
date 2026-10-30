@@ -4,6 +4,8 @@ namespace VelaBuild\Core\Http\Requests;
 
 use Gate;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use VelaBuild\Core\Services\AdminLanguage;
 
 class StoreUserRequest extends FormRequest
 {
@@ -28,6 +30,11 @@ class StoreUserRequest extends FormRequest
             ],
             'password' => [
                 'required',
+            ],
+            'admin_locale' => [
+                'nullable',
+                'string',
+                Rule::in(array_keys(app(AdminLanguage::class)->available())),
             ],
             'roles.*' => [
                 'integer',

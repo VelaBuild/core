@@ -4,8 +4,10 @@ namespace VelaBuild\Core\Http\Controllers\Auth;
 
 use VelaBuild\Core\Http\Controllers\Controller;
 use VelaBuild\Core\Http\Controllers\Traits\MediaUploadingTrait;
+use VelaBuild\Core\Http\Requests\UpdateAdminLanguageRequest;
 use VelaBuild\Core\Http\Requests\UpdatePasswordRequest;
 use VelaBuild\Core\Http\Requests\UpdateProfileRequest;
+use VelaBuild\Core\Services\AdminLanguage;
 use Gate;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -49,6 +51,30 @@ class ChangePasswordController extends Controller
         }
 
         return redirect()->route('vela.auth.profile.password.edit')->with('message', __('vela::global.update_profile_success'));
+    }
+
+    /**
+     * The account's own admin language (see AdminLanguage); empty goes back to
+     * the site's default.
+     */
+    public function updateLanguage(UpdateAdminLanguageRequest $request, AdminLanguage $languages)
+    {
+        $code = ($request->validated()['admin_locale'] ?? '') ?: null;
+
+        $user = auth('vela')->user();
+        $user->forceFill(['admin_locale' => $code])->save();
+
+        // A ?change_language left in the session must not outlast this choice.
+        if ($code) {
+            $request->session()->put(AdminLanguage::SESSION_KEY, $code);
+        } else {
+            $request->session()->forget(AdminLanguage::SESSION_KEY);
+        }
+
+        // Confirm it in the language just chosen.
+        app()->setLocale($languages->forRequest($request, $user));
+
+        return redirect()->route('vela.auth.profile.password.edit')->with('message', __('vela::global.admin_language_saved'));
     }
 
     public function destroy()

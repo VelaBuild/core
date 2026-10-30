@@ -19,6 +19,7 @@ Vela Core provides a full-featured content management system, page builder, and 
 - **Admin Panel** — Complete admin interface with authentication, roles, permissions, and 2FA
 - **Media Management** — Integrated media library with image optimization and cache management (via Spatie Media Library)
 - **Multilingual** — Full i18n support with 10 languages out of the box and translation management tools
+- **Admin in your language** — each account picks its own admin language, separate from the site's languages
 - **SEO & Analytics** — Google Analytics, Search Console, and PageSpeed Insights integration
 - **Static Site Generation** — Generate static HTML and serve cached pages without booting Laravel
 - **Extensible Registries** — Register custom blocks, menus, templates, widgets, and tools via the `Vela` facade

@@ -4,6 +4,8 @@ namespace VelaBuild\Core\Http\Requests;
 
 use Gate;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use VelaBuild\Core\Services\AdminLanguage;
 
 class UpdateUserRequest extends FormRequest
 {
@@ -22,6 +24,11 @@ class UpdateUserRequest extends FormRequest
             'email' => [
                 'required',
                 'unique:vela_users,email,' . request()->route('user')->id,
+            ],
+            'admin_locale' => [
+                'nullable',
+                'string',
+                Rule::in(array_keys(app(AdminLanguage::class)->available())),
             ],
             'roles.*' => [
                 'integer',

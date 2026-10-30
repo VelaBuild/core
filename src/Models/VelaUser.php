@@ -53,6 +53,7 @@ class VelaUser extends Authenticatable implements MustVerifyEmail, HasMedia
         'bio',
         'created_at',
         'subscribe_newsletter',
+        'admin_locale',
         'updated_at',
         'deleted_at',
         'two_factor_expires_at',
