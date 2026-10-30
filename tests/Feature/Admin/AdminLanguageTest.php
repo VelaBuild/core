@@ -252,14 +252,45 @@ class AdminLanguageTest extends TestCase
             ->assertSee('<option value="nl" selected>Nederlands</option>', false);
     }
 
-    public function test_only_languages_with_admin_translations_are_offered(): void
+    public function test_every_language_vela_ships_admin_translations_for_is_offered(): void
     {
-        config(['vela.available_languages' => ['en' => 'English', 'de' => 'German', 'es' => 'Spanish']]);
+        $this->assertSame([
+            'en'      => 'English',
+            'de'      => 'Deutsch',
+            'ru'      => 'Русский',
+            'fr'      => 'Français',
+            'nl'      => 'Nederlands',
+            'it'      => 'Italiano',
+            'ar'      => 'العربية',
+            'dk'      => 'Dansk',
+            'zh-Hans' => '简体中文',
+            'th'      => 'ไทย',
+        ], app(AdminLanguage::class)->available());
+    }
 
-        $languages = app(AdminLanguage::class);
+    public function test_a_language_without_admin_translations_is_not_offered(): void
+    {
+        config(['vela.available_languages' => ['en' => 'English', 'es' => 'Spanish']]);
 
-        $this->assertSame(['en' => 'English', 'de' => 'Deutsch'], $languages->available());
-        $this->assertFalse($languages->isAvailable('es'));
+        $this->assertFalse(app(AdminLanguage::class)->isAvailable('es'));
+    }
+
+    /**
+     * SiteConfigWriter narrows vela.available_languages to the site's active
+     * content languages at boot. The admin languages must not shrink with it.
+     */
+    public function test_the_admin_languages_do_not_shrink_to_the_sites_content_languages(): void
+    {
+        config(['vela.available_languages' => ['en' => 'English'], 'vela.admin_locale' => 'de']);
+        $this->loginAsAdmin();
+
+        $this->assertArrayHasKey('de', app(AdminLanguage::class)->available());
+        $this->get(self::PROFILE)
+            ->assertOk()
+            ->assertSee('<html lang="de">', false)
+            ->assertSee('Standard der Website (Deutsch)')
+            ->assertSee('<option value="th" >ไทย</option>', false)
+            ->assertSee('?change_language=th', false);
     }
 
     public function test_an_app_level_translation_makes_a_language_available(): void
@@ -269,7 +300,9 @@ class AdminLanguageTest extends TestCase
         $created = !is_dir($dir) && mkdir($dir, 0755, true);
 
         try {
-            $this->assertSame(['en' => 'English', 'es' => 'Spanish'], app(AdminLanguage::class)->available());
+            $languages = app(AdminLanguage::class)->available();
+            $this->assertSame('Spanish', $languages['es'] ?? null);
+            $this->assertSame('es', array_key_last($languages));
         } finally {
             if ($created) {
                 rmdir($dir);

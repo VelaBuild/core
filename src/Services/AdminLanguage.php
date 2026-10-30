@@ -10,7 +10,8 @@ use Illuminate\Http\Request;
  *
  * A site published only in English can still be run by someone who reads
  * German, so the admin's language is chosen apart from the content languages
- * (vela.available_languages / Settings > Languages). In order, it is:
+ * (Settings > Languages, which SiteConfigWriter also narrows
+ * vela.available_languages to at boot). In order, it is:
  *
  *  1. the signed-in account's own choice (vela_users.admin_locale), set on the
  *     profile page, by an administrator under Users, or from the top bar;
@@ -19,9 +20,9 @@ use Illuminate\Http\Request;
  *  3. vela.admin_locale (VELA_ADMIN_LOCALE), the site's default admin language;
  *  4. vela.primary_language, which is what the admin used before any of this.
  *
- * Only languages the admin has translations for can be chosen: one listed in
- * vela.available_languages that has a folder in this package's resources/lang,
- * or an app-level lang/vendor/vela/<code> override.
+ * The languages on offer are the ones the admin has translations for: a folder
+ * in this package's resources/lang, or an app-level lang/vendor/vela/<code>.
+ * They do not depend on the content languages.
  */
 class AdminLanguage
 {
@@ -29,8 +30,9 @@ class AdminLanguage
     public const SESSION_KEY = 'admin_locale';
 
     /**
-     * Each language in its own name, so the person who needs it can find it in
-     * a list that is not in their language. Codes match available_languages.
+     * Each language Vela ships admin translations for, in its own name, so the
+     * person who needs it can find it in a list that is not in their language.
+     * Also the order they are listed in.
      */
     private const NATIVE_NAMES = [
         'en'      => 'English',
@@ -52,12 +54,20 @@ class AdminLanguage
      */
     public function available(): array
     {
-        $languages = [];
+        $codes = array_unique(array_merge(
+            $this->translationFolders(dirname(__DIR__, 2) . '/resources/lang'),
+            $this->translationFolders(lang_path('vendor/vela')),
+        ));
 
-        foreach (config('vela.available_languages', []) as $code => $name) {
-            if ($this->hasTranslations((string) $code)) {
-                $languages[$code] = self::NATIVE_NAMES[$code] ?? $name;
-            }
+        // Vela's own languages first, in their usual order; an app's additions after.
+        $shipped = array_values(array_intersect(array_keys(self::NATIVE_NAMES), $codes));
+        $added = array_diff($codes, $shipped);
+        sort($added);
+
+        $names = config('vela.available_languages', []);
+        $languages = [];
+        foreach (array_merge($shipped, $added) as $code) {
+            $languages[$code] = self::NATIVE_NAMES[$code] ?? $names[$code] ?? $code;
         }
 
         return $languages;
@@ -106,13 +116,21 @@ class AdminLanguage
         return $this->available()[$code] ?? self::NATIVE_NAMES[$code] ?? $code;
     }
 
-    private function hasTranslations(string $code): bool
+    /**
+     * The language codes that have a translation folder in $path.
+     *
+     * @return list<string>
+     */
+    private function translationFolders(string $path): array
     {
-        if (!preg_match('/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/', $code)) {
-            return false;
+        if (!is_dir($path)) {
+            return [];
         }
 
-        return is_dir(dirname(__DIR__, 2) . '/resources/lang/' . $code)
-            || is_dir(lang_path('vendor/vela/' . $code));
+        return array_values(array_filter(
+            scandir($path) ?: [],
+            fn (string $entry) => preg_match('/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/', $entry)
+                && is_dir($path . '/' . $entry)
+        ));
     }
 }

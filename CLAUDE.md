@@ -71,9 +71,9 @@ login and password pages. In order:
 3. `vela.admin_locale` / `VELA_ADMIN_LOCALE`, the site's default admin language;
 4. `vela.primary_language`.
 
-Only languages the admin has translations for are offered: a code in `available_languages` with a
-`resources/lang/<code>` folder here or an app-level `lang/vendor/vela/<code>`. The top-bar switch lists these, not
-the site's active content languages.
+The languages on offer are the ones the admin has translations for: a `resources/lang/<code>` folder here or an
+app-level `lang/vendor/vela/<code>`. They never depend on the content languages (`SiteConfigWriter` narrows
+`available_languages` to the active content languages at boot). The top-bar switch lists them too.
 
 ## MCP Browser Rendering
 
