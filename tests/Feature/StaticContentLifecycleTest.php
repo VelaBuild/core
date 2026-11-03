@@ -73,4 +73,28 @@ class StaticContentLifecycleTest extends TestCase
         $this->assertFileDoesNotExist($this->tempPath . '/posts/' . $slug . '/index.html');
         $this->assertFileExists($this->tempPath . '/posts/' . $slug . '/config.json');
     }
+
+    public function test_a_new_post_created_without_a_type_refreshes_the_listings(): void
+    {
+        // The admin form never sends a type, and the column's database default
+        // isn't on the model right after create(). The observer then saw no
+        // type and skipped the home page and /posts, so a new article only
+        // showed up there after it was saved a second time.
+        $post = Content::create([
+            'title'  => 'Fresh article',
+            'status' => 'published',
+        ]);
+
+        $this->assertSame('post', $post->type);
+
+        $types = [];
+        Queue::assertPushed(GenerateStaticFilesJob::class, function ($job) use (&$types) {
+            $types[] = (fn () => $this->type)->call($job);
+            return true;
+        });
+
+        $this->assertContains('content', $types);
+        $this->assertContains('home', $types);
+        $this->assertContains('posts_index', $types);
+    }
 }

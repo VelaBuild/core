@@ -16,6 +16,13 @@ class Content extends Model implements HasMedia
 
     public $table = 'vela_articles';
 
+    // Matches the column's database default. Without it a freshly created
+    // article has no type until it is reloaded, and ContentObserver, which
+    // only refreshes the home page and /posts for type 'post', skips them.
+    protected $attributes = [
+        'type' => 'post',
+    ];
+
     protected $appends = [
         'main_image',
         'gallery',
