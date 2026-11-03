@@ -46,7 +46,7 @@ class VelaMcpGatewayTest extends PackageTestCase
 
         // The operation is the one a client previews itself: a creation at the address.
         $this->assertSame([['op' => 'create', 'target' => '/posts/day-trips', 'field' => null, 'before' => null, 'after' => ['path' => '/posts/day-trips'] + $payload,
-            'note' => 'A new article at this address; reverting this proposal removes it.']], $prepared['diff']['operations']);
+            'note' => 'A new page at this path; reverting this proposal removes it.']], $prepared['diff']['operations']);
         $this->assertSame($prepared, $gateway->call('propose', $args));
         $this->assertFalse(Content::where('slug', 'day-trips')->exists());
 

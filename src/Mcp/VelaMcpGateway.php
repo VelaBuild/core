@@ -177,13 +177,13 @@ final class VelaMcpGateway
         $targetName = $scripts ? 'site:scripts' : ($nav ? 'site:nav' : ($proposal->target_external_id ?? ($proposal->payload['slug'] ?? 'new-content')));
         $op = $proposal->capability === 'content.create' ? 'create' : ($proposal->capability === 'content.delete' ? 'delete' : 'update');
         $operations = [['op' => $op, 'target' => $targetName, 'field' => $scripts ? 'analytics' : ($nav ? 'menus' : null), 'before' => $before['resource'] ?? $before['scripts'] ?? $before['nav']['menus'] ?? null, 'after' => $nav ? $proposal->payload['menus'] : $proposal->payload, 'note' => $scripts ? 'Install one site-wide analytics container; no arbitrary script is accepted.' : ($nav ? 'Replace reviewed menu slots with same-site links.' : null)]];
-        // A client reviews its own preview of the change and refuses one that differs: a new
+        // A client reviews its own preview of the change, note included, and refuses one that differs: a new
         // article is one creation at its address, an edit one operation per field.
         $order = $before['order'] ?? null;
         if (is_array($order) && $proposal->capability === 'content.create') {
             $after = [];
             foreach ($order as $field) $after[$field] = $proposal->payload[$field];
-            $operations = [['op' => 'create', 'target' => $after['path'], 'field' => null, 'before' => null, 'after' => $after, 'note' => 'A new article at this address; reverting this proposal removes it.']];
+            $operations = [['op' => 'create', 'target' => $after['path'], 'field' => null, 'before' => null, 'after' => $after, 'note' => 'A new page at this path; reverting this proposal removes it.']];
         } elseif (is_array($order)) {
             $meta = $proposal->capability === 'meta.update';
             $operations = [];
