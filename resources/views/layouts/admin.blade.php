@@ -45,7 +45,10 @@
             <nav class="breadcrumb">
                 <span>{{ config('app.name') }}</span>
                 <span class="sep">/</span>
-                <span class="cur">@yield('breadcrumb', trans('vela::global.dashboard'))</span>
+                @php
+                    $velaMenuLabel = app(\VelaBuild\Core\Vela::class)->menus()->activeLabel(request()->route()?->getName());
+                @endphp
+                <span class="cur">@yield('breadcrumb', trans($velaMenuLabel ?? 'vela::global.dashboard'))</span>
             </nav>
 
             <div class="vela-search-bar">

@@ -51,4 +51,38 @@ class MenuRegistryTest extends TestCase
 
         $this->assertEquals(['first', 'second', 'third'], $keys);
     }
+
+    public function test_active_label_matches_every_route_of_the_item(): void
+    {
+        $this->registry->register('dashboard', ['label' => 'Dashboard', 'route' => 'vela.admin.home']);
+        $this->registry->register('pages', ['label' => 'Pages', 'route' => 'vela.admin.pages.index']);
+
+        $this->assertSame('Pages', $this->registry->activeLabel('vela.admin.pages.index'));
+        $this->assertSame('Pages', $this->registry->activeLabel('vela.admin.pages.edit'));
+        $this->assertSame('Dashboard', $this->registry->activeLabel('vela.admin.home'));
+    }
+
+    public function test_active_label_prefers_the_most_specific_item(): void
+    {
+        $this->registry->register('tools', [
+            'label' => 'Tools',
+            'route' => 'vela.admin.tools.index',
+            'children' => [
+                'pagespeed' => ['label' => 'PageSpeed', 'route' => 'vela.admin.tools.pagespeed'],
+            ],
+        ]);
+
+        $this->assertSame('PageSpeed', $this->registry->activeLabel('vela.admin.tools.pagespeed'));
+        $this->assertSame('Tools', $this->registry->activeLabel('vela.admin.tools.cloudflare'));
+    }
+
+    public function test_active_label_is_null_when_nothing_matches(): void
+    {
+        $this->registry->register('pages', ['label' => 'Pages', 'route' => 'vela.admin.pages.index']);
+        $this->registry->register('logout', ['label' => 'Logout', 'route' => '#logout']);
+
+        $this->assertNull($this->registry->activeLabel('vela.admin.pagesx.index'));
+        $this->assertNull($this->registry->activeLabel('#logout'));
+        $this->assertNull($this->registry->activeLabel(null));
+    }
 }

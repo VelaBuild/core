@@ -40,4 +40,45 @@ class MenuRegistry
         }
         return $grouped;
     }
+
+    /**
+     * Label of the menu item the given route belongs to, for the breadcrumb.
+     *
+     * An item registered as "vela.admin.pages.index" covers every
+     * "vela.admin.pages.*" route, so the edit and create screens are named
+     * after it too. When several items match, the most specific one wins.
+     */
+    public function activeLabel(?string $routeName): ?string
+    {
+        if ($routeName === null) {
+            return null;
+        }
+
+        $best = null;
+        $bestLength = -1;
+
+        $consider = function (array $entry) use ($routeName, &$best, &$bestLength) {
+            $route = (string) ($entry['route'] ?? '');
+            if ($route === '' || str_starts_with($route, '#') || str_starts_with($route, 'http')) {
+                return;
+            }
+            $family = preg_replace('/\.index$/', '', $route);
+            if ($routeName !== $route && ! str_starts_with($routeName, $family . '.')) {
+                return;
+            }
+            if (strlen($route) > $bestLength) {
+                $best = $entry['label'] ?? null;
+                $bestLength = strlen($route);
+            }
+        };
+
+        foreach ($this->items as $item) {
+            $consider($item);
+            foreach ($item['children'] ?? [] as $child) {
+                $consider($child);
+            }
+        }
+
+        return $best;
+    }
 }

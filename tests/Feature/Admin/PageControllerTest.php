@@ -31,6 +31,21 @@ class PageControllerTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_breadcrumb_names_the_section_not_the_dashboard(): void
+    {
+        Permission::firstOrCreate(['title' => 'page_access']);
+        Permission::firstOrCreate(['title' => 'page_edit']);
+        $this->loginAsAdmin();
+
+        $page = Page::factory()->create();
+
+        foreach (['/admin/pages', "/admin/pages/{$page->id}/edit"] as $url) {
+            $this->get($url)
+                ->assertStatus(200)
+                ->assertSee('<span class="cur">' . trans('vela::global.pages') . '</span>', false);
+        }
+    }
+
     public function test_create_page(): void
     {
         Permission::firstOrCreate(['title' => 'page_create']);
