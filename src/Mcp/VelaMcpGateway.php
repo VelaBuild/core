@@ -11,6 +11,7 @@ use VelaBuild\Core\Models\Menu;
 use VelaBuild\Core\Models\MenuItem;
 use VelaBuild\Core\Models\Page;
 use VelaBuild\Core\Models\VelaMcpProposal;
+use VelaBuild\Core\Services\AiChat\Tools\MarkdownToEditorJs;
 use VelaBuild\Core\Services\ToolSettingsService;
 
 final class VelaMcpGateway
@@ -23,7 +24,7 @@ final class VelaMcpGateway
             'site.describe' => $this->describe(),
             'content.list' => $this->listing($args),
             'content.search' => $this->listing($args, true),
-            'content.get' => $this->get((string) ($args['external_id'] ?? '')),
+            'content.get' => isset($args['path']) && ! isset($args['external_id']) ? $this->find((string) $args['path']) : $this->get((string) ($args['external_id'] ?? '')),
             'nav.get' => $this->nav(),
             'scripts.get' => $this->scripts(),
             'propose' => $this->prepare($args),
@@ -36,7 +37,10 @@ final class VelaMcpGateway
     private function describe(): array
     {
         $reads = ['site.describe', 'content.list', 'content.search', 'content.get', 'nav.get', 'scripts.get'];
-        return ['capabilities' => array_map(fn ($key) => ['key' => $key, 'mode' => in_array($key, $reads, true) ? 'read' : 'write', 'revertible' => true, 'constraints' => $key === 'content.list' ? ['max_page_size' => 100] : []], [...$reads, ...self::WRITES]), 'platform' => 'vela', 'platform_version' => app()->version(), 'adapter_version' => '1.0.0', 'content_types' => ['page', 'article'], 'preferred_body_format' => 'blocks', 'content_mapping' => null, 'limits' => ['max_list_page_size' => 100, 'max_resources_per_proposal' => 1], 'notes' => []];
+        // Bodies are read back as blocks, but a client writes an article in Markdown and it is
+        // converted here (see writable()); new articles live under /posts/.
+        $constraints = ['content.list' => ['max_page_size' => 100], 'content.create' => ['create_path_prefix' => '/posts/']];
+        return ['capabilities' => array_map(fn ($key) => ['key' => $key, 'mode' => in_array($key, $reads, true) ? 'read' : 'write', 'revertible' => true, 'constraints' => $constraints[$key] ?? []], [...$reads, ...self::WRITES]), 'platform' => 'vela', 'platform_version' => app()->version(), 'adapter_version' => '1.0.0', 'content_types' => ['page', 'article'], 'preferred_body_format' => 'markdown', 'content_mapping' => null, 'limits' => ['max_list_page_size' => 100, 'max_resources_per_proposal' => 1], 'notes' => []];
     }
 
     private function listing(array $args, bool $search = false): array
@@ -65,6 +69,20 @@ final class VelaMcpGateway
         $model = $type === 'page' ? Page::with('rows.blocks')->findOrFail($key) : ($type === 'article' ? Content::findOrFail($key) : null);
         abort_unless($model, 404);
         return $this->result($this->resource($model, $type, true), 1, 1, false, '');
+    }
+
+    /** The page or article served at a site path: /posts/{slug} is an article, /{slug} a page. */
+    private function find(string $path): array
+    {
+        if (preg_match('~^/posts/([^/]+)/?$~D', $path, $match) === 1) {
+            $model = Content::where('slug', $match[1])->first();
+            $type = 'article';
+        } elseif (preg_match('~^/([^/]+)/?$~D', $path, $match) === 1) {
+            $model = Page::where('slug', $match[1])->first();
+            $type = 'page';
+        }
+        abort_unless(isset($model), 404);
+        return $this->get($type.':'.$model->getKey());
     }
 
     private function scripts(): array
@@ -133,6 +151,15 @@ final class VelaMcpGateway
                 [$type, $id] = $this->target($target);
                 $model = $this->model($type, $id);
                 $before = ['type' => $type, 'snapshot' => $this->snapshot($model, $type), 'resource' => $this->resource($model, $type, true)];
+                if (in_array($args['capability'], ['content.update', 'meta.update'], true)) {
+                    $this->editable($args['capability'], $type, $args['payload'] ?? null);
+                    // JSON columns may reorder keys; the diff lists fields in the order asked.
+                    $before['order'] = array_keys($args['payload']);
+                }
+            } elseif (array_key_exists('body', $args['payload'] ?? [])) {
+                // A site-contract client names the new article by its address and sends its body.
+                $args['payload'] = $this->createAt($args['target_url'] ?? null, $args['payload']);
+                $before = ['order' => array_keys($args['payload'])];
             } else {
                 abort_unless(in_array($args['payload']['type'] ?? null, ['page', 'article'], true), 422);
             }
@@ -149,8 +176,26 @@ final class VelaMcpGateway
         $nav = $proposal->capability === 'nav.update';
         $targetName = $scripts ? 'site:scripts' : ($nav ? 'site:nav' : ($proposal->target_external_id ?? ($proposal->payload['slug'] ?? 'new-content')));
         $op = $proposal->capability === 'content.create' ? 'create' : ($proposal->capability === 'content.delete' ? 'delete' : 'update');
+        $operations = [['op' => $op, 'target' => $targetName, 'field' => $scripts ? 'analytics' : ($nav ? 'menus' : null), 'before' => $before['resource'] ?? $before['scripts'] ?? $before['nav']['menus'] ?? null, 'after' => $nav ? $proposal->payload['menus'] : $proposal->payload, 'note' => $scripts ? 'Install one site-wide analytics container; no arbitrary script is accepted.' : ($nav ? 'Replace reviewed menu slots with same-site links.' : null)]];
+        // A client reviews its own preview of the change, note included, and refuses one that differs: a new
+        // article is one creation at its address, an edit one operation per field.
+        $order = $before['order'] ?? null;
+        if (is_array($order) && $proposal->capability === 'content.create') {
+            $after = [];
+            foreach ($order as $field) $after[$field] = $proposal->payload[$field];
+            $operations = [['op' => 'create', 'target' => $after['path'], 'field' => null, 'before' => null, 'after' => $after, 'note' => 'A new page at this path; reverting this proposal removes it.']];
+        } elseif (is_array($order)) {
+            $meta = $proposal->capability === 'meta.update';
+            $operations = [];
+            foreach ($order as $field) {
+                $was = $meta ? ($before['resource']['meta'][$field] ?? null)
+                    : (in_array($field, ['body', 'title', 'excerpt', 'taxonomies'], true) ? $before['resource'][$field] : ($before['snapshot']['fields'][$field] ?? null));
+                $operations[] = ['op' => $was === null ? 'create' : 'update', 'target' => $proposal->target_external_id, 'field' => ($meta ? 'meta.' : '').$field, 'before' => $was, 'after' => $proposal->payload[$field], 'note' => null];
+            }
+        }
+        $counts = array_count_values(array_column($operations, 'op'));
 
-        return ['diff' => ['operations' => [['op' => $op, 'target' => $targetName, 'field' => $scripts ? 'analytics' : ($nav ? 'menus' : null), 'before' => $before['resource'] ?? $before['scripts'] ?? $before['nav']['menus'] ?? null, 'after' => $nav ? $proposal->payload['menus'] : $proposal->payload, 'note' => $scripts ? 'Install one site-wide analytics container; no arbitrary script is accepted.' : ($nav ? 'Replace reviewed menu slots with same-site links.' : null)]], 'summary' => ['resources_affected' => 1, 'operation_count' => 1, 'urls' => [], 'urls_truncated' => false, 'counts_by_op' => [$op => 1], 'body_bytes_added' => null, 'body_bytes_removed' => null]], 'external_ref' => $proposal->uuid, 'preview_url' => null, 'remote_artefact_created' => true, 'expires_at' => null];
+        return ['diff' => ['operations' => $operations, 'summary' => ['resources_affected' => 1, 'operation_count' => count($operations), 'urls' => [], 'urls_truncated' => false, 'counts_by_op' => $counts, 'body_bytes_added' => null, 'body_bytes_removed' => null]], 'external_ref' => $proposal->uuid, 'preview_url' => null, 'remote_artefact_created' => true, 'expires_at' => null];
     }
 
     private function transition(array $args, bool $revert): array
@@ -177,9 +222,9 @@ final class VelaMcpGateway
                 $this->replaceNavigation($revert ? $p->before_snapshot['nav'] : $p->payload);
                 $after = $this->nav()['data'];
             } elseif (! $revert && $p->capability === 'content.create') {
-                $type = $p->payload['type'];
+                $type = $p->payload['type'] ?? 'article';
                 $model = $type === 'page' ? new Page : new Content;
-                $this->write($model, $type, $p->payload);
+                $this->write($model, $type, $this->writable($p, $type));
                 $p->target_external_id = $type.':'.$model->getKey();
                 $after = $this->resource($model->fresh(), $type, true);
             } else {
@@ -194,7 +239,7 @@ final class VelaMcpGateway
                     elseif ($p->capability === 'content.delete') $model->restore();
                     else $this->restore($model, $type, $p->before_snapshot['snapshot']);
                 } elseif ($p->capability === 'content.delete') $model->delete();
-                else $this->write($model, $type, $p->payload);
+                else $this->write($model, $type, $this->writable($p, $type));
                 $after = $model->exists && ! $model->trashed() ? $this->resource($model->fresh(), $type, true) : ['external_id' => $type.':'.$model->getKey(), 'deleted' => true];
             }
             $p->update(['status' => $revert ? 'reverted' : 'applied', 'after_snapshot' => $after, 'after_hash' => hash('sha256', json_encode($after))]);
@@ -246,6 +291,64 @@ final class VelaMcpGateway
         if ($trashed) $query->withTrashed();
         if ($lock) $query->lockForUpdate();
         return $query->findOrFail($id);
+    }
+
+    /** Whether a content or meta edit names only fields this page or article can take. */
+    private function editable(string $capability, string $type, mixed $payload): void
+    {
+        abort_unless(is_array($payload) && $payload !== [], 422);
+        if ($capability === 'meta.update') {
+            // Articles have no separate SEO title: their title is the headline.
+            $allowed = $type === 'page' ? ['title', 'description'] : ['description'];
+            abort_unless(array_diff(array_keys($payload), $allowed) === [] && collect($payload)->every(fn ($value) => is_string($value) && mb_strlen($value) <= 500), 422);
+        } elseif ($type === 'page') {
+            // A page body is its rows of blocks, which are edited in the page builder.
+            abort_if(array_key_exists('body', $payload) || array_key_exists('excerpt', $payload), 422);
+        }
+    }
+
+    /** A new article's address on this site, checked free, ahead of its title, body and summary. */
+    private function createAt(mixed $url, array $payload): array
+    {
+        $host = fn ($address) => preg_replace('/^www\./', '', (string) parse_url((string) $address, PHP_URL_HOST));
+        $path = is_string($url) ? parse_url($url, PHP_URL_PATH) : null;
+        abort_unless(is_string($url) && $host($url) === $host(url('/')) && is_string($path)
+            && preg_match('~^/posts/([A-Za-z0-9][A-Za-z0-9_-]{0,190})$~D', $path, $match) === 1, 422);
+        abort_unless(array_diff(array_keys($payload), ['title', 'body', 'description']) === []
+            && collect($payload)->every(fn ($value) => is_string($value) && trim($value) !== '')
+            && isset($payload['title']) && mb_strlen($payload['title']) <= 255, 422);
+        abort_if(Content::withTrashed()->where('slug', $match[1])->exists(), 409);
+        return ['path' => $path] + $payload;
+    }
+
+    /**
+     * The model fields a proposal writes. Site-contract names map onto Vela's own: an article
+     * body arrives as Markdown (or an Editor.js document) and is stored as Editor.js, its
+     * excerpt is the description, and a page's meta title and description are its SEO fields.
+     */
+    private function writable(VelaMcpProposal $p, string $type): array
+    {
+        $payload = $p->payload;
+        if ($p->capability === 'meta.update') {
+            return $type === 'page'
+                ? array_filter(['meta_title' => $payload['title'] ?? null, 'meta_description' => $payload['description'] ?? null], fn ($value) => $value !== null)
+                : ['description' => $payload['description']];
+        }
+        if (array_key_exists('body', $payload)) {
+            $decoded = json_decode((string) $payload['body'], true);
+            $payload['content'] = is_array($decoded) && is_array($decoded['blocks'] ?? null) ? $payload['body'] : MarkdownToEditorJs::convert((string) $payload['body']);
+            unset($payload['body']);
+        }
+        if (array_key_exists('excerpt', $payload)) {
+            $payload['description'] = $payload['excerpt'];
+            unset($payload['excerpt']);
+        }
+        if ($p->capability === 'content.create' && isset($payload['path'])) {
+            // The owner approved publishing it, so it goes live rather than into drafts.
+            return ['title' => $payload['title'], 'slug' => substr($payload['path'], strlen('/posts/')), 'content' => $payload['content'],
+                'description' => $payload['description'] ?? MarkdownToEditorJs::excerpt((string) $p->payload['body']), 'status' => 'published', 'published_at' => now()];
+        }
+        return $payload;
     }
 
     private function write(Model $model, string $type, array $payload): void
