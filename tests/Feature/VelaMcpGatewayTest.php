@@ -23,14 +23,112 @@ class VelaMcpGatewayTest extends PackageTestCase
 
     public function test_site_and_content_bodies_use_a_body_format_clients_recognise(): void
     {
-        // Page rows and article Editor.js documents are both structured blocks. Clients such
-        // as Gemma accept only html, markdown, mdx or blocks and refuse the whole connection
-        // on anything else.
+        // Page rows and article Editor.js documents are both structured blocks, read back as
+        // such. Clients such as Gemma accept only html, markdown, mdx or blocks and refuse the
+        // whole connection on anything else; they write articles in Markdown, converted here.
         $gateway = app(VelaMcpGateway::class);
         $article = Content::create(['title' => 'Blocks', 'slug' => 'blocks', 'content' => '{"blocks":[]}', 'status' => 'published']);
+        $describe = $gateway->call('site.describe', []);
+        $create = collect($describe['capabilities'])->firstWhere('key', 'content.create');
 
-        $this->assertSame('blocks', $gateway->call('site.describe', [])['preferred_body_format']);
+        $this->assertSame('markdown', $describe['preferred_body_format']);
+        $this->assertSame('/posts/', $create['constraints']['create_path_prefix']);
         $this->assertSame('blocks', $gateway->call('content.get', ['external_id' => 'article:'.$article->id])['data']['body_format']);
+    }
+
+    public function test_a_markdown_article_is_previewed_at_its_address_then_published_and_reverted(): void
+    {
+        $gateway = app(VelaMcpGateway::class);
+        $payload = ['title' => 'Day trips', 'body' => "Intro line.\n\n## The route\n\nRide **south** along the coast.", 'description' => 'Where to ride.'];
+        $args = ['capability' => 'content.create', 'target_url' => 'http://localhost/posts/day-trips', 'payload' => $payload, 'rationale' => 'Publish the approved article', 'idempotency_key' => 'gemma-create-1'];
+
+        $prepared = $gateway->call('propose', $args);
+
+        // The operation is the one a client previews itself: a creation at the address.
+        $this->assertSame([['op' => 'create', 'target' => '/posts/day-trips', 'field' => null, 'before' => null, 'after' => ['path' => '/posts/day-trips'] + $payload,
+            'note' => 'A new article at this address; reverting this proposal removes it.']], $prepared['diff']['operations']);
+        $this->assertSame($prepared, $gateway->call('propose', $args));
+        $this->assertFalse(Content::where('slug', 'day-trips')->exists());
+
+        $applied = $gateway->call('apply', ['proposal_id' => 'approved', 'external_ref' => $prepared['external_ref']]);
+        $article = Content::where('slug', 'day-trips')->firstOrFail();
+        $blocks = json_decode($article->content, true)['blocks'];
+        $this->assertSame(url('/posts/day-trips'), $applied['resulting_url']);
+        $this->assertSame('published', $article->status);
+        $this->assertSame('Where to ride.', $article->description);
+        $this->assertSame('header', collect($blocks)->firstWhere('data.text', 'The route')['type']);
+        $this->assertStringContainsString('<strong>south</strong>', json_encode($blocks, JSON_UNESCAPED_SLASHES));
+        $this->assertSame('article:'.$article->id, $gateway->call('content.get', ['path' => '/posts/day-trips'])['data']['external_id']);
+        $this->get('/posts/day-trips')->assertOk();
+
+        $gateway->call('revert', ['proposal_id' => 'approved', 'external_ref' => $prepared['external_ref']]);
+        $this->assertSoftDeleted($article);
+    }
+
+    public function test_a_new_article_needs_a_free_posts_address(): void
+    {
+        $gateway = app(VelaMcpGateway::class);
+        Content::create(['title' => 'Taken', 'slug' => 'taken', 'content' => '{"blocks":[]}', 'status' => 'published']);
+        $propose = fn (string $url, string $key) => $gateway->call('propose', ['capability' => 'content.create', 'target_url' => $url,
+            'payload' => ['title' => 'New', 'body' => 'Text'], 'rationale' => 'Publish', 'idempotency_key' => $key]);
+
+        foreach ([['http://localhost/posts/taken', 409], ['http://localhost/blog/new', 422], ['https://elsewhere.test/posts/new', 422]] as [$url, $status]) {
+            try {
+                $propose($url, $url);
+                $this->fail('Expected a refusal for '.$url);
+            } catch (HttpException $e) {
+                $this->assertSame($status, $e->getStatusCode(), $url);
+            }
+        }
+    }
+
+    public function test_an_unknown_address_is_answered_as_not_found_over_mcp(): void
+    {
+        // A client only treats an address as free for a new article on a real "not found".
+        // (laravel/mcp hands tools their arguments from its own provider, which a site
+        // auto-discovers but the package tests do not.)
+        $this->app->register(\Laravel\Mcp\Server\McpServiceProvider::class);
+        app(\VelaBuild\Core\Services\McpSettingsService::class)->set('enabled', '1');
+        app(\VelaBuild\Core\Services\McpSettingsService::class)->set('api_key', 'test-key');
+        $call = fn (array $arguments) => $this->withToken('test-key')->postJson('/api/mcp', ['jsonrpc' => '2.0', 'id' => '1', 'method' => 'tools/call',
+            'params' => ['name' => 'content.get', 'arguments' => $arguments, '_meta' => ['io.modelcontextprotocol/protocolVersion' => '2026-07-28', 'io.modelcontextprotocol/clientCapabilities' => new \stdClass]]],
+            ['MCP-Protocol-Version' => '2026-07-28', 'Mcp-Method' => 'tools/call', 'Mcp-Name' => 'content.get']);
+
+        $article = Content::create(['title' => 'Here', 'slug' => 'here', 'content' => '{"blocks":[]}', 'status' => 'published']);
+        $call(['path' => '/posts/here'])->assertOk()->assertJsonPath('result.structuredContent.data.external_id', 'article:'.$article->id);
+        $call(['path' => '/posts/nothing-here'])->assertNotFound()->assertJsonPath('ok', false)->assertJsonPath('error.code', 'not_found');
+        $call(['external_id' => 'article:999999'])->assertNotFound()->assertJsonPath('error.code', 'not_found');
+    }
+
+    public function test_meta_and_body_edits_are_previewed_per_field_and_write_the_right_columns(): void
+    {
+        $gateway = app(VelaMcpGateway::class);
+        $page = \VelaBuild\Core\Models\Page::create(['title' => 'About', 'slug' => 'about', 'status' => 'published', 'locale' => 'en', 'meta_description' => 'Old']);
+        $meta = $gateway->call('propose', ['capability' => 'meta.update', 'target_external_id' => 'page:'.$page->id,
+            'payload' => ['title' => 'About the café', 'description' => 'New'], 'rationale' => 'Better snippet', 'idempotency_key' => 'meta-1']);
+
+        $this->assertSame([['op' => 'create', 'target' => 'page:'.$page->id, 'field' => 'meta.title', 'before' => null, 'after' => 'About the café', 'note' => null],
+            ['op' => 'update', 'target' => 'page:'.$page->id, 'field' => 'meta.description', 'before' => 'Old', 'after' => 'New', 'note' => null]], $meta['diff']['operations']);
+        $gateway->call('apply', ['proposal_id' => 'approved', 'external_ref' => $meta['external_ref']]);
+        $page->refresh();
+        $this->assertSame(['About', 'About the café', 'New'], [$page->title, $page->meta_title, $page->meta_description]);
+
+        $article = Content::create(['title' => 'Post', 'slug' => 'post', 'content' => '{"blocks":[]}', 'description' => 'Short', 'status' => 'published']);
+        $body = $gateway->call('propose', ['capability' => 'content.update', 'target_external_id' => 'article:'.$article->id,
+            'payload' => ['body' => 'Fresh **text**.'], 'rationale' => 'Refresh', 'idempotency_key' => 'body-1']);
+        $this->assertSame([['op' => 'update', 'target' => 'article:'.$article->id, 'field' => 'body', 'before' => '{"blocks":[]}', 'after' => 'Fresh **text**.', 'note' => null]], $body['diff']['operations']);
+        $gateway->call('apply', ['proposal_id' => 'approved', 'external_ref' => $body['external_ref']]);
+        $this->assertStringContainsString('<strong>text</strong>', json_encode(json_decode($article->fresh()->content, true), JSON_UNESCAPED_SLASHES));
+
+        // An article has no SEO title of its own, and a page body is edited in the page builder.
+        foreach ([['meta.update', 'article:'.$article->id, ['title' => 'X']], ['content.update', 'page:'.$page->id, ['body' => 'X']]] as $i => [$capability, $target, $payload]) {
+            try {
+                $gateway->call('propose', ['capability' => $capability, 'target_external_id' => $target, 'payload' => $payload, 'rationale' => 'r', 'idempotency_key' => 'refused-'.$i]);
+                $this->fail('Expected 422 for '.$capability);
+            } catch (HttpException $e) {
+                $this->assertSame(422, $e->getStatusCode());
+            }
+        }
     }
 
     public function test_an_article_is_reported_at_the_address_it_is_served_from(): void

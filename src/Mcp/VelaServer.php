@@ -3,10 +3,12 @@
 namespace VelaBuild\Core\Mcp;
 
 use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Laravel\Mcp\Request;
 use Laravel\Mcp\Response;
 use Laravel\Mcp\Server;
 use Laravel\Mcp\Server\Tool;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 final class VelaServer extends Server
 {
@@ -47,8 +49,8 @@ final class VelaTool extends Tool
         return match ($this->toolName) {
             'content.list' => ['type' => $schema->string(), 'status' => $schema->string(), 'limit' => $schema->integer()->min(1)->max(100)],
             'content.search' => ['query' => $schema->string()->required(), 'type' => $schema->string(), 'limit' => $schema->integer()->min(1)->max(50)],
-            'content.get' => ['external_id' => $schema->string()->required()],
-            'propose' => ['capability' => $schema->string()->required(), 'target_external_id' => $schema->string(), 'payload' => $schema->object()->required(), 'rationale' => $schema->string()->required(), 'idempotency_key' => $schema->string()->required()],
+            'content.get' => ['external_id' => $schema->string(), 'path' => $schema->string()],
+            'propose' => ['capability' => $schema->string()->required(), 'target_external_id' => $schema->string(), 'target_url' => $schema->string(), 'payload' => $schema->object()->required(), 'rationale' => $schema->string()->required(), 'idempotency_key' => $schema->string()->required()],
             'apply' => ['proposal_id' => $schema->string()->required(), 'external_ref' => $schema->string()->required(), 'expected_hashes' => $schema->object()->required()],
             'revert' => ['proposal_id' => $schema->string()->required(), 'external_ref' => $schema->string()->required()],
             default => [],
@@ -57,7 +59,19 @@ final class VelaTool extends Tool
 
     public function handle(Request $request, VelaMcpGateway $gateway): mixed
     {
-        $result = $gateway->call($this->toolName, $request->all());
+        try {
+            $result = $gateway->call($this->toolName, $request->all());
+        } catch (HttpExceptionInterface|ModelNotFoundException $e) {
+            $status = $e instanceof ModelNotFoundException ? 404 : $e->getStatusCode();
+            if (! in_array($status, [404, 409, 422], true)) {
+                throw $e;
+            }
+            // "No such page", "not a change this site takes" and "the page changed since" are
+            // answered with that HTTP status by VelaMcpAuth, so a client can tell them apart
+            // from an outage (and only a real "not found" frees an address for a new article).
+            request()->attributes->set('vela_mcp_refusal', $status);
+            return Response::error(match ($status) { 404 => 'Not found.', 409 => 'The content changed since this was prepared.', default => 'This change is not supported.' });
+        }
         return Response::structured($result);
     }
 }

@@ -36,6 +36,15 @@ class VelaMcpAuth
         // Successful auth — clear the limiter for this IP
         RateLimiter::clear($throttleKey);
 
-        return $next($request);
+        $response = $next($request);
+        // A refused tool call (see VelaTool::handle) carries the site contract's status and
+        // error envelope instead of a successful MCP answer that only says it failed.
+        $status = $request->attributes->get('vela_mcp_refusal');
+        if (is_int($status)) {
+            $code = match ($status) { 404 => 'not_found', 409 => 'conflict', default => 'unsupported' };
+            return response()->json(['ok' => false, 'data' => null, 'error' => ['code' => $code, 'message' => str_replace('_', ' ', ucfirst($code)).'.']], $status);
+        }
+
+        return $response;
     }
 }
