@@ -6172,7 +6172,8 @@ PageEditor.registerBlockType = function(name, config) {
     });
 
     PageEditor.registerBlockType('icon_box', {
-        icon: 'fa-icons',
+        // The admin loads Font Awesome 5.2, and fa-icons only arrived in 5.3.
+        icon: 'fa-cubes',
         label: 'Icon Box',
         defaults: { content: { items: [] }, settings: { columns: 3, layout: 'vertical', card_style: 'plain', icon_shape: 'none', icon_color: '', display: 'grid', autoplay: false, interval: 5000 } },
         renderPreview: function(block) {
