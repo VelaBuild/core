@@ -393,8 +393,13 @@ function initInPlaceSave() {
             dataType: 'json',
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         }).done(function(res) {
+            // applyResponse swaps the placeholder ids of new rows and blocks
+            // for real ones, so the page no longer reads the same as sentState
+            // even though nothing was edited. When nothing changed while the
+            // request was out, the page as it now stands is the saved page.
+            var untouched = currentState() === sentState;
             applyResponse(res);
-            savedState = sentState;
+            savedState = untouched ? currentState() : sentState;
             toast(TXT.saved);
         }).fail(function(xhr) {
             var message = TXT.failed;
