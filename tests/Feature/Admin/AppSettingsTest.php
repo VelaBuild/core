@@ -19,6 +19,20 @@ class AppSettingsTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_breadcrumb_says_settings_on_settings_pages_outside_the_settings_routes()
+    {
+        foreach (['config_access', 'config_edit', 'translation_access'] as $title) {
+            Permission::firstOrCreate(['title' => $title]);
+        }
+        $this->loginAsAdmin();
+
+        foreach (['/admin/ai-settings', '/admin/translations'] as $url) {
+            $this->get($url)
+                ->assertStatus(200)
+                ->assertSee('<span class="cur">' . trans('vela::global.settings') . '</span>', false);
+        }
+    }
+
     public function test_app_settings_requires_permission()
     {
         $this->loginAsUser();

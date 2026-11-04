@@ -47,6 +47,11 @@
                 <span class="sep">/</span>
                 @php
                     $velaMenuLabel = app(\VelaBuild\Core\Vela::class)->menus()->activeLabel(request()->route()?->getName());
+                    // Some Settings pages (Translations, AI Settings) live outside the
+                    // settings routes, so the menu doesn't match them.
+                    if ($velaMenuLabel === null && app(\VelaBuild\Core\Vela::class)->settingsNav()->current()) {
+                        $velaMenuLabel = 'vela::global.settings';
+                    }
                 @endphp
                 <span class="cur">@yield('breadcrumb', trans($velaMenuLabel ?? 'vela::global.dashboard'))</span>
             </nav>
