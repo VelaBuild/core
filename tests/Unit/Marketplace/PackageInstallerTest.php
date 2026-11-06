@@ -108,13 +108,13 @@ class PackageInstallerTest extends TestCase
         $this->assertNotEmpty($content['repositories']);
 
         $urls = array_column($content['repositories'], 'url');
-        $this->assertContains('https://marketplace.vela.build', $urls);
+        $this->assertContains('https://marketplace.vela.build/api', $urls);
 
         $types = array_column($content['repositories'], 'type');
         $this->assertContains('composer', $types);
     }
 
-    public function test_ensure_repository_registered_does_not_duplicate(): void
+    public function test_ensure_repository_registered_moves_the_old_address_to_the_api_and_does_not_duplicate(): void
     {
         $composerJsonPath = $this->tmpDir . '/composer.json';
         file_put_contents($composerJsonPath, json_encode([
@@ -132,7 +132,7 @@ class PackageInstallerTest extends TestCase
         $content = json_decode(file_get_contents($composerJsonPath), true);
 
         $urls = array_column($content['repositories'], 'url');
-        $this->assertCount(1, array_filter($urls, fn($u) => $u === 'https://marketplace.vela.build'));
+        $this->assertSame(['https://marketplace.vela.build/api'], $urls);
     }
 
     // -------------------------------------------------------------------------
@@ -175,6 +175,30 @@ class PackageInstallerTest extends TestCase
         $this->assertArrayHasKey('other-host.com', $content['http-basic']);
         // New entry added
         $this->assertArrayHasKey('marketplace.vela.build', $content['http-basic']);
+    }
+
+    public function test_ensure_auth_json_signs_in_with_the_license_key(): void
+    {
+        $installer = $this->makeInstaller();
+        $installer->ensureAuthJsonConfigured('vela_license_key');
+
+        $content = json_decode(file_get_contents($this->tmpDir . '/auth.json'), true);
+
+        $this->assertSame(
+            ['username' => 'test.example.com', 'password' => 'vela_license_key'],
+            $content['http-basic']['marketplace.vela.build']
+        );
+    }
+
+    public function test_ensure_auth_json_keeps_the_stored_key_when_given_none(): void
+    {
+        $installer = $this->makeInstaller();
+        $installer->ensureAuthJsonConfigured('vela_first_purchase');
+        $installer->ensureAuthJsonConfigured();
+
+        $content = json_decode(file_get_contents($this->tmpDir . '/auth.json'), true);
+
+        $this->assertSame('vela_first_purchase', $content['http-basic']['marketplace.vela.build']['password']);
     }
 
     // -------------------------------------------------------------------------

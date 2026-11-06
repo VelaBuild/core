@@ -48,6 +48,10 @@ class MarketplaceBrowseController extends Controller
 
         $installed = InstalledPackage::where('composer_name', $plugin['composer_name'] ?? '')->first();
 
-        return view('vela::admin.marketplace.show', compact('plugin', 'installed'));
+        // The bare host, as the marketplace locks licenses to it. A full URL
+        // ("https://…") never matches, so a license bought with it fails validation.
+        $domain = $this->settings->getDomain();
+
+        return view('vela::admin.marketplace.show', compact('plugin', 'installed', 'domain'));
     }
 }

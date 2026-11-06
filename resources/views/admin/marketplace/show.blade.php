@@ -29,7 +29,8 @@
                 <div class="mb-4">
                     <p class="lead text-muted">{{ $plugin['short_description'] ?? '' }}</p>
                     <div class="plugin-description">
-                        {!! nl2br(e($plugin['description'] ?? '')) !!}
+                        {{-- Authors write descriptions in Markdown. Raw HTML is stripped and only safe links kept. --}}
+                        {!! \Illuminate\Support\Str::markdown($plugin['description'] ?? '', ['html_input' => 'strip', 'allow_unsafe_links' => false]) !!}
                     </div>
                 </div>
 
@@ -133,7 +134,7 @@
                             . '/plugins/' . urlencode($plugin['slug'] ?? '');
                     $separator = str_contains($baseCheckoutUrl, '?') ? '&' : '?';
                     $checkoutUrl = $baseCheckoutUrl . $separator
-                        . 'domain=' . urlencode(config('app.url'))
+                        . 'domain=' . urlencode($domain)
                         . '&return_url=' . urlencode(route('vela.admin.marketplace.purchase.callback'));
                 @endphp
 
@@ -150,6 +151,35 @@
                     <a href="{{ $checkoutUrl }}" class="btn btn-primary btn-block">
                         <i class="fas fa-shopping-cart mr-1"></i> Purchase &amp; Install
                     </a>
+
+                    {{-- For a license granted by the Vela team or bought on the marketplace website --}}
+                    <div class="text-left mt-3 pt-3 border-top">
+                        <a href="#license-key-form" data-toggle="collapse" role="button"
+                           aria-expanded="{{ $errors->has('license_key') ? 'true' : 'false' }}" aria-controls="license-key-form"
+                           class="small">
+                            Already have a license?
+                        </a>
+                        <form id="license-key-form" method="POST"
+                              action="{{ route('vela.admin.marketplace.activate', $plugin['slug'] ?? '') }}"
+                              class="collapse {{ $errors->has('license_key') ? 'show' : '' }} mt-2">
+                            @csrf
+                            <label for="license_key" class="small text-muted mb-1">License key</label>
+                            <input type="text" id="license_key" name="license_key" required maxlength="128"
+                                   autocomplete="off" spellcheck="false" placeholder="vela_…"
+                                   class="form-control form-control-sm {{ $errors->has('license_key') ? 'is-invalid' : '' }}">
+                            @error('license_key')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <small class="form-text text-muted">
+                                The key must be issued for <code>{{ $domain }}</code>. Find it under
+                                <a href="{{ rtrim(\VelaBuild\Core\Services\Marketplace\MarketplaceSettingsService::API_URL, '/') }}/purchases"
+                                   target="_blank" rel="noopener noreferrer">My Licenses</a>.
+                            </small>
+                            <button type="submit" class="btn btn-outline-primary btn-sm btn-block mt-2">
+                                <i class="fas fa-key mr-1"></i> Install with license
+                            </button>
+                        </form>
+                    </div>
                 @endif
 
             </div>

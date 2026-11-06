@@ -22,9 +22,11 @@ class PackageInstaller
     /**
      * Install a Composer package.
      *
+     * @param  string|null  $licenseKey  the marketplace serves downloads only to a
+     *                                   site that signs in with one of its license keys
      * @return array{success: bool, output: string, error: string}
      */
-    public function install(string $composerName): array
+    public function install(string $composerName, ?string $licenseKey = null): array
     {
         $this->validateComposerName($composerName);
 
@@ -36,7 +38,7 @@ class PackageInstaller
         try {
             $this->backup();
             $this->ensureRepositoryRegistered();
-            $this->ensureAuthJsonConfigured();
+            $this->ensureAuthJsonConfigured($licenseKey);
 
             $process = new Process(
                 ['composer', 'require', $composerName, '--no-interaction', '--no-scripts'],
@@ -162,26 +164,54 @@ class PackageInstaller
             $content['repositories'] = [];
         }
 
-        $apiUrl = $this->settings->getApiUrl();
+        $repositoryUrl = $this->repositoryUrl();
+        $apiUrl = rtrim($this->settings->getApiUrl(), '/');
+        $changed = false;
+        $found = false;
 
-        foreach ($content['repositories'] as $repo) {
-            if (isset($repo['url']) && $repo['url'] === $apiUrl) {
-                return;
+        foreach ($content['repositories'] as $i => $repo) {
+            $url = isset($repo['url']) ? rtrim($repo['url'], '/') : null;
+
+            if ($url === $repositoryUrl) {
+                $found = true;
+            } elseif ($url === $apiUrl) {
+                // Earlier releases registered the bare marketplace address, where
+                // composer finds no packages.json (404). Point it at the API.
+                $content['repositories'][$i]['url'] = $repositoryUrl;
+                $found = $changed = true;
             }
         }
 
-        $content['repositories'][] = [
-            'type' => 'composer',
-            'url'  => $apiUrl,
-        ];
+        if (!$found) {
+            $content['repositories'][] = [
+                'type' => 'composer',
+                'url'  => $repositoryUrl,
+            ];
+            $changed = true;
+        }
 
-        $this->atomicWriteJson($composerJsonPath, $content);
+        if ($changed) {
+            $this->atomicWriteJson($composerJsonPath, $content);
+        }
+    }
+
+    /**
+     * Where the marketplace serves its Composer repository (packages.json).
+     */
+    public function repositoryUrl(): string
+    {
+        return rtrim($this->settings->getApiUrl(), '/') . '/api';
     }
 
     /**
      * Ensure HTTP basic auth credentials for the marketplace are in auth.json.
+     *
+     * The marketplace signs a site in as "<site domain>:<license key>", and then
+     * serves every package that buyer has licensed. A new key replaces the stored
+     * one; without one the stored key is kept, so a later install or update does
+     * not sign out what an earlier purchase signed in.
      */
-    public function ensureAuthJsonConfigured(): void
+    public function ensureAuthJsonConfigured(?string $licenseKey = null): void
     {
         $authJsonPath = $this->basePath . '/auth.json';
         $content = file_exists($authJsonPath)
@@ -195,11 +225,12 @@ class PackageInstaller
         $apiUrl    = $this->settings->getApiUrl();
         $host      = parse_url($apiUrl, PHP_URL_HOST) ?? 'marketplace.vela.build';
         $domain    = $this->settings->getDomain();
-        $authToken = $this->settings->getAuthToken() ?? '';
+        $stored    = (string) ($content['http-basic'][$host]['password'] ?? '');
+        $password  = $licenseKey ?: ($stored ?: (string) ($this->settings->getAuthToken() ?? ''));
 
         $content['http-basic'][$host] = [
             'username' => $domain,
-            'password' => $authToken,
+            'password' => $password,
         ];
 
         $this->atomicWriteJson($authJsonPath, $content);

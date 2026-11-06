@@ -223,6 +223,7 @@ Route::prefix('marketplace')->name('marketplace.')->group(function () {
     Route::get('/search', [Admin\Marketplace\MarketplaceBrowseController::class, 'search'])->name('search');
     Route::get('/purchase/callback', [Admin\Marketplace\MarketplacePurchaseController::class, 'callback'])->name('purchase.callback');
     Route::get('/{slug}', [Admin\Marketplace\MarketplaceBrowseController::class, 'show'])->name('show');
+    Route::post('/{slug}/activate', [Admin\Marketplace\MarketplacePurchaseController::class, 'activate'])->name('activate');
 });
 
 // Installed Packages

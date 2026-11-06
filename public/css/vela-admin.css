@@ -2430,3 +2430,13 @@ body.vela-admin .vela-edit-form select.form-control { text-overflow: ellipsis; }
     font-size: .7rem;
     color: var(--vela-gray-500, #6b7280);
 }
+
+/* Marketplace plugin page: descriptions are author Markdown, so keep their headings at card scale. */
+.plugin-description h1,
+.plugin-description h2 { font-size: 1.15rem; margin-top: 1rem; }
+.plugin-description h3,
+.plugin-description h4,
+.plugin-description h5,
+.plugin-description h6 { font-size: 1rem; margin-top: 1rem; }
+.plugin-description > :first-child { margin-top: 0; }
+.plugin-description img { max-width: 100%; height: auto; }

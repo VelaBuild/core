@@ -59,20 +59,86 @@ class MarketplacePurchaseController extends Controller
                 ->with('error', 'Purchase verification failed: Invalid package name received.');
         }
 
+        return $this->installWithLicense($composerName, $data);
+    }
+
+    /**
+     * Install a plugin with a license key the site owner already holds.
+     *
+     * A license can reach someone without a checkout on this site: granted by
+     * the Vela team, bought from the marketplace website, or bought before the
+     * site was rebuilt. Without this, the only way in was "Purchase & Install",
+     * which sends them to pay again for what they already own.
+     */
+    public function activate(Request $request, string $slug)
+    {
+        abort_if(Gate::denies('marketplace_install'), Response::HTTP_FORBIDDEN);
+
+        $request->validate([
+            'license_key' => ['required', 'string', 'max:128'],
+        ]);
+
+        $plugin = $this->client->getPlugin($slug);
+
+        abort_if(is_null($plugin), Response::HTTP_NOT_FOUND);
+
+        $composerName = $plugin['composer_name'] ?? null;
+
+        if (!$composerName || !preg_match(self::COMPOSER_NAME, $composerName)) {
+            return $this->backToPlugin($slug, 'This plugin has no valid package name, so it cannot be installed.');
+        }
+
+        $licenseKey = trim($request->input('license_key'));
+        $domain = $this->settings->getDomain();
+        $result = $this->client->validateLicense($licenseKey, $domain);
+
+        if (empty($result['valid'])) {
+            $reason = match ($result['reason'] ?? null) {
+                'domain_mismatch' => 'This license key belongs to a different domain. It must be issued for ' . $domain . '.',
+                'expired' => 'This license key has expired.',
+                'revoked', 'suspended' => 'This license key is no longer active.',
+                default => 'The marketplace did not recognise this license key.',
+            };
+
+            return $this->backToPlugin($slug, $reason);
+        }
+
+        // The marketplace does not yet say which plugin a key is for. When it
+        // does, refuse a key bought for one plugin being spent on another.
+        if (isset($result['composer_name']) && $result['composer_name'] !== $composerName) {
+            return $this->backToPlugin($slug, 'This license key is for a different plugin.');
+        }
+
+        return $this->installWithLicense($composerName, array_merge($result, [
+            'license_key' => $licenseKey,
+            'version' => $plugin['current_version'] ?? null,
+        ]));
+    }
+
+    /**
+     * Install the package (unless it is already here) and keep its license.
+     *
+     * @param  array<string, mixed>  $data  license details from the marketplace
+     */
+    private function installWithLicense(string $composerName, array $data)
+    {
+        $licenseFields = [
+            'license_key' => $data['license_key'] ?? '',
+            'domain' => $data['domain'] ?? $this->settings->getDomain(),
+            'dev_domain' => $data['dev_domain'] ?? null,
+            'type' => $data['type'] ?? PackageLicense::TYPE_ONETIME,
+            'expires_at' => $data['expires_at'] ?? null,
+            'validation_status' => PackageLicense::VALIDATION_VALID,
+            // The marketplace answers "purchase_id"; "marketplace_purchase_id" was never sent.
+            'marketplace_purchase_id' => $data['purchase_id'] ?? $data['marketplace_purchase_id'] ?? null,
+        ];
+
         $existing = InstalledPackage::where('composer_name', $composerName)->first();
 
         if ($existing) {
             $existing->license()->updateOrCreate(
                 ['installed_package_id' => $existing->id],
-                [
-                    'license_key' => $data['license_key'] ?? '',
-                    'domain' => $data['domain'] ?? $this->settings->getDomain(),
-                    'dev_domain' => $data['dev_domain'] ?? null,
-                    'type' => $data['type'] ?? PackageLicense::TYPE_ONETIME,
-                    'expires_at' => $data['expires_at'] ?? null,
-                    'validation_status' => PackageLicense::VALIDATION_VALID,
-                    'marketplace_purchase_id' => $data['marketplace_purchase_id'] ?? null,
-                ]
+                $licenseFields
             );
 
             $this->cacheWriter->write();
@@ -81,7 +147,7 @@ class MarketplacePurchaseController extends Controller
                 ->with('success', 'License updated for ' . $composerName . '.');
         }
 
-        $result = $this->installer->install($composerName);
+        $result = $this->installer->install($composerName, $licenseFields['license_key'] ?: null);
 
         if (!$result['success']) {
             return redirect()->route('vela.admin.marketplace.index')
@@ -99,21 +165,12 @@ class MarketplacePurchaseController extends Controller
             'installed_at' => now(),
         ]);
 
-        PackageLicense::create([
-            'installed_package_id' => $package->id,
-            'license_key' => $data['license_key'] ?? '',
-            'domain' => $data['domain'] ?? $this->settings->getDomain(),
-            'dev_domain' => $data['dev_domain'] ?? null,
-            'type' => $data['type'] ?? PackageLicense::TYPE_ONETIME,
-            'expires_at' => $data['expires_at'] ?? null,
-            'validation_status' => PackageLicense::VALIDATION_VALID,
-            'marketplace_purchase_id' => $data['marketplace_purchase_id'] ?? null,
-        ]);
+        PackageLicense::create(['installed_package_id' => $package->id] + $licenseFields);
 
         $this->cacheWriter->write();
 
         $this->client->registerSite(
-            $data['license_key'] ?? '',
+            $licenseFields['license_key'],
             $this->settings->getDomain(),
             route('vela.webhook.marketplace')
         );
@@ -122,5 +179,11 @@ class MarketplacePurchaseController extends Controller
 
         return redirect()->route('vela.admin.packages.index')
             ->with('success', $composerName . ' installed successfully.');
+    }
+
+    private function backToPlugin(string $slug, string $message)
+    {
+        return redirect()->route('vela.admin.marketplace.show', $slug)
+            ->with('error', $message);
     }
 }
