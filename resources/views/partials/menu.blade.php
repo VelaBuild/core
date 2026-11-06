@@ -7,6 +7,14 @@
 
     <nav class="vela-sidebar-nav">
         @foreach(app(\VelaBuild\Core\Vela::class)->menus()->grouped() as $group => $items)
+            @php
+                // A group whose every item is gated away would still print its
+                // label over nothing (e.g. COMMERCE for a user without store access).
+                $canSee = fn ($entry) => empty($entry['gate']) || Gate::allows($entry['gate']);
+                $groupVisible = collect($items)->contains(fn ($item) => $canSee($item)
+                    && (empty($item['children']) || collect($item['children'])->contains($canSee)));
+            @endphp
+            @continue(!$groupVisible)
             <div class="vela-sidebar-group">
                 @if($group && $group !== 'default')
                     <div class="vela-sidebar-group-label">{{ trans($group) }}</div>
