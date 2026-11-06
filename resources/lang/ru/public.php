@@ -13,14 +13,14 @@ return [
     'browse_topics' => 'Просмотр тем',
     'read_article' => 'Читать статью',
     'explore' => 'Исследовать',
-    'topics_description' => 'Изучайте различные темы — от вводных руководств до углублённых статей и экспертных обзоров.',
+    'topics_description' => 'Изучайте различные темы: от вводных руководств до углублённых статей и экспертных обзоров.',
     'articles_count' => '{0} Нет статей|{1} 1 статья|[2,*] :count статей',
 
     // Articles
     'all_articles' => 'Все статьи',
     'all_articles_description' => 'Просматривайте все наши статьи. Находите исчерпывающие руководства, обзоры, советы и аналитику.',
     'no_articles_found' => 'Статьи не найдены',
-    'no_articles_description' => 'Загляните позже — скоро появится новый контент.',
+    'no_articles_description' => 'Загляните позже: скоро появится новый контент.',
     'no_articles_in_category' => 'В настоящее время в категории :category нет статей.',
     'browse_other_categories' => 'Просмотр других категорий',
     'view_all_articles' => 'Просмотреть все статьи',
@@ -32,7 +32,7 @@ return [
     'browse_articles_by_category' => 'Просматривайте статьи по категориям. Находите подробные руководства и материалы, соответствующие вашим интересам.',
     'explore_article_categories_description' => 'Просмотр статей по категориям.',
     'no_categories_available' => 'Категории недоступны',
-    'check_back_later_categories' => 'Загляните позже — появятся категории статей.',
+    'check_back_later_categories' => 'Загляните позже: скоро появятся категории статей.',
     'other_categories' => 'Другие категории',
     'explore_articles_in_other_categories' => 'Исследуйте статьи в других категориях',
 
@@ -84,4 +84,14 @@ return [
     'welcome_to'     => 'Добро пожаловать в :name',
     'ready_to_build' => 'Готовы начать строить с Vela.',
 
+    // Pricing block defaults
+    'pricing_most_popular' => 'Самый популярный',
+    'pricing_get_started'  => 'Начать',
+
+    // Demo bar on the public demo site
+    'demo_bar'        => 'Это живая демоверсия Vela.',
+    'demo_login_as'   => 'Войдите как',
+    'demo_open_admin' => 'Открыть админку',
+    'demo_close'      => 'Закрыть',
+    'demo_label'      => 'Демо',
 ];

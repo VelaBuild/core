@@ -29,6 +29,9 @@ class GenerateTranslationSnapshotJob implements ShouldQueue
 
     public function handle(): void
     {
+        if (!config('vela.static.write', true)) {
+            return; // read-only static files: nothing to snapshot into
+        }
         $originalLocale = app()->getLocale();
         app()->setLocale($this->locale);
 

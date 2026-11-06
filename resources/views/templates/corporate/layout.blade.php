@@ -204,6 +204,7 @@
                 <div class="co-nav-actions">
                     <!-- Language Switcher -->
 @php $currentFlag = $flagMap[$currentLocale] ?? 'gb'; @endphp
+@if(count(LaravelLocalization::getSupportedLocales()) > 1)
                     <details class="language-switcher js-click-away">
                         <summary class="co-lang-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" width="18" height="18">
@@ -213,13 +214,14 @@
                         <div class="co-lang-dropdown">
 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
 @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="co-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" data-vela-lang="{{ $localeCode }}" class="co-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" width="18" height="18">
                                     <span>{{ $properties['native'] }}</span>
                                 </a>
 @endforeach
                         </div>
                     </details>
+@endif
 
                     <!-- Mobile Toggle -->
                     <button class="co-mobile-toggle" data-toggle-target=".co-nav-links" aria-expanded="false" type="button" aria-label="Toggle navigation">

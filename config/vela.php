@@ -127,6 +127,12 @@ return [
         ],
         'default_text_provider' => env('AI_TEXT_PROVIDER', 'openai'),
         'default_image_provider' => env('AI_IMAGE_PROVIDER', 'gemini'),
+        // Hosted sites: the plan's default gateway chat model (set by the host
+        // per plan). The owner's own choice (VELA_GATEWAY_MODEL / AI Settings)
+        // wins; gpt-4o-mini is allowed on every plan.
+        'gateway' => [
+            'default_model' => env('VELA_GATEWAY_DEFAULT_MODEL', 'gpt-4o-mini'),
+        ],
         'site_context' => [
             'name' => env('SITE_NAME', 'My Website'),
             'niche' => env('SITE_NICHE', 'general'),
@@ -216,6 +222,11 @@ return [
     'static' => [
         'enabled' => env('VELA_CACHE', env('VELA_STATIC_ENABLED', true)),
         'path' => resource_path('static'),
+
+        // Serve static files but never write them (VELA_STATIC_WRITE=false): for
+        // deployments where resources/static ships with the code and is read-only.
+        // Edits and imports still update the database; the files change on deploy.
+        'write' => env('VELA_STATIC_WRITE', true),
 
         // How automatic regeneration runs after an edit (page/post/category
         // save, AI CSS change). Default (false): run after the HTTP response
@@ -406,8 +417,37 @@ return [
     |
     */
 
+    /*
+    | Hosted plan context, set by the Vela Hosted control plane (vela-site).
+    | Unset on self-hosted installs: every feature is on and there is no seat
+    | limit. VELA_FEATURES is a comma-separated list; VELA_SEATS the number of
+    | CMS users (anyone with a role other than Guest) the plan includes.
+    */
+    'hosting' => [
+        'plan'     => env('VELA_PLAN'),
+        'site_id'  => env('VELA_SITE_ID'),
+        'features' => env('VELA_FEATURES'),
+        'seats'    => env('VELA_SEATS'),
+    ],
+
+    /*
+    | Public demo. On when VELA_DEMO=true, or on Vela Hosted when the control
+    | plane lists the `demo` feature. Visitors sign in with the account below
+    | and get the full admin; the host resets the site every `reset_hours`
+    | hours (at 00:00 UTC and every reset_hours after). Email is logged, not
+    | sent, and the shared account can't be locked, changed or removed.
+    */
+    'demo' => [
+        'enabled'     => (bool) env('VELA_DEMO', false),
+        'email'       => env('VELA_DEMO_EMAIL', 'demo@vela.build'),
+        'password'    => env('VELA_DEMO_PASSWORD', 'velademo'),
+        'reset_hours' => (int) env('VELA_DEMO_RESET_HOURS', 3),
+    ],
+
     'browser_rendering' => [
         'url' => env('CLOUDFLARE_BROWSER_RENDERING_URL'),
+        // Bearer token the render worker requires (its AUTH_TOKEN secret).
+        'token' => env('CLOUDFLARE_BROWSER_RENDERING_TOKEN'),
     ],
 
     'marketplace' => [

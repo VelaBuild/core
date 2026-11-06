@@ -7,7 +7,7 @@
 --}}
 @if(config('vela.gdpr.enabled'))
 <style>
-    /* ── Consent bar (no overlay — site remains interactive) ── */
+    /* ── Consent bar (no overlay, so the site stays interactive) ── */
     #vela-consent { position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999; pointer-events: none; }
     #vela-consent.vc-visible { pointer-events: auto; }
 

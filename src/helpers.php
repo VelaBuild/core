@@ -75,3 +75,57 @@ if (!function_exists('renderMarkdown')) {
         return $text;
     }
 }
+
+if (!function_exists('vela_feature')) {
+    /**
+     * Whether the site's plan includes a feature. Self-hosted (no VELA_FEATURES
+     * set): always true. Hosted: only names the control plane listed.
+     */
+    function vela_feature(string $name): bool
+    {
+        $raw = config('vela.hosting.features');
+        if ($raw === null) {
+            return true;
+        }
+
+        return in_array($name, array_filter(array_map('trim', explode(',', (string) $raw))), true);
+    }
+}
+
+if (!function_exists('vela_demo_mode')) {
+    /**
+     * Whether this is a public demo site. Not vela_feature(): that is true for
+     * every name on self-hosted installs, and demo mode must be asked for.
+     */
+    function vela_demo_mode(): bool
+    {
+        if (config('vela.demo.enabled')) {
+            return true;
+        }
+        $raw = config('vela.hosting.features');
+
+        return $raw !== null && in_array('demo', array_map('trim', explode(',', (string) $raw)), true);
+    }
+}
+
+if (!function_exists('vela_demo_next_reset')) {
+    /** When the demo is next reset: the next multiple of reset_hours after 00:00 UTC. */
+    function vela_demo_next_reset(): \Illuminate\Support\Carbon
+    {
+        $every = max(1, min(24, (int) config('vela.demo.reset_hours', 3)));
+        $now = now('UTC');
+
+        return $now->copy()->startOfDay()->addHours((intdiv($now->hour, $every) + 1) * $every);
+    }
+}
+
+if (!function_exists('vela_seat_limit')) {
+    /** CMS seats the plan includes, or null for no limit (self-hosted). */
+    function vela_seat_limit(): ?int
+    {
+        $raw = config('vela.hosting.seats');
+
+        return ($raw === null || $raw === '') ? null : max(1, (int) $raw);
+    }
+}
+

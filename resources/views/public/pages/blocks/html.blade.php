@@ -5,7 +5,7 @@
         </div>
     @endif
 
-    @if($errors->any())
+    @if(isset($errors) && $errors->any())
         <div class="vela-form-errors" role="alert" style="margin:0 auto 16px;max-width:640px;padding:12px 16px;border-radius:8px;background:#fdeaea;color:#842029;border:1px solid #f5c2c7;">
             <ul style="margin:0;padding-left:18px;">
                 @foreach($errors->all() as $error)

@@ -40,7 +40,20 @@ class MenuItem extends Model
      */
     public function resolveLabel(): string
     {
+        $locale = app()->getLocale();
+        $translating = $locale !== config('vela.primary_language', 'en');
+
         if (! empty($this->label)) {
+            if ($translating) {
+                $translated = Translation::where('model_type', 'MenuItem')
+                    ->where('model_key', $this->id . '_label')
+                    ->where('lang_code', $locale)
+                    ->value('translation');
+                if ($translated) {
+                    return $translated;
+                }
+            }
+
             return $this->label;
         }
 
@@ -48,9 +61,10 @@ class MenuItem extends Model
             self::TYPE_HOME             => __('vela::public.home'),
             self::TYPE_POSTS_INDEX      => __('vela::public.articles'),
             self::TYPE_CATEGORIES_INDEX => __('vela::public.topics'),
-            self::TYPE_PAGE             => optional(Page::find($this->ref_id))->title ?? '',
+            self::TYPE_PAGE             => ($translating ? Page::where('parent_id', $this->ref_id)->where('locale', $locale)->value('title') : null)
+                                            ?? optional(Page::find($this->ref_id))->title ?? '',
             self::TYPE_CONTENT          => optional(Content::find($this->ref_id))->title ?? '',
-            self::TYPE_CATEGORY         => optional(Category::find($this->ref_id))->name ?? '',
+            self::TYPE_CATEGORY         => optional(Category::find($this->ref_id))->translated_name ?? '',
             default                     => $this->url ?: '',
         };
     }

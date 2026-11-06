@@ -84,4 +84,14 @@ return [
     'welcome_to'     => 'Velkommen til :name',
     'ready_to_build' => 'Klar til at begynde at bygge med Vela.',
 
+    // Pricing block defaults
+    'pricing_most_popular' => 'Mest populær',
+    'pricing_get_started'  => 'Kom i gang',
+
+    // Demo bar on the public demo site
+    'demo_bar'        => 'Dette er en live-demo af Vela.',
+    'demo_login_as'   => 'Log ind som',
+    'demo_open_admin' => 'Åbn administrationen',
+    'demo_close'      => 'Luk',
+    'demo_label'      => 'Demo',
 ];

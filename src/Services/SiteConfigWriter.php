@@ -23,6 +23,42 @@ class SiteConfigWriter
      * of all — comes out with the theme that was just replaced, and a visitor
      * is served it. Both callers share this so the mapping cannot drift.
      */
+    /**
+     * The language switcher, the /xx/ URL prefixes and the hreflang tags all
+     * come from laravellocalization.supportedLocales, which ships with every
+     * language. Narrow it to the site's own, or a one-language site offers ten
+     * flags and serves its English pages at /de/, /th/ and the rest.
+     *
+     * @param list<string> $codes
+     */
+    /** Every language Vela supports, before apply() narrows it to the site's. */
+    public static function allLanguages(): array
+    {
+        if (config('vela.all_languages') === null) {
+            config(['vela.all_languages' => (array) config('vela.available_languages', [])]);
+        }
+
+        return (array) config('vela.all_languages');
+    }
+
+    private static function limitLocales(array $codes): void
+    {
+        if (config('laravellocalization.all_locales') === null) {
+            config(['laravellocalization.all_locales' => (array) config('laravellocalization.supportedLocales', [])]);
+        }
+        $all = (array) config('laravellocalization.all_locales');
+        // The package refuses to start without the app's default locale.
+        $keep = array_unique(array_merge($codes, [(string) config('app.locale')]));
+        $locales = array_intersect_key($all, array_flip($keep));
+        if (!$locales) {
+            return;
+        }
+        config(['laravellocalization.supportedLocales' => $locales]);
+        if (app()->resolved('laravellocalization')) {
+            app('laravellocalization')->setSupportedLocales($locales);
+        }
+    }
+
     public static function apply(?array $siteConfig = null): void
     {
         if ($siteConfig === null) {
@@ -52,7 +88,9 @@ class SiteConfigWriter
             // The site's own languages decide what the locale middleware will
             // accept, so a primary language missing from them is ignored.
             if (is_array($languages) && $languages) {
-                $available = config('vela.available_languages', []);
+                // vela.available_languages is narrowed to the site's own below;
+                // Settings -> Languages and vela:languages still choose from all.
+                $available = self::allLanguages();
                 $enabled = [];
 
                 foreach ($languages as $code) {
@@ -63,6 +101,7 @@ class SiteConfigWriter
 
                 if ($enabled) {
                     config(['vela.available_languages' => $enabled]);
+                    self::limitLocales(array_keys($enabled));
                 }
             }
         }

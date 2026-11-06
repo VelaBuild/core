@@ -490,6 +490,7 @@
                         ];
                         $currentFlag = $flagMap[$currentLocale] ?? 'gb';
 @endphp
+@if(count(LaravelLocalization::getSupportedLocales()) > 1)
                     <details class="language-switcher js-click-away mn-lang-desktop">
                         <summary class="mn-lang-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}">
@@ -498,17 +499,19 @@
                         <div class="mn-lang-dropdown">
 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
 @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="mn-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" data-vela-lang="{{ $localeCode }}" class="mn-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}">
                                     {{ $properties['native'] }}
                                 </a>
 @endforeach
                         </div>
                     </details>
+@endif
                 </div>
 
                 <!-- Mobile -->
                 <div class="mn-mobile-actions">
+@if(count(LaravelLocalization::getSupportedLocales()) > 1)
                     <details class="language-switcher js-click-away mn-lang-mobile">
                         <summary class="mn-lang-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}">
@@ -517,13 +520,14 @@
                         <div class="mn-lang-dropdown">
 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
 @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="mn-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" data-vela-lang="{{ $localeCode }}" class="mn-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}">
                                     {{ $properties['native'] }}
                                 </a>
 @endforeach
                         </div>
                     </details>
+@endif
                     <button class="mn-mobile-toggle" data-toggle-target=".mn-nav-links" aria-expanded="false" type="button" aria-label="Toggle navigation">
                         <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>

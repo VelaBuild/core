@@ -84,4 +84,14 @@ return [
     'welcome_to'     => '欢迎来到 :name',
     'ready_to_build' => '准备好开始使用 Vela 构建了。',
 
+    // Pricing block defaults
+    'pricing_most_popular' => '最受欢迎',
+    'pricing_get_started'  => '开始使用',
+
+    // Demo bar on the public demo site
+    'demo_bar'        => '这是 Vela 的在线演示。',
+    'demo_login_as'   => '登录账号',
+    'demo_open_admin' => '打开后台',
+    'demo_close'      => '关闭',
+    'demo_label'      => '演示',
 ];

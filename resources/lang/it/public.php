@@ -84,4 +84,14 @@ return [
     'welcome_to'     => 'Benvenuto su :name',
     'ready_to_build' => 'Pronto per iniziare a costruire con Vela.',
 
+    // Pricing block defaults
+    'pricing_most_popular' => 'Il più scelto',
+    'pricing_get_started'  => 'Inizia',
+
+    // Demo bar on the public demo site
+    'demo_bar'        => 'Questa è una demo dal vivo di Vela.',
+    'demo_login_as'   => 'Accedi come',
+    'demo_open_admin' => 'Apri l\'amministrazione',
+    'demo_close'      => 'Chiudi',
+    'demo_label'      => 'Demo',
 ];

@@ -45,7 +45,7 @@ class TranslationManagerController extends Controller
     public function drill(string $surface, string $locale)
     {
         abort_if(Gate::denies('translation_access'), Response::HTTP_FORBIDDEN);
-        abort_unless(in_array($surface, ['pages', 'articles', 'categories', 'lang_files'], true), 404);
+        abort_unless(in_array($surface, ['pages', 'articles', 'categories', 'menus', 'lang_files'], true), 404);
         abort_unless(in_array($locale, $this->status->targetLocales(), true), 404);
 
         return view('vela::admin.translations.drill', [
@@ -60,7 +60,7 @@ class TranslationManagerController extends Controller
         abort_if(Gate::denies('translation_edit'), Response::HTTP_FORBIDDEN);
 
         $data = $request->validate([
-            'surface' => 'required|string|in:pages,articles,categories,lang_files',
+            'surface' => 'required|string|in:pages,articles,categories,menus,lang_files',
             'locale'  => 'required|string',
             'id'      => 'required',
         ]);
@@ -78,7 +78,7 @@ class TranslationManagerController extends Controller
         abort_if(Gate::denies('translation_edit'), Response::HTTP_FORBIDDEN);
 
         $data = $request->validate([
-            'surface' => 'required|string|in:pages,articles,categories,lang_files',
+            'surface' => 'required|string|in:pages,articles,categories,menus,lang_files',
             'locale'  => 'required|string',
             'limit'   => 'nullable|integer|min:1|max:200',
         ]);
@@ -113,6 +113,7 @@ class TranslationManagerController extends Controller
                 'pages' => $this->wrap($this->translator->translatePage(Page::findOrFail((int) $id), $locale), 'page'),
                 'articles' => $this->wrap($this->translator->translateContent(Content::findOrFail((int) $id), $locale), 'article'),
                 'categories' => $this->wrap($this->translator->translateCategory(Category::findOrFail((int) $id), $locale), 'category'),
+                'menus' => $this->wrap($this->translator->translateMenuItem(\VelaBuild\Core\Models\MenuItem::findOrFail((int) $id), $locale), 'menu item'),
                 'lang_files' => $this->wrapLang($this->translator->translateLangFile((string) $id, $locale)),
             };
         } catch (\Throwable $e) {

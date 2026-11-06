@@ -19,7 +19,7 @@
     <meta property="og:type" content="@yield('og_type', 'website')">
     <meta property="og:title" content="@yield('og_title', config('app.name', 'Vela CMS'))">
     <meta property="og:description" content="@yield('og_description', '')">
-    <meta property="og:url" content="@yield('og_url', request()->url())">
+    <meta property="og:url" content="@yield('og_url', $canonicalUrl ?? request()->url())">
     <meta property="og:site_name" content="{{ config('app.name', 'Vela CMS') }}">
     <meta property="og:locale" content="{{ str_replace('_', '-', app()->getLocale()) }}">
     <meta property="og:image" content="@yield('og_image', asset('images/hero-image.jpg'))">
@@ -96,6 +96,7 @@
                         ];
                         $currentFlag = $flagMap[$currentLocale] ?? 'gb';
                     @endphp
+@if(count(LaravelLocalization::getSupportedLocales()) > 1)
                     <details class="language-switcher js-click-away">
                         <summary class="language-switcher-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" class="language-flag">
@@ -108,7 +109,7 @@
                             <div class="language-dropdown-content">
                                 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
                                     @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                    <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}"
+                                    <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" data-vela-lang="{{ $localeCode }}"
                                        class="language-option {{ app()->getLocale() == $localeCode ? 'language-option-active' : '' }}">
                                         <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" class="language-flag-small">
                                         <span class="language-option-text">{{ $properties['native'] }}</span>
@@ -122,11 +123,13 @@
                             </div>
                         </div>
                     </details>
+@endif
                 </div>
 
                 <!-- Mobile Language Switcher -->
                 <div class="md:hidden flex items-center space-x-4">
                     <!-- Mobile Language Switcher -->
+@if(count(LaravelLocalization::getSupportedLocales()) > 1)
                     <details class="language-switcher-mobile js-click-away">
                         <summary class="language-switcher-btn-mobile">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" class="language-flag-mobile">
@@ -136,7 +139,7 @@
                             <div class="language-dropdown-content">
                                 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
                                     @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                    <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}"
+                                    <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" data-vela-lang="{{ $localeCode }}"
                                        class="language-option-mobile {{ app()->getLocale() == $localeCode ? 'language-option-active' : '' }}">
                                         <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" class="language-flag-small">
                                         <span class="language-option-text-mobile">{{ $properties['native'] }}</span>
@@ -145,6 +148,7 @@
                             </div>
                         </div>
                     </details>
+@endif
 
                     <!-- Mobile menu button -->
                     <button class="text-gray-700 hover:text-blue-600">

@@ -5,15 +5,68 @@ namespace VelaBuild\Core\Services;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Headless-browser rendering. Two backends with one contract:
+ *
+ *  - CLOUDFLARE_BROWSER_RENDERING_URL: the site's own Worker (/screenshot,
+ *    /pdf, /content, /evaluate) — self-hosted installs.
+ *  - Vela AI Gateway (POST /v1/render, our Cloudflare account, the site's
+ *    credits) — hosted sites. Used when the gateway is env-locked, or when it
+ *    is configured and no Worker URL is.
+ */
 class BrowserRenderingService
 {
     public function isConfigured(): bool
     {
-        return !empty(config('vela.browser_rendering.url'));
+        return !empty(config('vela.browser_rendering.url')) || $this->usesGateway();
+    }
+
+    private function usesGateway(): bool
+    {
+        $settings = app(AiSettingsService::class);
+        return $settings->isGatewayLocked()
+            || ($settings->isGatewayConfigured() && empty(config('vela.browser_rendering.url')));
+    }
+
+    /** POST /v1/render; returns the gateway's body or null. */
+    private function viaGateway(string $action, string $url, array $options = [], ?string $script = null): ?array
+    {
+        $body = ['action' => $action, 'url' => $url, 'options' => array_filter([
+            'width'      => $options['width'] ?? null,
+            'height'     => $options['height'] ?? null,
+            'full_page'  => $options['full_page'] ?? null,
+            'format'     => $options['format'] ?? null,
+            'wait_until' => $options['wait_until'] ?? null,
+            'timeout'    => $options['timeout'] ?? null,
+        ], fn ($v) => $v !== null)];
+        if ($script !== null) {
+            $body['script'] = $script;
+        }
+
+        $client = app(VelaGatewayClient::class);
+        $result = $client->post('/v1/render', $body, (int) ($options['timeout'] ?? 30) + 15);
+        if ($result === null) {
+            Log::error('Browser rendering via gateway failed', [
+                'action' => $action, 'url' => $url, 'status' => $client->lastStatus, 'error' => $client->lastError,
+            ]);
+        }
+        return $result;
+    }
+
+    /** HTTP client for a self-hosted render worker, with its bearer token when set. */
+    private function worker(): \Illuminate\Http\Client\PendingRequest
+    {
+        $token = (string) config('vela.browser_rendering.token');
+
+        return $token !== '' ? Http::withToken($token) : Http::withHeaders([]);
     }
 
     public function screenshot(string $url, array $options = []): ?string
     {
+        if ($this->usesGateway()) {
+            return $this->viaGateway('screenshot', $url, $options)['data_b64'] ?? null;
+        }
+
         $endpoint = rtrim(config('vela.browser_rendering.url'), '/') . '/screenshot';
 
         $payload = array_merge([
@@ -24,7 +77,7 @@ class BrowserRenderingService
         ], $options['extra'] ?? []);
 
         try {
-            $response = Http::timeout($options['timeout'] ?? 30)
+            $response = $this->worker()->timeout($options['timeout'] ?? 30)
                 ->post($endpoint, $payload);
 
             if (!$response->successful()) {
@@ -44,6 +97,10 @@ class BrowserRenderingService
 
     public function pdf(string $url, array $options = []): ?string
     {
+        if ($this->usesGateway()) {
+            return $this->viaGateway('pdf', $url, $options)['data_b64'] ?? null;
+        }
+
         $endpoint = rtrim(config('vela.browser_rendering.url'), '/') . '/pdf';
 
         $payload = array_merge([
@@ -53,7 +110,7 @@ class BrowserRenderingService
         ], $options['extra'] ?? []);
 
         try {
-            $response = Http::timeout($options['timeout'] ?? 30)
+            $response = $this->worker()->timeout($options['timeout'] ?? 30)
                 ->post($endpoint, $payload);
 
             if (!$response->successful()) {
@@ -70,10 +127,14 @@ class BrowserRenderingService
 
     public function html(string $url, array $options = []): ?string
     {
+        if ($this->usesGateway()) {
+            return $this->viaGateway('content', $url, $options)['html'] ?? null;
+        }
+
         $endpoint = rtrim(config('vela.browser_rendering.url'), '/') . '/content';
 
         try {
-            $response = Http::timeout($options['timeout'] ?? 30)
+            $response = $this->worker()->timeout($options['timeout'] ?? 30)
                 ->post($endpoint, ['url' => $url]);
 
             if (!$response->successful()) {
@@ -90,10 +151,16 @@ class BrowserRenderingService
 
     public function evaluate(string $url, string $script, array $options = []): ?array
     {
+        if ($this->usesGateway()) {
+            // The gateway wraps the Worker's own JSON answer in `result`.
+            $result = $this->viaGateway('evaluate', $url, $options, $script)['result'] ?? null;
+            return is_array($result) ? $result : null;
+        }
+
         $endpoint = rtrim(config('vela.browser_rendering.url'), '/') . '/evaluate';
 
         try {
-            $response = Http::timeout($options['timeout'] ?? 30)
+            $response = $this->worker()->timeout($options['timeout'] ?? 30)
                 ->post($endpoint, [
                     'url' => $url,
                     'script' => $script,

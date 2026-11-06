@@ -27,6 +27,7 @@ class AiSettingsService
         'vela_gateway_site',
         'vela_gateway_secret',
         'vela_gateway_model',
+        'vela_gateway_image_model',
         'native_search',
     ];
 
@@ -84,6 +85,7 @@ class AiSettingsService
         'vela_gateway_site'   => 'VELA_GATEWAY_SITE',
         'vela_gateway_secret' => 'VELA_GATEWAY_SECRET',
         'vela_gateway_model'  => 'VELA_GATEWAY_MODEL',
+        'vela_gateway_image_model' => 'VELA_GATEWAY_IMAGE_MODEL',
         'native_search'       => 'AI_CHAT_NATIVE_SEARCH',
     ];
 
@@ -138,6 +140,16 @@ class AiSettingsService
             ['key' => self::PREFIX . $key],
             ['value' => $storeValue]
         );
+    }
+
+    /**
+     * Hosted mode: the gateway is configured through env, so it is the only AI
+     * backend — text, images, web search and browser rendering all go through
+     * it, and keys saved in the admin are ignored.
+     */
+    public function isGatewayLocked(): bool
+    {
+        return $this->isGatewayConfigured() && $this->isEnvLocked('vela_gateway_url');
     }
 
     /**

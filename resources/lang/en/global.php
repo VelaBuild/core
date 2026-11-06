@@ -567,6 +567,8 @@ return [
     'health_mcp_missing_body'        => 'The website editing gateway (laravel/mcp) is missing, so it is switched off. Everything else works as usual. Install it with:',
     'health_migrations_pending'      => 'The database is :count update|The database is :count updates behind',
     'health_migrations_pending_body' => 'Vela was updated but its database changes have not been run yet, so parts of the admin may fail. Waiting: :names. Run:',
+    'health_cms_files_pending'       => ':count starter file has an update|:count starter files have updates',
+    'health_cms_files_pending_body'  => 'This release of Vela changed files your site was installed with (front controller, config, routes). Review them under Settings → CMS files, or run:',
     'code_copied'                    => 'Copied',
     'code_copy_failed'               => 'Copy failed',
     'code_show_all'                  => 'Show all :lines lines',

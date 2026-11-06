@@ -75,6 +75,25 @@ class CloudScreenshotTest extends PackageTestCase
     }
 
     /**
+     * The worker refuses unauthenticated calls, so its token rides along when
+     * one is configured — and nothing is sent when it isn't.
+     */
+    public function test_the_worker_token_is_sent_as_a_bearer_when_configured(): void
+    {
+        Http::fake([self::ENDPOINT . '/screenshot' => Http::response($this->aPng(), 200)]);
+
+        config(['vela.browser_rendering.token' => 'worker-secret']);
+        $this->cloudOnly()->capture('https://example.com/', $this->target('png'));
+        Http::assertSent(fn (Request $request) => $request->hasHeader('Authorization', 'Bearer worker-secret'));
+
+        config(['vela.browser_rendering.token' => null]);
+        Http::fake([self::ENDPOINT . '/screenshot' => Http::response($this->aPng(), 200)]);
+        $this->cloudOnly()->capture('https://example.com/b', $this->target('png'));
+        Http::assertSent(fn (Request $request) => str_ends_with($request->data()['url'] ?? '', '/b')
+            && !$request->hasHeader('Authorization'));
+    }
+
+    /**
      * A .jpg target really is a JPEG.
      *
      * The service is asked for PNG whatever the caller wanted, exactly as a

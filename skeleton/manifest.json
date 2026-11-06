@@ -1,0 +1,127 @@
+{
+  "_comment": "Starter (velabuild/cms) files this package manages. Pristine copies are in files/. See docs/upgrading-cms-files.md.",
+  "files": {
+    ".editorconfig": {},
+    ".env.example": {},
+    "app/Console/Kernel.php": {
+      "critical": true
+    },
+    "app/Exceptions/Handler.php": {},
+    "app/Http/Controllers/Controller.php": {},
+    "app/Http/Kernel.php": {
+      "critical": true
+    },
+    "app/Http/Middleware/Authenticate.php": {},
+    "app/Http/Middleware/EncryptCookies.php": {},
+    "app/Http/Middleware/PreventRequestsDuringMaintenance.php": {},
+    "app/Http/Middleware/RedirectIfAuthenticated.php": {},
+    "app/Http/Middleware/TrimStrings.php": {},
+    "app/Http/Middleware/TrustHosts.php": {},
+    "app/Http/Middleware/TrustProxies.php": {},
+    "app/Http/Middleware/ValidateSignature.php": {},
+    "app/Http/Middleware/VerifyCsrfToken.php": {},
+    "app/Models/User.php": {},
+    "app/Providers/AppServiceProvider.php": {},
+    "app/Providers/AuthServiceProvider.php": {},
+    "app/Providers/BroadcastServiceProvider.php": {},
+    "app/Providers/EventServiceProvider.php": {},
+    "app/Providers/RouteServiceProvider.php": {},
+    "artisan": {
+      "critical": true,
+      "strategy": "replace"
+    },
+    "bootstrap/app.php": {
+      "critical": true
+    },
+    "config/app.php": {},
+    "config/auth.php": {},
+    "config/broadcasting.php": {},
+    "config/cache.php": {},
+    "config/cors.php": {},
+    "config/database.php": {},
+    "config/filesystems.php": {},
+    "config/hashing.php": {},
+    "config/laravellocalization.php": {},
+    "config/logging.php": {},
+    "config/mail.php": {},
+    "config/media-library.php": {},
+    "config/queue.php": {},
+    "config/sanctum.php": {},
+    "config/services.php": {},
+    "config/session.php": {},
+    "config/vela.php": {
+      "known": [
+        "9f461a3d78e3a29736605d464f1986e0360612797ab06d94a7718c210825e5d3"
+      ]
+    },
+    "config/view.php": {},
+    "database/factories/UserFactory.php": {},
+    "database/seeders/DatabaseSeeder.php": {},
+    ".gitattributes": {
+      "source": "gitattributes.dist"
+    },
+    ".gitignore": {
+      "source": "gitignore.dist"
+    },
+    "phpunit.xml": {},
+    "public/.htaccess": {},
+    "public/index.php": {
+      "critical": true,
+      "known": [
+        "660dcdd8fa90161cf7d0bbe4b2458e076a4c5932794d32ded75c2c5533a618f7"
+      ]
+    },
+    "public/install.php": {
+      "strategy": "replace"
+    },
+    "resources/views/errors/403.blade.php": {},
+    "resources/views/errors/404.blade.php": {},
+    "resources/views/errors/419.blade.php": {},
+    "resources/views/errors/500.blade.php": {},
+    "resources/views/errors/503.blade.php": {},
+    "resources/views/errors/_shell.blade.php": {},
+    "resources/views/welcome.blade.php": {},
+    "routes/api.php": {},
+    "routes/channels.php": {},
+    "routes/console.php": {},
+    "routes/web.php": {}
+  },
+  "removed": {
+    "app/Console/Commands/StaticRewriteUrls.php": {
+      "known": [
+        "dc2733283043611f729734fe32c87e31139232b6f4da9314c3580ed391ed4e27"
+      ],
+      "reason": "moved into velabuild/core"
+    },
+    "public/css/custom.css": {
+      "known": [
+        "4c93ba4046783d4ba902f152ae34ac98962ce12112539a0071c70c82a4aeadca"
+      ],
+      "reason": "stale copy; the site serves vendor/vela/css/custom.css"
+    },
+    "public/css/page-blocks.css": {
+      "known": [
+        "c73dd50293cac79f09aff12fee3ae801675b746861605053f8ec49c95a337d07"
+      ],
+      "reason": "stale copy; the site serves vendor/vela/css/page-blocks.css"
+    },
+    "public/css/premium.css": {
+      "known": [
+        "6c2209b1091ab1bce73e1fe77cd9896e8e4711a7a41675939084002885bfa11b"
+      ],
+      "reason": "stale copy; the site serves vendor/vela/css/premium.css"
+    },
+    "public/js/main.js": {
+      "known": [
+        "45a5b5749d1348520eb8fbbc1ff0ffc12eff95d14fa04378a65aa71b3d4a00f5"
+      ],
+      "reason": "stale copy; the site serves vendor/vela/js/main.js"
+    },
+    "public/js/page-editor.js": {
+      "known": [
+        "e95c97a2a89822125dedb812389a62b79d9a6e75606a82c92498fc16789f3c8a"
+      ],
+      "reason": "stale copy; the site serves vendor/vela/js/page-editor.js"
+    }
+  }
+}

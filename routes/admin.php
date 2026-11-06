@@ -234,3 +234,15 @@ Route::prefix('packages')->name('packages.')->group(function () {
     Route::post('/{id}/update', [Admin\Marketplace\InstalledPackagesController::class, 'update'])->name('update');
     Route::delete('/{id}', [Admin\Marketplace\InstalledPackagesController::class, 'destroy'])->name('destroy');
 });
+
+// Move to Vela Hosted — download the site as a vela:pack archive (self-hosted only)
+Route::get('move-to-hosted', [Admin\MoveToHostedController::class, 'index'])->name('move-to-hosted.index');
+Route::post('move-to-hosted/download', [Admin\MoveToHostedController::class, 'download'])->name('move-to-hosted.download');
+
+// CMS files — starter files this release updated (see CmsFileUpgrader)
+Route::prefix('cms-files')->name('cms-files.')->group(function () {
+    Route::get('/', [Admin\CmsFilesController::class, 'index'])->name('index');
+    Route::get('/diff', [Admin\CmsFilesController::class, 'diff'])->name('diff');
+    Route::post('/apply', [Admin\CmsFilesController::class, 'apply'])->name('apply');
+    Route::post('/apply-safe', [Admin\CmsFilesController::class, 'applySafe'])->name('apply-safe');
+});

@@ -18,6 +18,13 @@
             @endcan
         </div>
     </div>
+@if(!is_null(vela_seat_limit()))
+    @php($seatsUsed = \VelaBuild\Core\Support\Seats::used())
+    <div class="alert {{ $seatsUsed >= vela_seat_limit() ? 'alert-warning' : 'alert-info' }}">
+        {{ $seatsUsed }} of {{ vela_seat_limit() }} CMS {{ \Illuminate\Support\Str::plural('user', vela_seat_limit()) }} on your plan.
+        Visitors who sign themselves up (Guest role) don't count.
+    </div>
+@endif
 <div class="card">
     <div class="card-header">
         {{ trans('vela::cruds.user.title_singular') }} {{ trans('vela::global.list') }}

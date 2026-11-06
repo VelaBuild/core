@@ -15,6 +15,7 @@ class AiProviderManager
     ];
 
     private array $imageProviderMap = [
+        'vela_gateway' => VelaGatewayImageService::class,
         'gemini' => GeminiImageService::class,
         'openai' => OpenAiImageService::class,
     ];
@@ -31,8 +32,7 @@ class AiProviderManager
      */
     private function gatewayLocked(): bool
     {
-        return $this->settings()->isGatewayConfigured()
-            && $this->settings()->isEnvLocked('vela_gateway_url');
+        return $this->settings()->isGatewayLocked();
     }
 
     public function resolveTextProvider(?string $provider = null): AiTextProvider
@@ -62,6 +62,11 @@ class AiProviderManager
 
     public function resolveImageProvider(?string $provider = null): AiImageProvider
     {
+        // Same lockdown as text: hosted sites generate images on our ledger only.
+        if ($this->gatewayLocked()) {
+            return app(VelaGatewayImageService::class);
+        }
+
         if ($provider && $this->settings()->hasApiKey($provider) && isset($this->imageProviderMap[$provider])) {
             return app($this->imageProviderMap[$provider]);
         }
@@ -71,7 +76,7 @@ class AiProviderManager
             return app($this->imageProviderMap[$default]);
         }
 
-        foreach (['gemini', 'openai'] as $name) {
+        foreach (['vela_gateway', 'gemini', 'openai'] as $name) {
             if ($this->settings()->hasApiKey($name) && isset($this->imageProviderMap[$name])) {
                 return app($this->imageProviderMap[$name]);
             }

@@ -2,8 +2,6 @@
 
 namespace VelaBuild\Core\Services;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use VelaBuild\Core\Contracts\AiTextProvider;
 
 /**
@@ -17,25 +15,20 @@ use VelaBuild\Core\Contracts\AiTextProvider;
  *   VELA_GATEWAY_URL     — e.g. https://ai.vela.build   (no trailing slash)
  *   VELA_GATEWAY_SITE    — the site's slug (matches X-Vela-Site header)
  *   VELA_GATEWAY_SECRET  — the plaintext secret issued at site creation
- *   VELA_GATEWAY_MODEL   — default chat model (gpt-4o, claude-sonnet-4, gemini-2.5-flash...)
+ *   VELA_GATEWAY_MODEL   — chat model the owner picked (gpt-4o, claude-sonnet-4, gemini-2.5-flash...);
+ *                          without it, config vela.ai.gateway.default_model (the plan's default)
  *
  * When VELA_GATEWAY_URL is set, AiProviderManager treats this as the ONLY
  * available text provider — a hosted user cannot bypass the gateway.
+ * Signing lives in VelaGatewayClient.
  */
 class VelaGatewayTextService implements AiTextProvider
 {
-    private string $baseUrl;
-    private string $siteSlug;
-    private string $secret;
     private string $defaultModel;
 
     public function __construct()
     {
-        $settings = app(AiSettingsService::class);
-        $this->baseUrl      = rtrim((string) $settings->get('vela_gateway_url', ''), '/');
-        $this->siteSlug     = (string) $settings->get('vela_gateway_site', '');
-        $this->secret       = (string) $settings->get('vela_gateway_secret', '');
-        $this->defaultModel = (string) $settings->get('vela_gateway_model', 'gpt-4o');
+        $this->defaultModel = (string) app(AiSettingsService::class)->get('vela_gateway_model', config('vela.ai.gateway.default_model') ?: 'gpt-4o-mini');
     }
 
     public function generateText(string $prompt, int $maxTokens = 1000, float $temperature = 0.7): ?string
@@ -131,55 +124,6 @@ class VelaGatewayTextService implements AiTextProvider
      */
     private function request(array $body): ?array
     {
-        if ($this->baseUrl === '' || $this->siteSlug === '' || $this->secret === '') {
-            Log::warning('Vela Gateway: not configured', [
-                'has_url'    => $this->baseUrl !== '',
-                'has_site'   => $this->siteSlug !== '',
-                'has_secret' => $this->secret !== '',
-            ]);
-            return null;
-        }
-
-        $path = '/v1/chat/completions';
-        $url  = $this->baseUrl . $path;
-        $payload = json_encode($body, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        $timestamp = (int) floor(microtime(true) * 1000);
-        $nonce     = bin2hex(random_bytes(16));
-
-        $stringToSign = implode("\n", [
-            'POST',
-            $path,
-            (string) $timestamp,
-            $nonce,
-            hash('sha256', $payload),
-        ]);
-        $signature = hash_hmac('sha256', $stringToSign, $this->secret);
-
-        try {
-            $response = Http::timeout(120)
-                ->withHeaders([
-                    'Content-Type'     => 'application/json',
-                    'X-Vela-Site'      => $this->siteSlug,
-                    'X-Vela-Timestamp' => (string) $timestamp,
-                    'X-Vela-Nonce'     => $nonce,
-                    'X-Vela-Signature' => $signature,
-                ])
-                ->withBody($payload, 'application/json')
-                ->post($url);
-        } catch (\Throwable $e) {
-            Log::error('Vela Gateway request failed', ['message' => $e->getMessage()]);
-            return null;
-        }
-
-        if (!$response->successful()) {
-            Log::error('Vela Gateway non-2xx', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
-            return null;
-        }
-
-        return $response->json();
+        return app(VelaGatewayClient::class)->post('/v1/chat/completions', $body, 120);
     }
 }

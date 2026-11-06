@@ -60,7 +60,17 @@ Configuration options include route prefixes, middleware stacks, AI provider set
 
 Vela can generate pre-rendered HTML for public pages via `php artisan vela:generate-static`. When a matching static file exists, the page is served directly without booting Laravel — dramatically reducing response times and server load.
 
-If you're using the [CMS starter project](https://github.com/VelaBuild/cms), this is already configured in `public/index.php`. If you're integrating Vela Core into an existing Laravel app, add the static file front-controller to the top of your `public/index.php` (before the Laravel bootstrap). It works by:
+If you're using the [CMS starter project](https://github.com/VelaBuild/cms), this is already configured in `public/index.php`. If you're integrating Vela Core into an existing Laravel app, add these lines to your `public/index.php` before the autoloader:
+
+```php
+if (is_file($__velaFront = dirname(__DIR__) . '/vendor/velabuild/core/src/Http/StaticFrontController.php')) {
+    require $__velaFront;
+    \VelaBuild\Core\Http\StaticFrontController::handle(dirname(__DIR__));
+}
+unset($__velaFront);
+```
+
+The logic lives in core (`src/Http/StaticFrontController.php`), so it updates with the package. It works by:
 
 1. Reading `VELA_CACHE` from `.env` directly (lightweight file parse, no framework needed)
 2. Mapping GET request URIs to pre-rendered HTML files in `resources/static/`
@@ -69,7 +79,15 @@ If you're using the [CMS starter project](https://github.com/VelaBuild/cms), thi
 
 Admin, auth, and API routes are automatically excluded. Static files are regenerated on content changes or manually via `php artisan vela:generate-static`. Set `VELA_CACHE=false` in `.env` to disable.
 
-See the [CMS starter's `public/index.php`](https://github.com/VelaBuild/cms/blob/main/public/index.php) for the reference implementation.
+See [`skeleton/files/public/index.php`](skeleton/files/public/index.php) for the full front controller.
+
+## Updating
+
+```bash
+composer update velabuild/core
+php artisan vela:update          # migrations, public assets, theme tokens
+php artisan vela:upgrade-files   # starter files this release changed — see docs/upgrading-cms-files.md
+```
 
 ## Usage
 

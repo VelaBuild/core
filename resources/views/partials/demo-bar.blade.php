@@ -1,0 +1,7 @@
+{{-- Public pages of the demo site: say it is a demo and how to get into the admin. --}}
+<div id="vela-demo-bar" role="region" aria-label="{{ __('vela::public.demo_label') }}" style="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:12px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px);padding:10px 12px 10px 18px;border-radius:999px;background:#111827;color:#f9fafb;font:500 14px/1.4 system-ui,-apple-system,'Segoe UI',sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.25)">
+    <span>{{ __('vela::public.demo_bar') }} <span style="opacity:.75">{{ __('vela::public.demo_login_as') }} <code style="color:#fde68a">{{ config('vela.demo.email') }}</code> / <code style="color:#fde68a">{{ config('vela.demo.password') }}</code></span></span>
+    <a href="{{ route('vela.auth.login') }}" style="background:#f9fafb;color:#111827;padding:6px 14px;border-radius:999px;text-decoration:none;font-weight:600;white-space:nowrap">{{ __('vela::public.demo_open_admin') }} &rarr;</a>
+    <button type="button" aria-label="{{ __('vela::public.demo_close') }}" onclick="this.parentNode.remove();try{sessionStorage.setItem('vela-demo-bar','x')}catch(e){}" style="background:none;border:0;color:#9ca3af;font-size:18px;line-height:1;cursor:pointer;padding:4px">&times;</button>
+</div>
+<script>try{if(sessionStorage.getItem('vela-demo-bar'))document.getElementById('vela-demo-bar').remove()}catch(e){}</script>

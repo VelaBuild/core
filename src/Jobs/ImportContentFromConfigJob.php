@@ -178,7 +178,9 @@ class ImportContentFromConfigJob implements ShouldQueue
             // withTrashed: a soft-deleted row still holds the unique
             // (locale, slug) index, so a fresh Page::create would collide.
             // Restore + overwrite instead.
-            $existing = Page::withTrashed()->where('slug', $config['slug'])->first();
+            $existing = Page::withTrashed()->where('slug', $config['slug'])
+                ->where('locale', $config['locale'] ?? config('vela.primary_language', 'en'))
+                ->first();
             if ($existing && $existing->trashed()) {
                 $existing->restore();
             }

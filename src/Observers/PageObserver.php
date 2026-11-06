@@ -52,8 +52,10 @@ class PageObserver
         $oldSlug = $page->getOriginal('slug');
         $oldStatus = $page->getOriginal('status');
 
-        // Clean up old slug directory if slug changed
-        if ($oldSlug && $oldSlug !== $page->slug) {
+        $isTranslation = $page->locale !== config('vela.primary_language', 'en');
+
+        // Clean up old slug directory if slug changed (the directory is the source page's)
+        if ($oldSlug && $oldSlug !== $page->slug && !$isTranslation) {
             $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
             $generator->removeAll('pages', $oldSlug);
         }
@@ -64,7 +66,11 @@ class PageObserver
         } elseif ($oldStatus === 'published' && $page->status !== 'published') {
             // Was published, now unpublished: remove HTML, keep config
             $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
-            $generator->removeHtml('pages', $page->slug);
+            if ($isTranslation) {
+                @unlink(config('vela.static.path', resource_path('static')) . '/pages/' . $page->slug . '/translations/' . $page->locale . '.html');
+            } else {
+                $generator->removeHtml('pages', $page->slug);
+            }
             // Still regenerate all because nav changed
             GenerateStaticFilesJob::dispatchFresh('all');
         } else {
@@ -104,7 +110,12 @@ class PageObserver
         }
 
         $generator = app(\VelaBuild\Core\Services\StaticSiteGenerator::class);
-        $generator->removeAll('pages', $page->slug);
+        if ($page->locale !== config('vela.primary_language', 'en')) {
+            // Only this translation's snapshot; the directory belongs to the source page.
+            @unlink(config('vela.static.path', resource_path('static')) . '/pages/' . $page->slug . '/translations/' . $page->locale . '.html');
+        } else {
+            $generator->removeAll('pages', $page->slug);
+        }
         GenerateStaticFilesJob::dispatchFresh('all');
 
         $current = (int) (VelaConfig::where('key', 'sw_version')->value('value') ?? 0);

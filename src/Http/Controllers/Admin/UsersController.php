@@ -10,6 +10,7 @@ use VelaBuild\Core\Http\Requests\StoreUserRequest;
 use VelaBuild\Core\Http\Requests\UpdateUserRequest;
 use VelaBuild\Core\Models\Role;
 use VelaBuild\Core\Models\VelaUser;
+use VelaBuild\Core\Support\Seats;
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -111,6 +112,10 @@ class UsersController extends Controller
 
     public function store(StoreUserRequest $request)
     {
+        if (Seats::wouldExceed($request->input('roles', []))) {
+            return back()->withInput()->withErrors(['roles' => Seats::message()]);
+        }
+
         // Drop audit fields if a curl caller posts them — see store() above
         // for the matching guard on update().
         $user = VelaUser::create($request->except(['last_login_at', 'last_ip', 'useragent']));
@@ -144,6 +149,9 @@ class UsersController extends Controller
         // Never accept audit fields from the admin form — belt-and-braces
         // on top of the request rules, in case a curl caller posts them
         // directly. These are set on login only.
+        if (Seats::wouldExceed($request->input('roles', []), $user) && !$this->holdsSeat($user)) {
+            return back()->withInput()->withErrors(['roles' => Seats::message()]);
+        }
         $user->update($request->except(['last_login_at', 'last_ip', 'useragent']));
         $user->roles()->sync($request->input('roles', []));
         if ($request->input('profile_pic', false)) {
@@ -158,6 +166,13 @@ class UsersController extends Controller
         }
 
         return redirect()->route('vela.admin.users.index');
+    }
+
+    private function holdsSeat(VelaUser $user): bool
+    {
+        $guestId = Role::guest()->id;
+
+        return $user->roles()->where('vela_roles.id', '!=', $guestId)->exists();
     }
 
     public function show(VelaUser $user)

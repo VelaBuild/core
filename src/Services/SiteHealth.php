@@ -89,11 +89,26 @@ class SiteHealth
             ];
         }
 
+        // Only for someone who could act on it: the check reads the
+        // manifest and hashes the starter files (cached five minutes).
+        if (CmsFileUpgrader::userMayManage(auth()->user())) {
+            $files = app(CmsFileUpgrader::class)->pendingCount();
+            if ($files > 0) {
+                $notices[] = [
+                    'level'   => 'info',
+                    'title'   => trans_choice('vela::global.health_cms_files_pending', $files),
+                    'body'    => trans('vela::global.health_cms_files_pending_body'),
+                    'command' => 'php artisan vela:upgrade-files',
+                ];
+            }
+        }
+
         return $notices;
     }
 
     public static function forget(): void
     {
         Cache::forget(self::CACHE_KEY);
+        CmsFileUpgrader::forget();
     }
 }

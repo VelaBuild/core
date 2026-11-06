@@ -41,7 +41,7 @@ class ConfigController extends Controller
         session()->forget('vela_preview_template');
 
         if ($group === 'languages') {
-            $allLanguages = config('vela.available_languages', []);
+            $allLanguages = \VelaBuild\Core\Services\SiteConfigWriter::allLanguages();
             $activeJson = VelaConfig::where('key', 'active_languages')->value('value');
             $activeLanguages = $activeJson ? json_decode($activeJson, true) : array_keys($allLanguages);
             $primaryLanguage = VelaConfig::where('key', 'primary_language')->value('value')
@@ -152,7 +152,7 @@ class ConfigController extends Controller
         }
 
         if ($group === 'languages') {
-            $allLanguages = array_keys(config('vela.available_languages', []));
+            $allLanguages = array_keys(\VelaBuild\Core\Services\SiteConfigWriter::allLanguages());
 
             $request->validate([
                 'active_languages' => 'required|array|min:1',
@@ -171,6 +171,7 @@ class ConfigController extends Controller
             VelaConfig::updateOrCreate(['key' => 'primary_language'], ['value' => $primary]);
 
             $this->writeSiteConfig();
+            \VelaBuild\Core\Jobs\GenerateStaticFilesJob::dispatchFresh('all');
 
             return redirect()->back()->with('success', __('vela::global.languages_saved'));
         }

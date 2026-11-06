@@ -221,6 +221,7 @@
 
                 <div class="ed-nav-actions">
                     <!-- Language Switcher -->
+@if(count(LaravelLocalization::getSupportedLocales()) > 1)
                     <details class="language-switcher js-click-away">
 @php $currentFlag = $flagMap[$currentLocale] ?? 'gb'; @endphp
                         <summary class="ed-lang-btn">
@@ -230,13 +231,14 @@
                         <div class="ed-lang-dropdown">
 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
 @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="ed-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" data-vela-lang="{{ $localeCode }}" class="ed-lang-option {{ app()->getLocale() == $localeCode ? 'active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" width="16" height="16">
                                     <span>{{ $properties['native'] }}</span>
                                 </a>
 @endforeach
                         </div>
                     </details>
+@endif
 
                     <!-- Mobile Toggle -->
                     <button class="ed-mobile-toggle" data-toggle-target=".ed-nav-links" aria-expanded="false" type="button" aria-label="Toggle navigation">

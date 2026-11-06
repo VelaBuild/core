@@ -13,12 +13,50 @@ class StaticSiteGenerator
 {
     protected string $basePath;
 
+    /**
+     * Render as a visitor to the public site would see it, not as whoever
+     * triggered the regeneration. Run inside an admin request (e.g. "clear
+     * cache"), url()/request()->url() would otherwise point at that request —
+     * og:url became /admin/cache/clear, and a dev install served from a
+     * subdirectory leaked its script path into every asset URL. The real
+     * request is restored afterwards.
+     */
+    protected function asVisitor(\Closure $render): void
+    {
+        $root = rtrim((string) config('app.url'), '/');
+        if ($root === '') {
+            $render();
+
+            return;
+        }
+        $urls = app('url');
+        $previous = app()->bound('request') ? app('request') : null;
+        $visitor = \Illuminate\Http\Request::create($root . '/', 'GET');
+        app()->instance('request', $visitor);
+        $urls->setRequest($visitor);
+        $urls->forceRootUrl($root);
+        try {
+            $render();
+        } finally {
+            $urls->forceRootUrl(null);
+            if ($previous !== null) {
+                app()->instance('request', $previous);
+                $urls->setRequest($previous);
+            }
+        }
+    }
+
     public function __construct()
     {
         $this->basePath = config('vela.static.path', resource_path('static'));
     }
 
     public function generatePage(Page $page): void
+    {
+        $this->asVisitor(fn () => $this->renderPage($page));
+    }
+
+    protected function renderPage(Page $page): void
     {
         // Always write config JSON (even for drafts)
         $this->writeConfigJson($page);
@@ -57,15 +95,45 @@ class StaticSiteGenerator
                 'page:slug:' . $page->slug,
                 'locale:' . $page->locale,
             ]);
-            $html = view(vela_template_view('page'), compact('page'))->render();
+            // A translation renders in its own language, as a visitor to
+            // /fr/about would get it: <html lang>, the menu's /fr/ links and
+            // the theme's own text. Without this the French page said
+            // lang="en" and its menu led back to the English site.
+            $html = $this->inLocale($page->locale, fn () => view(vela_template_view('page'), ['page' => $page])->render());
+            $html = \VelaBuild\Core\Services\LocalizedLinks::rewrite($html, (string) $page->locale, $page->slug === 'home' ? '' : $page->slug);
             $this->atomicWrite($path, $html);
         } catch (\Throwable $e) {
             Log::error('StaticSiteGenerator: failed to render page ' . $page->slug . ': ' . $e->getMessage());
         }
     }
 
+    /** Run $render with the app (and the localisation package) set to $locale. */
+    private function inLocale(?string $locale, \Closure $render): string
+    {
+        $original = app()->getLocale();
+        if (!$locale || $locale === $original) {
+            return $render();
+        }
+        $localization = app('laravellocalization');
+        $originalCurrent = $localization->getCurrentLocale();
+        app()->setLocale($locale);
+        $localization->setLocale($locale);
+        try {
+            return $render();
+        } finally {
+            $localization->setLocale($originalCurrent);
+            app()->setLocale($original);   // the package's setLocale also sets the app's
+        }
+    }
+
     public function writeConfigJson(Page $page): void
     {
+        // pages/{slug}/config.json is the source page's; translations share the
+        // slug and would overwrite it (and the importer would then read them back
+        // as the source). Translations are rebuilt from the source instead.
+        if ($page->locale !== config('vela.primary_language', 'en')) {
+            return;
+        }
         if (!$page->relationLoaded('rows')) {
             $page->load('rows.blocks');
         }
@@ -112,6 +180,11 @@ class StaticSiteGenerator
     }
 
     public function generateContent(Content $content): void
+    {
+        $this->asVisitor(fn () => $this->renderContent($content));
+    }
+
+    protected function renderContent(Content $content): void
     {
         // Always write config JSON
         $this->writeContentConfigJson($content);
@@ -189,6 +262,11 @@ class StaticSiteGenerator
 
     public function generateHomePage(): void
     {
+        $this->asVisitor(fn () => $this->renderHomePage());
+    }
+
+    protected function renderHomePage(): void
+    {
         // Check for a PageBuilder homepage first
         $homePage = Page::where('slug', 'home')
             ->where('status', 'published')
@@ -247,6 +325,11 @@ class StaticSiteGenerator
 
     public function generatePostsIndex(): void
     {
+        $this->asVisitor(fn () => $this->renderPostsIndex());
+    }
+
+    protected function renderPostsIndex(): void
+    {
         // Use paginate() so the view's $posts->hasPages() / ->links() calls
         // have the right object type. Static page 1 ships with the cache;
         // subsequent pages still resolve dynamically via PostController.
@@ -299,6 +382,11 @@ class StaticSiteGenerator
 
     public function generateCategoryPage(Category $category): void
     {
+        $this->asVisitor(fn () => $this->renderCategoryPage($category));
+    }
+
+    protected function renderCategoryPage(Category $category): void
+    {
         $this->writeCategoryConfigJson($category);
 
 
@@ -331,6 +419,11 @@ class StaticSiteGenerator
 
     public function generateCategoriesIndex(): void
     {
+        $this->asVisitor(fn () => $this->renderCategoriesIndex());
+    }
+
+    protected function renderCategoriesIndex(): void
+    {
         $categories = Category::orderBy('order_by', 'asc')
             ->orderBy('name', 'asc')
             ->get();
@@ -348,6 +441,14 @@ class StaticSiteGenerator
 
     public function generateTranslationSnapshot(string $type, string $slug, string $locale, string $html): void
     {
+        $html = \VelaBuild\Core\Services\LocalizedLinks::rewrite($html, $locale, match ($type) {
+            'page'             => $slug === 'home' ? '' : $slug,
+            'post'             => 'posts/' . $slug,
+            'posts_index'      => 'posts',
+            'category'         => 'categories/' . $slug,
+            'categories_index' => 'categories',
+            default            => '',
+        });
         $path = match ($type) {
             'page'             => $this->basePath . '/pages/' . $slug . '/translations/' . $locale . '.html',
             'post'             => $this->basePath . '/posts/' . $slug . '/translations/' . $locale . '.html',
@@ -369,7 +470,7 @@ class StaticSiteGenerator
         $base = $this->basePath . '/' . $typeDir . '/' . $slug;
 
         $htmlFile = $base . '/index.html';
-        if (is_file($htmlFile)) {
+        if (is_file($htmlFile) && $this->writable()) {
             unlink($htmlFile);
         }
 
@@ -470,8 +571,17 @@ class StaticSiteGenerator
         };
     }
 
+    /** False when static files are read-only (config vela.static.write). */
+    public function writable(): bool
+    {
+        return (bool) config('vela.static.write', true);
+    }
+
     private function deleteDirectory(string $dir): void
     {
+        if (!$this->writable()) {
+            return;
+        }
         $files = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::CHILD_FIRST
@@ -484,6 +594,9 @@ class StaticSiteGenerator
 
     private function atomicWrite(string $path, string $content): void
     {
+        if (!$this->writable()) {
+            return;
+        }
         $dir = dirname($path);
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);
@@ -499,11 +612,13 @@ class StaticSiteGenerator
         // mapping for purge-by-tag on lower-tier origins too.
         if (str_ends_with($path, '.html')) {
             $tagger = app(\VelaBuild\Core\Services\CacheTagger::class);
-            $tags = $tagger->all();
+            // header(), not all(): the same (hosted: site-namespaced, capped) value
+            // a Laravel response would send, so gateway purges match these pages.
+            $header = $tagger->header();
             $tagger->clear();
-            if (!empty($tags)) {
+            if ($header !== null) {
                 $sidecar = preg_replace('/\.html$/', '.tags', $path);
-                file_put_contents($sidecar . '.tmp', implode(',', $tags));
+                file_put_contents($sidecar . '.tmp', $header);
                 rename($sidecar . '.tmp', $sidecar);
             }
         }

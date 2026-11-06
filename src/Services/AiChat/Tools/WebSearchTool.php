@@ -6,11 +6,15 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use VelaBuild\Core\Models\AiActionLog;
 use VelaBuild\Core\Services\AiSettingsService;
+use VelaBuild\Core\Services\VelaGatewayClient;
 
 /**
  * Web search via whichever AI provider the site already has a key for.
  * Tries each configured provider in order. No extra API keys required.
  *
+ *   0. Vela AI Gateway (POST /v1/search, our key, the site's credits) when
+ *      configured. In hosted lockdown (gateway set via env) it is the ONLY
+ *      backend — a failure is reported, not retried with other keys.
  *   1. Gemini   → separate `generateContent` call with `google_search`.
  *   2. Anthropic→ separate `messages` call with `web_search_20250305`.
  *   3. OpenAI   → separate Responses API call with `web_search_preview`.
@@ -34,6 +38,11 @@ class WebSearchTool extends BaseTool
         $errors = [];
 
         try {
+            if ($settings->isGatewayConfigured()) {
+                $r = $this->searchGateway($query, $count);
+                if (empty($r['error']) || $settings->isGatewayLocked()) return $r;
+                $errors[] = 'vela_gateway: ' . $r['error'];
+            }
             if ($settings->hasApiKey('gemini')) {
                 $r = $this->searchGemini($query, $count, $settings->getApiKey('gemini'));
                 if (empty($r['error'])) return $r;
@@ -73,6 +82,30 @@ class WebSearchTool extends BaseTool
             return ['error' => 'All web search backends errored: ' . implode(' | ', $errors)];
         }
         return ['error' => 'No AI provider key is configured to power web search. Add an OpenAI / Anthropic / Gemini key in admin → Settings → AI.'];
+    }
+
+    // ── Vela AI Gateway ─────────────────────────────────────────────────────
+
+    private function searchGateway(string $query, int $count): array
+    {
+        $client = app(VelaGatewayClient::class);
+        $resp = $client->post('/v1/search', ['query' => $query, 'max_results' => $count], self::TIMEOUT);
+        if (!$resp) {
+            return ['error' => $client->lastError === 'insufficient_credits'
+                ? 'Out of AI credits for this month — top up or wait for the monthly refresh.'
+                : 'Vela gateway search failed (' . ($client->lastError ?? 'unknown') . ')'];
+        }
+
+        return [
+            'success'  => true,
+            'provider' => 'vela_gateway',
+            'query'    => $query,
+            'results'  => array_map(fn ($r) => [
+                'title'       => $r['title'] ?? null,
+                'url'         => $r['url'] ?? null,
+                'description' => $r['snippet'] ?? null,
+            ], $resp['results'] ?? []),
+        ];
     }
 
     // ── Gemini google_search via grounding ──────────────────────────────────

@@ -140,6 +140,13 @@
         {{-- Main content --}}
         <main class="vela-content">
             @include('vela::admin.partials.health-notices')
+            @if(vela_demo_mode())
+                @php($velaDemoReset = vela_demo_next_reset())
+                <div class="alert alert-info vela-demo-banner" role="status">
+                    {{ __('You are in the Vela demo. Try anything: every change is wiped at :time UTC (:in).', ['time' => $velaDemoReset->format('H:i'), 'in' => $velaDemoReset->diffForHumans()]) }}
+                    <a href="https://vela.build/app/register">{{ __('Get your own site') }}</a>
+                </div>
+            @endif
             @if(session('message'))
                 <div class="alert alert-success" role="alert">{{ session('message') }}</div>
             @endif

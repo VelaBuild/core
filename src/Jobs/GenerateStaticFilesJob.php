@@ -8,6 +8,8 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use VelaBuild\Core\Services\Tools\CloudflareService;
 use VelaBuild\Core\Services\StaticSiteGenerator;
 
 class GenerateStaticFilesJob implements ShouldQueue
@@ -40,14 +42,66 @@ class GenerateStaticFilesJob implements ShouldQueue
     {
         if (config('vela.static.regen_queue', false)) {
             static::dispatch($type, $modelId);
-        } else {
-            static::dispatchAfterResponse($type, $modelId);
+
+            return;
         }
+
+        // One save fires several observers (a builder save updates the page
+        // and then touches it), each asking for the same rebuild. Run it once.
+        $pending = self::pending();
+        $key = $type . ':' . $modelId;
+        if (isset($pending[$key])) {
+            return;
+        }
+        $pending[$key] = true;
+        static::dispatchAfterResponse($type, $modelId);
+    }
+
+    /** After-response rebuilds still to run for this app instance, by "type:id". */
+    private static function pending(): \ArrayObject
+    {
+        if (!app()->bound('vela.static.pending')) {
+            app()->instance('vela.static.pending', new \ArrayObject());
+        }
+
+        return app('vela.static.pending');
     }
 
     public function handle(): void
     {
+        try {
+            $this->regenerate();
+        } finally {
+            $pending = self::pending();
+            unset($pending[$this->type . ':' . $this->modelId]);
+        }
+
+        // Clear the CDN once the last rebuild of this save is on disk.
+        // Purging earlier (it used to wait in the queue, which hosted sites
+        // only drain once a minute) either left visitors on the old page for
+        // up to a minute, or let the CDN re-cache the old file for an hour.
+        if (count($pending) === 0) {
+            $this->purgeCdn();
+        }
+    }
+
+    private function purgeCdn(): void
+    {
+        try {
+            if (app(CloudflareService::class)->isConfigured()) {
+                app()->call([PurgeCloudflareCacheJob::purgeTags(['site']), 'handle']);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('CDN purge after static rebuild failed', ['error' => $e->getMessage()]);
+        }
+    }
+
+    private function regenerate(): void
+    {
         $generator = app(StaticSiteGenerator::class);
+        if (!$generator->writable()) {
+            return;
+        }
 
         switch ($this->type) {
             case 'all':

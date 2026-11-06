@@ -92,4 +92,21 @@ class PricingTiersBlockRenderTest extends PackageTestCase
         $this->assertStringNotContainsString('position: fixed', $html);
         $this->assertStringContainsString('block-pricing-tiers--clean', $html);
     }
+
+    public function test_a_yearly_price_rides_along_for_the_billing_toggle(): void
+    {
+        $html = $this->render([
+            ['name' => 'Pro', 'price' => '59', 'period' => '/ month', 'price_note' => 'billed monthly',
+             'price_yearly' => '47.20', 'period_yearly' => '/ mo, billed yearly'],
+            ['name' => 'Free', 'price' => '0', 'period' => 'forever'],
+        ]);
+
+        $this->assertStringContainsString('data-bill-m="59" data-bill-y="47.20">59<', $html);
+        $this->assertStringContainsString('data-bill-m="/ month" data-bill-y="/ mo, billed yearly">/ month<', $html);
+        // No yearly note given: the monthly one stays for both.
+        $this->assertStringContainsString('<div class="block-pricing-tier-price-note">billed monthly</div>', $html);
+        // A tier without a yearly price never changes.
+        $this->assertStringNotContainsString('data-bill-m="0"', $html);
+        $this->assertStringContainsString("closest('[data-bill]')", $html);
+    }
 }

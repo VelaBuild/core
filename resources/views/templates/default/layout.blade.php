@@ -77,6 +77,7 @@
     ];
     $currentFlag = $flagMap[$currentLocale] ?? 'gb';
 @endphp
+@if(count(LaravelLocalization::getSupportedLocales()) > 1)
                     <details class="language-switcher js-click-away">
                         <summary class="language-switcher-btn">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" class="language-flag">
@@ -89,7 +90,7 @@
                             <div class="language-dropdown-content">
 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
 @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="language-option {{ app()->getLocale() == $localeCode ? 'language-option-active' : '' }}">
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" data-vela-lang="{{ $localeCode }}" class="language-option {{ app()->getLocale() == $localeCode ? 'language-option-active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" class="language-flag-small">
                                     <span class="language-option-text">{{ $properties['native'] }}</span>
 @if(app()->getLocale() == $localeCode)
@@ -102,11 +103,13 @@
                             </div>
                         </div>
                     </details>
+@endif
                 </div>
 
                 <!-- Mobile Language Switcher -->
                 <div class="md:hidden flex items-center space-x-4">
                     <!-- Mobile Language Switcher -->
+@if(count(LaravelLocalization::getSupportedLocales()) > 1)
                     <details class="language-switcher-mobile js-click-away">
                         <summary class="language-switcher-btn-mobile">
                             <img src="{{ asset('flags/1x1/' . $currentFlag . '.svg') }}" alt="{{ $currentLocale }}" class="language-flag-mobile">
@@ -116,7 +119,7 @@
                             <div class="language-dropdown-content">
 @foreach(LaravelLocalization::getSupportedLocales() as $localeCode => $properties)
 @php $flagCode = $flagMap[$localeCode] ?? 'gb'; @endphp
-                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" class="language-option-mobile {{ app()->getLocale() == $localeCode ? 'language-option-active' : '' }}">
+                                <a href="{{ LaravelLocalization::getLocalizedURL($localeCode) }}" data-vela-lang="{{ $localeCode }}" class="language-option-mobile {{ app()->getLocale() == $localeCode ? 'language-option-active' : '' }}">
                                     <img src="{{ asset('flags/1x1/' . $flagCode . '.svg') }}" alt="{{ $localeCode }}" class="language-flag-small">
                                     <span class="language-option-text-mobile">{{ $properties['native'] }}</span>
                                 </a>
@@ -124,6 +127,7 @@
                             </div>
                         </div>
                     </details>
+@endif
 
                     <!-- Mobile menu button — wired to .primary-nav through the
                          shared toggle script, the way every other theme does it.

@@ -2,7 +2,7 @@
     <meta property="og:type" content="@yield('og_type', 'website')">
     <meta property="og:title" content="@yield('og_title', config('app.name', 'Vela CMS'))">
     <meta property="og:description" content="@yield('og_description', '')">
-    <meta property="og:url" content="@yield('og_url', request()->url())">
+    <meta property="og:url" content="@yield('og_url', $canonicalUrl ?? request()->url())">
     <meta property="og:site_name" content="{{ config('app.name', 'Vela CMS') }}">
     <meta property="og:locale" content="{{ str_replace('_', '-', app()->getLocale()) }}">
     <meta property="og:image" content="@yield('og_image', asset('images/hero-image.jpg'))">

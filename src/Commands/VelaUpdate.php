@@ -44,6 +44,18 @@ class VelaUpdate extends Command
             ? '<fg=green>added to ' . implode(', ', $done['themes']) . '</>'
             : '<fg=green>nothing missing</>');
 
+        // Starter files are the site's own code, so they are reported here,
+        // not changed: `vela:upgrade-files --auto` applies the safe ones.
+        try {
+            $pending = collect(app(\VelaBuild\Core\Services\CmsFileUpgrader::class)->report())
+                ->whereIn('status', \VelaBuild\Core\Services\CmsFileUpgrader::PENDING);
+            $this->components->twoColumnDetail('Starter files', $pending->isEmpty()
+                ? '<fg=green>current</>'
+                : '<fg=yellow>' . $pending->count() . ' to review — php artisan vela:upgrade-files</>');
+        } catch (\Throwable $e) {
+            $this->components->twoColumnDetail('Starter files', '<fg=yellow>could not check: ' . $e->getMessage() . '</>');
+        }
+
         return self::SUCCESS;
     }
 }

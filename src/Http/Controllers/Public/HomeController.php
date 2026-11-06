@@ -25,15 +25,26 @@ class HomeController extends Controller
 
     private function renderFromDb()
     {
-        $homePage = Page::where('slug', 'home')
-            ->where('status', 'published')
-            ->with(['rows.blocks'])
-            ->first();
+        $primary = config('vela.primary_language', 'en');
+        $homePage = null;
+        foreach (array_unique([app()->getLocale(), $primary]) as $locale) {
+            $homePage = Page::where('slug', 'home')
+                ->where('locale', $locale)
+                ->where('status', 'published')
+                ->with(['rows.blocks'])
+                ->first();
+            if ($homePage) {
+                break;
+            }
+        }
 
         if ($homePage) {
             $page = $homePage;
             $response = view(vela_template_view('page'), compact('page'));
-            $this->writeStaticCacheIfMissing($response->render());
+            if (app()->getLocale() === $primary) {
+                // home/index.html is the source-language page only.
+                $this->writeStaticCacheIfMissing($response->render());
+            }
             return $response;
         }
 

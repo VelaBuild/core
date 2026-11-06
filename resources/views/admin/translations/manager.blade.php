@@ -1,13 +1,14 @@
 @extends('vela::layouts.admin')
 
 @section('content')
-@include('vela::admin.settings._page-head', ['subtitle' => __('Coverage across pages, articles, categories, and lang files. Click any cell to drill in and translate.')])
+@include('vela::admin.settings._page-head', ['subtitle' => __('Coverage across pages, articles, categories, menus, and lang files. Click any cell to drill in and translate.')])
 
 @php
     $surfaces = [
         'pages'      => ['label' => __('Pages'),       'icon' => 'fas fa-file'],
         'articles'   => ['label' => __('Articles'),    'icon' => 'fas fa-newspaper'],
         'categories' => ['label' => __('Categories'),  'icon' => 'fas fa-tags'],
+        'menus'      => ['label' => __('Menus'),       'icon' => 'fas fa-bars'],
         'lang_files' => ['label' => __('Lang files'),  'icon' => 'fas fa-code'],
     ];
 @endphp

@@ -24,7 +24,7 @@ class Translate extends Command
 {
     protected $signature = 'vela:translate
                             {--locale= : Target locale (omit for all enabled locales)}
-                            {--scope=all : pages|articles|categories|lang_files|all}
+                            {--scope=all : pages|articles|categories|menus|lang_files|all}
                             {--limit=200 : Max items per (surface, locale) pair}
                             {--dry-run : List what would change without calling the AI}
                             {--force : Re-translate items that already have translations}';
@@ -34,13 +34,13 @@ class Translate extends Command
     public function handle(TranslationStatusService $status, Translator $translator): int
     {
         $scope = $this->option('scope');
-        $allowed = ['pages', 'articles', 'categories', 'lang_files', 'all'];
+        $allowed = ['pages', 'articles', 'categories', 'menus', 'lang_files', 'all'];
         if (! in_array($scope, $allowed, true)) {
             $this->error("Invalid --scope. Use one of: " . implode(', ', $allowed));
             return 1;
         }
 
-        $surfaces = $scope === 'all' ? ['pages', 'articles', 'categories', 'lang_files'] : [$scope];
+        $surfaces = $scope === 'all' ? ['pages', 'articles', 'categories', 'menus', 'lang_files'] : [$scope];
 
         $locale = $this->option('locale');
         $locales = $locale ? [$locale] : $status->targetLocales();
@@ -104,7 +104,7 @@ class Translate extends Command
     {
         return match ($surface) {
             'pages' => Page::whereNull('parent_id')
-                ->where('slug', '!=', 'home')
+                ->where('locale', app(TranslationStatusService::class)->sourceLocale())
                 ->get(['id', 'title', 'slug'])
                 ->map(fn ($p) => ['id' => $p->id, 'label' => $p->title ?: $p->slug, 'reason' => 'force'])
                 ->all(),
@@ -114,6 +114,9 @@ class Translate extends Command
                 ->all(),
             'categories' => Category::get(['id', 'name'])
                 ->map(fn ($c) => ['id' => $c->id, 'label' => $c->name, 'reason' => 'force'])
+                ->all(),
+            'menus' => \VelaBuild\Core\Models\MenuItem::whereNotNull('label')->where('label', '!=', '')->get(['id', 'label'])
+                ->map(fn ($i) => ['id' => $i->id, 'label' => $i->label, 'reason' => 'force'])
                 ->all(),
             'lang_files' => array_map(
                 fn ($f) => ['id' => $f, 'label' => basename(dirname($f)) . '/' . basename($f), 'reason' => 'force'],
@@ -130,6 +133,7 @@ class Translate extends Command
                 'pages'      => $t->translatePage(Page::findOrFail((int) $id), $locale),
                 'articles'   => $t->translateContent(Content::findOrFail((int) $id), $locale),
                 'categories' => $t->translateCategory(Category::findOrFail((int) $id), $locale),
+                'menus'      => $t->translateMenuItem(\VelaBuild\Core\Models\MenuItem::findOrFail((int) $id), $locale),
                 'lang_files' => $t->translateLangFile((string) $id, $locale),
             };
             return ['ok' => $r['ok'], 'message' => $r['error'] ?? ''];

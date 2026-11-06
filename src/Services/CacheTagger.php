@@ -65,6 +65,12 @@ class CacheTagger
         if (count($tags) > 900) {
             $tags = array_slice($tags, 0, 900);
         }
+        // Hosted sites share Cloudflare zones, so their tags carry the site's
+        // namespace — the same `s-<site>-` prefix the gateway adds when purging.
+        $site = strtolower((string) config('vela.hosting.site_id'));
+        if ($site !== '') {
+            $tags = array_map(fn ($t) => 's-' . $site . '-' . $t, $tags);
+        }
         return implode(',', $tags);
     }
 

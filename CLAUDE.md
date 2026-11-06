@@ -82,7 +82,8 @@ Cloudflare Browser Rendering Workers can be used for:
 - Server-side rendering for SEO previews
 - PDF generation from pages
 
-Configure via `CLOUDFLARE_BROWSER_RENDERING_URL` in .env.
+Configure via `CLOUDFLARE_BROWSER_RENDERING_URL` + `CLOUDFLARE_BROWSER_RENDERING_TOKEN` (the worker's bearer token) in .env.
+The worker lives in the gateway repo (`gateway/render-worker/`). Hosted sites use the gateway's `/v1/render` instead.
 
 ## Key Directories
 - `src/Http/Controllers/Admin/` — Admin panel controllers

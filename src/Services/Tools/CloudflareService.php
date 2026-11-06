@@ -4,7 +4,9 @@ namespace VelaBuild\Core\Services\Tools;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use VelaBuild\Core\Services\AiSettingsService;
 use VelaBuild\Core\Services\ToolSettingsService;
+use VelaBuild\Core\Services\VelaGatewayClient;
 
 class CloudflareService
 {
@@ -15,10 +17,36 @@ class CloudflareService
     ) {}
 
     /**
+     * Hosted sites (gateway set via env) purge through the Vela gateway, which
+     * holds the Cloudflare token and limits each site to its own tags and
+     * hostnames. Self-hosted installs keep calling Cloudflare with their own.
+     */
+    private function viaGateway(): bool
+    {
+        return app(AiSettingsService::class)->isGatewayLocked();
+    }
+
+    private function gatewayPurge(array $body): array
+    {
+        $client = app(VelaGatewayClient::class);
+        $result = $client->post('/v1/cdn/purge', $body, 30);
+        if ($result === null) {
+            Log::warning('Gateway CDN purge failed', ['status' => $client->lastStatus, 'error' => $client->lastError]);
+
+            return ['success' => false, 'error' => $client->lastError, 'status' => $client->lastStatus];
+        }
+
+        return ['success' => true] + $result;
+    }
+
+    /**
      * Purge specific URLs from cache.
      */
     public function purgeUrls(array $urls): array
     {
+        if ($this->viaGateway()) {
+            return $this->gatewayPurge(['urls' => array_values($urls)]);
+        }
         $zoneId = $this->settings->get('cf_zone_id');
         $token = $this->settings->get('cf_api_token');
 
@@ -58,6 +86,16 @@ class CloudflareService
         if (empty($tags)) {
             return ['success' => true, 'noop' => true];
         }
+        if ($this->viaGateway()) {
+            // Unprefixed: the gateway adds this site's namespace (as CacheTagger does
+            // in the header), so a site can only ever purge its own pages.
+            $results = [];
+            foreach (array_chunk($tags, 100) as $chunk) {
+                $results[] = $this->gatewayPurge(['tags' => $chunk]);
+            }
+
+            return ['success' => true, 'batches' => $results];
+        }
 
         $results = [];
         foreach (array_chunk($tags, 30) as $chunk) {
@@ -90,6 +128,10 @@ class CloudflareService
      */
     public function purgeAll(): array
     {
+        if ($this->viaGateway()) {
+            // "Everything" for a hosted site = its own hostnames, never the zone.
+            return $this->gatewayPurge(['everything' => true]);
+        }
         $zoneId = $this->settings->get('cf_zone_id');
         $token = $this->settings->get('cf_api_token');
 
@@ -194,6 +236,10 @@ class CloudflareService
      */
     public function isConfigured(): bool
     {
+        if ($this->viaGateway()) {
+            return true;
+        }
+
         return $this->settings->hasKey('cf_api_token') && $this->settings->hasKey('cf_zone_id');
     }
 

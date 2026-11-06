@@ -5909,6 +5909,12 @@ PageEditor.registerBlockType = function(name, config) {
                         '<input type="text" class="form-control form-control-sm pt-period" value="' + escHtml(t.period || '') + '" placeholder="/ month" title="Per">' +
                     '</div>' +
                     '<small class="text-muted">currency · amount · per (month, visit, year…)</small></div>' +
+                '<div class="pt-field pt-field--wide"><label>Yearly price <small>— optional; shown when the page\'s Yearly button is pressed</small></label>' +
+                    '<div class="pt-price-line">' +
+                        '<input type="text" class="form-control form-control-sm pt-price-yearly" value="' + escHtml(t.price_yearly || '') + '" placeholder="1,200" title="Amount">' +
+                        '<input type="text" class="form-control form-control-sm pt-period-yearly" value="' + escHtml(t.period_yearly || '') + '" placeholder="/ mo, billed yearly" title="Per">' +
+                        '<input type="text" class="form-control form-control-sm pt-price-note-yearly" value="' + escHtml(t.price_note_yearly || '') + '" placeholder="Under the price" title="Under the price">' +
+                    '</div></div>' +
                 field('pt-price-note', 'Under the price <small>— optional</small>', t.price_note, 'e.g. Billed yearly', 'pt-field--wide') +
                 field('pt-cta-text', 'Button text', t.cta_text, 'e.g. Get started') +
                 field('pt-cta-url vela-link-input', 'Button link', t.cta_url, 'e.g. /contact-us') +
@@ -5932,6 +5938,9 @@ PageEditor.registerBlockType = function(name, config) {
             price_currency: $r.find('.pt-currency').val(),
             period: $r.find('.pt-period').val(),
             price_note: $r.find('.pt-price-note').val(),
+            price_yearly: $r.find('.pt-price-yearly').val(),
+            period_yearly: $r.find('.pt-period-yearly').val(),
+            price_note_yearly: $r.find('.pt-price-note-yearly').val(),
             features_cap: $r.find('.pt-features-cap').val(),
             features: pricingTextToFeatures($r.find('.pt-features').val()),
             cta_text: $r.find('.pt-cta-text').val(),

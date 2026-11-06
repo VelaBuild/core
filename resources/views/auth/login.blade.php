@@ -11,12 +11,21 @@
         </div>
     @endif
 
+    @if(vela_demo_mode())
+        <div class="alert alert-info vela-demo-login">
+            <strong>{{ __('Try the full admin') }}</strong><br>
+            {{ __('Email') }}: <code>{{ config('vela.demo.email') }}</code><br>
+            {{ __('Password') }}: <code>{{ config('vela.demo.password') }}</code><br>
+            <small>{{ __('Change anything you like. The demo resets every :hours hours.', ['hours' => config('vela.demo.reset_hours')]) }}</small>
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('vela.auth.login.submit') }}">
         @csrf
 
         <div class="form-group">
             <label for="email">{{ trans('vela::global.login_email') }}</label>
-            <input id="email" name="email" type="text" class="form-input{{ $errors->has('email') ? ' is-invalid' : '' }}" required autocomplete="email" autofocus value="{{ old('email', null) }}">
+            <input id="email" name="email" type="text" class="form-input{{ $errors->has('email') ? ' is-invalid' : '' }}" required autocomplete="email" autofocus value="{{ old('email', vela_demo_mode() ? config('vela.demo.email') : null) }}">
             @if($errors->has('email'))
                 <div class="invalid-feedback">{{ $errors->first('email') }}</div>
             @endif
@@ -24,7 +33,7 @@
 
         <div class="form-group">
             <label for="password">{{ trans('vela::global.login_password') }}</label>
-            <input id="password" name="password" type="password" class="form-input{{ $errors->has('password') ? ' is-invalid' : '' }}" required>
+            <input id="password" name="password" type="password" class="form-input{{ $errors->has('password') ? ' is-invalid' : '' }}" required @if(vela_demo_mode()) value="{{ config('vela.demo.password') }}" @endif>
             @if($errors->has('password'))
                 <div class="invalid-feedback">{{ $errors->first('password') }}</div>
             @endif

@@ -461,10 +461,12 @@ class VelaInstall extends Command
                 continue;
             }
             $fresh = require $configFile;
+            // The starter's config/vela.php holds overrides only now, so it
+            // may not name a template; fall through to the package default.
             if (is_array($fresh) && !empty($fresh['template']['active'])) {
                 config(['vela.template.active' => $fresh['template']['active']]);
+                break;
             }
-            break;
         }
 
         $this->components->twoColumnDetail('Site config cache', '<fg=yellow>orphaned file discarded</>');

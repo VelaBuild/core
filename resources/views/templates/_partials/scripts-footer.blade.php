@@ -16,4 +16,7 @@ if(!target)target=dir>0?s[0]:s[s.length-1];if(target)go(t,target)}function mark(
     @include('vela::partials.pwa-registration')
 @endif
     @include('vela::partials.cookie-consent')
+@if(vela_demo_mode())
+    @include('vela::partials.demo-bar')
+@endif
     @include('vela::partials.webmcp')

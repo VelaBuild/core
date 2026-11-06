@@ -84,4 +84,14 @@ return [
     'welcome_to'     => 'مرحباً بك في :name',
     'ready_to_build' => 'جاهز لبدء البناء مع Vela.',
 
+    // Pricing block defaults
+    'pricing_most_popular' => 'الأكثر شيوعًا',
+    'pricing_get_started'  => 'ابدأ الآن',
+
+    // Demo bar on the public demo site
+    'demo_bar'        => 'هذا عرض تجريبي مباشر لـ Vela.',
+    'demo_login_as'   => 'سجّل الدخول باستخدام',
+    'demo_open_admin' => 'افتح لوحة الإدارة',
+    'demo_close'      => 'إغلاق',
+    'demo_label'      => 'عرض تجريبي',
 ];

@@ -90,6 +90,8 @@ class VelaServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->bootDemoMode();
+
         // Load site config from the static file (0 DB queries, safe
         // permissions). The mapping lives on the writer so the process that
         // changes a setting can re-apply it without duplicating this.
@@ -204,6 +206,8 @@ class VelaServiceProvider extends ServiceProvider
         $router->aliasMiddleware('vela.show-to-edit', \VelaBuild\Core\Http\Middleware\VelaRedirectShowToEdit::class);
 
         $router->pushMiddlewareToGroup('web', \VelaBuild\Core\Http\Middleware\AgentDiscovery::class);
+        $router->pushMiddlewareToGroup('web', \VelaBuild\Core\Http\Middleware\DemoGuard::class);
+        $router->pushMiddlewareToGroup('web', \VelaBuild\Core\Http\Middleware\LocalizeLinks::class);
 
         // Cloudflare Cache-Tag emission for every public (web) response.
         // Pushed onto the `web` group so host apps don't need to register
@@ -222,6 +226,8 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\VelaUpdate::class,
                 \VelaBuild\Core\Commands\VelaDoctor::class,
                 \VelaBuild\Core\Commands\QueueWork::class,
+                \VelaBuild\Core\Commands\CdnPurge::class,
+                \VelaBuild\Core\Commands\Languages::class,
                 \VelaBuild\Core\Commands\ProcessContentImages::class,
                 \VelaBuild\Core\Commands\FindMissingTranslations::class,
                 \VelaBuild\Core\Commands\Translate::class,
@@ -251,6 +257,12 @@ class VelaServiceProvider extends ServiceProvider
                 \VelaBuild\Core\Commands\PackageListCommand::class,
                 \VelaBuild\Core\Commands\SafeModeCommand::class,
                 \VelaBuild\Core\Commands\RepairContentJson::class,
+                \VelaBuild\Core\Commands\StaticRewriteUrls::class,
+                \VelaBuild\Core\Commands\UpgradeFiles::class,
+                \VelaBuild\Core\Commands\PackSite::class,
+                \VelaBuild\Core\Commands\PushSite::class,
+                \VelaBuild\Core\Commands\ImportSiteData::class,
+                \VelaBuild\Core\Commands\ExportStatic::class,
             ]);
         }
 
@@ -333,6 +345,31 @@ class VelaServiceProvider extends ServiceProvider
         \VelaBuild\Core\Models\PageRow::deleted( fn ($m) => $cachePurge->deletedPageRow($m));
         \VelaBuild\Core\Models\PageBlock::saved( fn ($m) => $cachePurge->savedPageBlock($m));
         \VelaBuild\Core\Models\PageBlock::deleted(fn ($m) => $cachePurge->deletedPageBlock($m));
+    }
+
+    /**
+     * A public demo sends no email (contact forms, invites, notifications
+     * are logged) and its shared account can't be locked or removed by any
+     * route, AI tool or API call, the model guard behind DemoGuard.
+     */
+    protected function bootDemoMode(): void
+    {
+        if (!vela_demo_mode()) {
+            return;
+        }
+        config(['mail.default' => 'log']);
+
+        $isDemo = fn ($user) => strcasecmp((string) $user->getOriginal('email'), (string) config('vela.demo.email')) === 0;
+        \VelaBuild\Core\Models\VelaUser::updating(function ($user) use ($isDemo) {
+            if ($isDemo($user)) {
+                foreach (['email', 'password', 'two_factor'] as $field) {
+                    if ($user->isDirty($field)) {
+                        $user->{$field} = $user->getOriginal($field);
+                    }
+                }
+            }
+        });
+        \VelaBuild\Core\Models\VelaUser::deleting(fn ($user) => $isDemo($user) ? false : null);
     }
 
     protected function registerHomeRedirect(): void
@@ -814,7 +851,9 @@ class VelaServiceProvider extends ServiceProvider
                 'cta_text' => 'Book now', 'cta_url' => '/contact-us', 'featured' => false, 'badge' => '',
             ]]],
             'shape_note' => 'Each tier: name is the small label on top, subtitle an optional heading under it; price, '
-                . 'price_currency and period make one line ("THB 1500 per visit"), price_note sits under it. features is a list '
+                . 'price_currency and period make one line ("THB 1500 per visit"), price_note sits under it. Optional '
+                . 'price_yearly, period_yearly and price_note_yearly are shown instead when a button with data-bill="y" on the '
+                . 'page is pressed (data-bill="m" switches back). features is a list '
                 . 'of strings, or {text, muted: true} for something the plan does not include (drawn faded); features_cap is an '
                 . 'optional line above the list. featured draws the tier as the dark highlighted card with badge (default "Most '
                 . 'popular"). settings.columns is 2, 3 or 4. card_style is clean, soft or outline. card_color, button_color and '
@@ -1068,6 +1107,29 @@ class VelaServiceProvider extends ServiceProvider
             'gate'        => 'config_edit',
             'order'       => 130,
         ]);
+
+        // Starter files this release updated (CmsFileUpgrader). The page
+        // itself also requires the Admin role.
+        $vela->registerSettingsItem('cms-files', [
+            'label'       => __('CMS files'),
+            'description' => __('Review, merge or apply updates to the site\'s starter files.'),
+            'icon'        => 'fas fa-code-branch',
+            'route'       => 'vela.admin.cms-files.index',
+            'gate'        => 'config_edit',
+            'order'       => 140,
+        ]);
+
+        // Self-hosted only: pack this site for Vela Hosted (SitePacker).
+        if (!config('vela.hosting.site_id')) {
+            $vela->registerSettingsItem('move-to-hosted', [
+                'label'       => __('Move to Vela Hosted'),
+                'description' => __('Download this site as one file, or push it to a hosted site.'),
+                'icon'        => 'fas fa-cloud-upload-alt',
+                'route'       => 'vela.admin.move-to-hosted.index',
+                'gate'        => 'config_edit',
+                'order'       => 150,
+            ]);
+        }
 
         // Plugin entries — only show when the plugin is loaded. We register
         // them here too so the registry is the single source of truth; the

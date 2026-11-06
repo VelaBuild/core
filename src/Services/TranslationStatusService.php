@@ -67,6 +67,7 @@ class TranslationStatusService
             'pages'      => $this->pagesCoverage($locales, $source),
             'articles'   => $this->articlesCoverage($locales),
             'categories' => $this->categoriesCoverage($locales),
+            'menus'      => $this->menusCoverage($locales),
             'lang_files' => $this->langFilesCoverage($locales, $source),
         ];
     }
@@ -88,6 +89,7 @@ class TranslationStatusService
             'pages'      => $this->missingPages($locale, $source),
             'articles'   => $this->missingContents($locale),
             'categories' => $this->missingCategories($locale),
+            'menus'      => $this->missingMenuItems($locale),
             'lang_files' => $this->missingLangFiles($locale, $source),
             default => [],
         };
@@ -105,7 +107,6 @@ class TranslationStatusService
 
         $sourcePages = Page::where('locale', $source)
             ->whereNull('parent_id')
-            ->where('slug', '!=', 'home')
             ->get(['id']);
         $total = $sourcePages->count();
 
@@ -131,16 +132,17 @@ class TranslationStatusService
         if (! $this->safeHasTable((new Page)->getTable())) return [];
         $sourcePages = Page::where('locale', $source)
             ->whereNull('parent_id')
-            ->where('slug', '!=', 'home')
-            ->get(['id', 'title', 'slug']);
+            ->get(['id', 'title', 'slug', 'updated_at']);
 
         $missing = [];
         foreach ($sourcePages as $p) {
-            $exists = Page::where('locale', $locale)
+            $row = Page::where('locale', $locale)
                 ->where(function ($q) use ($p) { $q->where('id', $p->id)->orWhere('parent_id', $p->id); })
-                ->exists();
-            if (! $exists) {
+                ->first(['id', 'updated_at']);
+            if (! $row) {
                 $missing[] = ['id' => $p->id, 'label' => $p->title ?: $p->slug, 'reason' => 'No locale row'];
+            } elseif ($row->id !== $p->id && $p->updated_at && $row->updated_at < $p->updated_at) {
+                $missing[] = ['id' => $p->id, 'label' => $p->title ?: $p->slug, 'reason' => 'Out of date'];
             }
         }
         return $missing;
@@ -233,6 +235,53 @@ class TranslationStatusService
             }
         }
         return $missing;
+    }
+
+    // ── Menus ─────────────────────────────────────────────────────────
+    // Only items with their own label: the rest show their page's or
+    // topic's title, which is translated with that page or topic.
+
+    /** @return \Illuminate\Support\Collection<int, \VelaBuild\Core\Models\MenuItem> */
+    private function labelledMenuItems()
+    {
+        if (! $this->safeHasTable((new \VelaBuild\Core\Models\MenuItem)->getTable())) {
+            return collect();
+        }
+
+        return \VelaBuild\Core\Models\MenuItem::whereNotNull('label')->where('label', '!=', '')->get(['id', 'label']);
+    }
+
+    private function translatedMenuIds(string $locale): array
+    {
+        return Translation::where('lang_code', $locale)
+            ->where('model_type', 'MenuItem')
+            ->where('model_key', 'like', '%_label')
+            ->whereNotNull('translation')
+            ->pluck('model_key')
+            ->map(fn ($k) => (int) explode('_', $k)[0])
+            ->all();
+    }
+
+    private function menusCoverage(array $locales): array
+    {
+        $ids = $this->labelledMenuItems()->pluck('id')->all();
+        $out = [];
+        foreach ($locales as $loc) {
+            $out[$loc] = ['translated' => count(array_intersect($ids, $this->translatedMenuIds($loc))), 'total' => count($ids)];
+        }
+
+        return $out;
+    }
+
+    private function missingMenuItems(string $locale): array
+    {
+        $have = $this->translatedMenuIds($locale);
+
+        return $this->labelledMenuItems()
+            ->reject(fn ($i) => in_array($i->id, $have, true))
+            ->map(fn ($i) => ['id' => $i->id, 'label' => $i->label, 'reason' => 'Missing label translation'])
+            ->values()
+            ->all();
     }
 
     // ── Lang files ────────────────────────────────────────────────────
