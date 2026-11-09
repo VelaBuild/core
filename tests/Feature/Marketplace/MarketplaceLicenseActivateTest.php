@@ -62,9 +62,11 @@ class MarketplaceLicenseActivateTest extends TestCase
         $response = $this->post('/admin/marketplace/store/activate', ['license_key' => '  vela_granted ']);
 
         $response->assertRedirect(route('vela.admin.packages.index'));
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('message', fn ($m) => str_contains($m, 'Installing'));
 
+        // Composer ran after the response (no queue worker in tests).
         $package = InstalledPackage::where('composer_name', $composerName)->firstOrFail();
+        $this->assertSame(InstalledPackage::STATUS_ACTIVE, $package->status);
         $this->assertSame('0.1.0', $package->version);
         $license = $package->license;
         $this->assertNotNull($license);

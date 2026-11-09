@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 use VelaBuild\Core\Http\Controllers\Controller;
+use VelaBuild\Core\Jobs\RunPackageOperation;
 use VelaBuild\Core\Models\InstalledPackage;
 use VelaBuild\Core\Models\PackageLicense;
 use VelaBuild\Core\Services\Marketplace\LicenseCacheWriter;
@@ -133,9 +134,11 @@ class MarketplacePurchaseController extends Controller
             'marketplace_purchase_id' => $data['purchase_id'] ?? $data['marketplace_purchase_id'] ?? null,
         ];
 
-        $existing = InstalledPackage::where('composer_name', $composerName)->first();
+        // Removed packages are soft-deleted and composer_name is unique, so a
+        // reinstall reuses the old row; creating a new one failed.
+        $existing = InstalledPackage::withTrashed()->where('composer_name', $composerName)->first();
 
-        if ($existing) {
+        if ($existing && !$existing->trashed() && $existing->status !== InstalledPackage::STATUS_FAILED) {
             $existing->license()->updateOrCreate(
                 ['installed_package_id' => $existing->id],
                 $licenseFields
@@ -144,41 +147,35 @@ class MarketplacePurchaseController extends Controller
             $this->cacheWriter->write();
 
             return redirect()->route('vela.admin.packages.index')
-                ->with('success', 'License updated for ' . $composerName . '.');
-        }
-
-        $result = $this->installer->install($composerName, $licenseFields['license_key'] ?: null);
-
-        if (!$result['success']) {
-            return redirect()->route('vela.admin.marketplace.index')
-                ->with('error', 'Installation failed: ' . ($result['error'] ?? 'Unknown error'));
+                ->with('message', $existing->isBusy()
+                    ? 'License saved. ' . $composerName . ' is still being worked on.'
+                    : 'License updated for ' . $composerName . '.');
         }
 
         [$vendorName, $packageName] = explode('/', $composerName, 2);
 
-        $package = InstalledPackage::create([
-            'vendor_name' => $vendorName,
-            'package_name' => $packageName,
-            'composer_name' => $composerName,
-            'version' => $data['version'] ?? 'latest',
-            'status' => InstalledPackage::STATUS_ACTIVE,
-            'installed_at' => now(),
-        ]);
+        if ($existing) {
+            $existing->restore();
+            $package = $existing;
+            $package->update(['version' => $data['version'] ?? $package->version ?? 'latest']);
+        } else {
+            $package = InstalledPackage::create([
+                'vendor_name' => $vendorName,
+                'package_name' => $packageName,
+                'composer_name' => $composerName,
+                'version' => $data['version'] ?? 'latest',
+                'status' => InstalledPackage::STATUS_INSTALLING,
+            ]);
+        }
 
-        PackageLicense::create(['installed_package_id' => $package->id] + $licenseFields);
-
+        $package->license()->updateOrCreate(['installed_package_id' => $package->id], $licenseFields);
         $this->cacheWriter->write();
 
-        $this->client->registerSite(
-            $licenseFields['license_key'],
-            $this->settings->getDomain(),
-            route('vela.webhook.marketplace')
-        );
-
-        $this->installer->ensureGitignoreHasAuthJson();
+        // Composer runs in the background; the packages page follows it.
+        RunPackageOperation::start($package, RunPackageOperation::INSTALL);
 
         return redirect()->route('vela.admin.packages.index')
-            ->with('success', $composerName . ' installed successfully.');
+            ->with('message', 'Installing ' . $composerName . '. This can take a few minutes — you can leave this page.');
     }
 
     private function backToPlugin(string $slug, string $message)

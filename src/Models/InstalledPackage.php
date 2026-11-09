@@ -18,6 +18,15 @@ class InstalledPackage extends Model
     const STATUS_EXPIRED = 'expired';
     const STATUS_SUSPENDED = 'suspended';
 
+    // Background operations (RunPackageOperation).
+    const STATUS_INSTALLING = 'installing';
+    const STATUS_UPDATING = 'updating';
+    const STATUS_REMOVING = 'removing';
+    const STATUS_FAILED = 'failed';
+
+    /** A package in one of these is mid-operation: no other action until it ends. */
+    const BUSY = [self::STATUS_INSTALLING, self::STATUS_UPDATING, self::STATUS_REMOVING];
+
     protected $fillable = [
         'vendor_name',
         'package_name',
@@ -25,6 +34,10 @@ class InstalledPackage extends Model
         'version',
         'status',
         'installed_at',
+        'operation_log',
+        'operation_error',
+        'operation_started_at',
+        'operation_finished_at',
     ];
 
     protected $dates = [
@@ -36,7 +49,14 @@ class InstalledPackage extends Model
 
     protected $casts = [
         'installed_at' => 'datetime',
+        'operation_started_at' => 'datetime',
+        'operation_finished_at' => 'datetime',
     ];
+
+    public function isBusy(): bool
+    {
+        return in_array($this->status, self::BUSY, true);
+    }
 
     protected function serializeDate(DateTimeInterface $date)
     {

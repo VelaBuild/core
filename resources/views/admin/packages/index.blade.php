@@ -17,9 +17,11 @@
             </div>
         @endif
 
-        @if(session('message'))
-            <div class="alert alert-success">{{ session('message') }}</div>
-        @endif
+        @foreach(['message', 'success'] as $flash)
+            @if(session($flash))
+                <div class="alert alert-success">{{ session($flash) }}</div>
+            @endif
+        @endforeach
 
         @if(session('error'))
             <div class="alert alert-danger">{{ session('error') }}</div>
@@ -85,6 +87,13 @@
                                         <span class="badge badge-danger">Expired</span>
                                     @elseif($package->status === 'suspended')
                                         <span class="badge badge-danger">Suspended</span>
+                                    @elseif($package->isBusy())
+                                        <span class="badge badge-info">
+                                            <i class="fas fa-spinner fa-spin mr-1"></i>{{ ucfirst($package->status) }}…
+                                        </span>
+                                        <div class="small text-muted mt-1">Started {{ $package->operation_started_at?->diffForHumans() }}</div>
+                                    @elseif($package->status === 'failed')
+                                        <span class="badge badge-danger">Install failed</span>
                                     @else
                                         <span class="badge badge-secondary">{{ $package->status }}</span>
                                     @endif
@@ -99,7 +108,18 @@
                                     @endif
                                 </td>
                                 <td>
+                                    @if($package->isBusy())
+                                        <span class="text-muted small">Please wait…</span>
+                                    @else
                                     <div class="btn-group btn-group-sm">
+                                        @if($package->status === 'failed')
+                                            <form method="POST" action="{{ route('vela.admin.packages.retry', $package->id) }}" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-primary" title="Try the install again">
+                                                    <i class="fas fa-redo"></i> Retry
+                                                </button>
+                                            </form>
+                                        @endif
                                         {{-- Enable / Disable toggle --}}
                                         @if($package->status === 'disabled')
                                             <form method="POST" action="{{ route('vela.admin.packages.enable', $package->id) }}" class="d-inline">
@@ -136,8 +156,24 @@
                                             </button>
                                         </form>
                                     </div>
+                                    @endif
                                 </td>
                             </tr>
+                            @if($package->operation_error || ($package->operation_log && $package->status === 'failed'))
+                                <tr class="table-light">
+                                    <td colspan="6" class="small">
+                                        @if($package->operation_error)
+                                            <div class="text-danger mb-1"><i class="fas fa-exclamation-circle mr-1"></i>{{ $package->operation_error }}</div>
+                                        @endif
+                                        @if($package->operation_log)
+                                            <details>
+                                                <summary class="text-muted">Composer output</summary>
+                                                <pre class="mb-0 mt-2 p-2 bg-white border rounded" style="max-height: 280px; overflow: auto; white-space: pre-wrap;">{{ $package->operation_log }}</pre>
+                                            </details>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endif
                         @endforeach
                     </tbody>
                 </table>
@@ -146,4 +182,26 @@
 
     </div>
 </div>
+
+@if($packages->contains(fn ($p) => $p->isBusy()))
+    @push('scripts')
+    <script>
+    // Follow the background job: reload when any package's status changes.
+    (function () {
+        var url = @json(route('vela.admin.packages.status'));
+        var seen = @json($packages->mapWithKeys(fn ($p) => [$p->id => $p->status]));
+        setInterval(function () {
+            fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin', cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.json() : []; })
+                .then(function (rows) {
+                    var changed = rows.length !== Object.keys(seen).length
+                        || rows.some(function (p) { return seen[p.id] !== p.status; });
+                    if (changed) window.location.reload();
+                })
+                .catch(function () {});
+        }, 4000);
+    })();
+    </script>
+    @endpush
+@endif
 @endsection

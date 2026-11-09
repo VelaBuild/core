@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 use VelaBuild\Core\Http\Controllers\Controller;
+use VelaBuild\Core\Jobs\RunPackageOperation;
 use VelaBuild\Core\Models\InstalledPackage;
 use VelaBuild\Core\Services\Marketplace\LicenseCacheWriter;
 use VelaBuild\Core\Services\Marketplace\LicenseManager;
@@ -57,20 +58,16 @@ class InstalledPackagesController extends Controller
 
         $package = InstalledPackage::findOrFail($id);
 
+        if ($package->isBusy()) {
+            return redirect()->back()->with('error', $package->composer_name . ' is already being worked on.');
+        }
         if (!$package->license || $this->licenseManager->isExpired($package->license)) {
             return redirect()->back()->with('error', 'Cannot update: license is expired or missing.');
         }
 
-        $result = $this->installer->update($package->composer_name);
+        RunPackageOperation::start($package, RunPackageOperation::UPDATE);
 
-        if (!$result['success']) {
-            return redirect()->back()->with('error', $result['error'] ?? 'Update failed.');
-        }
-
-        $package->update(['version' => $result['version'] ?? $package->version]);
-        $this->cacheWriter->write();
-
-        return redirect()->back()->with('success', 'Package updated successfully.');
+        return redirect()->back()->with('message', 'Updating ' . $package->composer_name . ' in the background.');
     }
 
     public function destroy(int $id)
@@ -79,16 +76,47 @@ class InstalledPackagesController extends Controller
 
         $package = InstalledPackage::findOrFail($id);
 
-        $result = $this->installer->remove($package->composer_name);
-
-        if (!$result['success']) {
-            return redirect()->back()->with('error', $result['error'] ?? 'Removal failed.');
+        if ($package->isBusy()) {
+            return redirect()->back()->with('error', $package->composer_name . ' is already being worked on.');
         }
 
-        $package->license?->delete();
-        $package->delete();
-        $this->cacheWriter->write();
+        // A failed install never reached Composer's lock file: just forget it.
+        if ($package->status === InstalledPackage::STATUS_FAILED) {
+            $package->license?->delete();
+            $package->delete();
+            $this->cacheWriter->write();
+            return redirect()->back()->with('message', $package->composer_name . ' removed.');
+        }
 
-        return redirect()->back()->with('success', 'Package removed successfully.');
+        RunPackageOperation::start($package, RunPackageOperation::REMOVE);
+
+        return redirect()->back()->with('message', 'Removing ' . $package->composer_name . ' in the background.');
+    }
+
+    /**
+     * Try a failed install again with the license it already has.
+     */
+    public function retry(int $id)
+    {
+        abort_if(Gate::denies('marketplace_install'), Response::HTTP_FORBIDDEN);
+
+        $package = InstalledPackage::findOrFail($id);
+        abort_unless($package->status === InstalledPackage::STATUS_FAILED, Response::HTTP_UNPROCESSABLE_ENTITY);
+
+        RunPackageOperation::start($package, RunPackageOperation::INSTALL);
+
+        return redirect()->back()->with('message', 'Installing ' . $package->composer_name . ' again.');
+    }
+
+    /**
+     * What the packages page polls while something is running.
+     */
+    public function status()
+    {
+        abort_if(Gate::denies('marketplace_browse'), Response::HTTP_FORBIDDEN);
+
+        return response()->json(
+            InstalledPackage::orderBy('composer_name')->get(['id', 'composer_name', 'status', 'operation_error'])
+        )->header('Cache-Control', 'no-store');
     }
 }
