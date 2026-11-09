@@ -117,6 +117,8 @@ class RunPackageOperation implements ShouldQueue
             return;
         }
 
+        $warning = $result['warning'] ?? null;
+
         if ($this->operation === self::REMOVE) {
             $package->license?->delete();
             $package->delete();
@@ -129,6 +131,9 @@ class RunPackageOperation implements ShouldQueue
                 ? InstalledPackage::STATUS_ACTIVE
                 : ($this->restoreStatus ?: InstalledPackage::STATUS_ACTIVE),
             'installed_at' => $this->operation === self::INSTALL ? now() : $package->installed_at,
+            // The package is in place; a failed Artisan step is shown with its
+            // output so it is seen, not left to look like a working install.
+            'operation_error' => $warning ? mb_substr($warning, 0, 500) : null,
             'operation_log' => $log,
         ]);
         $cacheWriter->write();

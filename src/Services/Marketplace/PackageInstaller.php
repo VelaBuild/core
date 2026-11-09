@@ -3,6 +3,7 @@
 namespace VelaBuild\Core\Services\Marketplace;
 
 use Illuminate\Support\Facades\File;
+use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
 
 class PackageInstaller
@@ -57,7 +58,9 @@ class PackageInstaller
                 return ['success' => false, 'output' => $output, 'error' => 'Composer require failed.'];
             }
 
-            return ['success' => true, 'output' => $output . $this->afterComposer(migrate: true), 'error' => ''];
+            $steps = $this->afterComposer(migrate: true);
+
+            return ['success' => true, 'output' => $output . $steps, 'error' => '', 'warning' => $this->stepsWarning()];
         } finally {
             $this->releaseLock();
         }
@@ -97,7 +100,9 @@ class PackageInstaller
                 return ['success' => false, 'output' => $output, 'error' => 'Composer remove failed.'];
             }
 
-            return ['success' => true, 'output' => $output . $this->afterComposer(migrate: false), 'error' => ''];
+            $steps = $this->afterComposer(migrate: false);
+
+            return ['success' => true, 'output' => $output . $steps, 'error' => '', 'warning' => $this->stepsWarning()];
         } finally {
             $this->releaseLock();
         }
@@ -144,7 +149,9 @@ class PackageInstaller
                 return ['success' => false, 'output' => $output, 'error' => 'Composer update failed.'];
             }
 
-            return ['success' => true, 'output' => $output . $this->afterComposer(migrate: true), 'error' => ''];
+            $steps = $this->afterComposer(migrate: true);
+
+            return ['success' => true, 'output' => $output . $steps, 'error' => '', 'warning' => $this->stepsWarning()];
         } finally {
             $this->releaseLock();
         }
@@ -462,10 +469,12 @@ class PackageInstaller
      */
     protected function afterComposer(bool $migrate): string
     {
+        $this->failedSteps = [];
+        $php = $this->phpBinary();
         $log = '';
         foreach ($this->afterComposerCommands($migrate) as $args) {
             $process = new Process(
-                array_merge([PHP_BINARY, 'artisan'], $args, ['--no-interaction']),
+                array_merge([$php, 'artisan'], $args, ['--no-interaction']),
                 $this->basePath,
                 null,
                 null,
@@ -474,6 +483,7 @@ class PackageInstaller
             $process->run();
             $log .= "\n$ php artisan " . implode(' ', $args) . "\n" . $process->getOutput() . $process->getErrorOutput();
             if (!$process->isSuccessful()) {
+                $this->failedSteps[] = implode(' ', $args);
                 \Illuminate\Support\Facades\Log::warning('Marketplace post-install step failed', [
                     'command' => implode(' ', $args),
                     'output'  => trim($process->getErrorOutput() ?: $process->getOutput()),
@@ -481,6 +491,29 @@ class PackageInstaller
             }
         }
         return $log;
+    }
+
+    /**
+     * The PHP command-line binary.
+     *
+     * Not PHP_BINARY: when the job runs after the response it is still the
+     * web server's PHP, where PHP_BINARY is php-fpm (or the server itself),
+     * which cannot run artisan. Every step after Composer failed, so a
+     * plugin was installed but never discovered and its pages answered 404.
+     */
+    protected function phpBinary(): string
+    {
+        return (new PhpExecutableFinder())->find(false) ?: 'php';
+    }
+
+    /** @var array<int, string> steps after Composer that failed, from the last run */
+    protected array $failedSteps = [];
+
+    private function stepsWarning(): ?string
+    {
+        return $this->failedSteps
+            ? 'Installed, but these setup steps failed: ' . implode(', ', $this->failedSteps) . '. Use Repair to run them again.'
+            : null;
     }
 
     /**

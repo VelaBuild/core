@@ -66,6 +66,32 @@ class PackageOperationTest extends TestCase
         $this->assertStringContainsString('Update failed', $package->operation_error);
     }
 
+    public function test_a_failed_setup_step_after_composer_is_shown_on_the_active_package(): void
+    {
+        $package = $this->package(InstalledPackage::STATUS_REPAIRING);
+        $this->mock(PackageInstaller::class, fn ($m) => $m->shouldReceive('install')->once()
+            ->andReturn(['success' => true, 'output' => '$ php artisan package:discover', 'error' => '',
+                'warning' => 'Installed, but these setup steps failed: package:discover. Use Repair to run them again.']));
+
+        app()->call([new RunPackageOperation($package->id, RunPackageOperation::REPAIR, InstalledPackage::STATUS_ACTIVE), 'handle']);
+
+        $package->refresh();
+        $this->assertSame(InstalledPackage::STATUS_ACTIVE, $package->status);
+        $this->assertStringContainsString('package:discover', $package->operation_error);
+    }
+
+    public function test_the_setup_steps_run_with_the_php_cli_not_the_web_server_binary(): void
+    {
+        $installer = new class(app(\VelaBuild\Core\Services\Marketplace\MarketplaceSettingsService::class)) extends PackageInstaller {
+            public function binary(): string { return $this->phpBinary(); }
+        };
+
+        $binary = $installer->binary();
+
+        $this->assertDoesNotMatchRegularExpression('/fpm|frankenphp|httpd/i', basename($binary));
+        $this->assertNotSame('', $binary);
+    }
+
     public function test_a_crashed_job_never_leaves_the_package_stuck(): void
     {
         $package = $this->package(InstalledPackage::STATUS_INSTALLING);
