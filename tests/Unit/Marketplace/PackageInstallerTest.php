@@ -177,6 +177,23 @@ class PackageInstallerTest extends TestCase
         $this->assertArrayHasKey('marketplace.vela.build', $content['http-basic']);
     }
 
+    public function test_after_composer_registers_the_package_migrates_and_never_forces_assets(): void
+    {
+        $installer = $this->makeInstaller();
+
+        $install = $installer->afterComposerCommands(true);
+        $this->assertSame(['package:discover'], $install[0], 'discover first, or the new provider is never loaded');
+        $this->assertContains(['migrate', '--force'], $install);
+        $this->assertContains(['vendor:publish', '--tag=laravel-assets'], $install);
+        foreach ($install as $args) {
+            $this->assertNotContains('--force', $args === ['migrate', '--force'] ? [] : $args, 'published files must not be overwritten');
+        }
+
+        $remove = $installer->afterComposerCommands(false);
+        $this->assertSame(['package:discover'], $remove[0]);
+        $this->assertNotContains(['migrate', '--force'], $remove);
+    }
+
     public function test_ensure_auth_json_signs_in_with_the_license_key(): void
     {
         $installer = $this->makeInstaller();

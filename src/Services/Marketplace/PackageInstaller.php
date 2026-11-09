@@ -57,7 +57,7 @@ class PackageInstaller
                 return ['success' => false, 'output' => $output, 'error' => 'Composer require failed.'];
             }
 
-            return ['success' => true, 'output' => $output, 'error' => ''];
+            return ['success' => true, 'output' => $output . $this->afterComposer(migrate: true), 'error' => ''];
         } finally {
             $this->releaseLock();
         }
@@ -97,7 +97,7 @@ class PackageInstaller
                 return ['success' => false, 'output' => $output, 'error' => 'Composer remove failed.'];
             }
 
-            return ['success' => true, 'output' => $output, 'error' => ''];
+            return ['success' => true, 'output' => $output . $this->afterComposer(migrate: false), 'error' => ''];
         } finally {
             $this->releaseLock();
         }
@@ -144,7 +144,7 @@ class PackageInstaller
                 return ['success' => false, 'output' => $output, 'error' => 'Composer update failed.'];
             }
 
-            return ['success' => true, 'output' => $output, 'error' => ''];
+            return ['success' => true, 'output' => $output . $this->afterComposer(migrate: true), 'error' => ''];
         } finally {
             $this->releaseLock();
         }
@@ -400,6 +400,59 @@ class PackageInstaller
             300
         );
         $process->run();
+    }
+
+    /**
+     * The Artisan steps a package change needs, which `--no-scripts` skips.
+     *
+     * Composer runs with --no-scripts so a package's own scripts never run
+     * here; but that also skipped Laravel's package:discover. A plugin
+     * installed from the admin was on disk yet never registered: its routes
+     * answered 404 and its tables were never created.
+     *
+     * Assets are published without --force: a file the site already has is
+     * left alone, so local changes to published files are never overwritten.
+     *
+     * @return array<int, array<int, string>>
+     */
+    public function afterComposerCommands(bool $migrate): array
+    {
+        return array_values(array_filter([
+            ['package:discover'],
+            $migrate ? ['migrate', '--force'] : null,
+            ['vendor:publish', '--tag=laravel-assets'],
+            ['config:clear'],
+            ['route:clear'],
+            ['view:clear'],
+        ]));
+    }
+
+    /**
+     * Run them in a fresh PHP process: this one still has the old package
+     * list loaded. A failing step is reported, not fatal — the package is
+     * installed, and the admin can rerun the step.
+     */
+    protected function afterComposer(bool $migrate): string
+    {
+        $log = '';
+        foreach ($this->afterComposerCommands($migrate) as $args) {
+            $process = new Process(
+                array_merge([PHP_BINARY, 'artisan'], $args, ['--no-interaction']),
+                $this->basePath,
+                null,
+                null,
+                300
+            );
+            $process->run();
+            $log .= "\n$ php artisan " . implode(' ', $args) . "\n" . $process->getOutput() . $process->getErrorOutput();
+            if (!$process->isSuccessful()) {
+                \Illuminate\Support\Facades\Log::warning('Marketplace post-install step failed', [
+                    'command' => implode(' ', $args),
+                    'output'  => trim($process->getErrorOutput() ?: $process->getOutput()),
+                ]);
+            }
+        }
+        return $log;
     }
 
     /**
