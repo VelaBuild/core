@@ -22,10 +22,11 @@ class InstalledPackage extends Model
     const STATUS_INSTALLING = 'installing';
     const STATUS_UPDATING = 'updating';
     const STATUS_REMOVING = 'removing';
+    const STATUS_REPAIRING = 'repairing';
     const STATUS_FAILED = 'failed';
 
     /** A package in one of these is mid-operation: no other action until it ends. */
-    const BUSY = [self::STATUS_INSTALLING, self::STATUS_UPDATING, self::STATUS_REMOVING];
+    const BUSY = [self::STATUS_INSTALLING, self::STATUS_UPDATING, self::STATUS_REMOVING, self::STATUS_REPAIRING];
 
     protected $fillable = [
         'vendor_name',

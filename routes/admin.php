@@ -231,6 +231,8 @@ Route::prefix('packages')->name('packages.')->group(function () {
     Route::get('/', [Admin\Marketplace\InstalledPackagesController::class, 'index'])->name('index');
     Route::get('/status', [Admin\Marketplace\InstalledPackagesController::class, 'status'])->name('status');
     Route::post('/{id}/retry', [Admin\Marketplace\InstalledPackagesController::class, 'retry'])->name('retry');
+    Route::post('/{id}/repair', [Admin\Marketplace\InstalledPackagesController::class, 'repair'])->name('repair');
+    Route::post('/orphans/remove', [Admin\Marketplace\InstalledPackagesController::class, 'removeOrphan'])->name('orphans.remove');
     Route::post('/{id}/disable', [Admin\Marketplace\InstalledPackagesController::class, 'disable'])->name('disable');
     Route::post('/{id}/enable', [Admin\Marketplace\InstalledPackagesController::class, 'enable'])->name('enable');
     Route::post('/{id}/update', [Admin\Marketplace\InstalledPackagesController::class, 'update'])->name('update');

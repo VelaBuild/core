@@ -196,6 +196,34 @@ class PackageInstaller
     }
 
     /**
+     * Packages in composer.lock that were downloaded from the marketplace.
+     *
+     * Lets the admin see a plugin Composer still has but the database lost
+     * track of: it can't be removed from the packages list, and it breaks
+     * hosted upgrades, which rebuild vendor/ without it.
+     *
+     * @return array<string, string>  composer name => version
+     */
+    public function marketplacePackagesInLock(): array
+    {
+        $lock = json_decode((string) @file_get_contents($this->basePath . '/composer.lock'), true);
+        if (!is_array($lock)) {
+            return [];
+        }
+
+        $repo = $this->repositoryUrl() . '/packages/';
+        $found = [];
+        foreach (array_merge($lock['packages'] ?? [], $lock['packages-dev'] ?? []) as $pkg) {
+            $url = (string) ($pkg['dist']['url'] ?? '');
+            if (isset($pkg['name']) && str_starts_with($url, $repo)) {
+                $found[$pkg['name']] = (string) ($pkg['version'] ?? '');
+            }
+        }
+        ksort($found);
+        return $found;
+    }
+
+    /**
      * Where the marketplace serves its Composer repository (packages.json).
      */
     public function repositoryUrl(): string

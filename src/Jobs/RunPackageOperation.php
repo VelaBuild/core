@@ -32,6 +32,8 @@ class RunPackageOperation implements ShouldQueue
     public const INSTALL = 'install';
     public const UPDATE = 'update';
     public const REMOVE = 'remove';
+    /** Install again over itself and redo the Laravel steps; keeps the data. */
+    public const REPAIR = 'repair';
 
     private const LOG_LIMIT = 20000;
 
@@ -61,6 +63,7 @@ class RunPackageOperation implements ShouldQueue
                 self::INSTALL => InstalledPackage::STATUS_INSTALLING,
                 self::UPDATE  => InstalledPackage::STATUS_UPDATING,
                 self::REMOVE  => InstalledPackage::STATUS_REMOVING,
+                self::REPAIR  => InstalledPackage::STATUS_REPAIRING,
             },
             'operation_error' => null,
             'operation_started_at' => now(),
@@ -92,7 +95,7 @@ class RunPackageOperation implements ShouldQueue
         }
 
         $result = match ($this->operation) {
-            self::INSTALL => $installer->install($package->composer_name, $package->license?->license_key ?: null),
+            self::INSTALL, self::REPAIR => $installer->install($package->composer_name, $package->license?->license_key ?: null),
             self::UPDATE  => $installer->update($package->composer_name),
             self::REMOVE  => $installer->remove($package->composer_name),
         };

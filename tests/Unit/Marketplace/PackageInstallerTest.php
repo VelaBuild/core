@@ -177,6 +177,16 @@ class PackageInstallerTest extends TestCase
         $this->assertArrayHasKey('marketplace.vela.build', $content['http-basic']);
     }
 
+    public function test_marketplace_packages_in_lock_lists_only_marketplace_downloads(): void
+    {
+        file_put_contents($this->tmpDir . '/composer.lock', json_encode(['packages' => [
+            ['name' => 'velabuild/store', 'version' => '0.1.0', 'dist' => ['url' => 'https://marketplace.vela.build/api/packages/velabuild/store/0.1.0.zip']],
+            ['name' => 'laravel/framework', 'version' => 'v13.0.0', 'dist' => ['url' => 'https://api.github.com/repos/laravel/framework/zipball/abc']],
+        ]]));
+
+        $this->assertSame(['velabuild/store' => '0.1.0'], $this->makeInstaller()->marketplacePackagesInLock());
+    }
+
     public function test_after_composer_registers_the_package_migrates_and_never_forces_assets(): void
     {
         $installer = $this->makeInstaller();

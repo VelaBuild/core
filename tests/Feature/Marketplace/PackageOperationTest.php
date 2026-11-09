@@ -143,4 +143,38 @@ class PackageOperationTest extends TestCase
             ->assertSee(route('vela.admin.packages.retry', $failed->id), false)
             ->assertSee(json_encode(route('vela.admin.packages.status')), false); // polled while busy
     }
+
+    public function test_repair_reruns_the_install_and_keeps_a_disabled_package_disabled(): void
+    {
+        $this->loginAsAdmin();
+        Bus::fake();
+        $package = $this->package(InstalledPackage::STATUS_DISABLED);
+
+        $this->post('/admin/packages/' . $package->id . '/repair')->assertSessionHas('message');
+        $this->assertSame(InstalledPackage::STATUS_REPAIRING, $package->fresh()->status);
+
+        $job = null;
+        Bus::assertDispatched(RunPackageOperation::class, function ($j) use (&$job) { $job = $j; return $j->operation === 'repair'; });
+
+        $this->mock(PackageInstaller::class, fn ($m) => $m->shouldReceive('install')->once()->andReturn(['success' => true, 'output' => 'discovered']));
+        app()->call([$job, 'handle']);
+
+        $this->assertSame(InstalledPackage::STATUS_DISABLED, $package->fresh()->status);
+    }
+
+    public function test_a_package_composer_has_but_the_database_lost_is_shown_and_can_be_removed(): void
+    {
+        $this->loginAsAdmin();
+        Bus::fake();
+        $this->mock(PackageInstaller::class, fn ($m) => $m->shouldReceive('marketplacePackagesInLock')->andReturn(['acme/lost-plugin' => '1.0.0']));
+
+        $this->get('/admin/packages')->assertOk()->assertSee('Found in Composer but not recorded here')->assertSee('acme/lost-plugin');
+
+        $this->post('/admin/packages/orphans/remove', ['composer_name' => 'acme/not-an-orphan'])->assertStatus(422);
+
+        $this->post('/admin/packages/orphans/remove', ['composer_name' => 'acme/lost-plugin'])->assertSessionHas('message');
+        $row = InstalledPackage::where('composer_name', 'acme/lost-plugin')->firstOrFail();
+        $this->assertSame(InstalledPackage::STATUS_REMOVING, $row->status);
+        Bus::assertDispatched(RunPackageOperation::class, fn ($j) => $j->operation === 'remove' && $j->packageId === $row->id);
+    }
 }

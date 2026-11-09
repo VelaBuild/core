@@ -26,8 +26,9 @@ class InstalledPackagesController extends Controller
 
         $packages = InstalledPackage::with('license')->orderBy('composer_name')->get();
         $safeMode = $this->licenseManager->isSafeMode();
+        $orphans = $this->orphans($packages);
 
-        return view('vela::admin.packages.index', compact('packages', 'safeMode'));
+        return view('vela::admin.packages.index', compact('packages', 'safeMode', 'orphans'));
     }
 
     public function disable(int $id)
@@ -91,6 +92,69 @@ class InstalledPackagesController extends Controller
         RunPackageOperation::start($package, RunPackageOperation::REMOVE);
 
         return redirect()->back()->with('message', 'Removing ' . $package->composer_name . ' in the background.');
+    }
+
+    /**
+     * Install a package again over itself and redo package:discover and the
+     * migrations, for a plugin that is installed but not working (e.g. one
+     * put on disk by an older installer that never registered it). Its data
+     * is kept.
+     */
+    public function repair(int $id)
+    {
+        abort_if(Gate::denies('marketplace_install'), Response::HTTP_FORBIDDEN);
+
+        $package = InstalledPackage::findOrFail($id);
+
+        if ($package->isBusy()) {
+            return redirect()->back()->with('error', $package->composer_name . ' is already being worked on.');
+        }
+
+        RunPackageOperation::start($package, $package->status === InstalledPackage::STATUS_FAILED
+            ? RunPackageOperation::INSTALL
+            : RunPackageOperation::REPAIR);
+
+        return redirect()->back()->with('message', 'Repairing ' . $package->composer_name . ' in the background.');
+    }
+
+    /**
+     * Remove a marketplace package Composer still has but the database lost.
+     */
+    public function removeOrphan(Request $request)
+    {
+        abort_if(Gate::denies('marketplace_install'), Response::HTTP_FORBIDDEN);
+
+        $name = (string) $request->input('composer_name');
+        // Only a name the lock file itself lists as a marketplace package.
+        abort_unless(array_key_exists($name, $this->orphans(InstalledPackage::get())), Response::HTTP_UNPROCESSABLE_ENTITY);
+
+        [$vendor, $pkg] = explode('/', $name, 2);
+        $package = InstalledPackage::withTrashed()->firstOrNew(['composer_name' => $name]);
+        if ($package->trashed()) {
+            $package->restore();
+        }
+        $package->fill([
+            'vendor_name' => $vendor,
+            'package_name' => $pkg,
+            'version' => $package->version ?: 'unknown',
+            'status' => InstalledPackage::STATUS_ACTIVE,
+        ])->save();
+
+        RunPackageOperation::start($package, RunPackageOperation::REMOVE);
+
+        return redirect()->back()->with('message', 'Removing ' . $name . ' in the background.');
+    }
+
+    /**
+     * Marketplace packages in composer.lock with no live row in the database.
+     *
+     * @return array<string, string>
+     */
+    private function orphans($packages): array
+    {
+        $known = $packages->pluck('composer_name')->all();
+
+        return array_diff_key($this->installer->marketplacePackagesInLock(), array_flip($known));
     }
 
     /**

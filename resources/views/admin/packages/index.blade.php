@@ -27,6 +27,31 @@
             <div class="alert alert-danger">{{ session('error') }}</div>
         @endif
 
+        @if(!empty($orphans))
+            <div class="alert alert-warning">
+                <div class="mb-2">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    <strong>Found in Composer but not recorded here.</strong>
+                    These marketplace packages are still installed, but this list lost track of them. They can stop the site from updating.
+                </div>
+                <ul class="list-unstyled mb-0">
+                    @foreach($orphans as $name => $version)
+                        <li class="d-flex align-items-center justify-content-between py-1">
+                            <span><code>{{ $name }}</code> <small class="text-muted">{{ $version }}</small></span>
+                            <span class="d-flex" style="gap: .5rem;">
+                                <a href="{{ route('vela.admin.marketplace.show', \Illuminate\Support\Str::after($name, '/')) }}" class="btn btn-sm btn-outline-primary">Reinstall from marketplace</a>
+                                <form method="POST" action="{{ route('vela.admin.packages.orphans.remove') }}" class="d-inline">
+                                    @csrf
+                                    <input type="hidden" name="composer_name" value="{{ $name }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                </form>
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         @if($packages->isEmpty())
             <div class="text-center py-5 text-muted">
                 <i class="fas fa-puzzle-piece fa-3x mb-3 d-block"></i>
@@ -143,6 +168,16 @@
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-outline-primary" title="Update">
                                                     <i class="fas fa-sync-alt"></i> Update
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        {{-- Repair: install again over itself + discover/migrate; data kept --}}
+                                        @if($package->status !== 'failed')
+                                            <form method="POST" action="{{ route('vela.admin.packages.repair', $package->id) }}" class="d-inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Reinstall the files and redo setup; keeps your data">
+                                                    <i class="fas fa-wrench"></i> Repair
                                                 </button>
                                             </form>
                                         @endif
