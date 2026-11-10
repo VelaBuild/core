@@ -9,6 +9,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use VelaBuild\Core\Models\InstalledPackage;
+use VelaBuild\Core\Models\VelaConfig;
 use VelaBuild\Core\Services\Marketplace\LicenseCacheWriter;
 use VelaBuild\Core\Services\Marketplace\MarketplaceClient;
 use VelaBuild\Core\Services\Marketplace\MarketplaceSettingsService;
@@ -126,10 +127,14 @@ class RunPackageOperation implements ShouldQueue
             return;
         }
 
+        $version = $this->lockedVersion($package->composer_name) ?? $package->version;
+        $this->clearUpdateNotice($package->composer_name, $version);
+
         $this->finish($package, [
             'status' => $this->operation === self::INSTALL
                 ? InstalledPackage::STATUS_ACTIVE
                 : ($this->restoreStatus ?: InstalledPackage::STATUS_ACTIVE),
+            'version' => $version,
             'installed_at' => $this->operation === self::INSTALL ? now() : $package->installed_at,
             // The package is in place; a failed Artisan step is shown with its
             // output so it is seen, not left to look like a working install.
@@ -170,6 +175,38 @@ class RunPackageOperation implements ShouldQueue
                 : ($this->restoreStatus ?: InstalledPackage::STATUS_ACTIVE),
             'operation_error' => ucfirst($this->operation) . ' stopped: ' . ($e?->getMessage() ?: 'the job did not finish'),
         ]);
+    }
+
+    /**
+     * The version Composer actually installed. The marketplace may only have
+     * said "latest", and an update changes it.
+     */
+    private function lockedVersion(string $composerName): ?string
+    {
+        $lock = json_decode((string) @file_get_contents(base_path('composer.lock')), true);
+
+        foreach ($lock['packages'] ?? [] as $entry) {
+            if (($entry['name'] ?? null) === $composerName && !empty($entry['version'])) {
+                return ltrim((string) $entry['version'], 'v');
+            }
+        }
+
+        return null;
+    }
+
+    /** Drop "Update available" once that version (or a newer one) is installed. */
+    private function clearUpdateNotice(string $composerName, ?string $installed): void
+    {
+        $key = 'marketplace_update_' . str_replace('/', '_', $composerName);
+        $notice = VelaConfig::where('key', $key)->first();
+        if (!$notice || !$installed) {
+            return;
+        }
+
+        $offered = ltrim((string) (json_decode((string) $notice->value, true)['version'] ?? ''), 'v');
+        if ($offered === '' || version_compare($installed, $offered, '>=')) {
+            $notice->forceDelete();
+        }
     }
 
     private function finish(InstalledPackage $package, array $attributes): void

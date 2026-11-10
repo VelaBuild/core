@@ -92,6 +92,21 @@ class PackageOperationTest extends TestCase
         $this->assertNotSame('', $binary);
     }
 
+    public function test_a_finished_update_clears_the_update_notice_it_satisfied(): void
+    {
+        $package = $this->package(InstalledPackage::STATUS_UPDATING);
+        $key = 'marketplace_update_' . str_replace('/', '_', $package->composer_name);
+        \VelaBuild\Core\Models\VelaConfig::updateOrCreate(['key' => $key], ['value' => json_encode(['version' => '1.0.0'])]);
+        $this->mock(PackageInstaller::class, fn ($m) => $m->shouldReceive('update')->once()
+            ->andReturn(['success' => true, 'output' => '', 'error' => '']));
+
+        app()->call([new RunPackageOperation($package->id, RunPackageOperation::UPDATE, InstalledPackage::STATUS_ACTIVE), 'handle']);
+
+        // Not in composer.lock here, so the recorded version (1.0.0) stands and satisfies the notice.
+        $this->assertSame('1.0.0', $package->fresh()->version);
+        $this->assertDatabaseMissing('vela_configs', ['key' => $key]);
+    }
+
     public function test_a_crashed_job_never_leaves_the_package_stuck(): void
     {
         $package = $this->package(InstalledPackage::STATUS_INSTALLING);
