@@ -19,23 +19,31 @@ class MarketplaceWebhookController extends Controller
 
     public function handle(Request $request)
     {
-        $secret = $this->settings->get('webhook_secret');
+        $payload = $request->getContent();
+        $data = json_decode($payload, true) ?: [];
 
-        if (!$secret) {
+        // The marketplace signs each event with the license key of the
+        // purchase it is about, as "sha256=<hex>". Only a site-wide secret,
+        // compared without the prefix, was accepted here, so every update
+        // notice was refused and "Update available" never appeared.
+        $secrets = array_values(array_filter([
+            $this->settings->get('webhook_secret'),
+            InstalledPackage::with('license')->where('composer_name', $data['plugin'] ?? '')->first()?->license?->license_key,
+        ]));
+
+        if (!$secrets) {
             return response()->json(['error' => 'Webhook not configured'], 503);
         }
 
-        // Verify webhook signature
-        $signature = $request->header('X-Marketplace-Signature');
-        $payload = $request->getContent();
-        $expected = hash_hmac('sha256', $payload, $secret);
+        $signature = preg_replace('/^sha256=/', '', (string) $request->header('X-Marketplace-Signature', ''));
+        $valid = $signature !== '' && collect($secrets)->contains(
+            fn ($secret) => hash_equals(hash_hmac('sha256', $payload, $secret), $signature)
+        );
 
-        if (!$signature || !hash_equals($expected, $signature)) {
+        if (!$valid) {
             Log::warning('Marketplace webhook: invalid signature');
             return response()->json(['error' => 'Invalid signature'], 401);
         }
-
-        $data = json_decode($payload, true);
 
         switch ($data['event'] ?? null) {
             case 'version.released':

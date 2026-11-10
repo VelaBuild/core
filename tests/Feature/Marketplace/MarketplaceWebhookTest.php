@@ -44,6 +44,31 @@ class MarketplaceWebhookTest extends TestCase
         $response->assertJson(['success' => true]);
     }
 
+    public function test_an_update_signed_with_the_plugin_license_key_shows_update_available(): void
+    {
+        $name = 'acme/plug-' . uniqid();
+        [$vendor, $pkg] = explode('/', $name);
+        $package = InstalledPackage::create([
+            'vendor_name' => $vendor, 'package_name' => $pkg, 'composer_name' => $name,
+            'version' => '1.0.0', 'status' => 'active', 'installed_at' => now(),
+        ]);
+        \VelaBuild\Core\Models\PackageLicense::create([
+            'installed_package_id' => $package->id, 'license_key' => 'vela_lic', 'domain' => 'localhost',
+            'type' => 'onetime', 'validation_status' => 'valid',
+        ]);
+
+        // Exactly as the marketplace sends it: keyed by the license, "sha256=" prefix.
+        $payload = json_encode(['event' => 'version.released', 'plugin' => $name, 'version' => '1.1.0']);
+        $signature = 'sha256=' . hash_hmac('sha256', $payload, 'vela_lic');
+
+        $response = $this->call('POST', '/webhook/marketplace', [], [], [],
+            ['HTTP_X-Marketplace-Signature' => $signature, 'CONTENT_TYPE' => 'application/json'], $payload);
+
+        $response->assertStatus(200);
+        $key = 'marketplace_update_' . str_replace('/', '_', $name);
+        $this->assertStringContainsString('1.1.0', (string) VelaConfig::where('key', $key)->value('value'));
+    }
+
     public function test_invalid_signature_rejected(): void
     {
         $settings = app(MarketplaceSettingsService::class);
