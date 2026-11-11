@@ -405,46 +405,7 @@ class CmsFileUpgrader
 
     private function unifiedDiff(string $a, string $b, string $labelA, string $labelB): string
     {
-        if ($a === $b) {
-            return '';
-        }
-        $dir = $this->tempDir();
-        try {
-            file_put_contents("{$dir}/a", $a);
-            file_put_contents("{$dir}/b", $b);
-            $out = $this->runProcess(['git', 'diff', '--no-index', '--no-color', '-U3', "{$dir}/a", "{$dir}/b"]);
-            if ($out !== null && $out['code'] <= 1 && $out['stdout'] !== '') {
-                $lines = explode("\n", $out['stdout']);
-                // Drop git's header (diff --git / index / --- / +++) for our own labels.
-                while ($lines && !str_starts_with($lines[0], '@@')) {
-                    array_shift($lines);
-                }
-
-                return "--- {$labelA}\n+++ {$labelB}\n" . implode("\n", $lines);
-            }
-        } finally {
-            $this->removeDir($dir);
-        }
-
-        // Without git: one hunk covering everything between the common prefix and suffix.
-        $x = explode("\n", $a);
-        $y = explode("\n", $b);
-        $start = 0;
-        while ($start < count($x) && $start < count($y) && $x[$start] === $y[$start]) {
-            $start++;
-        }
-        $endX = count($x);
-        $endY = count($y);
-        while ($endX > $start && $endY > $start && $x[$endX - 1] === $y[$endY - 1]) {
-            $endX--;
-            $endY--;
-        }
-        $body = array_merge(
-            array_map(fn ($l) => '-' . $l, array_slice($x, $start, $endX - $start)),
-            array_map(fn ($l) => '+' . $l, array_slice($y, $start, $endY - $start)),
-        );
-
-        return "--- {$labelA}\n+++ {$labelB}\n@@ -" . ($start + 1) . ',' . ($endX - $start) . ' +' . ($start + 1) . ',' . ($endY - $start) . " @@\n" . implode("\n", $body) . "\n";
+        return \VelaBuild\Core\Support\TextDiff::unified($a, $b, $labelA, $labelB);
     }
 
     // ── State, paths, IO ────────────────────────────────────────────────

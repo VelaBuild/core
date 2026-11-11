@@ -237,12 +237,49 @@ Public CSS/JS that your plugin ships:
 ```php
 $this->publishes([
     __DIR__.'/../public' => public_path('vendor/your-namespace'),
-], 'your-namespace-assets');
+], ['your-namespace-assets', 'laravel-assets']);
 ```
 
-Host apps run `composer update` which auto-publishes via `post-update-cmd`.
+Add the `laravel-assets` tag. Vela copies everything under that tag into `public/` after a marketplace install, update or
+repair, and whenever `php artisan vela:update` or `php artisan vela:plugin-assets` runs. It does not use
+`vendor:publish`:
+
+- If the site's copy is still the one Vela copied last time, the plugin's new version replaces it.
+- If the site edited the file, the file is kept. The admin says so, and `php artisan vela:plugin-assets --diff` shows the
+  difference.
+- If the file was published before Vela kept records, the old copy is saved in
+  `storage/app/vela-plugin-assets/backups/` and then replaced.
+
+Vela only copies files whose destination is inside `public/`. Never put templates under `laravel-assets`.
 
 For CSS/JS that should be bundled into Vela's hashed bundles, contribute to `config('vela.assets.bundles')` — either by merging in your service provider's `register()` or by documenting the host-app override in your plugin's README.
+
+---
+
+## Template versions
+
+A site can override any of your views by copying it to `resources/views/vendor/your-namespace/...`. Laravel then uses
+the site's copy instead of yours. That copy never changes when your plugin does. Like WooCommerce, Vela asks every
+template to state its version in its header, so it can tell when a site's copy has fallen behind:
+
+```blade
+{{-- @version 1.2.0 --}}
+@extends(vela_template_layout())
+```
+
+- Put the header on every view in `resources/views`. It must be within the first 2 KB of the file.
+- When a template changes in a way that a site's copy should follow (new markup, new variables, a fix), set its version to
+  the plugin release the change ships in. Leave the version alone for changes that do not matter to an override.
+- Vela compares each override in the site with your template. An override with a lower version, or with no header, is
+  outdated.
+- Outdated overrides are shown on every admin page and under Marketplace → Installed packages, with both versions and a
+  diff. `php artisan vela:update` lists them too. `php artisan vela:templates --diff` shows each one against your
+  template.
+- Vela never changes an override. The site's owner (or an AI) brings your changes into their copy, then raises its
+  `@version` to match yours.
+
+Templates without a header are not checked. Any package that calls `loadViewsFrom()` is checked, so plugins do not need
+to register anything.
 
 ---
 

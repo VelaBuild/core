@@ -218,6 +218,67 @@
     </div>
 </div>
 
+{{-- Files the site keeps its own copy of, where the plugin has a newer one. --}}
+@if(!empty($templates) || !empty($changedAssets))
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-code-branch mr-2"></i> Your copies of plugin files</h5>
+    </div>
+    <div class="card-body">
+        @if(!empty($templates))
+            <p class="mb-2">
+                These templates are overridden in <code>resources/views/vendor</code> and are older than the plugin's.
+                Your site still uses its own copy. Compare it with the plugin's, bring the changes across,
+                then set its <code>@version</code> to the plugin's. Run <code>php artisan vela:templates --diff</code> to see them all.
+            </p>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr><th>Template</th><th>Package</th><th>Your version</th><th>Plugin version</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach($templates as $template)
+                            <tr>
+                                <td><code>{{ $template['path'] }}</code></td>
+                                <td>{{ $template['package'] ?? $template['namespace'] }}</td>
+                                <td>{{ $template['site_version'] ?? 'none' }}</td>
+                                <td>{{ $template['plugin_version'] }}</td>
+                                <td class="text-right">
+                                    <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener"
+                                       href="{{ route('vela.admin.packages.templates.diff', ['path' => $template['path']]) }}">Diff</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
+        @if(!empty($changedAssets))
+            <p class="mb-2">
+                These public files were edited on this site, so the plugin's newer version was not copied over them.
+                To take the plugin's version, delete the file and run <code>php artisan vela:plugin-assets</code>.
+            </p>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        @foreach($changedAssets as $path)
+                            <tr>
+                                <td><code>public/{{ $path }}</code></td>
+                                <td class="text-right">
+                                    <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener"
+                                       href="{{ route('vela.admin.packages.assets.diff', ['path' => $path]) }}">Diff</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+</div>
+@endif
+
 @if($packages->contains(fn ($p) => $p->isBusy()))
     @push('scripts')
     <script>

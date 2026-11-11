@@ -11,6 +11,8 @@ use VelaBuild\Core\Models\InstalledPackage;
 use VelaBuild\Core\Services\Marketplace\LicenseCacheWriter;
 use VelaBuild\Core\Services\Marketplace\LicenseManager;
 use VelaBuild\Core\Services\Marketplace\PackageInstaller;
+use VelaBuild\Core\Services\PluginAssetSync;
+use VelaBuild\Core\Services\TemplateVersions;
 
 class InstalledPackagesController extends Controller
 {
@@ -28,7 +30,51 @@ class InstalledPackagesController extends Controller
         $safeMode = $this->licenseManager->isSafeMode();
         $orphans = $this->orphans($packages);
 
-        return view('vela::admin.packages.index', compact('packages', 'safeMode', 'orphans'));
+        // What the site keeps its own copy of, and the plugin has moved past.
+        $templates = $this->safely(fn () => app(TemplateVersions::class)->outdated());
+        $changedAssets = $this->safely(fn () => app(PluginAssetSync::class)->modified());
+
+        return view('vela::admin.packages.index', compact('packages', 'safeMode', 'orphans', 'templates', 'changedAssets'));
+    }
+
+    /** A template override against the plugin's template, as plain text. */
+    public function templateDiff(Request $request)
+    {
+        abort_if(Gate::denies('marketplace_browse'), Response::HTTP_FORBIDDEN);
+
+        try {
+            $diff = app(TemplateVersions::class)->diff((string) $request->query('path', ''));
+        } catch (\InvalidArgumentException) {
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        return response($diff, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+    }
+
+    /** A plugin public file the site changed against the plugin's, as plain text. */
+    public function assetDiff(Request $request)
+    {
+        abort_if(Gate::denies('marketplace_browse'), Response::HTTP_FORBIDDEN);
+
+        try {
+            $diff = app(PluginAssetSync::class)->diff((string) $request->query('path', ''));
+        } catch (\InvalidArgumentException) {
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        return response($diff, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+    }
+
+    /** A check that fails must not take the page down with it. */
+    private function safely(callable $check): array
+    {
+        try {
+            return $check();
+        } catch (\Throwable $e) {
+            report($e);
+
+            return [];
+        }
     }
 
     public function disable(int $id)

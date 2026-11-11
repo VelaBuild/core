@@ -230,6 +230,8 @@ Route::prefix('marketplace')->name('marketplace.')->group(function () {
 Route::prefix('packages')->name('packages.')->group(function () {
     Route::get('/', [Admin\Marketplace\InstalledPackagesController::class, 'index'])->name('index');
     Route::get('/status', [Admin\Marketplace\InstalledPackagesController::class, 'status'])->name('status');
+    Route::get('/templates/diff', [Admin\Marketplace\InstalledPackagesController::class, 'templateDiff'])->name('templates.diff');
+    Route::get('/assets/diff', [Admin\Marketplace\InstalledPackagesController::class, 'assetDiff'])->name('assets.diff');
     Route::post('/{id}/retry', [Admin\Marketplace\InstalledPackagesController::class, 'retry'])->name('retry');
     Route::post('/{id}/repair', [Admin\Marketplace\InstalledPackagesController::class, 'repair'])->name('repair');
     Route::post('/orphans/remove', [Admin\Marketplace\InstalledPackagesController::class, 'removeOrphan'])->name('orphans.remove');

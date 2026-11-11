@@ -5,6 +5,7 @@ namespace VelaBuild\Core\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * What is out of step between the installed package and the site running it.
@@ -103,6 +104,30 @@ class SiteHealth
             }
         }
 
+        // Plugin templates the site overrode, and plugin files it changed:
+        // both are the site's own now, so said here rather than replaced.
+        if (Gate::allows('marketplace_browse')) {
+            $templates = app(TemplateVersions::class)->outdatedCount();
+            if ($templates > 0) {
+                $notices[] = [
+                    'level'   => 'warning',
+                    'title'   => trans_choice('vela::global.health_templates_outdated', $templates),
+                    'body'    => trans('vela::global.health_templates_outdated_body'),
+                    'command' => 'php artisan vela:templates --diff',
+                ];
+            }
+
+            $assets = app(PluginAssetSync::class)->modifiedCount();
+            if ($assets > 0) {
+                $notices[] = [
+                    'level'   => 'info',
+                    'title'   => trans_choice('vela::global.health_plugin_assets_kept', $assets),
+                    'body'    => trans('vela::global.health_plugin_assets_kept_body'),
+                    'command' => 'php artisan vela:plugin-assets --diff',
+                ];
+            }
+        }
+
         return $notices;
     }
 
@@ -110,5 +135,7 @@ class SiteHealth
     {
         Cache::forget(self::CACHE_KEY);
         CmsFileUpgrader::forget();
+        TemplateVersions::forget();
+        PluginAssetSync::forget();
     }
 }

@@ -445,8 +445,11 @@ class PackageInstaller
      * installed from the admin was on disk yet never registered: its routes
      * answered 404 and its tables were never created.
      *
-     * Assets are published without --force: a file the site already has is
-     * left alone, so local changes to published files are never overwritten.
+     * Public files (CSS, JS) are copied by vela:plugin-assets, not
+     * `vendor:publish`: without --force a plugin update never reached the
+     * site, and with it a file the site had changed was lost. It replaces
+     * only files the site has not changed (see PluginAssetSync). Template
+     * overrides are never copied; outdated ones are reported instead.
      *
      * @return array<int, array<int, string>>
      */
@@ -455,7 +458,7 @@ class PackageInstaller
         return array_values(array_filter([
             ['package:discover'],
             $migrate ? ['migrate', '--force'] : null,
-            ['vendor:publish', '--tag=laravel-assets'],
+            ['vela:plugin-assets'],
             ['config:clear'],
             ['route:clear'],
             ['view:clear'],

@@ -224,6 +224,8 @@ class VelaServiceProvider extends ServiceProvider
             $this->commands([
                 \VelaBuild\Core\Commands\VelaInstall::class,
                 \VelaBuild\Core\Commands\VelaUpdate::class,
+                \VelaBuild\Core\Commands\PluginAssets::class,
+                \VelaBuild\Core\Commands\TemplateCheck::class,
                 \VelaBuild\Core\Commands\VelaDoctor::class,
                 \VelaBuild\Core\Commands\QueueWork::class,
                 \VelaBuild\Core\Commands\CdnPurge::class,

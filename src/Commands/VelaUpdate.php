@@ -44,6 +44,29 @@ class VelaUpdate extends Command
             ? '<fg=green>added to ' . implode(', ', $done['themes']) . '</>'
             : '<fg=green>nothing missing</>');
 
+        // Plugins' public files: replaced unless the site changed them.
+        try {
+            $plugin = app(\VelaBuild\Core\Services\PluginAssetSync::class)->sync();
+            $this->components->twoColumnDetail('Plugin public files', $plugin['kept']
+                ? '<fg=yellow>' . count($plugin['updated']) . ' updated, ' . count($plugin['kept']) . ' changed here and kept — php artisan vela:plugin-assets --diff</>'
+                : '<fg=green>' . count($plugin['updated']) . ' updated</>');
+            if ($plugin['backed_up']) {
+                $this->components->twoColumnDetail('Previous copies saved in', $plugin['backup']);
+            }
+        } catch (\Throwable $e) {
+            $this->components->twoColumnDetail('Plugin public files', '<fg=yellow>could not update: ' . $e->getMessage() . '</>');
+        }
+
+        // Template overrides are the site's own code too: reported, not changed.
+        try {
+            $outdated = count(app(\VelaBuild\Core\Services\TemplateVersions::class)->outdated());
+            $this->components->twoColumnDetail('Template overrides', $outdated === 0
+                ? '<fg=green>current</>'
+                : '<fg=yellow>' . $outdated . ' older than the plugin — php artisan vela:templates</>');
+        } catch (\Throwable $e) {
+            $this->components->twoColumnDetail('Template overrides', '<fg=yellow>could not check: ' . $e->getMessage() . '</>');
+        }
+
         // Starter files are the site's own code, so they are reported here,
         // not changed: `vela:upgrade-files --auto` applies the safe ones.
         try {

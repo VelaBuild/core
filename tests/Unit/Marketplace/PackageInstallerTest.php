@@ -187,16 +187,19 @@ class PackageInstallerTest extends TestCase
         $this->assertSame(['velabuild/store' => '0.1.0'], $this->makeInstaller()->marketplacePackagesInLock());
     }
 
-    public function test_after_composer_registers_the_package_migrates_and_never_forces_assets(): void
+    public function test_after_composer_registers_the_package_migrates_and_updates_assets_without_losing_changes(): void
     {
         $installer = $this->makeInstaller();
 
         $install = $installer->afterComposerCommands(true);
         $this->assertSame(['package:discover'], $install[0], 'discover first, or the new provider is never loaded');
         $this->assertContains(['migrate', '--force'], $install);
-        $this->assertContains(['vendor:publish', '--tag=laravel-assets'], $install);
+        // Plugin public files go through vela:plugin-assets, which keeps files
+        // the site changed; vendor:publish either never updates or (--force)
+        // overwrites them.
+        $this->assertContains(['vela:plugin-assets'], $install);
         foreach ($install as $args) {
-            $this->assertNotContains('--force', $args === ['migrate', '--force'] ? [] : $args, 'published files must not be overwritten');
+            $this->assertNotSame('vendor:publish', $args[0], 'vendor:publish cannot tell a changed file from a stale one');
         }
 
         $remove = $installer->afterComposerCommands(false);
