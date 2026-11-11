@@ -65,7 +65,8 @@ class SiteHealth
     }
 
     /**
-     * @return array<int, array{level: string, title: string, body: string, command: string}>
+     * @return array<int, array{level: string, title: string, body: string, command: string, url?: ?string}>
+     *         url: the admin page that deals with it, when there is one
      */
     public function notices(): array
     {
@@ -100,35 +101,34 @@ class SiteHealth
                     'title'   => trans_choice('vela::global.health_cms_files_pending', $files),
                     'body'    => trans('vela::global.health_cms_files_pending_body'),
                     'command' => 'php artisan vela:upgrade-files',
+                    'url'     => $this->route('vela.admin.cms-files.index'),
                 ];
             }
         }
 
         // Plugin templates the site overrode, and plugin files it changed:
         // both are the site's own now, so said here rather than replaced.
-        if (Gate::allows('marketplace_browse')) {
-            $templates = app(TemplateVersions::class)->outdatedCount();
-            if ($templates > 0) {
+        // One line for both; Installed packages lists them, so not there.
+        if (Gate::allows('marketplace_browse') && !request()->routeIs('vela.admin.packages.index')) {
+            $files = app(TemplateVersions::class)->outdatedCount() + app(PluginAssetSync::class)->modifiedCount();
+            if ($files > 0) {
                 $notices[] = [
                     'level'   => 'warning',
-                    'title'   => trans_choice('vela::global.health_templates_outdated', $templates),
-                    'body'    => trans('vela::global.health_templates_outdated_body'),
+                    'title'   => trans_choice('vela::global.health_plugin_files', $files),
+                    'body'    => trans('vela::global.health_plugin_files_body'),
                     'command' => 'php artisan vela:templates --diff',
-                ];
-            }
-
-            $assets = app(PluginAssetSync::class)->modifiedCount();
-            if ($assets > 0) {
-                $notices[] = [
-                    'level'   => 'info',
-                    'title'   => trans_choice('vela::global.health_plugin_assets_kept', $assets),
-                    'body'    => trans('vela::global.health_plugin_assets_kept_body'),
-                    'command' => 'php artisan vela:plugin-assets --diff',
+                    'url'     => $this->route('vela.admin.packages.index'),
                 ];
             }
         }
 
         return $notices;
+    }
+
+    /** A named route's URL, or null where it is not registered. */
+    private function route(string $name): ?string
+    {
+        return \Illuminate\Support\Facades\Route::has($name) ? route($name) : null;
     }
 
     public static function forget(): void

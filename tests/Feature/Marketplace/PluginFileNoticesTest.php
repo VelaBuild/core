@@ -43,14 +43,19 @@ class PluginFileNoticesTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_every_admin_page_names_the_outdated_template_count_and_command(): void
+    public function test_every_admin_page_says_it_in_one_line_with_a_button_to_installed_packages(): void
     {
         $this->loginAsAdmin();
 
         $this->get(route('vela.admin.pages.index'))
             ->assertOk()
-            ->assertSee('1 template your site overrides is older than its plugin')
-            ->assertSee('php artisan vela:templates --diff');
+            ->assertSee('1 plugin file needs a look after an update')
+            ->assertSee(route('vela.admin.packages.index'), false);
+
+        // Installed packages lists the files itself, so the line is not repeated there.
+        $this->get(route('vela.admin.packages.index'))
+            ->assertOk()
+            ->assertDontSee('needs a look after an update');
     }
 
     public function test_installed_packages_lists_both_versions_and_links_the_diff(): void
