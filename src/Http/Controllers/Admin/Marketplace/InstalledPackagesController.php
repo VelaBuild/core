@@ -65,6 +65,22 @@ class InstalledPackagesController extends Controller
         return response($diff, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 
+    /** Keep the site's own version of a plugin file and stop reporting it. */
+    public function keepAsset(Request $request)
+    {
+        abort_if(Gate::denies('marketplace_install'), Response::HTTP_FORBIDDEN);
+
+        $path = (string) $request->input('path', '');
+        try {
+            app(PluginAssetSync::class)->keep($path);
+        } catch (\InvalidArgumentException) {
+            abort(Response::HTTP_NOT_FOUND);
+        }
+
+        return redirect()->route('vela.admin.packages.index')
+            ->with('success', "Keeping your version of public/{$path}. You will be told again if the plugin changes it.");
+    }
+
     /** A check that fails must not take the page down with it. */
     private function safely(callable $check): array
     {

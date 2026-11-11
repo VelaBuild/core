@@ -257,7 +257,8 @@
         @if(!empty($changedAssets))
             <p class="mb-2">
                 These public files were edited on this site, so the plugin's newer version was not copied over them.
-                To take the plugin's version, delete the file and run <code>php artisan vela:plugin-assets</code>.
+                If you meant to keep your version, choose <strong>Keep mine</strong>: you will be told again only if the plugin
+                changes the file. To take the plugin's version, delete the file and run <code>php artisan vela:plugin-assets</code>.
             </p>
             <div class="table-responsive">
                 <table class="table table-sm mb-0">
@@ -268,6 +269,13 @@
                                 <td class="text-right">
                                     <a class="btn btn-sm btn-outline-primary text-nowrap" target="_blank" rel="noopener"
                                        href="{{ route('vela.admin.packages.assets.diff', ['path' => $path]) }}"><i class="fas fa-exchange-alt mr-1"></i> Diff</a>
+                                    @can('marketplace_install')
+                                    <form method="POST" action="{{ route('vela.admin.packages.assets.keep') }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="path" value="{{ $path }}">
+                                        <button class="btn btn-sm btn-outline-primary text-nowrap ml-1"><i class="fas fa-check mr-1"></i> Keep mine</button>
+                                    </form>
+                                    @endcan
                                 </td>
                             </tr>
                         @endforeach

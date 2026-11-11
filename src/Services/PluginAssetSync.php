@@ -18,7 +18,8 @@ use VelaBuild\Core\Support\TextDiff;
  *
  * - the site's copy still matches what was copied last time → nobody changed
  *   it, so the plugin's new version replaces it;
- * - it does not match → the site changed it: it is kept, and reported;
+ * - it does not match → the site changed it: it is kept, and reported until
+ *   the site chooses to keep its version (keep()), or the plugin changes it again;
  * - there is no record (published before this existed) → the site's copy is
  *   backed up to storage/app/vela-plugin-assets/backups, then replaced.
  *
@@ -81,6 +82,7 @@ class PluginAssetSync
     public function sync(): array
     {
         $state = $this->state();
+        $kept = $this->keptVersions();
         $done = ['updated' => [], 'kept' => [], 'backed_up' => [], 'backup' => null];
         $this->backupStamp = null;
 
@@ -97,7 +99,9 @@ class PluginAssetSync
                 }
 
                 if (isset($state[$path]) && $state[$path] !== $have) {
-                    $done['kept'][] = $path;
+                    if (($kept[$path] ?? null) !== $wanted) {
+                        $done['kept'][] = $path;
+                    }
                     continue;
                 }
 
@@ -131,6 +135,7 @@ class PluginAssetSync
     public function modified(): array
     {
         $state = $this->state();
+        $kept = $this->keptVersions();
         $modified = [];
 
         foreach ($this->files() as $path => $source) {
@@ -139,12 +144,35 @@ class PluginAssetSync
                 continue;
             }
             $have = sha1_file($site);
-            if ($have !== $state[$path] && $have !== sha1_file($source)) {
+            $wanted = sha1_file($source);
+            if ($have !== $state[$path] && $have !== $wanted && ($kept[$path] ?? null) !== $wanted) {
                 $modified[] = $path;
             }
         }
 
         return $modified;
+    }
+
+    /**
+     * The site keeps its own version of a file: stop reporting it.
+     *
+     * Only until the plugin ships a different version of that file, which is
+     * reported again. The site's copy is never replaced either way.
+     *
+     * @throws \InvalidArgumentException for a file that is not one the site changed
+     */
+    public function keep(string $path): void
+    {
+        $files = $this->files();
+        if (!isset($files[$path]) || !in_array($path, $this->modified(), true)) {
+            throw new \InvalidArgumentException('Not a plugin file this site changed: ' . $path);
+        }
+
+        $kept = $this->keptVersions();
+        $kept[$path] = sha1_file($files[$path]);
+        ksort($kept);
+        $this->writeJson('kept.json', $kept);
+        self::forget();
     }
 
     /** modified(), remembered for a few minutes: the admin asks on every page. */
@@ -188,21 +216,38 @@ class PluginAssetSync
         }
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, string> site path => hash of the file as last copied */
     private function state(): array
     {
-        $state = json_decode((string) @file_get_contents($this->statePath . '/state.json'), true);
+        return $this->readJson('state.json');
+    }
 
-        return is_array($state) ? array_filter($state, 'is_string') : [];
+    /** @return array<string, string> site path => hash of the plugin version the site chose not to take */
+    private function keptVersions(): array
+    {
+        return $this->readJson('kept.json');
     }
 
     private function saveState(array $state): void
     {
         ksort($state);
+        $this->writeJson('state.json', $state);
+    }
+
+    /** @return array<string, string> */
+    private function readJson(string $name): array
+    {
+        $data = json_decode((string) @file_get_contents($this->statePath . '/' . $name), true);
+
+        return is_array($data) ? array_filter($data, 'is_string') : [];
+    }
+
+    private function writeJson(string $name, array $data): void
+    {
         File::ensureDirectoryExists($this->statePath);
-        $tmp = $this->statePath . '/.state.json.' . getmypid();
-        file_put_contents($tmp, json_encode($state, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
-        rename($tmp, $this->statePath . '/state.json');
+        $tmp = $this->statePath . '/.' . $name . '.' . getmypid();
+        file_put_contents($tmp, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+        rename($tmp, $this->statePath . '/' . $name);
     }
 
     private function backup(string $path, string $site): void

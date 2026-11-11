@@ -246,7 +246,8 @@ repair, and whenever `php artisan vela:update` or `php artisan vela:plugin-asset
 
 - If the site's copy is still the one Vela copied last time, the plugin's new version replaces it.
 - If the site edited the file, the file is kept. The admin says so, and `php artisan vela:plugin-assets --diff` shows the
-  difference.
+  difference. Choosing **Keep mine** under Installed packages (or `--keep=<path>`) stops the notice until the plugin ships
+  another version of that file.
 - If the file was published before Vela kept records, the old copy is saved in
   `storage/app/vela-plugin-assets/backups/` and then replaced.
 

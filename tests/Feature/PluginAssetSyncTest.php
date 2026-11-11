@@ -145,6 +145,38 @@ class PluginAssetSyncTest extends PackageTestCase
         $this->assertArrayNotHasKey('cart.blade.php', $this->sync()->files());
     }
 
+    public function test_a_file_the_site_keeps_is_not_reported_until_the_plugin_changes_it_again(): void
+    {
+        $this->sync()->sync();
+        file_put_contents($this->site('css/shop.css'), ".cart{color:green}\n");
+        file_put_contents($this->plugin . '/css/shop.css', ".cart{color:blue}\n");
+        $this->sync()->sync();
+
+        $this->sync()->keep('vendor/acme-shop/css/shop.css');
+
+        $this->assertSame([], $this->sync()->modified());
+        $this->assertSame([], $this->sync()->sync()['kept'], 'a kept file is not reported as kept again');
+        $this->assertStringEqualsFile($this->site('css/shop.css'), ".cart{color:green}\n");
+
+        // The site edits it further: still its own, still quiet.
+        file_put_contents($this->site('css/shop.css'), ".cart{color:teal}\n");
+        $this->assertSame([], $this->sync()->modified());
+
+        // The plugin ships another version: said again, and still not copied over.
+        file_put_contents($this->plugin . '/css/shop.css', ".cart{color:navy}\n");
+        $this->assertSame(['vendor/acme-shop/css/shop.css'], $this->sync()->sync()['kept']);
+        $this->assertSame(['vendor/acme-shop/css/shop.css'], $this->sync()->modified());
+        $this->assertStringEqualsFile($this->site('css/shop.css'), ".cart{color:teal}\n");
+    }
+
+    public function test_only_a_file_the_site_changed_can_be_kept(): void
+    {
+        $this->sync()->sync();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->sync()->keep('vendor/acme-shop/css/shop.css');
+    }
+
     public function test_only_published_files_can_be_diffed(): void
     {
         $this->expectException(\InvalidArgumentException::class);

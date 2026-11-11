@@ -4,6 +4,7 @@ namespace VelaBuild\Core\Tests\Feature\Marketplace;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\File;
+use VelaBuild\Core\Services\PluginAssetSync;
 use VelaBuild\Core\Services\SiteHealth;
 use VelaBuild\Core\Tests\TestCase;
 
@@ -72,6 +73,39 @@ class PluginFileNoticesTest extends TestCase
         $this->get(route('vela.admin.packages.templates.diff', ['path' => $this->site]))
             ->assertOk()
             ->assertSee('+<div>new</div>', false);
+    }
+
+    public function test_keep_mine_stops_reporting_a_plugin_file_the_site_changed(): void
+    {
+        $this->loginAsAdmin();
+
+        // A plugin CSS file, copied once, then edited here and updated upstream.
+        $public = $this->root . '/public';
+        File::ensureDirectoryExists($public);
+        $this->app->usePublicPath($public);
+        $source = $this->root . '/plugin/public';
+        File::ensureDirectoryExists($source);
+        file_put_contents($source . '/shop.css', "a{}\n");
+        \Illuminate\Support\ServiceProvider::$publishes[self::class][$source] = $public . '/vendor/acme-shop';
+        \Illuminate\Support\ServiceProvider::$publishGroups['laravel-assets'][$source] = $public . '/vendor/acme-shop';
+        $this->app->instance(PluginAssetSync::class, $sync = new PluginAssetSync($this->root . '/state'));
+
+        try {
+            $sync->sync();
+            file_put_contents($public . '/vendor/acme-shop/shop.css', "a{color:red}\n");
+            file_put_contents($source . '/shop.css', "a{color:blue}\n");
+
+            $this->get(route('vela.admin.packages.index'))->assertSee('Keep mine');
+
+            $this->post(route('vela.admin.packages.assets.keep'), ['path' => 'vendor/acme-shop/shop.css'])
+                ->assertRedirect(route('vela.admin.packages.index'));
+
+            $this->assertSame([], $sync->modified());
+            $this->assertStringEqualsFile($public . '/vendor/acme-shop/shop.css', "a{color:red}\n");
+            $this->post(route('vela.admin.packages.assets.keep'), ['path' => '../.env'])->assertNotFound();
+        } finally {
+            unset(\Illuminate\Support\ServiceProvider::$publishes[self::class], \Illuminate\Support\ServiceProvider::$publishGroups['laravel-assets'][$source]);
+        }
     }
 
     public function test_the_diff_only_opens_override_files(): void

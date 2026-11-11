@@ -15,12 +15,28 @@ class PluginAssets extends Command
 {
     protected $signature = 'vela:plugin-assets
         {--check : Only list the files the site changed; copy nothing}
-        {--diff : Show how each file the site changed differs from the plugin\'s}';
+        {--diff : Show how each file the site changed differs from the plugin\'s}
+        {--keep=* : Keep the site\'s version of this file (path under public/) and stop reporting it}';
 
     protected $description = 'Update the CSS, JS and images plugins publish to public/, keeping files the site has changed';
 
     public function handle(PluginAssetSync $sync): int
     {
+        foreach ((array) $this->option('keep') as $path) {
+            $path = preg_replace('#^public/#', '', (string) $path);
+            try {
+                $sync->keep($path);
+                $this->components->info("Keeping this site's version of public/{$path}.");
+            } catch (\InvalidArgumentException $e) {
+                $this->components->error($e->getMessage());
+
+                return self::FAILURE;
+            }
+        }
+        if ($this->option('keep')) {
+            return self::SUCCESS;
+        }
+
         if (!$this->option('check')) {
             $done = $sync->sync();
 
@@ -46,6 +62,7 @@ class PluginAssets extends Command
             }
         }
         $this->newLine();
+        $this->line('To keep your version: php artisan vela:plugin-assets --keep=<path>');
         $this->line('To take the plugin\'s version, delete the file and run this command again.');
 
         return self::SUCCESS;
