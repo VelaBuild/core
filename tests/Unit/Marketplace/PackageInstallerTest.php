@@ -207,6 +207,18 @@ class PackageInstallerTest extends TestCase
         $this->assertNotContains(['migrate', '--force'], $remove);
     }
 
+    public function test_updating_a_plugin_takes_its_newest_version_past_the_install_constraint(): void
+    {
+        // `composer update velabuild/store` kept a site on 0.2.2 when 0.3.0 was
+        // out: the ^0.2.2 written at install allows 0.2.x only.
+        $command = $this->makeInstaller()->updateCommand('velabuild/store');
+
+        $this->assertSame(['composer', 'require', 'velabuild/store'], array_slice($command, 0, 3));
+        $this->assertNotContains('update', $command);
+        $this->assertContains('--no-scripts', $command, 'a package\'s own scripts must never run here');
+        $this->assertFalse((bool) preg_grep('/^velabuild\/store:/', $command), 'no version: Composer picks the newest');
+    }
+
     public function test_ensure_auth_json_signs_in_with_the_license_key(): void
     {
         $installer = $this->makeInstaller();

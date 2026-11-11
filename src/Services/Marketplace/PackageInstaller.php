@@ -127,13 +127,8 @@ class PackageInstaller
         try {
             $this->backup();
 
-            $command = ['composer', 'update', '--no-interaction', '--no-scripts'];
-            if ($composerName !== null) {
-                array_splice($command, 2, 0, [$composerName]);
-            }
-
             $process = new Process(
-                $command,
+                $this->updateCommand($composerName),
                 $this->basePath,
                 ['COMPOSER_MEMORY_LIMIT' => '-1'],
                 null,
@@ -155,6 +150,27 @@ class PackageInstaller
         } finally {
             $this->releaseLock();
         }
+    }
+
+    /**
+     * The Composer command that updates a package to its newest version.
+     *
+     * `composer update vendor/plugin` stays inside the constraint `composer
+     * require` wrote at install time, and for a 0.x version that is `^0.2.2`:
+     * 0.2.x only. Store 0.3.0 was offered as an update, the update ran and
+     * succeeded, and the site stayed on 0.2.2. `composer require` without a
+     * version takes the newest release and writes its constraint, as Repair
+     * already does. Dependencies of the plugin may move with it.
+     *
+     * @return array<int, string>
+     */
+    public function updateCommand(?string $composerName): array
+    {
+        if ($composerName === null) {
+            return ['composer', 'update', '--no-interaction', '--no-scripts'];
+        }
+
+        return ['composer', 'require', $composerName, '--update-with-dependencies', '--no-interaction', '--no-scripts'];
     }
 
     /**
