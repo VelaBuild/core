@@ -244,8 +244,8 @@
                                 <td>{{ $template['site_version'] ?? 'none' }}</td>
                                 <td>{{ $template['plugin_version'] }}</td>
                                 <td class="text-right">
-                                    <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener"
-                                       href="{{ route('vela.admin.packages.templates.diff', ['path' => $template['path']]) }}">Diff</a>
+                                    <a class="btn btn-sm btn-outline-primary text-nowrap" target="_blank" rel="noopener"
+                                       href="{{ route('vela.admin.packages.templates.diff', ['path' => $template['path']]) }}"><i class="fas fa-exchange-alt mr-1"></i> Diff</a>
                                 </td>
                             </tr>
                         @endforeach
@@ -266,8 +266,8 @@
                             <tr>
                                 <td><code>public/{{ $path }}</code></td>
                                 <td class="text-right">
-                                    <a class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener"
-                                       href="{{ route('vela.admin.packages.assets.diff', ['path' => $path]) }}">Diff</a>
+                                    <a class="btn btn-sm btn-outline-primary text-nowrap" target="_blank" rel="noopener"
+                                       href="{{ route('vela.admin.packages.assets.diff', ['path' => $path]) }}"><i class="fas fa-exchange-alt mr-1"></i> Diff</a>
                                 </td>
                             </tr>
                         @endforeach
