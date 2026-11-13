@@ -189,6 +189,9 @@ class VelaMcpGatewayTest extends PackageTestCase
         $this->travel(5)->seconds();
         $gateway->call('revert', ['proposal_id' => 'approved', 'external_ref' => $second['external_ref']]);
         $this->travel(5)->seconds();
+        // MySQL's JSON column hands the snapshot back with its keys in a different order.
+        $stored = \VelaBuild\Core\Models\VelaMcpProposal::where('uuid', $first['external_ref'])->firstOrFail();
+        $stored->update(['after_snapshot' => array_reverse($stored->after_snapshot, true)]);
 
         $reverted = $gateway->call('revert', ['proposal_id' => 'approved', 'external_ref' => $first['external_ref']]);
 

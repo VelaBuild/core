@@ -391,7 +391,21 @@ final class VelaMcpGateway
         }
         unset($current['modified_at'], $recorded['modified_at']);
 
-        return hash('sha256', json_encode($current)) === hash('sha256', json_encode($recorded));
+        // The snapshot comes back from a MySQL JSON column, which stores object keys in its own
+        // order, so both sides are compared with their keys sorted.
+        return json_encode($this->sortedKeys($current)) === json_encode($this->sortedKeys($recorded));
+    }
+
+    private function sortedKeys(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return array_map(fn (mixed $item): mixed => $this->sortedKeys($item), $value);
     }
 
     private function restore(Model $model, string $type, array $snapshot): void
