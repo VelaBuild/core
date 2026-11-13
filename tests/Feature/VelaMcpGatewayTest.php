@@ -175,6 +175,27 @@ class VelaMcpGatewayTest extends PackageTestCase
         $this->assertSame('reverted', $reverted['receipt']['status']);
     }
 
+    public function test_an_earlier_change_can_be_undone_after_a_later_change_to_the_same_resource_is_undone(): void
+    {
+        $article = Content::create(['title' => 'Original', 'slug' => 'original', 'content' => '{"blocks":[]}', 'status' => 'published']);
+        $gateway = app(VelaMcpGateway::class);
+        $first = $gateway->call('propose', ['capability' => 'content.update', 'target_external_id' => 'article:'.$article->id,
+            'payload' => ['title' => 'First'], 'rationale' => 'First wording', 'idempotency_key' => 'chain-1']);
+        $gateway->call('apply', ['proposal_id' => 'approved', 'external_ref' => $first['external_ref']]);
+        $this->travel(5)->seconds();
+        $second = $gateway->call('propose', ['capability' => 'content.update', 'target_external_id' => 'article:'.$article->id,
+            'payload' => ['title' => 'Second'], 'rationale' => 'Second wording', 'idempotency_key' => 'chain-2']);
+        $gateway->call('apply', ['proposal_id' => 'approved', 'external_ref' => $second['external_ref']]);
+        $this->travel(5)->seconds();
+        $gateway->call('revert', ['proposal_id' => 'approved', 'external_ref' => $second['external_ref']]);
+        $this->travel(5)->seconds();
+
+        $reverted = $gateway->call('revert', ['proposal_id' => 'approved', 'external_ref' => $first['external_ref']]);
+
+        $this->assertSame('reverted', $reverted['receipt']['status']);
+        $this->assertSame('Original', $article->fresh()->title);
+    }
+
     public function test_stale_source_refuses_apply(): void
     {
         $article = Content::create(['title' => 'Original', 'slug' => 'original', 'content' => '{}', 'status' => 'draft']);
