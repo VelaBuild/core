@@ -233,7 +233,7 @@ final class VelaMcpGateway
                 $current = $model->trashed()
                     ? ['external_id' => $type.':'.$model->getKey(), 'deleted' => true]
                     : $this->resource($model, $type, true);
-                abort_unless(hash('sha256', json_encode($current)) === ($revert ? $p->after_hash : $p->before_hash), 409);
+                abort_unless($this->unchangedSince($current, $p, $revert), 409);
                 if ($revert) {
                     if ($p->capability === 'content.create') $model->delete();
                     elseif ($p->capability === 'content.delete') $model->restore();
@@ -372,6 +372,26 @@ final class VelaMcpGateway
             abort_unless($ids->count() === count($slugs), 422);
             $model->categories()->sync(array_map(fn (string $slug): int => (int) $ids[$slug], $slugs));
         }
+    }
+
+    /**
+     * Whether the resource is still exactly as this proposal left it (revert) or found it (apply).
+     * The last-modified time is not part of that: undoing a later change to the same page puts its
+     * words back but saves the model again, which moved the time and made the earlier change
+     * impossible to undo (transporters.io /contact, 13 Nov 2026).
+     */
+    private function unchangedSince(array $current, VelaMcpProposal $p, bool $revert): bool
+    {
+        if (hash('sha256', json_encode($current)) === ($revert ? $p->after_hash : $p->before_hash)) {
+            return true;
+        }
+        $recorded = $revert ? $p->after_snapshot : ($p->before_snapshot['resource'] ?? null);
+        if (! is_array($recorded)) {
+            return false;
+        }
+        unset($current['modified_at'], $recorded['modified_at']);
+
+        return hash('sha256', json_encode($current)) === hash('sha256', json_encode($recorded));
     }
 
     private function restore(Model $model, string $type, array $snapshot): void
