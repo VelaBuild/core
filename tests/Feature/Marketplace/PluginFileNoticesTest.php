@@ -70,7 +70,16 @@ class PluginFileNoticesTest extends TestCase
             ->assertSee('1.2.0')
             ->assertSee(route('vela.admin.packages.templates.diff', ['path' => $this->site]), false);
 
+        // A page: both sides, the plugin's new line in green, both versions named.
         $this->get(route('vela.admin.packages.templates.diff', ['path' => $this->site]))
+            ->assertOk()
+            ->assertSee('Your site')
+            ->assertSee('Plugin')
+            ->assertSee('your version 1.0.0 · plugin version 1.2.0')
+            ->assertSee('<td class="add">&lt;div&gt;new&lt;/div&gt;</td>', false);
+
+        // The text itself, to copy or give to an AI.
+        $this->get(route('vela.admin.packages.templates.diff', ['path' => $this->site, 'format' => 'text']))
             ->assertOk()
             ->assertSee('+<div>new</div>', false);
     }

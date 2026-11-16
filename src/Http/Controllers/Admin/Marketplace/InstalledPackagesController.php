@@ -37,32 +37,58 @@ class InstalledPackagesController extends Controller
         return view('vela::admin.packages.index', compact('packages', 'safeMode', 'orphans', 'templates', 'changedAssets'));
     }
 
-    /** A template override against the plugin's template, as plain text. */
+    /** A template override against the plugin's template. */
     public function templateDiff(Request $request)
     {
         abort_if(Gate::denies('marketplace_browse'), Response::HTTP_FORBIDDEN);
 
+        $path = (string) $request->query('path', '');
+        $versions = app(TemplateVersions::class);
         try {
-            $diff = app(TemplateVersions::class)->diff((string) $request->query('path', ''));
+            $diff = $versions->diff($path);
         } catch (\InvalidArgumentException) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
-        return response($diff, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        $entry = collect($versions->report())->firstWhere('path', $path);
+        $meta = $entry
+            ? ($entry['package'] ?? $entry['namespace']) . ' · your version ' . ($entry['site_version'] ?? 'none') . ' · plugin version ' . $entry['plugin_version']
+            : null;
+
+        return $this->diffResponse($request, $diff, $path, 'Your site', 'Plugin', $meta);
     }
 
-    /** A plugin public file the site changed against the plugin's, as plain text. */
+    /** A plugin public file the site changed against the plugin's. */
     public function assetDiff(Request $request)
     {
         abort_if(Gate::denies('marketplace_browse'), Response::HTTP_FORBIDDEN);
 
+        $path = (string) $request->query('path', '');
         try {
-            $diff = app(PluginAssetSync::class)->diff((string) $request->query('path', ''));
+            $diff = app(PluginAssetSync::class)->diff($path);
         } catch (\InvalidArgumentException) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
-        return response($diff, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        return $this->diffResponse($request, $diff, 'public/' . $path, 'Your site', 'Plugin');
+    }
+
+    /** The diff page, or with ?format=text the diff itself, to copy or give to an AI. */
+    private function diffResponse(Request $request, string $diff, string $title, string $left, string $right, ?string $meta = null)
+    {
+        if ($request->query('format') === 'text') {
+            return response($diff, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        return view('vela::admin.diff', [
+            'diff' => $diff,
+            'title' => $title,
+            'left' => $left,
+            'right' => $right,
+            'meta' => $meta,
+            'back' => route('vela.admin.packages.index'),
+            'backLabel' => 'Installed packages',
+        ]);
     }
 
     /** Keep the site's own version of a plugin file and stop reporting it. */

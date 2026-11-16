@@ -45,7 +45,19 @@ class CmsFilesController extends Controller
             abort(Response::HTTP_NOT_FOUND);
         }
 
-        return response($diff, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        if ($request->query('format') === 'text') {
+            return response($diff, 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        }
+
+        return view('vela::admin.diff', [
+            'diff' => $diff,
+            'title' => $path,
+            'left' => 'Your site',
+            'right' => 'Vela ' . $this->upgrader->version(),
+            'meta' => null,
+            'back' => route('vela.admin.cms-files.index'),
+            'backLabel' => 'CMS files',
+        ]);
     }
 
     public function apply(Request $request)

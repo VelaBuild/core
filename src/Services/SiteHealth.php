@@ -108,8 +108,9 @@ class SiteHealth
 
         // Plugin templates the site overrode, and plugin files it changed:
         // both are the site's own now, so said here rather than replaced.
-        // One line for both; Installed packages lists them, so not there.
-        if (Gate::allows('marketplace_browse') && !request()->routeIs('vela.admin.packages.index')) {
+        // One line for both; not on Installed packages and its diff pages,
+        // which are where they are dealt with.
+        if (Gate::allows('marketplace_browse') && !request()->routeIs('vela.admin.packages.*')) {
             $files = app(TemplateVersions::class)->outdatedCount() + app(PluginAssetSync::class)->modifiedCount();
             if ($files > 0) {
                 $notices[] = [

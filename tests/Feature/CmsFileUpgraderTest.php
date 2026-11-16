@@ -386,7 +386,8 @@ class CmsFileUpgraderTest extends PackageTestCase
         $this->signInWith(adminRole: true);
 
         $this->get(route('vela.admin.cms-files.index'))->assertOk()->assertSee('f.php')->assertSee('Update (safe)');
-        $this->get(route('vela.admin.cms-files.diff', ['path' => 'f.php']))->assertOk()->assertSee('+b');
+        $this->get(route('vela.admin.cms-files.diff', ['path' => 'f.php']))->assertOk()->assertSee('Side by side')->assertSee('class="add"', false);
+        $this->get(route('vela.admin.cms-files.diff', ['path' => 'f.php', 'format' => 'text']))->assertOk()->assertSee('+b');
         $this->get(route('vela.admin.cms-files.diff', ['path' => '../../etc/passwd']))->assertNotFound();
 
         $this->post(route('vela.admin.cms-files.apply'), ['path' => 'f.php', 'action' => 'overwrite'])->assertRedirect();
