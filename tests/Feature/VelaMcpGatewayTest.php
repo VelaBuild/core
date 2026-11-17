@@ -282,4 +282,51 @@ class VelaMcpGatewayTest extends PackageTestCase
         $gateway->call('revert', ['proposal_id' => 'approved', 'external_ref' => $prepared['external_ref']]);
         $this->assertSame('Home', $menu->fresh()->items()->first()->label);
     }
+
+    public function test_a_new_article_gets_the_featured_picture_published_with_it(): void
+    {
+        // Gemma publishes an article's hero picture as its featured image: Vela shows it on
+        // /posts and above the article, so it is not repeated in the text.
+        $attached = [];
+        $this->app->instance(\VelaBuild\Core\Mcp\FeaturedImage::class, new class($attached) extends \VelaBuild\Core\Mcp\FeaturedImage
+        {
+            public function __construct(private array &$attached) {}
+
+            public function attach(Content $article, string $url): void
+            {
+                $this->attached[] = [$article->slug, $url];
+            }
+        });
+        $gateway = app(VelaMcpGateway::class);
+        $create = collect($gateway->call('site.describe', [])['capabilities'])->firstWhere('key', 'content.create');
+        $payload = ['title' => 'Rainy season', 'body' => 'Ride slower in the wet.', 'featured_image_url' => 'https://media.example/content/1/hero.jpg'];
+        $prepared = $gateway->call('propose', ['capability' => 'content.create', 'target_url' => 'http://localhost/posts/rainy-season',
+            'payload' => $payload, 'rationale' => 'Publish', 'idempotency_key' => 'featured-1']);
+
+        $this->assertTrue($create['constraints']['featured_image']);
+        $this->assertSame(['path' => '/posts/rainy-season'] + $payload, $prepared['diff']['operations'][0]['after']);
+        $this->assertSame([], $attached);
+
+        $gateway->call('apply', ['proposal_id' => 'approved', 'external_ref' => $prepared['external_ref']]);
+
+        $this->assertSame([['rainy-season', 'https://media.example/content/1/hero.jpg']], $attached);
+        $this->assertStringNotContainsString('hero.jpg', Content::where('slug', 'rainy-season')->value('content'));
+    }
+
+    public function test_a_featured_picture_must_be_an_https_address_and_a_failed_download_does_not_stop_the_article(): void
+    {
+        try {
+            app(VelaMcpGateway::class)->call('propose', ['capability' => 'content.create', 'target_url' => 'http://localhost/posts/plain',
+                'payload' => ['title' => 'Plain', 'body' => 'Text', 'featured_image_url' => 'http://media.example/a.jpg'], 'rationale' => 'r', 'idempotency_key' => 'featured-2']);
+            $this->fail('An http picture address should be refused.');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+        }
+
+        $article = Content::create(['title' => 'Unreachable', 'slug' => 'unreachable', 'content' => '{"blocks":[]}', 'status' => 'published']);
+        (new \VelaBuild\Core\Mcp\FeaturedImage)->attach($article, 'https://127.0.0.1:1/missing.jpg');
+
+        $this->assertNull($article->fresh()->main_image);
+    }
 }
+

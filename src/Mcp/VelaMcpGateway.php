@@ -39,7 +39,7 @@ final class VelaMcpGateway
         $reads = ['site.describe', 'content.list', 'content.search', 'content.get', 'nav.get', 'scripts.get'];
         // Bodies are read back as blocks, but a client writes an article in Markdown and it is
         // converted here (see writable()); new articles live under /posts/.
-        $constraints = ['content.list' => ['max_page_size' => 100], 'content.create' => ['create_path_prefix' => '/posts/']];
+        $constraints = ['content.list' => ['max_page_size' => 100], 'content.create' => ['create_path_prefix' => '/posts/', 'featured_image' => true]];
         return ['capabilities' => array_map(fn ($key) => ['key' => $key, 'mode' => in_array($key, $reads, true) ? 'read' : 'write', 'revertible' => true, 'constraints' => $constraints[$key] ?? []], [...$reads, ...self::WRITES]), 'platform' => 'vela', 'platform_version' => app()->version(), 'adapter_version' => '1.0.0', 'content_types' => ['page', 'article'], 'preferred_body_format' => 'markdown', 'content_mapping' => null, 'limits' => ['max_list_page_size' => 100, 'max_resources_per_proposal' => 1], 'notes' => []];
     }
 
@@ -225,6 +225,9 @@ final class VelaMcpGateway
                 $type = $p->payload['type'] ?? 'article';
                 $model = $type === 'page' ? new Page : new Content;
                 $this->write($model, $type, $this->writable($p, $type));
+                if ($model instanceof Content && is_string($p->payload['featured_image_url'] ?? null)) {
+                    app(FeaturedImage::class)->attach($model, $p->payload['featured_image_url']);
+                }
                 $p->target_external_id = $type.':'.$model->getKey();
                 $after = $this->resource($model->fresh(), $type, true);
             } else {
@@ -314,9 +317,13 @@ final class VelaMcpGateway
         $path = is_string($url) ? parse_url($url, PHP_URL_PATH) : null;
         abort_unless(is_string($url) && $host($url) === $host(url('/')) && is_string($path)
             && preg_match('~^/posts/([A-Za-z0-9][A-Za-z0-9_-]{0,190})$~D', $path, $match) === 1, 422);
-        abort_unless(array_diff(array_keys($payload), ['title', 'body', 'description']) === []
+        abort_unless(array_diff(array_keys($payload), ['title', 'body', 'description', 'featured_image_url']) === []
             && collect($payload)->every(fn ($value) => is_string($value) && trim($value) !== '')
             && isset($payload['title']) && mb_strlen($payload['title']) <= 255, 422);
+        // The featured picture is fetched from the client's public media host when the article
+        // is published, so only a plain https address is taken.
+        abort_if(isset($payload['featured_image_url']) && (strlen($payload['featured_image_url']) > 2048
+            || parse_url($payload['featured_image_url'], PHP_URL_SCHEME) !== 'https' || ! filter_var($payload['featured_image_url'], FILTER_VALIDATE_URL)), 422);
         abort_if(Content::withTrashed()->where('slug', $match[1])->exists(), 409);
         return ['path' => $path] + $payload;
     }
